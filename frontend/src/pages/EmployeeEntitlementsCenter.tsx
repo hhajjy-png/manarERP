@@ -4,12 +4,12 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { dateText } from '../config/modules';
+import { formatMoneyCell } from '../lib/format/currency';
 import PrivateAmount from '../components/PrivateAmount';
 import {
   ExecutiveHeader,
   IdChip,
   SectionCard,
-  MetricCard,
   StatusChip,
   DrawerField,
   EmptyState,
@@ -17,16 +17,23 @@ import {
   SkeletonRows,
   Button,
   Tabs,
-  type Tone,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
-import LeaveSettlementDialog from '../components/employee/LeaveSettlementDialog';
-import EntitlementLedgerDialog from '../components/employee/EntitlementLedgerDialog';
-import { dayKey, hasMatchingSettlement } from '../components/employee/entitlementLedgerDisplay';
+import EntitlementPaymentDialog from '../components/employee/EntitlementPaymentDialog';
+import FinalSettlementDialog from '../components/employee/FinalSettlementDialog';
+import FinalSettlementApproveDialog from '../components/employee/FinalSettlementApproveDialog';
+import SettlementPaymentDialog from '../components/employee/SettlementPaymentDialog';
+import FinalSettlementCancelDialog from '../components/employee/FinalSettlementCancelDialog';
+import ConfirmModal from '../components/ConfirmModal';
 import {
   type SeparationType,
-  LEDGER_TYPE_LABEL,
-  SETTLEMENT_METHOD_LABEL,
+  type PayableCategory,
+  type PaymentRow,
+  type SettlementPaymentRow,
+  CATEGORY_LABEL,
+  PAYMENT_METHOD_LABEL,
+  TERMINATION_REASON_LABEL,
+  SETTLEMENT_STATUS,
   LEAVE_TYPE_LABEL,
   LEAVE_STATUS,
   formatDurationLong,
@@ -36,27 +43,31 @@ import {
   Incomplete,
   buildWarnings,
   buildTimeline,
-  scrollToEntSection,
   type EntitlementsResponse,
 } from '../components/employee/entitlementsShared';
 import '../components/employee/EmployeeEntitlementsTab.css';
 import './EmployeeEntitlementsCenter.css';
 
-/* عتبات عرضية للمؤشرات الصحية فقط (لا قاعدة قانونية جديدة) — تُسمّي حالات موجودة أصلاً
-   في البيانات بصريًا. أرقام إرشادية للعرض لا تدخل أي احتساب قانوني. */
-const DAY_MS = 86_400_000;
-const STALE_DISBURSEMENT_DAYS = 365;
+/* عتبة عرضية لتنبيه إرشادي واحد (لا قاعدة عمل جديدة) — تُسمّي حالة موجودة أصلاً بصريًا. */
 const HIGH_LEAVE_BALANCE_DAYS = 30;
 
-/** بطاقة قابلة للطيّ (تصميم متّسق مع SectionCard/xpl-card — بلا لغة تصميم جديدة). */
-function CollapsibleCard({
+/** الفئة الوحيدة القابلة للصرف في هذه الحزمة (انظر PAYABLE_CATEGORIES في الخادم). */
+const LEAVE_ALLOWANCE_CATEGORY: PayableCategory = 'LEAVE_ALLOWANCE';
+
+/**
+ * قسم قابل للطيّ — الوسيلة الوحيدة للإفصاح التدريجي في هذه الصفحة.
+ * `meta` يظهر في السطر المطويّ نفسه، فيبقى جوهر القسم مقروءًا دون فتحه.
+ */
+function Disclosure({
   title,
   icon,
-  defaultOpen = true,
+  meta,
+  defaultOpen = false,
   children,
 }: {
   title: string;
   icon: string;
+  meta?: ReactNode;
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
@@ -65,6 +76,7 @@ function CollapsibleCard({
       <summary className="entc-collapsible-summary">
         <span className="material-symbols-outlined" aria-hidden="true">{icon}</span>
         <span className="entc-collapsible-title">{title}</span>
+        {meta != null && <span className="entc-collapsible-meta">{meta}</span>}
         <span className="material-symbols-outlined entc-collapsible-chevron" aria-hidden="true">expand_more</span>
       </summary>
       <div className="xpl-card--pad">{children}</div>
@@ -73,12 +85,48 @@ function CollapsibleCard({
 }
 
 /**
- * مركز المستحقات — الصفحة الكاملة المستقلة لتجربة استحقاقات موظف واحد (حزمة إعادة
- * هيكلة تجربة الاستحقاقات v1). تنقل هنا كل المحتوى المتقدّم الذي كان سابقًا في تبويب
- * درج الموظف (الملخص التنفيذي، تسوية الرصيد، تسوية الدفعات المقدَّمة، ملخص التسويات،
- * الجدول الزمني، دفتر المستحقات، الجداول التفصيلية) — نفس نقطة القراءة
- * GET /employees/:id/entitlements ونفس الحسابات تمامًا، بلا أي تكرار للمنطق (كل
- * الدوال المساعدة مستوردة من entitlementsShared.tsx المشترك مع التبويب المختصر).
+ * مجموعة بيانات مضغوطة — عنوان صغير فوق شبكة من أزواج (عنوان/قيمة) قصيرة.
+ * تحلّ محلّ تسلسل صفوف كاملة العرض: نفس المعلومات، مسح بصري أسرع، وارتفاع أقلّ بكثير.
+ */
+function DataGroup({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="entc-group">
+      <div className="entc-group-title">{title}</div>
+      <dl className="entc-group-grid">{children}</dl>
+    </div>
+  );
+}
+
+/** زوج واحد داخل مجموعة بيانات — العنوان أعلى والقيمة أسفله لسهولة المسح في RTL. */
+function Datum({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="entc-datum">
+      <dt>{label}</dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+/** رقم واحد بعنوانه — وحدة العرض الأساسية بدل بطاقة KPI مستقلة لكل قيمة. */
+function Figure({ label, value, tone }: { label: string; value: ReactNode; tone?: 'accent' }) {
+  return (
+    <div className={`entc-figure${tone === 'accent' ? ' entc-figure--accent' : ''}`}>
+      <span className="entc-figure-label">{label}</span>
+      <span className="entc-figure-value">{value}</span>
+    </div>
+  );
+}
+
+/**
+ * «تفاصيل مستحقات الموظف» — الكشف المركزي الوحيد لمستحقات موظف واحد.
+ *
+ * ترتيب الصفحة يتبع مسار العمل اليومي لا ترتيب البيانات: الموقف المالي أولًا، ثم استحقاق
+ * الإجازة وإجراء الدفع، ثم سجل الدفعات. كل ما هو شارح أو تاريخي أو تقديري يعيش خلف إفصاح
+ * مطويّ افتراضيًا — إخفاءٌ للضجيج لا حذفٌ للمعلومة: كل قيمة كانت معروضة سابقًا ما تزال
+ * موجودة، إما في العرض الأساسي أو داخل القسم المناسب.
+ *
+ * كل الأرقام تأتي من نموذج قراءة واحد (GET /employees/:id/entitlements) — لا تُعيد هذه
+ * الصفحة بناء أي حقيقة استحقاق، ولا تحتوي أي صيغة احتساب.
  */
 export default function EmployeeEntitlementsCenter() {
   const { id: idParam } = useParams<{ id: string }>();
@@ -87,16 +135,27 @@ export default function EmployeeEntitlementsCenter() {
   const { hasPermission } = useAuth();
   const { t } = useT();
   const canRead = hasPermission('employees.read');
-  // إنشاء الدفعة المقدَّمة/المستحق يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
+  // تسجيل الدفعة يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
   const canManage = hasPermission('employees.update');
 
   const [data, setData] = useState<EntitlementsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
-  const [showSettlementDialog, setShowSettlementDialog] = useState(false);
-  const [showLedgerDialog, setShowLedgerDialog] = useState(false);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  // تصحيح سجل الدفعات: تعديل حركة قائمة، أو حذفها بعد تأكيد صريح.
+  const [editingPayment, setEditingPayment] = useState<PaymentRow | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PaymentRow | null>(null);
+  const [rowError, setRowError] = useState('');
   const [separationType, setSeparationType] = useState<SeparationType>('EMPLOYER_TERMINATION');
+  // التصفية النهائية — مسار مستقل عن الدفع اليومي.
+  const [settlementDialog, setSettlementDialog] = useState<'create' | 'edit' | null>(null);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [showSettlementPayment, setShowSettlementPayment] = useState(false);
+  const [editingSettlementPayment, setEditingSettlementPayment] = useState<SettlementPaymentRow | null>(null);
+  const [deleteSettlementPayment, setDeleteSettlementPayment] = useState<SettlementPaymentRow | null>(null);
+  const [showCancelSettlement, setShowCancelSettlement] = useState(false);
+  const [showDeleteDraft, setShowDeleteDraft] = useState(false);
 
   const validId = Number.isFinite(employeeId) && employeeId > 0;
 
@@ -111,46 +170,62 @@ export default function EmployeeEntitlementsCenter() {
       .catch((e) => { if (alive) setError(errorMessage(e)); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-    // reloadKey forces a refetch after a settlement/ledger entry is recorded.
+    // reloadKey forces a refetch after a payment is recorded, edited, or deleted.
   }, [employeeId, validId, canRead, reloadKey]);
 
-  // مشتقّات عرضية محسوبة مرة واحدة لكل تغيّر بيانات فعلي — لا استدعاء API إضافي،
-  // إعادة استخدام data المجلوبة بالفعل من نفس نقطة القراءة التي يستخدمها التبويب.
-  const settlementTotals = useMemo(() => {
-    if (!data) return { count: 0, totalDays: 0, totalAmount: 0, lastDate: null as string | null };
-    const { settlements } = data;
-    return {
-      count: settlements.length,
-      totalDays: settlements.reduce((sum, s) => sum + s.leaveDaysSettled, 0),
-      totalAmount: settlements.reduce((sum, s) => sum + s.settlementAmount, 0),
-      lastDate: settlements[0]?.settlementDate ?? null, // مُرتَّبة من الأحدث من الخادم أصلاً
-    };
-  }, [data]);
-
-  // أحدث تاريخ صرف مستحق — يُستخدم فقط في مؤشّر «قِدَم آخر صرف» ضمن المؤشرات الصحية
-  // (لا نفترض ترتيب الخادم فنحسب الأقصى صراحةً).
-  const lastLedgerDate = useMemo(() => {
-    if (!data) return null;
-    let lastDate: string | null = null;
-    for (const e of data.ledger) {
-      if (lastDate === null || e.entryDate > lastDate) lastDate = e.entryDate;
-    }
-    return lastDate;
-  }, [data]);
-
   const warnings = useMemo(
-    () => (data ? buildWarnings(data.result, data.leaveExclusionBreakdown, settlementTotals.totalDays, data.ledger, t) : []),
-    [data, settlementTotals.totalDays, t],
-  );
-
-  const timeline = useMemo(
-    () => (data ? buildTimeline(data.leaveHistory, data.settlements, data.ledger, t) : []),
+    () => (data ? buildWarnings(data.result, data.leaveExclusionBreakdown, t) : []),
     [data, t],
   );
 
+  const timeline = useMemo(
+    () => (data ? buildTimeline(data.leaveHistory, data.payments.entries, t) : []),
+    [data, t],
+  );
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    setRowError('');
+    try {
+      await api.delete(`/employees/${employeeId}/entitlement-payments/${target.id}`);
+      // الإجماليات مُشتقّة في الخادم — تُعاد قراءتها بدل تعديل أي رصيد محليًا.
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setRowError(errorMessage(e));
+    }
+  };
+
+  /** حذف دفعة تصفية — الحالة تُشتق من جديد في الخادم بعد الحذف. */
+  const confirmDeleteSettlementPayment = async () => {
+    if (!deleteSettlementPayment) return;
+    const target = deleteSettlementPayment;
+    setDeleteSettlementPayment(null);
+    setRowError('');
+    try {
+      await api.delete(`/employees/${employeeId}/final-settlement/payments/${target.id}`);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setRowError(errorMessage(e));
+    }
+  };
+
+  /** حذف مسودة لم تُعتمد — الحذف الفعلي الوحيد المسموح في هذا النطاق. */
+  const confirmDeleteDraft = async () => {
+    setShowDeleteDraft(false);
+    setRowError('');
+    try {
+      await api.delete(`/employees/${employeeId}/final-settlement`);
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      setRowError(errorMessage(e));
+    }
+  };
+
   const pageShell = (content: ReactNode) => (
     <div className="xpl-scope xpl-page entc-page">
-      <ExecutiveHeader icon="badge" title={t('page.ent.center_title')} onBack={() => navigate('/employees')} />
+      <ExecutiveHeader icon="badge" title={t('page.ent.statement_title')} onBack={() => navigate('/employees')} />
       {content}
     </div>
   );
@@ -164,12 +239,21 @@ export default function EmployeeEntitlementsCenter() {
   if (error) return pageShell(<ErrorBanner>{error}</ErrorBanner>);
   if (loading || !data) return pageShell(<SkeletonRows rows={8} withAvatar={false} />);
 
-  const { result: r, employee: emp, wageBase, leaveExclusionBreakdown: brk, leaveHistory, settlements, ledger } = data;
+  const {
+    result: r,
+    employee: emp,
+    wageBase,
+    leaveExclusionBreakdown: brk,
+    leaveHistory,
+    payments,
+    balances,
+    estimatedEndOfService: eos,
+    finalSettlement: fs,
+    cancelledSettlements,
+    asOf,
+  } = data;
   const g = r.gratuity;
-  // مبلغ مكافأة نهاية الخدمة وفق الأساس المختار — الاثنان محتسَبان دومًا في الخادم.
-  const eosAmount = g ? (separationType === 'RESIGNATION' ? g.resignationAmount : g.total) : null;
-  // مجموعة أيام الدفعات المقدَّمة (YYYY-MM-DD) — لمطابقة شارة العرض البصرية فقط.
-  const settlementDayKeys = new Set(settlements.map((s) => dayKey(s.settlementDate)));
+  const eosAmount = separationType === 'RESIGNATION' ? eos.resignationAmount : eos.terminationAmount;
 
   const durReason = missingReason(true, false, r, t);
   const moneyReason = missingReason(true, true, r, t);
@@ -180,364 +264,529 @@ export default function EmployeeEntitlementsCenter() {
   const daysOrIncomplete = (v: number | null, reason: string | null): ReactNode =>
     v !== null ? daysText(v, t) : reason ? <Incomplete reason={reason} t={t} /> : '—';
 
-  // ── مشتقّات عرضية للوحة المركز المالي (Employee Financial Position Dashboard v1) ──
-  // «إجمالي الالتزام الحالي» = بدل الإجازة + مكافأة نهاية الخدمة فقط — جمع عرضي مباشر
-  // لقيمتين قانونيتين من المحرّك، بلا أي تفسير مشتق ولا أي مرجع لسجل المستحقات. بدل الإجازة
-  // ومكافأة نهاية الخدمة يكونان null معًا عند نقص البيانات (moneyReason).
-  const hasLiability = r.leaveAllowanceValue !== null && eosAmount !== null;
-  const liability = hasLiability ? (r.leaveAllowanceValue as number) + (eosAmount as number) : null;
-  const finMoney = (v: number | null): ReactNode =>
-    v !== null ? <PrivateAmount value={v} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—';
-
-  // المؤشّرات الصحية — عرض فقط، مشتقّة حصريًا من قيم موجودة في الاستجابة. الحالات الإيجابية
-  // تُعرض فقط حين لا يغطّي أحد التنبيهات (buildWarnings) نفس الحالة، فلا يتكرر أي معنى؛ ثم
-  // تُدمج التنبيهات الفعلية كما هي بلا فقدان أي منها.
-  const lastLedgerMs = lastLedgerDate ? new Date(lastLedgerDate).getTime() : null;
-  const disbursementAgeDays = lastLedgerMs !== null ? Math.floor((Date.now() - lastLedgerMs) / DAY_MS) : null;
-  const healthItems: { id: string; tone: Tone; icon: string; text: string }[] = [];
-  if (r.firstYearEligible === true) {
-    healthItems.push({ id: 'h-eligible', tone: 'green', icon: 'verified', text: t('msg.ent.health.eligible_for_leave') });
-  }
-  if (r.hasHireDate && r.hasWageBase) {
-    healthItems.push({ id: 'h-complete', tone: 'green', icon: 'task_alt', text: t('msg.ent.health.complete_data') });
-  }
-  if (ledger.length === 0) {
-    healthItems.push({ id: 'h-no-disb', tone: 'neutral', icon: 'account_balance_wallet', text: t('msg.ent.health.no_disbursement') });
-  } else if (disbursementAgeDays !== null && disbursementAgeDays > STALE_DISBURSEMENT_DAYS && lastLedgerDate) {
-    healthItems.push({ id: 'h-old-disb', tone: 'blue', icon: 'history', text: t('msg.ent.health.stale_disbursement', { date: dateText(lastLedgerDate) }) });
-  } else if (lastLedgerDate) {
-    healthItems.push({ id: 'h-recent-disb', tone: 'green', icon: 'schedule', text: t('msg.ent.health.recent_disbursement', { date: dateText(lastLedgerDate) }) });
-  }
-  if (r.remainingLeaveDays !== null && r.remainingLeaveDays > HIGH_LEAVE_BALANCE_DAYS) {
-    healthItems.push({ id: 'h-high-leave', tone: 'orange', icon: 'beach_access', text: t('msg.ent.health.high_leave_balance', { days: daysText(r.remainingLeaveDays, t) }) });
-  }
-  for (const w of warnings) {
-    healthItems.push({ id: w.id, tone: w.tone, icon: w.icon, text: w.text });
-  }
+  // تنبيه إرشادي واحد داخل قسم الإجازة (كان بطاقة ضمن «المؤشرات الصحية») — يُعرض عند
+  // تجاوز العتبة فقط، لا كبطاقة دائمة.
+  const highLeaveBalance = r.remainingLeaveDays !== null && r.remainingLeaveDays > HIGH_LEAVE_BALANCE_DAYS;
+  // وجود تصفية معتمدة يجعل التقدير الحيّ سياقًا تاريخيًا لا نتيجة قابلة للاعتماد.
+  const settlementApproved = fs !== null && fs.status !== 'DRAFT';
+  // لا وسم نجاح دائم: الحالة السليمة لا تُعلن عن نفسها، والتنبيهات وحدها استثنائية
+  // (warnings أدناه) — نفس قواعد التحقق القائمة بلا أي تغيير.
 
   return (
     <div className="xpl-scope xpl-page entc-page">
-      {/* Header (الجزء 4) */}
+      {/* ══ أ. ترويسة الموظف — هوية وتاريخ الاحتساب فقط (لا تكرار لبيانات الخدمة) ══ */}
       <ExecutiveHeader
         icon="badge"
         title={emp.fullName}
-        subtitle={t('msg.ent.emp_code_subtitle', { code: emp.code })}
+        subtitle={t('msg.ent.statement_subtitle', { code: emp.code })}
         onBack={() => navigate('/employees')}
         chips={
           <>
             <StatusChip tone={emp.status === 'ACTIVE' ? 'green' : 'neutral'} icon={emp.status === 'ACTIVE' ? 'check_circle' : 'block'}>
               {emp.status === 'ACTIVE' ? t('opt.emp.active') : emp.status}
             </StatusChip>
-            {r.duration && <IdChip icon="badge" tone="indigo">{t('msg.ent.duration_service', { duration: formatDurationLong({ years: r.duration.years, months: r.duration.months, days: r.duration.days }, t) })}</IdChip>}
+            <IdChip icon="event" tone="blue">{t('msg.ent.as_of', { date: dateText(asOf) })}</IdChip>
           </>
         }
       />
 
-      {/* ══ لوحة المركز المالي التنفيذي (Employee Financial Position Dashboard v1) ══
-          إعادة تنظيم بصري فقط: كل القيم تأتي حرفيًا من نفس استجابة API، بلا أي احتساب/
-          منطق/قاعدة قانونية جديدة. «قيمة بدل الإجازة» و«مكافأة نهاية الخدمة» انتقلتا هنا
-          كطرفَي معادلة المركز المالي؛ وأُعيد تجميع باقي الإحصاءات في «تحليلات الخدمة»
-          أدناه — لا حذف لأي قيمة، ظهور واحد لكل قيمة في أنسب موضع. مبنيّة بمكوّنات
-          ExplorerKit (SectionCard/MetricCard) وtokensها، RTL، متجاوبة. */}
-      <div className="entc-dashboard">
-        {/* 1 + 2. الملخص المالي التنفيذي + بطاقة المركز المالي — قيم قانونية مباشرة فقط:
-             «إجمالي الالتزام الحالي» = بدل الإجازة + مكافأة نهاية الخدمة. لا يُشتقّ أي رقم
-             من سجل المستحقات ولا يُعرض أي «مصروف/مدفوع/رصيد/متبقٍّ». */}
-        <SectionCard title={t('section.ent.financial_position')} icon="account_balance">
-          <div className="entc-fin-headline">
-            <span className="entc-fin-headline-label">{t('field.ent.total_current_liability')}</span>
-            <span className="entc-fin-headline-value">
-              {liability !== null ? <PrivateAmount value={liability} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—'}
-            </span>
-            <span className="entc-fin-headline-hint">{t('msg.ent.liability_hint')}</span>
+      {/* ══ ب. الموقف المالي — البطل البصري: المستحق − المدفوع = المتبقي ══ */}
+      <section className="xpl-card entc-hero" aria-label={t('section.ent.payable_position')}>
+        <div className="entc-hero-grid">
+          <div className="entc-hero-term">
+            <span className="entc-hero-term-label">{t('field.ent.total_payable_entitlement')}</span>
+            <span className="entc-hero-term-value">{money(balances.totalPayable, moneyReason)}</span>
           </div>
-
-          <div className="entc-fin-flow">
-            <div className="entc-fin-term">
-              <MetricCard
-                icon="payments"
-                label={t('field.ent.leave_allowance')}
-                tone="green"
-                value={<span className="ent-kpi-value-sm">{finMoney(r.leaveAllowanceValue)}</span>}
-              />
-            </div>
-            <span className="entc-fin-op" aria-hidden="true">+</span>
-            <div className="entc-fin-term">
-              <MetricCard
-                icon="volunteer_activism"
-                label={t('field.ent.eos')}
-                tone="orange"
-                value={<span className="ent-kpi-value-sm">{finMoney(eosAmount)}</span>}
-                sub={eosAmount !== null ? (separationType === 'RESIGNATION' ? t('msg.ent.basis_resignation') : t('msg.ent.basis_termination')) : undefined}
-              />
-            </div>
-          </div>
-
-          <div className="ent-recon-note">
-            <span className="material-symbols-outlined" aria-hidden="true">info</span>
-            <span>
-              {t('msg.ent.legal_estimate_note')}
+          <span className="entc-hero-op" aria-hidden="true">−</span>
+          <div className="entc-hero-term">
+            <span className="entc-hero-term-label">{t('field.ent.total_paid')}</span>
+            <span className="entc-hero-term-value"><PrivateAmount value={balances.totalPaid} level={1} /></span>
+            <span className="entc-hero-term-sub">
+              {payments.entries.length > 0 ? t('msg.ent.payments_count', { n: payments.entries.length }) : t('msg.ent.no_payments_short')}
             </span>
           </div>
-        </SectionCard>
-
-        {/* 3. المؤشرات الصحية — مشتقّة من بيانات موجودة فقط، تُعيد استخدام هيئة .ent-warning
-             العامة بلا لغة تصميم جديدة */}
-        {healthItems.length > 0 && (
-          <div className="entc-health">
-            <div className="ent-section-heading">{t('section.ent.health_indicators')}</div>
-            <div className="entc-health-grid">
-              {healthItems.map((h) => (
-                <div key={h.id} className={`ent-warning ent-warning--${h.tone}`}>
-                  <span className="material-symbols-outlined" aria-hidden="true">{h.icon}</span>
-                  <span>{h.text}</span>
-                </div>
-              ))}
-            </div>
+          <span className="entc-hero-op" aria-hidden="true">=</span>
+          <div className="entc-hero-term entc-hero-term--primary">
+            <span className="entc-hero-term-label">{t('field.ent.remaining_payable')}</span>
+            <span className="entc-hero-term-value">{money(balances.totalRemaining, moneyReason)}</span>
           </div>
-        )}
+        </div>
+        <p className="entc-hero-hint">
+          {t('msg.ent.payable_hint')} {t('msg.ent.payable_excludes_eos_note')}
+        </p>
+      </section>
 
-        {/* 4. تحليلات الخدمة — إحصاءات الموظف موحَّدة في شبكة متجاوبة نظيفة (نفس القيم
-             السابقة تمامًا، إعادة تجميع فقط: تاريخ التعيين/مدة الخدمة/الأجر انتقلت من شريط
-             البيانات، وبقية الإحصاءات من بطاقات KPI السابقة) */}
-        <div className="ent-section-heading">{t('section.ent.service_analytics')}</div>
-        <div className="entc-analytics">
-          <MetricCard
-            icon="event"
-            label={t('field.hire_date')}
-            tone="indigo"
-            value={<span className="ent-kpi-value-sm">{emp.hireDate ? dateText(emp.hireDate) : <Incomplete reason={t('msg.ent.missing_hire_date')} t={t} />}</span>}
-          />
-          <MetricCard
-            icon="badge"
-            label={t('field.ent.service_duration')}
-            tone="indigo"
-            value={<span className="ent-kpi-value-sm">{r.duration ? formatDurationLong({ years: r.duration.years, months: r.duration.months, days: r.duration.days }, t) : (durReason ? <Incomplete reason={durReason} t={t} /> : '—')}</span>}
-          />
-          <MetricCard
-            icon="account_balance_wallet"
-            label={t('field.ent.approved_wage')}
-            tone="indigo"
-            value={<span className="ent-kpi-value-sm">{wageBase.total > 0 ? <PrivateAmount value={wageBase.total} level={1} /> : (moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—')}</span>}
-          />
-          <MetricCard
-            icon="event_available"
-            label={t('field.ent.total_legal_entitlement')}
-            tone="indigo"
-            value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)}
-          />
-          <MetricCard
-            icon="beach_access"
+      {/* تنبيهات استثنائية فقط — تظهر عند وجود ما يستدعي الانتباه، لا كقسم دائم */}
+      {warnings.length > 0 && (
+        <div className="entc-alerts">
+          {warnings.map((w) => (
+            <div key={w.id} className={`ent-warning ent-warning--${w.tone}`}>
+              <span className="material-symbols-outlined" aria-hidden="true">{w.icon}</span>
+              <span>{w.text}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ══ ج. استحقاق الإجازة السنوية — الأرقام الثلاثة + إجراء الدفع ══ */}
+      <SectionCard title={t('section.ent.leave_entitlement')} icon="beach_access">
+        <div className="entc-figures">
+          <Figure
             label={t('field.ent.current_leave_balance')}
-            tone="blue"
-            value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : '—'}
-            sub={
-              r.firstYearEligible === false
-                ? t('msg.ent.not_yet_eligible_full')
-                : r.remainingLeaveDays === null && leaveReason
-                  ? t('msg.ent.incomplete_data_reason', { reason: leaveReason })
-                  : undefined
-            }
+            value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : daysOrIncomplete(null, leaveReason)}
           />
-          <MetricCard
-            icon="event_busy"
-            label={t('field.ent.leave_used')}
-            tone="blue"
-            value={daysText(r.usedLeaveDays, t)}
-            sub={brk.grossAnnualLeaveDays > r.usedLeaveDays ? t('msg.ent.leave_used_sub', { days: daysText(brk.grossAnnualLeaveDays, t) }) : undefined}
-          />
-          <MetricCard icon="celebration" label={t('field.ent.holidays_excluded')} tone="green" value={daysText(brk.holidaysExcludedDays, t)} />
-          <MetricCard icon="medical_information" label={t('field.ent.sick_excluded')} tone="green" value={daysText(brk.sickExcludedDays, t)} />
-          <MetricCard
-            icon="savings"
-            label={t('field.ent.total_advances')}
-            tone="orange"
-            value={String(settlementTotals.count)}
-            sub={settlementTotals.count > 0 ? <PrivateAmount value={settlementTotals.totalAmount} level={1} /> : t('msg.ent.no_advances_short')}
-          />
-        </div>
-      </div>
-
-      {/* تفاصيل إضافية — مطويّة افتراضيًا لتقليل التمرير (الجزء 4: «تجنّب كتل تمرير طويلة») */}
-      <CollapsibleCard title={t('section.ent.additional_details_calc')} icon="calculate" defaultOpen={false}>
-        <div className="ent-fields">
-          <DrawerField label={t('field.ent.annual_entitlement')} value={daysText(r.annualEntitlementDays, t)} />
-          <DrawerField label={t('field.ent.leave_allowance_days')} value={daysOrIncomplete(r.leaveAllowanceDays, leaveReason)} />
-          <DrawerField label={t('field.ent.leave_allowance_value')} value={money(r.leaveAllowanceValue, moneyReason)} />
+          <Figure label={t('field.ent.daily_wage')} value={money(r.dailyWage, moneyReason)} />
+          <Figure label={t('field.ent.leave_allowance_value')} value={money(balances.leaveAllowance.entitlement, moneyReason)} tone="accent" />
         </div>
 
-        <div className="entc-subhead">{t('section.ent.eos_title')}</div>
-        <Tabs
-          tabs={[
-            { key: 'EMPLOYER_TERMINATION', label: t('opt.ent.separation.employer_termination'), icon: 'business_center' },
-            { key: 'RESIGNATION', label: t('opt.ent.separation.resignation'), icon: 'exit_to_app' },
-          ]}
-          active={separationType}
-          onChange={setSeparationType}
-        />
-        <div className="ent-eos">
-          <span className="ent-eos-label">
-            {separationType === 'RESIGNATION'
-              ? t('msg.ent.eos_basis_resignation_note')
-              : t('msg.ent.eos_basis_termination_note')}
-          </span>
-          <span className="ent-eos-value">
-            {eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—'}
-          </span>
-          {g && separationType === 'RESIGNATION' && (
-            <span className="ent-eos-fraction">{t('msg.ent.entitlement_percentage', { value: resignationFractionLabel(g.resignationFraction, t) })}</span>
-          )}
-          {g?.capApplied && separationType === 'EMPLOYER_TERMINATION' && (
-            <span className="ent-eos-cap"><StatusChip tone="orange" icon="info">{t('msg.ent.cap_applied')}</StatusChip></span>
-          )}
-        </div>
-
-        {g && (
-          <div className="ent-calc-grid">
-            <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.service_duration')}</span><span className="ent-calc-val">{t('unit.ent.years', { n: g.serviceYears })}</span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.approved_wage')}</span><span className="ent-calc-val"><PrivateAmount value={g.approvedWage} level={1} /></span></div>
-            {wageBase.allowancesTotal > 0 && (
-              <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.active_periodic_allowances')}</span><span className="ent-calc-val"><PrivateAmount value={wageBase.allowancesTotal} level={1} /></span></div>
-            )}
-            <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.daily_wage')}</span><span className="ent-calc-val"><PrivateAmount value={g.dailyWage} level={1} /></span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.first_tier_entitlement')}</span><span className="ent-calc-val"><PrivateAmount value={g.firstTierAmount} level={1} /></span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.second_tier_entitlement')}</span><span className="ent-calc-val"><PrivateAmount value={g.secondTierAmount} level={1} /></span></div>
-            <div className="ent-calc-cell"><span className="ent-calc-label">{t('field.ent.calc_factor')}</span><span className="ent-calc-val">{separationType === 'RESIGNATION' ? resignationFractionLabel(g.resignationFraction, t) : t('msg.ent.full_entitlement_employer')}</span></div>
-            <div className="ent-calc-cell ent-calc-cell--total"><span className="ent-calc-label">{t('field.ent.total_gratuity')}</span><span className="ent-calc-val"><PrivateAmount value={eosAmount ?? 0} level={1} /></span></div>
-          </div>
+        {r.firstYearEligible === false && (
+          <p className="entc-inline-note">{t('msg.ent.not_yet_eligible_full')}</p>
         )}
-      </CollapsibleCard>
-
-      {/* التنبيهات الذكية أُدمجت الآن ضمن «المؤشرات الصحية» أعلى الصفحة (نفس نصوص
-          buildWarnings حرفيًا، بلا فقدان أي تنبيه) — إعادة تنظيم بصري فقط. */}
-
-      {/* Leave Reconciliation (الجزء 4) — شرح بصري فقط، بلا أي احتساب جديد */}
-      <SectionCard title={t('section.ent.leave_balance_reconciliation')} icon="account_tree">
-        {r.accruedLeaveDays !== null ? (
-          <>
-            <div className="ent-recon-flow">
-              <div className="ent-recon-step ent-recon-step--primary">
-                <span className="ent-recon-step-label">{t('field.ent.legal_entitlement')}</span>
-                <span className="ent-recon-step-val">{daysText(r.accruedLeaveDays, t)}</span>
-              </div>
-              <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              <div className="ent-recon-step">
-                <span className="ent-recon-step-label">{t('field.ent.gross_annual_leave')}</span>
-                <span className="ent-recon-step-val">{daysText(brk.grossAnnualLeaveDays, t)}</span>
-              </div>
-              <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              <div className="ent-recon-step ent-recon-step--exclude">
-                <span className="ent-recon-step-label">{t('field.ent.holidays_excluded_note')}</span>
-                <span className="ent-recon-step-val">{daysText(brk.holidaysExcludedDays, t)}</span>
-              </div>
-              <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              <div className="ent-recon-step ent-recon-step--exclude">
-                <span className="ent-recon-step-label">{t('field.ent.sick_excluded_note')}</span>
-                <span className="ent-recon-step-val">{daysText(brk.sickExcludedDays, t)}</span>
-              </div>
-              <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              <div className="ent-recon-step ent-recon-step--subtotal">
-                <span className="ent-recon-step-label">{t('field.ent.net_leave_used')}</span>
-                <span className="ent-recon-step-val">{daysText(r.usedLeaveDays, t)}</span>
-              </div>
-              <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-              <div className="ent-recon-step ent-recon-step--primary">
-                <span className="ent-recon-step-label">{t('field.ent.final_remaining_balance')}</span>
-                <span className="ent-recon-step-val">{r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : '—'}</span>
-              </div>
-            </div>
-            <div className="ent-recon-note">
-              <span className="material-symbols-outlined" aria-hidden="true">info</span>
-              <span>
-                {t('msg.ent.advances_note')}
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="ent-fields"><DrawerField label={t('field.ent.reconciliation')} value={leaveReason ? <Incomplete reason={leaveReason} t={t} /> : '—'} /></div>
+        {highLeaveBalance && (
+          <p className="entc-inline-note">
+            {t('msg.ent.health.high_leave_balance', { days: daysText(r.remainingLeaveDays as number, t) })}
+          </p>
         )}
       </SectionCard>
 
-      {/* Leave Advance Reconciliation (الجزء 4) */}
-      <SectionCard title={t('section.ent.advance_reconciliation')} icon="balance">
-        {r.accruedLeaveDays !== null ? (
-          <>
-            <div className="ent-fields ent-fields--flow">
-              <DrawerField label={t('field.ent.total_entitlement_alt')} value={daysText(r.accruedLeaveDays, t)} />
-              <DrawerField label={t('field.ent.leave_paid_advance')} value={daysText(settlementTotals.totalDays, t)} />
-              <DrawerField
-                label={t('field.ent.expected_remaining_final')}
-                value={daysText(Math.max(0, r.accruedLeaveDays - settlementTotals.totalDays), t)}
-              />
-            </div>
-            {settlementTotals.totalDays > r.accruedLeaveDays && (
-              <div className="ent-recon-note ent-recon-note--warn">
-                <span className="material-symbols-outlined" aria-hidden="true">warning</span>
-                <span>
-                  {t('msg.ent.advance_exceeds_warning', {
-                    advanceDays: daysText(settlementTotals.totalDays, t),
-                    excessDays: daysText(settlementTotals.totalDays - r.accruedLeaveDays, t),
-                  })}
-                </span>
-              </div>
-            )}
-            <div className="ent-recon-note">
-              <span className="material-symbols-outlined" aria-hidden="true">info</span>
-              <span>
-                {t('msg.ent.advance_reconciliation_note')}
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="ent-fields"><DrawerField label={t('field.ent.reconciliation')} value={leaveReason ? <Incomplete reason={leaveReason} t={t} /> : '—'} /></div>
-        )}
-      </SectionCard>
-
-      {/* Settlement Summary (الجزء 4) */}
+      {/* ══ د. سجل دفعات المستحقات — منطقة تشغيلية أساسية ══ */}
       <SectionCard
-        title={t('section.ent.advances_summary')}
-        icon="summarize"
+        title={t('section.ent.payment_history')}
+        icon="receipt_long"
         actions={
-          <div className="ent-settlement-summary-actions">
-            {settlementTotals.count > 0 && (
-              <Button variant="secondary" icon="arrow_downward" small onClick={() => scrollToEntSection('entc-section-settlements')}>
-                {t('action.ent.view_settlements_log')}
-              </Button>
-            )}
-            {ledger.length > 0 && (
-              <Button variant="secondary" icon="arrow_downward" small onClick={() => scrollToEntSection('entc-section-ledger')}>
-                {t('action.ent.view_ledger')}
-              </Button>
-            )}
-          </div>
+          canManage && balances.leaveAllowance.payable ? (
+            <Button variant="primary" icon="payments" small onClick={() => setShowPaymentDialog(true)}>
+              {t('action.ent.record_payment')}
+            </Button>
+          ) : undefined
         }
       >
-        {settlementTotals.count === 0 ? (
-          <EmptyState icon="receipt_long" title={t('msg.ent.no_advances_title')} message={t('msg.ent.no_advances_message')} tone="neutral" />
+        {rowError && <ErrorBanner>{rowError}</ErrorBanner>}
+        {payments.entries.length === 0 ? (
+          <EmptyState icon="receipt_long" title={t('msg.ent.no_payments_title')} message={t('msg.ent.no_payments_message')} tone="neutral" />
         ) : (
-          <div className="ent-calc-grid">
-            <div className="ent-calc-cell">
-              <span className="ent-calc-label">{t('field.ent.settlement_count')}</span>
-              <span className="ent-calc-val">{settlementTotals.count}</span>
+          <>
+            <div className="xpl-table-wrap entc-table--journal">
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.date')}</th>
+                    <th>{t('col.type')}</th>
+                    <th>{t('col.ent.reference')}</th>
+                    <th>{t('col.amount')}</th>
+                    <th>{t('field.payment_method')}</th>
+                    <th>{t('field.notes')}</th>
+                    {canManage && <th>{t('col.actions')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.entries.map((p) => (
+                    <tr key={p.id}>
+                      <td>{dateText(p.paymentDate)}</td>
+                      <td>{CATEGORY_LABEL[p.category] ? t(CATEGORY_LABEL[p.category]) : p.category}</td>
+                      <td>{p.reference || '—'}</td>
+                      <td><PrivateAmount value={p.amount} level={1} /></td>
+                      <td>{PAYMENT_METHOD_LABEL[p.paymentMethod] ? t(PAYMENT_METHOD_LABEL[p.paymentMethod]) : p.paymentMethod}</td>
+                      <td>{p.notes || '—'}</td>
+                      {canManage && (
+                        <td>
+                          <div className="entc-row-actions">
+                            <Button variant="secondary" icon="edit" small onClick={() => setEditingPayment(p)}>
+                              {t('action.edit')}
+                            </Button>
+                            <Button variant="ghost" icon="delete" small onClick={() => setDeleteTarget(p)}>
+                              {t('action.delete')}
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="ent-calc-cell">
-              <span className="ent-calc-label">{t('field.ent.last_settlement_date')}</span>
-              <span className="ent-calc-val">{settlementTotals.lastDate ? dateText(settlementTotals.lastDate) : '—'}</span>
+            <div className="entc-total-line">
+              <span>{t('field.ent.total_paid')}</span>
+              <span><PrivateAmount value={payments.totalRecorded} level={1} /></span>
             </div>
-            <div className="ent-calc-cell">
-              <span className="ent-calc-label">{t('field.ent.total_days_paid')}</span>
-              <span className="ent-calc-val">{daysText(settlementTotals.totalDays, t)}</span>
-            </div>
-            <div className="ent-calc-cell ent-calc-cell--total">
-              <span className="ent-calc-label">{t('field.ent.total_amount_paid')}</span>
-              <span className="ent-calc-val"><PrivateAmount value={settlementTotals.totalAmount} level={1} /></span>
-            </div>
-          </div>
+          </>
         )}
       </SectionCard>
 
-      {/* Historical Timeline (الجزء 4) */}
-      <SectionCard title={t('section.ent.historical_activity')} icon="timeline">
+      {/* ══ هـ. التصفية النهائية — مسار انتهاء الخدمة، منفصل عن الدفع اليومي ══ */}
+      {fs === null ? (
+        canManage && (
+          <SectionCard title={t('section.ent.final_settlement')} icon="assignment_turned_in">
+            <div className="entc-settlement-empty">
+              <p className="entc-inline-note">
+                {cancelledSettlements.length > 0 ? t('msg.ent.settlement_cancelled_can_recreate') : t('msg.ent.no_settlement_note')}
+              </p>
+              <Button variant="secondary" icon="assignment_turned_in" small onClick={() => setSettlementDialog('create')}>
+                {cancelledSettlements.length > 0 ? t('action.ent.create_new_settlement') : t('action.ent.create_settlement')}
+              </Button>
+            </div>
+          </SectionCard>
+        )
+      ) : (
+        <SectionCard
+          title={t('section.ent.final_settlement')}
+          icon="assignment_turned_in"
+          actions={
+            <div className="entc-row-actions">
+              <StatusChip tone={SETTLEMENT_STATUS[fs.status].tone} icon={SETTLEMENT_STATUS[fs.status].icon}>
+                {t(SETTLEMENT_STATUS[fs.status].key)}
+              </StatusChip>
+              {canManage && fs.status === 'DRAFT' && (
+                <>
+                  <Button variant="secondary" icon="edit" small onClick={() => setSettlementDialog('edit')}>
+                    {t('action.ent.edit_settlement')}
+                  </Button>
+                  <Button variant="ghost" icon="delete" small onClick={() => setShowDeleteDraft(true)}>
+                    {t('action.ent.delete_draft')}
+                  </Button>
+                  <Button variant="primary" icon="verified" small onClick={() => setShowApproveDialog(true)}>
+                    {t('action.ent.approve_settlement')}
+                  </Button>
+                </>
+              )}
+              {canManage && fs.status === 'APPROVED' && (
+                <Button variant="primary" icon="payments" small onClick={() => setShowSettlementPayment(true)}>
+                  {t('action.ent.record_settlement_payment')}
+                </Button>
+              )}
+              {/* الإلغاء متاح للمعتمدة والمسدَّدة — حالة نهائية بلا حذف لأي بيانات. */}
+              {canManage && (fs.status === 'APPROVED' || fs.status === 'PAID') && (
+                <Button variant="ghost" icon="cancel" small onClick={() => setShowCancelSettlement(true)}>
+                  {t('action.ent.cancel_settlement')}
+                </Button>
+              )}
+            </div>
+          }
+        >
+          {rowError && <ErrorBanner>{rowError}</ErrorBanner>}
+          <dl className="entc-group-grid">
+            <div className="entc-datum"><dt>{t('field.ent.last_working_day')}</dt><dd>{dateText(fs.lastWorkingDay)}</dd></div>
+            <div className="entc-datum"><dt>{t('field.ent.termination_reason')}</dt><dd>{t(TERMINATION_REASON_LABEL[fs.terminationReason])}</dd></div>
+            {fs.approvedAt && (
+              <div className="entc-datum"><dt>{t('field.ent.approved_at')}</dt><dd>{dateText(fs.approvedAt)}</dd></div>
+            )}
+          </dl>
+
+          {/* المكوّنان + الإجمالي — لا مكوّن ثالث */}
+          <div className="entc-settlement-lines">
+            <div className="entc-settlement-line">
+              <span>{t('field.ent.leave_allowance_value')}</span>
+              <span>{money(fs.computation.leaveValue, moneyReason)}</span>
+            </div>
+            <div className="entc-settlement-line entc-settlement-line--deduct">
+              <span>{t('field.ent.prior_leave_paid')}</span>
+              <span><PrivateAmount value={fs.computation.priorLeavePaid} level={1} /></span>
+            </div>
+            <div className="entc-settlement-line entc-settlement-line--subtotal">
+              <span>{t('field.ent.leave_remaining_component')}</span>
+              <span>{money(fs.computation.leaveRemaining, moneyReason)}</span>
+            </div>
+            <div className="entc-settlement-line">
+              <span>{t('field.ent.eos')}</span>
+              <span>{money(fs.computation.eosAmount, moneyReason)}</span>
+            </div>
+            <div className="entc-settlement-line entc-settlement-line--total">
+              <span>{t('field.ent.settlement_total')}</span>
+              <span>{money(fs.computation.totalAmount, moneyReason)}</span>
+            </div>
+          </div>
+
+          {fs.status === 'DRAFT' ? (
+            <p className="entc-inline-note">{t('msg.ent.settlement_draft_note')}</p>
+          ) : (
+            <>
+              <div className="entc-figures entc-figures--settlement">
+                <Figure label={t('field.ent.settlement_total')} value={money(fs.computation.totalAmount, moneyReason)} />
+                <Figure label={t('field.ent.total_paid')} value={<PrivateAmount value={fs.paid} level={1} />} />
+                <Figure
+                  label={t('field.ent.remaining_payable')}
+                  value={fs.remaining !== null ? <PrivateAmount value={fs.remaining} level={1} /> : '—'}
+                  tone="accent"
+                />
+              </div>
+              {fs.status === 'PAID' && <p className="entc-inline-note">{t('msg.ent.settlement_fully_paid_note')}</p>}
+            </>
+          )}
+
+          {/* سجل دفعات التصفية — منفصل صراحةً عن سجل دفعات المستحقات أعلاه */}
+          {fs.payments.length > 0 && (
+            <div className="xpl-table-wrap entc-table--journal">
+              <table className="xpl-table">
+                <thead>
+                  <tr>
+                    <th>{t('col.date')}</th>
+                    <th>{t('col.ent.reference')}</th>
+                    <th>{t('col.amount')}</th>
+                    <th>{t('field.payment_method')}</th>
+                    <th>{t('field.notes')}</th>
+                    {canManage && fs.status !== 'CANCELLED' && <th>{t('col.actions')}</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {fs.payments.map((sp) => (
+                    <tr key={sp.id}>
+                      <td>{dateText(sp.paymentDate)}</td>
+                      <td>{sp.reference || '—'}</td>
+                      <td><PrivateAmount value={sp.amount} level={1} /></td>
+                      <td>{PAYMENT_METHOD_LABEL[sp.paymentMethod] ? t(PAYMENT_METHOD_LABEL[sp.paymentMethod]) : sp.paymentMethod}</td>
+                      <td>{sp.notes || '—'}</td>
+                      {canManage && fs.status !== 'CANCELLED' && (
+                        <td>
+                          <div className="entc-row-actions">
+                            <Button variant="secondary" icon="edit" small onClick={() => setEditingSettlementPayment(sp)}>
+                              {t('action.edit')}
+                            </Button>
+                            <Button variant="ghost" icon="delete" small onClick={() => setDeleteSettlementPayment(sp)}>
+                              {t('action.delete')}
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* تفاصيل الاحتساب المجمَّدة/الحيّة — إفصاح تدريجي، لا تُعرض كل حقول اللقطة افتراضيًا */}
+          <details className="entc-methodology">
+            <summary>
+              <span className="material-symbols-outlined" aria-hidden="true">calculate</span>
+              {t('section.ent.settlement_calc_details')}
+            </summary>
+            <dl className="entc-group-grid" style={{ marginTop: 8 }}>
+              <div className="entc-datum"><dt>{t('field.hire_date')}</dt><dd>{fs.computation.hireDate ? dateText(fs.computation.hireDate) : '—'}</dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.service_duration')}</dt><dd>{fs.computation.serviceDuration ? formatDurationLong(fs.computation.serviceDuration, t) : '—'}</dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.salary_used')}</dt><dd><PrivateAmount value={fs.computation.salaryUsed} level={1} /></dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.daily_wage')}</dt><dd>{money(fs.computation.dailyWage, moneyReason)}</dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.current_leave_balance')}</dt><dd>{fs.computation.leaveDays !== null ? daysText(fs.computation.leaveDays, t) : '—'}</dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.eos_scenario')}</dt><dd>{t(TERMINATION_REASON_LABEL[fs.computation.eosScenario])}</dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.eos_full_amount')}</dt><dd>{money(fs.computation.eosFullAmount, moneyReason)}</dd></div>
+              <div className="entc-datum"><dt>{t('field.ent.calc_factor')}</dt><dd>{fs.computation.eosFraction !== null ? resignationFractionLabel(fs.computation.eosFraction, t) : '—'}</dd></div>
+            </dl>
+            <p className="entc-inline-note">
+              {fs.isSnapshot ? t('msg.ent.settlement_snapshot_note') : t('msg.ent.settlement_live_note')}
+            </p>
+          </details>
+        </SectionCard>
+      )}
+
+      {/* سجل التصفيات الملغاة — تاريخ محفوظ بالكامل، خلف إفصاح مطويّ */}
+      {cancelledSettlements.length > 0 && (
+        <Disclosure
+          title={t('section.ent.cancelled_settlements')}
+          icon="history"
+          meta={<StatusChip tone="neutral" icon="cancel">{String(cancelledSettlements.length)}</StatusChip>}
+        >
+          {cancelledSettlements.map((cs) => (
+            <div key={cs.id} className="entc-cancelled-item">
+              <dl className="entc-group-grid">
+                <div className="entc-datum"><dt>{t('field.ent.last_working_day')}</dt><dd>{dateText(cs.lastWorkingDay)}</dd></div>
+                <div className="entc-datum"><dt>{t('field.ent.termination_reason')}</dt><dd>{t(TERMINATION_REASON_LABEL[cs.terminationReason])}</dd></div>
+                <div className="entc-datum">
+                  <dt>{t('field.ent.settlement_total')}</dt>
+                  <dd>{cs.computation.totalAmount !== null ? <PrivateAmount value={cs.computation.totalAmount} level={1} /> : '—'}</dd>
+                </div>
+                <div className="entc-datum"><dt>{t('field.ent.total_paid')}</dt><dd><PrivateAmount value={cs.paid} level={1} /></dd></div>
+                <div className="entc-datum"><dt>{t('field.ent.cancelled_at')}</dt><dd>{cs.cancelledAt ? dateText(cs.cancelledAt) : '—'}</dd></div>
+                <div className="entc-datum"><dt>{t('field.ent.cancellation_reason')}</dt><dd>{cs.cancellationReason || '—'}</dd></div>
+              </dl>
+
+              {cs.payments.length > 0 && (
+                <div className="xpl-table-wrap entc-table--journal">
+                  <table className="xpl-table">
+                    <thead>
+                      <tr>
+                        <th>{t('col.date')}</th>
+                        <th>{t('col.ent.reference')}</th>
+                        <th>{t('col.amount')}</th>
+                        <th>{t('field.payment_method')}</th>
+                        <th>{t('field.notes')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cs.payments.map((sp) => (
+                        <tr key={sp.id}>
+                          <td>{dateText(sp.paymentDate)}</td>
+                          <td>{sp.reference || '—'}</td>
+                          <td><PrivateAmount value={sp.amount} level={1} /></td>
+                          <td>{PAYMENT_METHOD_LABEL[sp.paymentMethod] ? t(PAYMENT_METHOD_LABEL[sp.paymentMethod]) : sp.paymentMethod}</td>
+                          <td>{sp.notes || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+          <p className="entc-inline-note">{t('msg.ent.cancelled_history_note')}</p>
+        </Disclosure>
+      )}
+
+      {/* ══ و. تفاصيل احتساب رصيد الإجازة — شرح كامل، مطويّ افتراضيًا ══ */}
+      <Disclosure title={t('section.ent.leave_balance_reconciliation')} icon="calculate">
+        <DataGroup title={t('section.ent.service_data')}>
+          <Datum
+            label={t('field.hire_date')}
+            value={emp.hireDate ? dateText(emp.hireDate) : (durReason ? <Incomplete reason={durReason} t={t} /> : '—')}
+          />
+          <Datum label={t('field.ent.as_of_date')} value={dateText(asOf)} />
+          <Datum
+            label={t('field.ent.service_duration')}
+            value={r.duration ? formatDurationLong({ years: r.duration.years, months: r.duration.months, days: r.duration.days }, t) : (durReason ? <Incomplete reason={durReason} t={t} /> : '—')}
+          />
+          <Datum
+            label={t('field.ent.eligibility')}
+            value={
+              r.firstYearEligible === null
+                ? '—'
+                : r.firstYearEligible
+                  ? <StatusChip tone="green" icon="verified">{t('opt.ent.eligible')}</StatusChip>
+                  : <StatusChip tone="orange" icon="hourglass_empty">{t('opt.ent.not_eligible_6m')}</StatusChip>
+            }
+          />
+        </DataGroup>
+
+        <DataGroup title={t('section.ent.calc_basis')}>
+          <Datum
+            label={t('field.ent.salary_used')}
+            value={wageBase.total > 0 ? <PrivateAmount value={wageBase.total} level={1} /> : (moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—')}
+          />
+          <Datum label={t('field.ent.daily_wage')} value={money(r.dailyWage, moneyReason)} />
+          <Datum label={t('field.ent.annual_entitlement')} value={daysText(r.annualEntitlementDays, t)} />
+          <Datum label={t('field.ent.total_legal_entitlement')} value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)} />
+        </DataGroup>
+
+        <p className="entc-inline-note">{t('msg.ent.salary_source_note')}</p>
+
+        {/* سلسلة الوصول إلى الرصيد النهائي — نفس التسلسل السابق بلا أي احتساب في الواجهة */}
+        {r.accruedLeaveDays !== null ? (
+          <div className="ent-recon-flow">
+            <div className="ent-recon-step ent-recon-step--primary">
+              <span className="ent-recon-step-label">{t('field.ent.legal_entitlement')}</span>
+              <span className="ent-recon-step-val">{daysText(r.accruedLeaveDays, t)}</span>
+            </div>
+            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+            <div className="ent-recon-step">
+              <span className="ent-recon-step-label">{t('field.ent.gross_annual_leave')}</span>
+              <span className="ent-recon-step-val">{daysText(brk.grossAnnualLeaveDays, t)}</span>
+            </div>
+            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+            <div className="ent-recon-step ent-recon-step--exclude">
+              <span className="ent-recon-step-label">{t('field.ent.holidays_excluded_note')}</span>
+              <span className="ent-recon-step-val">{daysText(brk.holidaysExcludedDays, t)}</span>
+            </div>
+            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+            <div className="ent-recon-step ent-recon-step--exclude">
+              <span className="ent-recon-step-label">{t('field.ent.sick_excluded_note')}</span>
+              <span className="ent-recon-step-val">{daysText(brk.sickExcludedDays, t)}</span>
+            </div>
+            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+            <div className="ent-recon-step ent-recon-step--subtotal">
+              <span className="ent-recon-step-label">{t('field.ent.net_leave_used')}</span>
+              <span className="ent-recon-step-val">{daysText(r.usedLeaveDays, t)}</span>
+            </div>
+            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+            <div className="ent-recon-step ent-recon-step--primary">
+              <span className="ent-recon-step-label">{t('field.ent.final_remaining_balance')}</span>
+              <span className="ent-recon-step-val">{r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : '—'}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="ent-fields"><DrawerField label={t('field.ent.reconciliation')} value={leaveReason ? <Incomplete reason={leaveReason} t={t} /> : '—'} /></div>
+        )}
+
+        <div className="entc-total-line">
+          <span>{t('field.ent.leave_allowance_value')}</span>
+          <span>{money(balances.leaveAllowance.entitlement, moneyReason)}</span>
+        </div>
+
+        <div className="ent-recon-note">
+          <span className="material-symbols-outlined" aria-hidden="true">info</span>
+          <span>{t('msg.ent.payment_does_not_consume_leave')}</span>
+        </div>
+
+        {/* منهجية الاحتساب — نص القواعد المعتمدة، مطويّ داخل الشرح بدل تذييل دائم */}
+        <details className="entc-methodology">
+          <summary>
+            <span className="material-symbols-outlined" aria-hidden="true">gavel</span>
+            {t('section.ent.methodology')}
+          </summary>
+          <p>{t('msg.ent.legal_notice_full')}</p>
+        </details>
+      </Disclosure>
+
+      {/* ══ ز. مكافأة نهاية الخدمة التقديرية — سياق حسابي حيّ فقط ══
+          متى وُجدت تصفية معتمدة تصبح هي النتيجة الموثوقة، ويُوسَم هذا القسم صراحةً بأنه
+          غير معتمد حتى لا يظهر رقمان «نهائيان» متنافسان. */}
+      <Disclosure
+        title={t('section.ent.estimated_eos')}
+        icon="volunteer_activism"
+        meta={
+          settlementApproved ? (
+            <StatusChip tone="neutral" icon="history">{t('tag.ent.superseded_by_settlement')}</StatusChip>
+          ) : (
+            <StatusChip tone="blue" icon="query_stats">{t('tag.ent.estimated_only')}</StatusChip>
+          )
+        }
+      >
+        <div className="entc-estimate">
+          <div className="ent-recon-note">
+            <span className="material-symbols-outlined" aria-hidden="true">info</span>
+            <span>{settlementApproved ? t('msg.ent.eos_superseded_note') : t('msg.ent.eos_estimate_note')}</span>
+          </div>
+
+          <Tabs
+            tabs={[
+              { key: 'EMPLOYER_TERMINATION', label: t('opt.ent.separation.employer_termination'), icon: 'business_center' },
+              { key: 'RESIGNATION', label: t('opt.ent.separation.resignation'), icon: 'exit_to_app' },
+            ]}
+            active={separationType}
+            onChange={setSeparationType}
+          />
+          <div className="ent-eos">
+            <span className="ent-eos-label">
+              {separationType === 'RESIGNATION' ? t('msg.ent.eos_basis_resignation_note') : t('msg.ent.eos_basis_termination_note')}
+            </span>
+            <span className="ent-eos-value">
+              {eosAmount !== null ? <PrivateAmount value={eosAmount} level={1} /> : moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—'}
+            </span>
+            {g && separationType === 'RESIGNATION' && (
+              <span className="ent-eos-fraction">{t('msg.ent.entitlement_percentage', { value: resignationFractionLabel(g.resignationFraction, t) })}</span>
+            )}
+            {g?.capApplied && separationType === 'EMPLOYER_TERMINATION' && (
+              <span className="ent-eos-cap"><StatusChip tone="orange" icon="info">{t('msg.ent.cap_applied')}</StatusChip></span>
+            )}
+          </div>
+
+          {g && (
+            <DataGroup title={t('section.ent.calc_basis')}>
+              <Datum label={t('field.ent.service_duration')} value={t('unit.ent.years', { n: g.serviceYears })} />
+              <Datum label={t('field.ent.salary_used')} value={<PrivateAmount value={g.approvedWage} level={1} />} />
+              <Datum label={t('field.ent.daily_wage')} value={<PrivateAmount value={g.dailyWage} level={1} />} />
+              <Datum label={t('field.ent.first_tier_entitlement')} value={<PrivateAmount value={g.firstTierAmount} level={1} />} />
+              <Datum label={t('field.ent.second_tier_entitlement')} value={<PrivateAmount value={g.secondTierAmount} level={1} />} />
+              <Datum
+                label={t('field.ent.calc_factor')}
+                value={separationType === 'RESIGNATION' ? resignationFractionLabel(g.resignationFraction, t) : t('msg.ent.full_entitlement_employer')}
+              />
+              <Datum label={t('field.ent.total_gratuity')} value={<PrivateAmount value={eosAmount ?? 0} level={1} />} />
+            </DataGroup>
+          )}
+
+          <p className="entc-inline-note">{t('msg.ent.eos_requires_final_settlement')}</p>
+        </div>
+      </Disclosure>
+
+      {/* ══ ح. النشاط التاريخي — مطويّ ══ */}
+      <Disclosure title={t('section.ent.historical_activity')} icon="timeline">
         {timeline.length === 0 ? (
           <EmptyState icon="history" title={t('msg.ent.no_activity_title')} message={t('msg.ent.no_activity_message')} tone="neutral" />
         ) : (
@@ -557,62 +806,14 @@ export default function EmployeeEntitlementsCenter() {
               ))}
             </ul>
             {timeline.length > 15 && (
-              <p className="ent-timeline-more">
-                {t('msg.ent.timeline_more', { total: timeline.length })}
-              </p>
+              <p className="ent-timeline-more">{t('msg.ent.timeline_more', { total: timeline.length })}</p>
             )}
           </>
         )}
-      </SectionCard>
+      </Disclosure>
 
-      {/* Historical Ledger (الجزء 4) */}
-      <div id="entc-section-ledger">
-        <SectionCard title={t('section.ent.ledger_history')} icon="account_balance_wallet">
-          {canManage && (
-            <div className="ent-settlement-actions">
-              <Button variant="primary" icon="add" onClick={() => setShowLedgerDialog(true)}>{t('page.ent.add_ledger_entry')}</Button>
-            </div>
-          )}
-          {ledger.length === 0 ? (
-            <EmptyState icon="receipt_long" title={t('msg.ent.no_ledger_title')} message={t('msg.ent.no_ledger_message')} tone="neutral" />
-          ) : (
-            <div className="xpl-table-wrap entc-table--journal">
-              <table className="xpl-table">
-                <thead>
-                  <tr><th>{t('col.date')}</th><th>{t('col.type')}</th><th>{t('col.description')}</th><th>{t('field.ent.days_count')}</th><th>{t('col.ent.balance_at_disbursement')}</th><th>{t('col.amount')}</th><th>{t('field.payment_method')}</th><th>{t('field.notes')}</th></tr>
-                </thead>
-                <tbody>
-                  {ledger.map((e) => {
-                    const isLeaveAllowance = e.entryType === 'LEAVE_ALLOWANCE';
-                    // مؤشّر بصري فقط: هل توجد دفعة مقدَّمة بنفس اليوم؟ لا ربط منطقي/حسابي.
-                    const linked = isLeaveAllowance && hasMatchingSettlement(e.entryDate, settlementDayKeys);
-                    return (
-                      <tr key={e.id}>
-                        <td>{dateText(e.entryDate)}</td>
-                        <td>
-                          <span className="ent-ledger-type">
-                            {LEDGER_TYPE_LABEL[e.entryType] ? t(LEDGER_TYPE_LABEL[e.entryType]) : e.entryType}
-                            {linked && <StatusChip tone="blue" icon="link">{t('tag.ent.linked_to_advance')}</StatusChip>}
-                          </span>
-                        </td>
-                        <td>{e.description || '—'}</td>
-                        <td>{isLeaveAllowance && e.leaveDays != null ? daysText(e.leaveDays, t) : '—'}</td>
-                        <td>{isLeaveAllowance && e.leaveBalanceSnapshot != null ? daysText(e.leaveBalanceSnapshot, t) : '—'}</td>
-                        <td><PrivateAmount value={e.amount} level={1} /></td>
-                        <td>{SETTLEMENT_METHOD_LABEL[e.paymentMethod] ? t(SETTLEMENT_METHOD_LABEL[e.paymentMethod]) : e.paymentMethod}</td>
-                        <td>{e.notes || '—'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </SectionCard>
-      </div>
-
-      {/* Detailed tables (الجزء 4) — مطويّة (مفتوحة افتراضيًا) لتقليل التمرير الطويل */}
-      <CollapsibleCard title={t('section.ent.leave_history')} icon="event_available">
+      {/* ══ ط. سجل الإجازات — مطويّ ══ */}
+      <Disclosure title={t('section.ent.leave_history')} icon="event_available">
         {leaveHistory.length === 0 ? (
           <EmptyState icon="event_busy" title={t('msg.ent.no_leave_history_title')} message={t('msg.ent.no_leave_history_message')} tone="neutral" />
         ) : (
@@ -639,66 +840,106 @@ export default function EmployeeEntitlementsCenter() {
             </table>
           </div>
         )}
-      </CollapsibleCard>
+      </Disclosure>
 
-      <div id="entc-section-settlements">
-        <CollapsibleCard title={t('section.ent.settlements_history')} icon="savings">
-          {canManage && (
-            <div className="ent-settlement-actions">
-              <Button variant="primary" icon="add" onClick={() => setShowSettlementDialog(true)}>{t('action.ent.record_advance')}</Button>
-            </div>
-          )}
-          {settlements.length === 0 ? (
-            <EmptyState icon="receipt_long" title={t('msg.ent.no_advances_title')} message={t('msg.ent.no_advances_message')} tone="neutral" />
-          ) : (
-            <div className="xpl-table-wrap">
-              <table className="xpl-table">
-                <thead>
-                  <tr><th>{t('col.date')}</th><th>{t('field.ent.days_count')}</th><th>{t('col.amount')}</th><th>{t('field.payment_method')}</th><th>{t('field.notes')}</th></tr>
-                </thead>
-                <tbody>
-                  {settlements.map((s) => (
-                    <tr key={s.id}>
-                      <td>{dateText(s.settlementDate)}</td>
-                      <td>{daysText(s.leaveDaysSettled, t)}</td>
-                      <td><PrivateAmount value={s.settlementAmount} level={1} /></td>
-                      <td>{SETTLEMENT_METHOD_LABEL[s.paymentMethod] ? t(SETTLEMENT_METHOD_LABEL[s.paymentMethod]) : s.paymentMethod}</td>
-                      <td>{s.notes || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CollapsibleCard>
-      </div>
-
-      {/* الإشعار القانوني — دائم الظهور (لا يُخفى عند اكتمال البيانات) */}
-      <div className="ent-legal" role="note">
-        <span className="material-symbols-outlined" aria-hidden="true">gavel</span>
-        <p>
-          {t('msg.ent.legal_notice_full')}
-        </p>
-      </div>
-
-      {showSettlementDialog && (
-        <LeaveSettlementDialog
+      {showPaymentDialog && (
+        <EntitlementPaymentDialog
           employeeId={employeeId}
-          defaultDays={r.leaveAllowanceDays}
-          defaultAmount={r.leaveAllowanceValue}
-          onClose={() => setShowSettlementDialog(false)}
-          onSaved={() => { setShowSettlementDialog(false); setReloadKey((k) => k + 1); }}
+          category={LEAVE_ALLOWANCE_CATEGORY}
+          balance={balances.leaveAllowance}
+          onClose={() => setShowPaymentDialog(false)}
+          onSaved={() => { setShowPaymentDialog(false); setReloadKey((k) => k + 1); }}
         />
       )}
 
-      {showLedgerDialog && (
-        <EntitlementLedgerDialog
+      {editingPayment && (
+        <EntitlementPaymentDialog
           employeeId={employeeId}
-          leaveBalanceDays={r.leaveAllowanceDays}
-          leaveAllowanceValue={r.leaveAllowanceValue}
-          eosValue={eosAmount}
-          onClose={() => setShowLedgerDialog(false)}
-          onSaved={() => { setShowLedgerDialog(false); setReloadKey((k) => k + 1); }}
+          category={LEAVE_ALLOWANCE_CATEGORY}
+          balance={balances.leaveAllowance}
+          payment={editingPayment}
+          onClose={() => setEditingPayment(null)}
+          onSaved={() => { setEditingPayment(null); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {settlementDialog && (
+        <FinalSettlementDialog
+          employeeId={employeeId}
+          settlement={settlementDialog === 'edit' ? fs : null}
+          onClose={() => setSettlementDialog(null)}
+          onSaved={() => { setSettlementDialog(null); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {showApproveDialog && fs && (
+        <FinalSettlementApproveDialog
+          employeeId={employeeId}
+          employeeName={emp.fullName}
+          settlement={fs}
+          onClose={() => setShowApproveDialog(false)}
+          onApproved={() => { setShowApproveDialog(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {showSettlementPayment && fs && (
+        <SettlementPaymentDialog
+          employeeId={employeeId}
+          settlement={fs}
+          onClose={() => setShowSettlementPayment(false)}
+          onSaved={() => { setShowSettlementPayment(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {editingSettlementPayment && fs && (
+        <SettlementPaymentDialog
+          employeeId={employeeId}
+          settlement={fs}
+          payment={editingSettlementPayment}
+          onClose={() => setEditingSettlementPayment(null)}
+          onSaved={() => { setEditingSettlementPayment(null); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {showCancelSettlement && fs && (
+        <FinalSettlementCancelDialog
+          employeeId={employeeId}
+          settlement={fs}
+          onClose={() => setShowCancelSettlement(false)}
+          onCancelled={() => { setShowCancelSettlement(false); setReloadKey((k) => k + 1); }}
+        />
+      )}
+
+      {deleteSettlementPayment && (
+        <ConfirmModal
+          title={t('action.ent.delete_settlement_payment')}
+          message={`${t('msg.ent.confirm_delete_settlement_payment')}\n${formatMoneyCell(deleteSettlementPayment.amount)} — ${dateText(deleteSettlementPayment.paymentDate)}`}
+          confirmLabel={t('action.delete')}
+          variant="danger"
+          onConfirm={confirmDeleteSettlementPayment}
+          onCancel={() => setDeleteSettlementPayment(null)}
+        />
+      )}
+
+      {showDeleteDraft && (
+        <ConfirmModal
+          title={t('action.ent.delete_draft')}
+          message={t('msg.ent.confirm_delete_draft')}
+          confirmLabel={t('action.delete')}
+          variant="danger"
+          onConfirm={confirmDeleteDraft}
+          onCancel={() => setShowDeleteDraft(false)}
+        />
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title={t('action.ent.delete_payment')}
+          message={`${t('msg.ent.confirm_delete_payment')}\n${formatMoneyCell(deleteTarget.amount)} — ${dateText(deleteTarget.paymentDate)}`}
+          confirmLabel={t('action.delete')}
+          variant="danger"
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
         />
       )}
     </div>

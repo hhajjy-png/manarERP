@@ -37,96 +37,6 @@
   position: relative;
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   لوحة المركز المالي التنفيذي (Employee Financial Position Dashboard v1)
-   إعادة تصميم بصري فقط بمكوّنات ExplorerKit وtokensها — بلا لغة تصميم جديدة، بلا أي
-   منطق/احتساب/API. كل القواعد مُحدَّدة النطاق بـ .entc-* فلا تتأثر أي صفحة أخرى.
-   ════════════════════════════════════════════════════════════════════════════ */
-.entc-dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* ── بطاقة المركز المالي — العنوان التنفيذي الكبير (الالتزام المالي الحالي) ─────── */
-.entc-fin-headline {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  margin-bottom: 14px;
-}
-.entc-fin-headline-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--xpl-muted);
-}
-.entc-fin-headline-value {
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.5px;
-  color: var(--xpl-text);
-  font-variant-numeric: tabular-nums;
-}
-.entc-fin-headline-hint {
-  font-size: 11px;
-  color: var(--xpl-muted);
-}
-
-/* ── مكوّنات المركز المالي — بطاقات MetricCard تنفيذية موصولة بعامل ( + ) ──────── */
-.entc-fin-flow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: stretch;
-  gap: 8px;
-}
-.entc-fin-term {
-  flex: 1 1 175px;
-  display: flex;
-}
-.entc-fin-term .xpl-metric {
-  width: 100%;
-  padding: 15px 15px 13px;
-  border-radius: 14px;
-}
-.entc-fin-op {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--xpl-muted);
-}
-@media (max-width: 900px) {
-  .entc-fin-flow { flex-direction: column; }
-  .entc-fin-term { flex: 1 1 auto; }
-  .entc-fin-op { transform: rotate(90deg); margin: -2px auto; }
-}
-
-/* ── المؤشرات الصحية — تُعيد استخدام هيئة .ent-warning تمامًا (بلا لغة تصميم جديدة) ── */
-.entc-health {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.entc-health-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
-}
-@media (max-width: 700px) {
-  .entc-health-grid { grid-template-columns: 1fr; }
-}
-
-/* ── تحليلات الخدمة — شبكة إحصاءات متجاوبة نظيفة (نفس مكوّن MetricCard) ─────────── */
-.entc-analytics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
-  gap: 8px;
-}
-.entc-analytics .xpl-metric-value { font-size: 16px; }
-
 /* ── جداول السجلات — إبراز دفتر المستحقات التاريخي كسجل مالي (نطاق هذه الصفحة فقط) ── */
 .entc-page .xpl-table td { font-variant-numeric: tabular-nums; }
 .entc-table--journal thead th { background: var(--xpl-bg); }
@@ -137,19 +47,11 @@
 .entc-page .xpl-timeline-dot { width: 28px; height: 28px; }
 
 /* ── الحالات الفارغة — علامة أكثر إحكامًا (نطاق هذه الصفحة فقط) ─────────────────── */
-.entc-page .xpl-empty { padding: 40px 20px 34px; }
-.entc-page .xpl-empty-illus { width: 56px; height: 56px; border-radius: 14px; }
-.entc-page .xpl-empty-illus .material-symbols-outlined { font-size: 26px !important; }
-.entc-page .xpl-empty h3 { font-size: 14.5px; }
-.entc-page .xpl-empty p { font-size: 12.5px; }
-
-/* ── عنوان فرعي صغير داخل بطاقة قابلة للطيّ ──────────────────────────────────── */
-.entc-subhead {
-  margin: 14px 0 4px;
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--xpl-muted);
-}
+.entc-page .xpl-empty { padding: 18px 18px 16px; gap: 6px; }
+.entc-page .xpl-empty-illus { width: 34px; height: 34px; border-radius: 10px; margin-bottom: 2px; }
+.entc-page .xpl-empty-illus .material-symbols-outlined { font-size: 18px !important; }
+.entc-page .xpl-empty h3 { font-size: 13px; margin: 0; }
+.entc-page .xpl-empty p { font-size: 11.5px; margin: 2px 0 0; max-width: 46ch; line-height: 1.6; }
 
 /* ── بطاقة قابلة للطيّ — نفس هيئة xpl-card/xpl-card-head بلا لغة تصميم جديدة ──── */
 .entc-collapsible > summary.entc-collapsible-summary {
@@ -205,4 +107,386 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .entc-collapsible[open] > .xpl-card--pad { animation: none; }
+}
+
+/* ── فصل بصري: «المستحق للدفع» مقابل «التقديري الإخباري» ─────────────────────────
+   قسم مكافأة نهاية الخدمة التقديرية يُوسَم بحدّ جانبي وخلفية أخفت من بطاقات الموقف
+   المستحق للدفع، فيقرأ المستخدم الفرق قبل قراءة الرقم — لا لغة تصميم جديدة، فقط
+   تدرّج نبرة داخل نفس tokens الـExplorerKit. */
+.entc-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--xpl-border);
+  border-inline-start: 3px solid var(--xpl-blue, var(--xpl-border));
+  background: color-mix(in srgb, var(--xpl-surface-2, transparent) 60%, transparent);
+}
+
+/* ── معاينة الدفعة داخل الحوار — قراءة سريعة قبل التأكيد (الخادم يبقى الحَكَم) ───── */
+.ent-pay-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--xpl-border);
+  background: color-mix(in srgb, var(--xpl-surface-2, transparent) 60%, transparent);
+}
+.ent-pay-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--xpl-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ent-pay-preview-row--total {
+  padding-top: 6px;
+  border-top: 1px solid var(--xpl-border);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--xpl-text);
+}
+.ent-pay-preview-over { color: var(--xpl-red, #d33); }
+
+/* ── إجراءات صف الدفعة (تعديل/حذف) — أزرار ExplorerKit الصغيرة في صفّ واحد، RTL ──── */
+.entc-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   تبسيط بصري للكشف (Visual Simplification Pack)
+   إعادة ترتيب وهرمية فقط — بلا منطق ولا احتساب ولا لغة تصميم جديدة. المبدأ: بطاقات
+   أقل في وقت واحد، فراغ أوسع **بين** الأقسام الكبرى وأضيق **داخل** المجموعات البسيطة،
+   وأرقام أسهل مسحًا بالعين من عناوينها.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* مسافة أوسع بين الأقسام الكبرى — الإيقاع نفسه الذي يجعل الصفحة تبدو هادئة. */
+.entc-page > .xpl-card,
+.entc-page > section,
+.entc-page > .entc-alerts {
+  margin-block-start: 18px;
+}
+
+/* ── ب. الموقف المالي — البطل البصري: المستحق − المدفوع = المتبقي ──────────────── */
+.entc-hero {
+  padding: 20px 20px 16px;
+}
+.entc-hero-grid {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+.entc-hero-term {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--xpl-surface-2);
+  border: 1px solid var(--xpl-border);
+}
+.entc-hero-term-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+}
+.entc-hero-term-value {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--xpl-text);
+  font-variant-numeric: tabular-nums;
+}
+.entc-hero-term-sub {
+  font-size: 11px;
+  color: var(--xpl-muted);
+}
+
+/* الرقم الأقوى في الصفحة: المتبقي للدفع — تباين حجم لا تباين لون صاخب. */
+.entc-hero-term--primary {
+  flex: 1.35 1 0;
+  background: var(--xpl-faint);
+  border-color: var(--xpl-primary);
+}
+.entc-hero-term--primary .entc-hero-term-label {
+  color: var(--xpl-primary);
+}
+.entc-hero-term--primary .entc-hero-term-value {
+  font-size: 32px;
+  letter-spacing: -0.6px;
+}
+
+.entc-hero-op {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+}
+.entc-hero-hint {
+  margin: 12px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--xpl-muted);
+}
+
+@media (max-width: 900px) {
+  .entc-hero-grid { flex-direction: column; }
+  .entc-hero-term--primary { flex: 1 1 auto; }
+  .entc-hero-op { transform: rotate(90deg); margin: -4px auto; }
+}
+
+/* ── تنبيهات استثنائية — تظهر عند الحاجة فقط، لا كقسم دائم ────────────────────── */
+.entc-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── ج. الأرقام الأساسية داخل قسم — بديل صفّ بطاقات KPI المستقلة ─────────────── */
+.entc-figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+.entc-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 13px;
+  border-radius: 11px;
+  background: var(--xpl-surface-2);
+  border: 1px solid var(--xpl-border);
+}
+.entc-figure-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+}
+.entc-figure-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--xpl-text);
+  font-variant-numeric: tabular-nums;
+}
+.entc-figure--accent {
+  background: var(--xpl-faint);
+  border-color: var(--xpl-primary);
+}
+.entc-figure--accent .entc-figure-value {
+  font-size: 21px;
+}
+
+/* ── ملاحظة سطرية هادئة — بديل البطاقة/البانر لمعلومة ثانوية ─────────────────── */
+.entc-inline-note {
+  margin: 10px 0 0;
+  font-size: 11.5px;
+  line-height: 1.7;
+  color: var(--xpl-muted);
+}
+
+/* ── سطر الإجمالي أسفل جدول الدفعات ─────────────────────────────────────────── */
+.entc-total-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 11px 14px;
+  border-radius: 11px;
+  background: var(--xpl-surface-2);
+  border: 1px solid var(--xpl-border);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--xpl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── وسم داخل السطر المطويّ (مثل «تقديري فقط») — يبقى مقروءًا دون فتح القسم ───── */
+.entc-collapsible-meta {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: auto;
+}
+
+/* ── منهجية الاحتساب — إفصاح مُتداخل مضغوط بدل تذييل دائم يزاحم الأرقام ───────── */
+.entc-methodology {
+  margin-top: 14px;
+  border-top: 1px solid var(--xpl-border);
+  padding-top: 10px;
+}
+.entc-methodology > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+}
+.entc-methodology > summary::-webkit-details-marker { display: none; }
+.entc-methodology > summary .material-symbols-outlined { font-size: 17px; }
+.entc-methodology > summary:hover { color: var(--xpl-text); }
+.entc-methodology > p {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.9;
+  color: var(--xpl-muted);
+}
+
+/* ── مجموعة بيانات مضغوطة (بيانات الخدمة / أساس الاحتساب / مقاييس نهاية الخدمة) ────
+   تحلّ محلّ تسلسل صفوف كاملة العرض: نفس القيم، ارتفاع أقلّ، ومسح بصري أسرع. */
+.entc-group {
+  margin-block-start: 14px;
+}
+.entc-group:first-child {
+  margin-block-start: 0;
+}
+.entc-group-title {
+  margin-bottom: 7px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+  letter-spacing: 0.2px;
+}
+.entc-group-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 1px;
+  margin: 0;
+  border: 1px solid var(--xpl-border);
+  border-radius: 11px;
+  background: var(--xpl-border);
+  overflow: hidden;
+}
+.entc-datum {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 12px;
+  background: var(--xpl-surface);
+}
+.entc-datum > dt {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+}
+.entc-datum > dd {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--xpl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── قسم نهاية الخدمة — ثانوي بصريًا مقابل الموقف المالي الحقيقي ───────────────── */
+.entc-estimate {
+  gap: 12px;
+  padding: 14px 15px;
+}
+.entc-estimate .ent-eos {
+  padding: 12px 14px;
+}
+/* المبلغ التقديري أقوى قيمة **داخل** القسم، وأصغر من رقم «المتبقي للدفع» في البطل. */
+.entc-estimate .ent-eos-value {
+  font-size: 22px;
+}
+.entc-estimate .entc-group {
+  margin-block-start: 0;
+}
+
+/* ── إيقاع موحَّد لصفوف الإفصاح وعناوين الأقسام ──────────────────────────────── */
+.entc-page > .xpl-card > .xpl-card-head {
+  min-height: 46px;
+}
+.entc-collapsible > summary.entc-collapsible-summary {
+  min-height: 46px;
+  padding-block: 0;
+}
+
+/* ── التصفية النهائية — معادلة مكوّنَين + إجمالي، بصيغة كشف لا بطاقات KPI ────────── */
+.entc-settlement-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.entc-settlement-empty .entc-inline-note {
+  margin: 0;
+  flex: 1 1 260px;
+}
+
+.entc-settlement-lines {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 11px;
+  overflow: hidden;
+}
+.entc-settlement-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 13px;
+  font-size: 12.5px;
+  color: var(--xpl-text);
+  background: var(--xpl-surface);
+  font-variant-numeric: tabular-nums;
+}
+.entc-settlement-line + .entc-settlement-line {
+  border-top: 1px solid var(--xpl-border);
+}
+.entc-settlement-line > span:first-child {
+  color: var(--xpl-muted);
+  font-weight: 700;
+}
+/* المدفوع سابقًا يُقرأ كخصم لا كإضافة — إشارة بصرية هادئة لا لون صارخ. */
+.entc-settlement-line--deduct > span:last-child::before {
+  content: "\2212 ";
+  color: var(--xpl-muted);
+}
+.entc-settlement-line--subtotal {
+  background: var(--xpl-surface-2);
+}
+.entc-settlement-line--subtotal > span:last-child,
+.entc-settlement-line--total > span:last-child {
+  font-weight: 800;
+}
+.entc-settlement-line--total {
+  background: var(--xpl-faint);
+  font-size: 14px;
+}
+.entc-settlement-line--total > span:first-child {
+  color: var(--xpl-primary);
+}
+
+/* شريط المدفوع/المتبقي بعد الاعتماد */
+.entc-figures--settlement {
+  margin-top: 12px;
+}
+
+/* ── سجل التصفيات الملغاة — عناصر تاريخية متتابعة داخل إفصاح واحد ─────────────── */
+.entc-cancelled-item + .entc-cancelled-item {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--xpl-border);
+}
+.entc-cancelled-item .xpl-table-wrap {
+  margin-top: 10px;
 }

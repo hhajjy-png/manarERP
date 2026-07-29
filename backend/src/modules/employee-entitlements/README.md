@@ -22,7 +22,7 @@ operational workflow.
 - Official Holidays (`modules/holidays`, the existing `Holiday` Prisma model)
 - Hijri (Al-Ojairi) holiday architecture (this domain, `holidays/` + `services/HijriHolidayService.ts`)
 - Calendar services (this domain, `services/`)
-- Historical Entitlements data (`Leave`, `LeaveSettlement`, `EmployeeEntitlementLedger`)
+- Historical Entitlements data (`Leave`, `EmployeeEntitlementLedger`)
 
 ## Forbidden dependencies
 
@@ -103,13 +103,50 @@ employee-entitlements/
     HolidayGenerationExecutor.ts  Re-plans server-side, then creates only the NEW
                                    bucket. Never updates/deletes. Idempotent —
                                    "safe regeneration" (Part 1).
-  calculators/  Re-export surface over the existing legal calculator
-                (modules/employees/entitlements.calc.ts) — first step of a
-                progressive move; the original file remains the single source of
-                truth and was not relocated in this package.
+  entitlements.service.ts  THE entitlement domain service (Employee Entitlements
+                Core & Statement Pack v1) — builds the single statement read model
+                and owns entitlement payment recording/validation. Every entitlement
+                figure the API serves passes through here.
+  entitlements.schema.ts   Zod schemas for the statement `asOf` query and payment
+                recording. The user only ever supplies amount + date (+ optional
+                method/reference/note) — never a calculated value.
   timeline/     buildEntitlementTimeline — server-side equivalent of the frontend's
                 timeline builder, for future API use.
 ```
+
+## Entitlement core (Employee Entitlements Core & Statement Pack v1)
+
+One calculation engine, one read model, one payment history — no second source of
+entitlement truth anywhere:
+
+- **Canonical engine:** `modules/employees/entitlements.calc.ts` (pure, unchanged
+  location). The `calculators/` re-export shim was **removed** — it had zero
+  consumers and only created a second import surface over the same engine.
+- **Statement read model:** `GET /api/employees/:id/entitlements[?asOf=YYYY-MM-DD]`
+  returns everything the UI needs (`result`, `wageBase`, `balances`, `payments`,
+  `estimatedEndOfService`). The frontend never recombines endpoints to reconstruct
+  entitlement truth, and holds no entitlement formula.
+- **Payment history:** `EmployeeEntitlementLedger` (existing model, no migration).
+  `GET`/`POST /api/employees/:id/entitlement-payments`. Every "paid" figure is a
+  `SUM` over real movements; nothing mutable is stored.
+- **Remaining balance:** always derived (`entitlement − paid`), never stored,
+  never editable.
+
+Approved business rules (project decisions, not re-derived here):
+
+| Rule | Value |
+|---|---|
+| Entitlement wage source | `Employee.salary` **only** — no allowances, no payroll snapshots |
+| Annual leave rate | 30 days per year of service |
+| Leave eligibility gate | 6 completed months (replaced the previous 9-month gate) |
+| `asOf` | Explicit and validated; defaults to today |
+| End-of-service while active | Estimate only — excluded from payable totals and not disbursable |
+| Overpayment | Rejected outright, never silently clamped |
+
+Module boundary: recording a payment writes to the entitlement ledger and the audit
+log **only**. No journal entry, no GL liability, no payroll effect, no
+`SalaryPayment`, no bank export, and no leave record is created, consumed, or
+modified — a cash payment is never converted into leave days.
 
 ## Holiday generation API (Kuwait Holiday Intelligence Pack v1)
 
@@ -184,8 +221,9 @@ contains.
 
 ## What this package deliberately did NOT do
 
-- Did **not** move `entitlements.calc.ts` or `employees.service.ts` — too high-risk
-  for a "no functional change" package; only a re-export surface was added.
+- Did **not** move `entitlements.calc.ts` — it remains the canonical engine at its
+  original path. (Entitlements Core & Statement Pack v1 later removed the
+  `calculators/` re-export shim and moved the *service* layer here instead.)
 - Did **not** add any new Prisma model, column, or migration — Hijri status
   persistence (Part 3) reuses the existing `notes` text column via a parsed
   `[ORIGIN:STATUS]` tag (see `classifyHoliday.ts` above), not a new column.

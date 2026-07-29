@@ -175,4 +175,9 @@ export const ENUMS = {
   leaveSettlementPaymentMethod: ['CASH', 'BANK_TRANSFER', 'CHEQUE', 'OTHER'] as const,
   // نوع المستحق في سجل المستحقات المصروفة (سجل تاريخي فقط — لا يؤثر في أي احتساب).
   entitlementLedgerType: ['LEAVE_ALLOWANCE', 'END_OF_SERVICE', 'OTHER'] as const,
+  // دورة حياة التصفية النهائية: مسودة تُحتسب حيًّا ← لقطة معتمدة مجمَّدة ← مسدَّدة بالكامل.
+  // CANCELLED حالة نهائية تاريخية: تُحفظ اللقطة والدفعات كما هي، ولا تُعدّ تصفية نشطة.
+  finalSettlementStatus: ['DRAFT', 'APPROVED', 'PAID', 'CANCELLED'] as const,
+  // سبب انتهاء الخدمة — يختار سيناريو مكافأة نهاية الخدمة في المحرّك القانوني القائم.
+  terminationReason: ['RESIGNATION', 'EMPLOYER_TERMINATION'] as const,
 } as const;

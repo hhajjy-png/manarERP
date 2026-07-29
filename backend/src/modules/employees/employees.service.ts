@@ -10,7 +10,6 @@ import {
   AdjustmentInput,
   AttendanceInput,
   CreateEmployeeInput,
-  CreateEntitlementLedgerInput,
   CreateLeaveSettlementInput,
   LeaveInput,
   UpdateAttendanceInput,
@@ -18,29 +17,14 @@ import {
 } from './employees.schema';
 import { buildDocumentAlerts } from './employees.alertBuilder';
 import { aggregateAttendanceStats, AttendanceFilters, buildAttendanceWhere } from './attendance.filters';
+import { entitlementsService } from '../employee-entitlements/entitlements.service';
+import { RecordEntitlementPaymentInput, UpdateEntitlementPaymentInput } from '../employee-entitlements/entitlements.schema';
+import { finalSettlementService } from '../employee-entitlements/finalSettlement.service';
 import {
-  calculateEntitlements,
-  computeEffectiveAnnualLeaveDays,
-  DateInterval,
-  EntitlementResult,
-  WageBaseComposition,
-} from './entitlements.calc';
-
-const MS_PER_DAY = 86_400_000;
-
-/**
- * تفصيل استهلاك رصيد الإجازة السنوية لأغراض العرض التنفيذي فقط (حزمة تجربة الاستحقاقات
- * النهائية v1) — عرض/تسوية بصرية بلا أي احتساب قانوني جديد. netUsedLeaveDays مُشتقّة
- * رياضيًا من نفس منطق الاستثناء المركزي في computeEffectiveAnnualLeaveDays (المادة 70)
- * فتساوي دائمًا r.usedLeaveDays الفعلية — لا يمكن لعرض التسوية أن ينحرف عن الرصيد القانوني.
- */
-export interface LeaveExclusionBreakdown {
-  grossAnnualLeaveDays: number;
-  holidaysExcludedDays: number;
-  sickExcludedDays: number;
-  netUsedLeaveDays: number;
-  holidaysConfiguredCount: number;
-}
+  CancelFinalSettlementInput,
+  RecordSettlementPaymentInput,
+  UpsertFinalSettlementInput,
+} from '../employee-entitlements/finalSettlement.schema';
 
 class EmployeesRepository extends BaseRepository<{ id: number }> {
   protected readonly model = 'employee';
@@ -184,232 +168,62 @@ export class EmployeesService {
     return employee;
   }
 
-  /**
-   * الأجر الشهري المعتمد لاستحقاقات الموظف (المادتان 55/62) = الراتب الأساسي + إجمالي
-   * البدلات الدورية النشطة حاليًا (EmployeeAllowance.isActive ضمن نافذة startsAt/endsAt،
-   * إن وُجدت). كل البدلات النشطة تُعامَل كـ«عناصر دورية منتظمة» وفق القاعدة القانونية
-   * المعتمدة للمشروع — لا تصنيف إضافي متاح حاليًا في النظام لاستثناء بدل بعينه.
-   * نقطة مركزية واحدة يستدعيها كل مسار احتساب (لا تكرار).
-   */
-  private async resolveWageBase(employeeId: number, baseSalary: number, asOf: Date): Promise<WageBaseComposition> {
-    const allowances = await prisma.employeeAllowance.findMany({
-      where: {
-        employeeId,
-        isActive: true,
-        AND: [
-          { OR: [{ startsAt: null }, { startsAt: { lte: asOf } }] },
-          { OR: [{ endsAt: null }, { endsAt: { gte: asOf } }] },
-        ],
-      },
-      select: { amount: true },
-    });
-    const allowancesTotal = allowances.reduce((sum, a) => sum + a.amount, 0);
-    return { baseSalary, allowancesTotal, total: baseSalary + allowancesTotal };
+  // ===== مستحقات الموظف — تفويض كامل لنطاق الاستحقاقات المستقل =====
+  //
+  // كل منطق الاحتساب وقواعد الدفع يعيش في وحدة واحدة
+  // (modules/employee-entitlements/entitlements.service.ts) فوق محرّك احتساب وحيد
+  // (employees/entitlements.calc.ts). هذه الطبقة تُبقي مسارات الـAPI القائمة كما هي فقط،
+  // ولا تحتوي أي حقيقة استحقاق خاصة بها — فلا يمكن أن ينشأ مصدر حقيقة ثانٍ.
+
+  /** كشف «تفاصيل مستحقات الموظف» عند تاريخ احتساب صريح (أو اليوم افتراضيًا). */
+  async getEntitlements(id: number, asOf?: Date) {
+    return entitlementsService.getStatement(id, asOf);
   }
 
-  /**
-   * نقطة مركزية واحدة لاحتساب استحقاقات موظف حتى لحظة معيّنة — يستدعيها مسار القراءة
-   * (getEntitlements) ولقطة السجل (snapshotLeaveBalanceDays) معًا، فلا يتكرر منطق تجميع
-   * الأجر المعتمد ولا أيام الإجازة المستخدمة في أكثر من موضع. رصيد الإجازة يتراكم دومًا
-   * من تاريخ التعيين — لا خط أساس بديل من أي تسوية (المادتان 73/74؛ انظر توثيق الحاسبة).
-   */
-  private async computeCurrentEntitlements(
-    employeeId: number,
-    employee: { hireDate: Date | null; salary: number },
-    asOf: Date,
-  ): Promise<{ result: EntitlementResult; wageBase: WageBaseComposition; leaveExclusionBreakdown: LeaveExclusionBreakdown }> {
-    const wageBase = await this.resolveWageBase(employeeId, employee.salary, asOf);
-    const leaveExclusionBreakdown = await this.computeLeaveExclusionBreakdown(employeeId, employee.hireDate);
-
-    const result = calculateEntitlements({
-      hireDate: employee.hireDate,
-      monthlyWageBase: wageBase.total,
-      asOf,
-      usedAnnualLeaveDays: leaveExclusionBreakdown.netUsedLeaveDays,
-    });
-
-    return { result, wageBase, leaveExclusionBreakdown };
+  /** حركات دفع المستحقات المسجَّلة للموظف (وقائع تاريخية). */
+  async listEntitlementPayments(employeeId: number) {
+    return entitlementsService.listPayments(employeeId);
   }
 
-  /**
-   * تفصيل استهلاك رصيد الإجازة السنوية (المادة 70). الرقم القانوني الفعلي
-   * (netUsedLeaveDays) يُحتسب حصريًا عبر الدالة النقيّة المركزية
-   * (computeEffectiveAnnualLeaveDays) في entitlements.calc.ts — لا تكرار للقاعدة
-   * القانونية، ولا تغيير في محرك الاحتساب. تفكيك «إجمالي خام / عطلات مستثناة / إجازة
-   * مرضية مستثناة» أدناه تصنيف عرضي إضافي فقط (لكل يوم مُستثنى داخل فترة إجازة سنوية
-   * معتمدة: عطلة رسمية إن كان كذلك، وإلا فمرضي) — لا يُستخدم في أي احتساب، ومجموعه
-   * يساوي دائمًا netUsedLeaveDays بالبناء (نفس المدخلات، نفس منطق الاستثناء).
-   */
-  private async computeLeaveExclusionBreakdown(
-    employeeId: number,
-    hireDate: Date | null,
-  ): Promise<LeaveExclusionBreakdown> {
-    const [annualLeaves, holidays, sickLeaves] = await Promise.all([
-      prisma.leave.findMany({
-        where: {
-          employeeId,
-          type: 'ANNUAL',
-          status: 'APPROVED',
-          ...(hireDate ? { startDate: { gte: hireDate } } : {}),
-        },
-        select: { startDate: true, endDate: true },
-      }),
-      prisma.holiday.findMany({ select: { date: true } }),
-      prisma.leave.findMany({
-        where: { employeeId, type: 'SICK', status: 'APPROVED' },
-        select: { startDate: true, endDate: true },
-      }),
-    ]);
-
-    const holidayDates = holidays.map((h) => h.date);
-    const sickIntervals: DateInterval[] = sickLeaves.map((s) => ({ start: s.startDate, end: s.endDate }));
-
-    const dayIndex = (d: Date) => Math.floor(d.getTime() / MS_PER_DAY);
-    const holidaySet = new Set(holidayDates.map(dayIndex));
-    const sickRanges = sickIntervals.map((s) => {
-      const a = dayIndex(s.start);
-      const b = dayIndex(s.end);
-      return { lo: Math.min(a, b), hi: Math.max(a, b) };
-    });
-    const isSickDay = (day: number) => sickRanges.some((r) => day >= r.lo && day <= r.hi);
-
-    let grossAnnualLeaveDays = 0;
-    let holidaysExcludedDays = 0;
-    let sickExcludedDays = 0;
-    let netUsedLeaveDays = 0;
-
-    for (const leave of annualLeaves) {
-      const interval = { start: leave.startDate, end: leave.endDate };
-      // المصدر الوحيد للرقم القانوني — محرك الاحتساب المركزي، بلا تغيير.
-      netUsedLeaveDays += computeEffectiveAnnualLeaveDays(interval, holidayDates, sickIntervals);
-
-      // تصنيف عرضي فقط (لا يُغذّي أي احتساب) — نفس منطق الاستثناء، مطبَّق يوميًا للعرض.
-      const a = dayIndex(leave.startDate);
-      const b = dayIndex(leave.endDate);
-      const lo = Math.min(a, b);
-      const hi = Math.max(a, b);
-      grossAnnualLeaveDays += hi - lo + 1;
-      for (let day = lo; day <= hi; day++) {
-        if (holidaySet.has(day)) holidaysExcludedDays += 1;
-        else if (isSickDay(day)) sickExcludedDays += 1;
-      }
-    }
-
-    return {
-      grossAnnualLeaveDays,
-      holidaysExcludedDays,
-      sickExcludedDays,
-      netUsedLeaveDays,
-      holidaysConfiguredCount: holidays.length,
-    };
+  /** تسجيل دفعة مستحق فعلية — التحقق والاشتقاق كلّه في نطاق الاستحقاقات. */
+  async recordEntitlementPayment(employeeId: number, input: RecordEntitlementPaymentInput, req: Request) {
+    return entitlementsService.recordPayment(employeeId, input, req);
   }
 
-  /**
-   * استحقاقات الموظف (قراءة فقط) — مدة الخدمة، رصيد الإجازة، بدل الإجازة، ومكافأة
-   * نهاية الخدمة محسوبة حتى اليوم وفق قانون العمل الكويتي 6/2010 (المواد 51 و53 و55 و62
-   * و70). الحساب يتم في دالة نقيّة (entitlements.calc.ts) عبر computeCurrentEntitlements
-   * المركزية؛ هنا فقط جمع سجلات العرض الإضافية (السجل التاريخي، التسويات، دفتر المستحقات).
-   */
-  async getEntitlements(id: number) {
-    const employee = await prisma.employee.findUnique({
-      where: { id },
-      select: { id: true, code: true, fullName: true, salary: true, hireDate: true, status: true },
-    });
-    if (!employee) throw AppError.notFound('الموظف غير موجود');
-
-    const asOf = new Date();
-    const { result, wageBase, leaveExclusionBreakdown } = await this.computeCurrentEntitlements(id, employee, asOf);
-
-    // سجل الدفعات المقدَّمة على الإجازة (الأحدث أولًا) — تاريخي/توثيقي فقط. لا يُعاد
-    // احتساب أي خط أساس منها؛ رصيد الإجازة أعلاه محسوب من تاريخ التعيين دائمًا.
-    const settlements = await prisma.leaveSettlement.findMany({
-      where: { employeeId: id },
-      orderBy: { settlementDate: 'desc' },
-    });
-
-    const leaveHistory = await prisma.leave.findMany({
-      where: { employeeId: id },
-      orderBy: { startDate: 'desc' },
-      select: { id: true, type: true, startDate: true, endDate: true, days: true, status: true },
-    });
-
-    // سجل المستحقات المصروفة — تاريخي فقط. يُقرأ للعرض ولا يدخل في أي احتساب أعلاه.
-    const ledger = await prisma.employeeEntitlementLedger.findMany({
-      where: { employeeId: id },
-      orderBy: { entryDate: 'desc' },
-    });
-
-    return {
-      employee,
-      result,
-      wageBase,
-      leaveExclusionBreakdown,
-      leaveHistory,
-      settlements,
-      ledger,
-    };
+  /** تصحيح دفعة مسجَّلة (المبلغ/التاريخ/الطريقة/المرجع/الملاحظة فقط). */
+  async updateEntitlementPayment(employeeId: number, paymentId: number, input: UpdateEntitlementPaymentInput, req: Request) {
+    return entitlementsService.updatePayment(employeeId, paymentId, input, req);
   }
 
-  // ===== سجل المستحقات المصروفة (تاريخي فقط — لا يؤثر في أي احتساب) =====
-  async listEntitlementLedger(employeeId: number) {
-    return prisma.employeeEntitlementLedger.findMany({
-      where: { employeeId },
-      orderBy: { entryDate: 'desc' },
-    });
+  /** حذف دفعة مسجَّلة — الإجماليات تُعاد اشتقاقها تلقائيًا. */
+  async deleteEntitlementPayment(employeeId: number, paymentId: number, req: Request) {
+    return entitlementsService.deletePayment(employeeId, paymentId, req);
   }
 
-  /**
-   * يسجّل صفًّا واحدًا في سجل المستحقات المصروفة (مراجعة تاريخية فقط). لا يغيّر أي
-   * احتساب (رصيد الإجازة/بدل الإجازة/مكافأة نهاية الخدمة يظل مصدرها التسويات وتاريخ
-   * التعيين)، ولا ينشئ قيدًا محاسبيًا أو حركة بنكية أو شيكًا أو سندًا أو راتبًا.
-   * عدد الأيام يُخزَّن فقط لنوع «بدل الإجازة» ويُهمَل لغيره.
-   */
-  /**
-   * لقطة رصيد الإجازة المحتسَب الحالي (بالأيام) للموظف — تُلتقط مرة واحدة لحظة إنشاء
-   * صف بدل الإجازة في السجل، عبر نفس نقطة الاحتساب المركزية (computeCurrentEntitlements)
-   * المستخدَمة في مسار القراءة — لا منطق مكرر. تُخزَّن كقيمة تاريخية جامدة ولا تُستخدم
-   * لاحقًا في أي احتساب.
-   */
-  private async snapshotLeaveBalanceDays(employeeId: number, employee: { hireDate: Date | null; salary: number }): Promise<number | null> {
-    const { result } = await this.computeCurrentEntitlements(employeeId, employee, new Date());
-    return result.remainingLeaveDays;
+  // ===== التصفية النهائية — تفويض كامل لنطاق الاستحقاقات =====
+  async createFinalSettlement(employeeId: number, input: UpsertFinalSettlementInput, req: Request) {
+    return finalSettlementService.createDraft(employeeId, input, req);
   }
-
-  async createEntitlementLedgerEntry(employeeId: number, input: CreateEntitlementLedgerInput, req: Request) {
-    const employee = await prisma.employee.findUnique({
-      where: { id: employeeId },
-      select: { id: true, hireDate: true, salary: true },
-    });
-    if (!employee) throw AppError.notFound('الموظف غير موجود');
-
-    // لقطة الرصيد تُلتقط مرة واحدة هنا لبدل الإجازة فقط، وتبقى جامدة بعد الإنشاء.
-    const leaveBalanceSnapshot =
-      input.entryType === 'LEAVE_ALLOWANCE'
-        ? await this.snapshotLeaveBalanceDays(employeeId, employee)
-        : null;
-
-    const entry = await prisma.employeeEntitlementLedger.create({
-      data: {
-        employeeId,
-        entryType: input.entryType,
-        entryDate: input.entryDate,
-        description: input.description ?? null,
-        leaveDays: input.entryType === 'LEAVE_ALLOWANCE' ? (input.leaveDays ?? null) : null,
-        leaveBalanceSnapshot,
-        amount: input.amount,
-        paymentMethod: input.paymentMethod,
-        notes: input.notes ?? null,
-        createdBy: req.user?.userId ?? null,
-      },
-    });
-    await recordAudit({
-      req,
-      action: 'CREATE',
-      module: 'employees',
-      entityId: entry.id,
-      newValue: { entitlementLedger: entry.entryType, amount: entry.amount },
-    });
-    return entry;
+  async updateFinalSettlement(employeeId: number, input: UpsertFinalSettlementInput, req: Request) {
+    return finalSettlementService.updateDraft(employeeId, input, req);
+  }
+  async approveFinalSettlement(employeeId: number, req: Request) {
+    return finalSettlementService.approve(employeeId, req);
+  }
+  async recordFinalSettlementPayment(employeeId: number, input: RecordSettlementPaymentInput, req: Request) {
+    return finalSettlementService.recordPayment(employeeId, input, req);
+  }
+  async updateFinalSettlementPayment(employeeId: number, paymentId: number, input: RecordSettlementPaymentInput, req: Request) {
+    return finalSettlementService.updatePayment(employeeId, paymentId, input, req);
+  }
+  async deleteFinalSettlementPayment(employeeId: number, paymentId: number, req: Request) {
+    return finalSettlementService.deletePayment(employeeId, paymentId, req);
+  }
+  async cancelFinalSettlement(employeeId: number, input: CancelFinalSettlementInput, req: Request) {
+    return finalSettlementService.cancel(employeeId, input, req);
+  }
+  async deleteFinalSettlementDraft(employeeId: number, req: Request) {
+    return finalSettlementService.deleteDraft(employeeId, req);
   }
 
   // ===== دفعات مقدَّمة على رصيد الإجازة (LeaveSettlement — تسجيل يدوي/تاريخي فقط) =====

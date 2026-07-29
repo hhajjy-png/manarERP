@@ -3,21 +3,27 @@ import PrivateAmount from '../PrivateAmount';
 import { StatusChip, type Tone } from '../explorer/ExplorerKit';
 
 /**
- * أنواع وأدوات مشتركة بين تبويب «الاستحقاقات» المختصر في درج الموظف
- * (EmployeeEntitlementsTab.tsx) وصفحة «مركز المستحقات» الكاملة
- * (pages/EmployeeEntitlementsCenter.tsx) — قراءة/عرض فقط، مصدر واحد للأنواع
- * والتنسيق بلا أي تكرار للمنطق. كل القيم تأتي حرفيًا من استجابة
- * GET /employees/:id/entitlements (انظر backend/src/modules/employees/employees.service.ts).
+ * أنواع وأدوات مشتركة بين ملخّص «الاستحقاقات» في درج الموظف (EmployeeEntitlementsTab.tsx)
+ * وكشف «تفاصيل مستحقات الموظف» الكامل (pages/EmployeeEntitlementsCenter.tsx).
+ *
+ * قراءة/عرض فقط. كل رقم هنا يأتي حرفيًا من نموذج القراءة الموحَّد
+ * GET /employees/:id/entitlements — لا صيغة استحقاق ولا اشتقاق رصيد في الواجهة إطلاقًا.
  */
 
 export type SeparationType = 'EMPLOYER_TERMINATION' | 'RESIGNATION';
+
+/**
+ * الفئة الوحيدة القابلة للصرف في هذه الحزمة — بدل الإجازة. مكافأة نهاية الخدمة تقديرية
+ * دائمًا ولا تقبل تسجيل دفعة، فلا يمثّلها هذا النوع أصلًا (يُمنع بناء مسار دفع لها بالخطأ).
+ */
+export type PayableCategory = 'LEAVE_ALLOWANCE';
 
 /** يطابق EntitlementResult في backend/src/modules/employees/entitlements.calc.ts (قراءة فقط). */
 export interface EntitlementResult {
   hasHireDate: boolean;
   hasWageBase: boolean;
   duration: { years: number; months: number; days: number; totalDays: number } | null;
-  /** هل أتم الموظف 9 أشهر خدمة (المادة 70)؟ null فقط عند غياب تاريخ التعيين. */
+  /** هل أتم الموظف 6 أشهر خدمة (قرار العمل المعتمد)؟ null فقط عند غياب تاريخ التعيين. */
   firstYearEligible: boolean | null;
   annualEntitlementDays: number;
   accruedLeaveDays: number | null;
@@ -44,11 +50,11 @@ export interface EntitlementResult {
   assumptionsApplied: boolean;
 }
 
-/** تركيبة الأجر المعتمد (المادتان 55/62) — راتب أساسي + بدلات دورية نشطة. للعرض/الشفافية فقط. */
+/** مصدر أجر الاستحقاق — `Employee.salary` وحده، بلا بدلات ولا لقطات رواتب. */
 export interface WageBaseComposition {
   baseSalary: number;
-  allowancesTotal: number;
   total: number;
+  source: 'EMPLOYEE_SALARY';
 }
 
 export interface LeaveRow {
@@ -61,9 +67,8 @@ export interface LeaveRow {
 }
 
 /**
- * تفصيل استهلاك رصيد الإجازة السنوية للعرض التنفيذي فقط — يطابق
- * LeaveExclusionBreakdown في backend/src/modules/employees/employees.service.ts
- * (قراءة فقط، لا يُستخدم في أي احتساب هنا). netUsedLeaveDays يساوي دائمًا r.usedLeaveDays.
+ * تفصيل استهلاك رصيد الإجازة السنوية للعرض فقط — netUsedLeaveDays يساوي دائمًا
+ * r.usedLeaveDays (نفس منطق الاستثناء المركزي في الخادم).
  */
 export interface LeaveExclusionBreakdown {
   grossAnnualLeaveDays: number;
@@ -73,48 +78,144 @@ export interface LeaveExclusionBreakdown {
   holidaysConfiguredCount: number;
 }
 
-export interface LedgerRow {
+/** حركة دفع مسجَّلة — واقعة تاريخية ثابتة لا يُعاد احتسابها أبدًا. */
+export interface PaymentRow {
   id: number;
-  entryType: string;
-  entryDate: string;
-  description: string | null;
-  leaveDays: number | null;
-  leaveBalanceSnapshot: number | null;
+  category: string;
+  paymentDate: string;
   amount: number;
   paymentMethod: string;
-  notes: string | null;
-}
-
-/** دفعة مقدَّمة يدوية على رصيد الإجازة — توثيق تاريخي فقط (لا تُسقط الاستحقاق، المادتان 73/74). */
-export interface SettlementRow {
-  id: number;
-  settlementDate: string;
-  leaveDaysSettled: number;
-  settlementAmount: number;
-  paymentMethod: string;
+  reference: string | null;
   notes: string | null;
   createdAt: string;
 }
 
+/**
+ * موقف فئة واحدة كما يشتقّه الخادم: محتسَب − مدفوع = متبقٍّ.
+ * `remaining` يكون null للفئات غير القابلة للصرف (لا «متبقٍّ للدفع» لتقدير).
+ */
+export interface CategoryBalance {
+  entitlement: number | null;
+  paid: number;
+  remaining: number | null;
+  payable: boolean;
+}
+
+/** سبب انتهاء الخدمة — يحدّد سيناريو مكافأة نهاية الخدمة في المحرّك القائم. */
+export type TerminationReason = 'RESIGNATION' | 'EMPLOYER_TERMINATION';
+
+/** دورة حياة التصفية: مسودة تُحتسب حيًّا ← لقطة معتمدة مجمَّدة ← مسدَّدة بالكامل. */
+export type SettlementStatus = 'DRAFT' | 'APPROVED' | 'PAID' | 'CANCELLED';
+
+/** دفعة مسجَّلة على التصفية — منفصلة تمامًا عن دفعات المستحقات السابقة للتصفية. */
+export interface SettlementPaymentRow {
+  id: number;
+  paymentDate: string;
+  amount: number;
+  paymentMethod: string;
+  reference: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+/**
+ * مكوّنات التصفية كما يُرجعها الخادم — بنفس الشكل سواء حُسبت حيًّا (مسودة) أو قُرئت من
+ * اللقطة المجمَّدة (معتمدة/مسدَّدة). لا تحتسب الواجهة أيًّا منها.
+ */
+export interface SettlementComputation {
+  hireDate: string | null;
+  salaryUsed: number;
+  dailyWage: number | null;
+  wageDivisor: number;
+  serviceDuration: { years: number; months: number; days: number; totalDays: number } | null;
+  leaveDays: number | null;
+  leaveValue: number | null;
+  priorLeavePaid: number;
+  leaveRemaining: number | null;
+  eosScenario: TerminationReason;
+  eosFullAmount: number | null;
+  eosFraction: number | null;
+  eosAmount: number | null;
+  totalAmount: number | null;
+}
+
+export interface FinalSettlement {
+  id: number;
+  status: SettlementStatus;
+  lastWorkingDay: string;
+  terminationReason: TerminationReason;
+  approvedAt: string | null;
+  /** الإلغاء حالة نهائية تاريخية — السجل واللقطة والدفعات محفوظة كما هي. */
+  cancelledAt: string | null;
+  cancellationReason: string | null;
+  createdAt: string;
+  /** true حين تُقرأ القيم من لقطة مجمَّدة بدل احتساب حيّ. */
+  isSnapshot: boolean;
+  computation: SettlementComputation;
+  payments: SettlementPaymentRow[];
+  paid: number;
+  remaining: number | null;
+}
+
+export const TERMINATION_REASON_LABEL: Record<string, string> = {
+  RESIGNATION: 'opt.ent.separation.resignation',
+  EMPLOYER_TERMINATION: 'opt.ent.separation.employer_termination',
+};
+
+export const SETTLEMENT_STATUS: Record<string, { key: string; tone: Tone; icon: string }> = {
+  DRAFT: { key: 'opt.ent.settlement.draft', tone: 'orange', icon: 'edit_note' },
+  APPROVED: { key: 'opt.ent.settlement.approved', tone: 'blue', icon: 'verified' },
+  PAID: { key: 'opt.ent.settlement.paid', tone: 'green', icon: 'task_alt' },
+  CANCELLED: { key: 'opt.ent.settlement.cancelled', tone: 'neutral', icon: 'cancel' },
+};
+
 export interface EntitlementsResponse {
   employee: { id: number; code: string; fullName: string; salary: number; hireDate: string | null; status: string };
+  asOf: string;
   result: EntitlementResult;
   wageBase: WageBaseComposition;
   leaveExclusionBreakdown: LeaveExclusionBreakdown;
   leaveHistory: LeaveRow[];
-  settlements: SettlementRow[];
-  ledger: LedgerRow[];
+  payments: {
+    entries: PaymentRow[];
+    totalsByCategory: Record<string, number>;
+    totalRecorded: number;
+  };
+  balances: {
+    leaveAllowance: CategoryBalance;
+    endOfService: CategoryBalance;
+    totalPayable: number | null;
+    totalPaid: number;
+    totalRemaining: number | null;
+    /** الفئات القابلة للصرف فعلًا — تُقرأ كما هي، ولا تُستنتج من حالة الموظف. */
+    payableCategories: string[];
+  };
+  /** التصفية النهائية **النشطة** — null قبل إنشائها أو بعد إلغاء آخر تصفية. */
+  finalSettlement: FinalSettlement | null;
+  /** التصفيات الملغاة — تاريخ للعرض فقط، لا يحجب تصفية جديدة ولا يدخل أي احتساب. */
+  cancelledSettlements: FinalSettlement[];
+  /** تقدير مكافأة نهاية الخدمة الحيّ — سياق حسابي فقط، لا يُصرف ولا يدخل أي إجمالي. */
+  estimatedEndOfService: {
+    isEstimate: boolean;
+    asOf: string;
+    terminationAmount: number | null;
+    resignationAmount: number | null;
+    includedInPayable: boolean;
+    payableNow: boolean;
+    activationRequires: string;
+    scenariosAreHypothetical: boolean;
+  };
 }
 
 export type EmployeeLike = { id: number; fullName?: string | null };
 
-export const LEDGER_TYPE_LABEL: Record<string, string> = {
+export const CATEGORY_LABEL: Record<string, string> = {
   LEAVE_ALLOWANCE: 'field.ent.leave_allowance',
   END_OF_SERVICE: 'field.ent.eos',
   OTHER: 'opt.ent.ledger_type.other',
 };
 
-export const SETTLEMENT_METHOD_LABEL: Record<string, string> = {
+export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   CASH: 'opt.payment.cash',
   BANK_TRANSFER: 'opt.sal.payment.bank_transfer',
   CHEQUE: 'opt.payment.cheque',
@@ -147,7 +248,7 @@ export function daysText(n: number, t: (key: string, vars?: Record<string, strin
   return t('unit.ent.days', { n });
 }
 
-/** نسبة مكافأة الاستقالة (المادة 53) كنص عربي مفهوم مع نطاق سنوات الخدمة. */
+/** نسبة مكافأة الاستقالة (المادة 53) كنص مفهوم. */
 export function resignationFractionLabel(fraction: number, t: (key: string, vars?: Record<string, string | number>) => string): string {
   if (fraction === 0) return t('msg.ent.resignation_fraction.none');
   if (fraction === 1) return t('msg.ent.resignation_fraction.full');
@@ -174,7 +275,7 @@ export function Incomplete({ reason, t }: { reason: string; t: (key: string) => 
   );
 }
 
-/** تنبيه ذكي مُشتقّ من بيانات موجودة بالفعل فقط — لا قاعدة قانونية جديدة، عرض فقط. */
+/** تنبيه ذكي مُشتقّ من بيانات موجودة بالفعل فقط — لا قاعدة عمل جديدة، عرض فقط. */
 export interface EntWarning {
   id: string;
   tone: Tone;
@@ -183,77 +284,30 @@ export interface EntWarning {
 }
 
 /**
- * يبني قائمة التنبيهات الذكية من قيم مُحتسَبة بالفعل في الاستجابة — لا يُدخل أي قاعدة
- * عمل جديدة، فقط يُسمّي حالات موجودة أصلاً في result/leaveExclusionBreakdown/settlements/
- * ledger بصريًا للمستخدم.
+ * يبني قائمة التنبيهات من قيم مُحتسَبة بالفعل في الاستجابة — لا يُدخل أي قاعدة عمل
+ * جديدة، فقط يُسمّي حالات موجودة أصلاً بصريًا للمستخدم.
  */
 export function buildWarnings(
   r: EntitlementResult,
   breakdown: LeaveExclusionBreakdown,
-  totalSettlementDays: number,
-  ledger: LedgerRow[],
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): EntWarning[] {
   const warnings: EntWarning[] = [];
 
   if (r.firstYearEligible === false) {
-    warnings.push({
-      id: 'first-year',
-      tone: 'orange',
-      icon: 'hourglass_empty',
-      text: t('msg.ent.warning.first_year_pending'),
-    });
+    warnings.push({ id: 'first-year', tone: 'orange', icon: 'hourglass_empty', text: t('msg.ent.warning.first_year_pending') });
   }
 
   if (r.accruedLeaveDays !== null && r.usedLeaveDays > r.accruedLeaveDays) {
-    warnings.push({
-      id: 'over-used',
-      tone: 'red',
-      icon: 'warning',
-      text: t('msg.ent.warning.over_used'),
-    });
+    warnings.push({ id: 'over-used', tone: 'red', icon: 'warning', text: t('msg.ent.warning.over_used') });
   }
 
   if (breakdown.grossAnnualLeaveDays > 0 && breakdown.holidaysConfiguredCount === 0) {
-    warnings.push({
-      id: 'no-holidays',
-      tone: 'orange',
-      icon: 'event_busy',
-      text: t('msg.ent.warning.no_holidays_registered'),
-    });
-  }
-
-  if (r.accruedLeaveDays !== null && totalSettlementDays > r.accruedLeaveDays) {
-    warnings.push({
-      id: 'settlement-over-advance',
-      tone: 'red',
-      icon: 'balance',
-      text: t('msg.ent.warning.advance_exceeds', {
-        advanceDays: daysText(totalSettlementDays, t),
-        accruedDays: daysText(r.accruedLeaveDays, t),
-      }),
-    });
-  }
-
-  const staleSnapshot = ledger.find(
-    (e) => e.entryType === 'LEAVE_ALLOWANCE' && e.leaveBalanceSnapshot != null && e.leaveBalanceSnapshot !== r.remainingLeaveDays,
-  );
-  if (staleSnapshot) {
-    warnings.push({
-      id: 'pending-reconciliation',
-      tone: 'blue',
-      icon: 'sync_problem',
-      text: t('msg.ent.warning.pending_reconciliation_snapshot'),
-    });
+    warnings.push({ id: 'no-holidays', tone: 'orange', icon: 'event_busy', text: t('msg.ent.warning.no_holidays_registered') });
   }
 
   if (!r.hasHireDate || !r.hasWageBase) {
-    warnings.push({
-      id: 'incomplete-data',
-      tone: 'neutral',
-      icon: 'info',
-      text: t('msg.ent.warning.incomplete_employee_data'),
-    });
+    warnings.push({ id: 'incomplete-data', tone: 'neutral', icon: 'info', text: t('msg.ent.warning.incomplete_employee_data') });
   }
 
   return warnings;
@@ -269,11 +323,13 @@ export interface EntTimelineEntry {
   meta?: ReactNode;
 }
 
-/** يدمج سجل الإجازات + الدفعات المقدَّمة + المستحقات المصروفة في جدول زمني واحد مرتَّب زمنيًا (الأحدث أولًا). لا بيانات جديدة — دمج/فرز عرضي فقط. */
+/**
+ * يدمج سجل الإجازات مع دفعات المستحقات في جدول زمني واحد (الأحدث أولًا). لا بيانات
+ * جديدة — دمج/فرز عرضي فقط لمصدرين موجودين في نفس الاستجابة.
+ */
 export function buildTimeline(
   leaveHistory: LeaveRow[],
-  settlements: SettlementRow[],
-  ledger: LedgerRow[],
+  payments: PaymentRow[],
   t: (key: string, vars?: Record<string, string | number>) => string,
 ): EntTimelineEntry[] {
   const entries: EntTimelineEntry[] = [];
@@ -291,25 +347,14 @@ export function buildTimeline(
     });
   }
 
-  for (const s of settlements) {
+  for (const p of payments) {
     entries.push({
-      key: `settlement-${s.id}`,
-      dateIso: s.settlementDate,
-      icon: 'savings',
-      tone: 'blue',
-      title: t('msg.ent.timeline.settlement_title', { days: daysText(s.leaveDaysSettled, t) }),
-      meta: <PrivateAmount value={s.settlementAmount} level={1} />,
-    });
-  }
-
-  for (const e of ledger) {
-    entries.push({
-      key: `ledger-${e.id}`,
-      dateIso: e.entryDate,
-      icon: 'account_balance_wallet',
+      key: `payment-${p.id}`,
+      dateIso: p.paymentDate,
+      icon: 'payments',
       tone: 'indigo',
-      title: LEDGER_TYPE_LABEL[e.entryType] ? t(LEDGER_TYPE_LABEL[e.entryType]) : e.entryType,
-      meta: <PrivateAmount value={e.amount} level={1} />,
+      title: t('msg.ent.timeline.payment_title', { category: CATEGORY_LABEL[p.category] ? t(CATEGORY_LABEL[p.category]) : p.category }),
+      meta: <PrivateAmount value={p.amount} level={1} />,
     });
   }
 

@@ -162,6 +162,7 @@ model Employee {
   leaves              Leave[]
   leaveSettlements    LeaveSettlement[]
   entitlementLedger   EmployeeEntitlementLedger[]
+  finalSettlements    EmployeeFinalSettlement[]
   deductions          Deduction[]
   bonuses             Bonus[]
   performanceRevs     PerformanceReview[]
@@ -282,6 +283,93 @@ model EmployeeEntitlementLedger {
   @@index([employeeId])
   @@index([entryDate])
   @@map("employee_entitlement_ledger")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// التصفية النهائية للموظف (Employee Final Settlement v1)
+//
+// سجل مستقل تمامًا داخل نطاق «مستحقات الموظف»: ليس راتبًا ولا قيدًا محاسبيًا، ولا ينشئ
+// أي أثر في الرواتب أو الحسابات أو البنوك أو الشيكات. يتكوّن حصريًا من مكوّنَين:
+// (١) متبقي القيمة النقدية لرصيد الإجازة، و(٢) مكافأة نهاية الخدمة. لا بدلات ولا مكافآت
+// ولا إضافات/خصومات يدوية.
+//
+// دورة الحياة: DRAFT (يُعاد احتسابه حيًّا) ← APPROVED (لقطة مجمَّدة) ← PAID (سُدِّد بالكامل).
+// حقول اللقطة أدناه فارغة في المسودة، وتُكتب مرة واحدة عند الاعتماد فقط، ولا تُحدَّث بعدها
+// مهما تغيّرت بيانات الموظف — فالنتيجة المعتمدة قابلة لإعادة الشرح والتدقيق لاحقًا.
+//
+// ═══ قيد «تصفية نشطة واحدة» ═══
+// القاعدة: للموظف تصفية **نشطة** واحدة فقط (DRAFT | APPROVED | PAID)، مع عدد غير محدود من
+// التصفيات **الملغاة** التاريخية. لا يعبّر عن ذلك `@@unique([employeeId])` (فهو يمنع التاريخ
+// أصلًا)، والفهرس الجزئي (Partial Unique Index) غير مدعوم في صياغة Prisma حتى الآن — لذلك
+// يُنشأ يدويًا في الترحيل:
+//     CREATE UNIQUE INDEX ... ON employee_final_settlements(employeeId) WHERE status <> 'CANCELLED'
+// انظر ترحيل 20260729140000_final_settlement_cancellation. الفهرس العادي أدناه هو ما تعرفه
+// Prisma؛ القيد الفريد الجزئي يعيش في قاعدة البيانات ويحرس الثبات حتى أمام طلبين متزامنين.
+model EmployeeFinalSettlement {
+  id                Int      @id @default(autoincrement())
+  employeeId        Int
+  status            String   @default("DRAFT") // DRAFT | APPROVED | PAID | CANCELLED
+  lastWorkingDay    DateTime // تاريخ الاحتساب المعتمد للتصفية (تقويمي)
+  terminationReason String // RESIGNATION | EMPLOYER_TERMINATION
+
+  // ── لقطة الاعتماد المجمَّدة (كلها null في المسودة) ─────────────────────────────
+  approvedAt              DateTime?
+  approvedBy              Int? // معرّف المستخدم المعتمِد (تسجيل فقط، بلا علاقة FK)
+  snapshotHireDate        DateTime?
+  snapshotSalaryUsed      Float? // Employee.salary وقت الاعتماد (المصدر الوحيد)
+  snapshotDailyWage       Float?
+  snapshotWageDivisor     Int? // قاسم الأجر اليومي المعتمد وقت الاعتماد (26)
+  snapshotServiceYears    Float?
+  snapshotServiceMonths   Int?
+  snapshotServiceDays     Int?
+  snapshotServiceTotalDays Int?
+  snapshotLeaveDays       Float? // رصيد أيام الإجازة عند تاريخ التصفية
+  snapshotLeaveValue      Float? // القيمة النقدية لرصيد الإجازة قبل خصم المدفوع سابقًا
+  snapshotPriorLeavePaid  Float? // إجمالي دفعات بدل الإجازة السابقة المنطبقة
+  snapshotLeaveRemaining  Float? // مكوّن الإجازة في التصفية = القيمة − المدفوع سابقًا
+  snapshotEosScenario     String? // RESIGNATION | EMPLOYER_TERMINATION
+  snapshotEosFullAmount   Float? // المكافأة الكاملة (المادة 51) قبل نسبة الاستقالة
+  snapshotEosFraction     Float? // نسبة الاستقالة المطبَّقة (المادة 53) — 1 عند الإنهاء
+  snapshotEosAmount       Float? // مكوّن نهاية الخدمة في التصفية
+  snapshotTotalAmount     Float? // إجمالي التصفية = مكوّن الإجازة + مكوّن نهاية الخدمة
+
+  // ── الإلغاء (حالة نهائية) — لا حذف للسجل ولا مساس باللقطة المجمَّدة ────────────
+  cancelledAt        DateTime?
+  cancelledBy        Int? // معرّف المستخدم المُلغي (تسجيل فقط، بلا علاقة FK)
+  cancellationReason String?
+
+  employee Employee                 @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  payments FinalSettlementPayment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy Int?
+
+  @@index([employeeId])
+  @@index([status])
+  @@map("employee_final_settlements")
+}
+
+// دفعات التصفية النهائية — منفصلة صراحةً عن سجل دفعات المستحقات العادية
+// (EmployeeEntitlementLedger) حتى لا تختلط الدفعات السابقة للتصفية بدفعات التصفية نفسها.
+// المدفوع/المتبقي يُشتقّان دائمًا من هذه الصفوف مقابل إجمالي اللقطة المجمَّدة — لا رصيد
+// متبقٍّ مُخزَّن قابل للتحرير.
+model FinalSettlementPayment {
+  id            Int      @id @default(autoincrement())
+  settlementId  Int
+  paymentDate   DateTime
+  amount        Float
+  paymentMethod String // CASH | BANK_TRANSFER | CHEQUE | OTHER
+  reference     String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  createdBy     Int?
+
+  settlement EmployeeFinalSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+
+  @@index([settlementId])
+  @@index([paymentDate])
+  @@map("final_settlement_payments")
 }
 
 model Deduction {
