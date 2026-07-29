@@ -64,6 +64,52 @@ export const BRANDING_LAYOUT_BOUNDS: Readonly<BrandingLayoutBounds> = {
   minScale: 0.2, maxScale: 4,
 };
 
+// ─── Rotation ────────────────────────────────────────────────────────────────
+
+/**
+ * The rotation slider's range. Deliberately NOT part of `BrandingLayoutBounds`: the
+ * travel/scale envelope is per-document (an approval slot and a blank sheet allow
+ * different journeys), but a full turn is a full turn on every document — putting the
+ * angle in that record would invite a per-document limit that has no geometric meaning.
+ */
+export const ROTATION_MIN = -180;
+export const ROTATION_MAX = 180;
+
+/**
+ * An angle brought into the half-open range `(-180, 180]`.
+ *
+ * WRAPPING, NOT CLAMPING, and the difference matters at the gesture level: a clamp at
+ * ±180 would make the element STOP under a continuing circular drag, which reads as a
+ * broken handle. Wrapping lets the pointer keep going round.
+ *
+ * `-180` deliberately maps to `+180` so the range is half-open and one angle has exactly
+ * one representation; `-0` is folded to `0` for the same reason. Rounded to 0.1° — finer
+ * than any signature placement needs, and it keeps the emitted transform string short
+ * and deterministic instead of carrying `atan2`'s full float tail.
+ */
+export function normalizeRotation(deg: number): number {
+  if (!Number.isFinite(deg)) return 0;
+  const rounded = Math.round(deg * 10) / 10;
+  const wrapped = rounded % 360;
+  if (wrapped > 180) return wrapped - 360;
+  if (wrapped <= -180) return wrapped + 360;
+  return wrapped === 0 ? 0 : wrapped;
+}
+
+/**
+ * The `rotate()` term of the transform — **an empty string when the element does not
+ * rotate**, so an unrotated element emits no rotation term at all.
+ *
+ * That is the whole backward-compatibility guarantee in one function: a layout saved
+ * before rotation existed produces `translate(0px, 0px) scale(1)`, character for
+ * character what it produced before, rather than a visually-equivalent
+ * `translate(0px, 0px) rotate(0deg) scale(1)`.
+ */
+function rotationTerm(rotation: number | undefined): string {
+  const r = rotation === undefined ? 0 : normalizeRotation(rotation);
+  return r === 0 ? '' : ` rotate(${r}deg)`;
+}
+
 /** CSS px per physical mm — CSS px is defined as 1/96in, so this is a fixed physical ratio. */
 const PX_PER_MM = 96 / 25.4;
 const mmToPx = (millimetres: number): number => Math.round(millimetres * PX_PER_MM);
@@ -123,14 +169,22 @@ export function getBrandingLayoutBounds(
  * Spreads `el` first so fields this function does not itself clamp — today just
  * `inkMode` (Ink Color System v2) — pass through untouched instead of being silently
  * dropped by the explicit field list below.
+ *
+ * `rotation` is the one field that can leave: it is re-attached only when the normalized
+ * angle is non-zero. So an element rotated back to 0° becomes key-for-key identical to
+ * one that was never rotated — which is what makes "reset really restores the old state"
+ * true in the SAVED RECORD, not merely on screen.
  */
 export function clampBrandingElementLayout(
   el: BrandingElementLayout,
   bounds: Readonly<BrandingLayoutBounds> = BRANDING_LAYOUT_BOUNDS,
 ): BrandingElementLayout {
   const b = bounds;
+  const { rotation, ...rest } = el;
+  const normalizedRotation = rotation === undefined ? 0 : normalizeRotation(rotation);
   return {
-    ...el,
+    ...rest,
+    ...(normalizedRotation === 0 ? {} : { rotation: normalizedRotation }),
     x: Math.max(b.minX, Math.min(b.maxX, el.x)),
     y: Math.max(b.minY, Math.min(b.maxY, el.y)),
     scale: Math.max(b.minScale, Math.min(b.maxScale, el.scale)),
@@ -157,7 +211,11 @@ function isElementLayout(v: unknown): v is BrandingElementLayout {
     typeof o.zIndex === 'number' &&
     // Ink Color System v2 — optional and additive: absent on every pre-v2 saved
     // layout, which is exactly what "never customized" (→ legacy fallback) means.
-    (o.inkMode === undefined || typeof o.inkMode === 'string')
+    (o.inkMode === undefined || typeof o.inkMode === 'string') &&
+    // Rotation v1 — same contract: absent on every pre-rotation saved layout, and an
+    // absent angle is 0°. Accepting it here (rather than dropping the whole entry) is
+    // what lets a rotated layout survive a round-trip through this parser.
+    (o.rotation === undefined || typeof o.rotation === 'number')
   );
 }
 
@@ -234,13 +292,26 @@ export function getBrandingLayoutForDocument(
  *
  * An identity layout yields `translate(0px, 0px) scale(1)` — a no-op, which is why an
  * undesigned form prints byte-identically to before.
+ *
+ * THE ORDER `translate → rotate → scale` IS LOAD-BEARING, not stylistic:
+ *  · `translate` must come FIRST so the offset is interpreted in the PARENT's
+ *    (unrotated) coordinate space. Put `rotate` ahead of it and every pointer delta
+ *    would be applied in the element's own rotated frame — the element would slide off
+ *    at an angle to the cursor, and drag would silently stop tracking. Keeping the order
+ *    this way is precisely why `continueDrag` needs no rotation-awareness at all.
+ *  · `rotate` and `scale` commute here because the scale is UNIFORM, so their relative
+ *    order is free; `rotate` is placed before `scale` only to read in the same order as
+ *    the properties are listed everywhere else.
+ *  · Both spin about `transform-origin: center`, which leaves the element's centre
+ *    fixed — that is what keeps a caller's `translateX(-50%)` centring exact under any
+ *    angle, exactly as it already stays exact under any scale.
  */
 export function brandingElementTransform(
   el: BrandingElementLayout,
   bounds?: Readonly<BrandingLayoutBounds>,
 ): string {
   const c = clampBrandingElementLayout(el, bounds);
-  return `translate(${c.x}px, ${c.y}px) scale(${c.scale})`;
+  return `translate(${c.x}px, ${c.y}px)${rotationTerm(c.rotation)} scale(${c.scale})`;
 }
 
 export function applyBrandingElementStyle(
@@ -250,7 +321,10 @@ export function applyBrandingElementStyle(
   const clamped = clampBrandingElementLayout(el, bounds);
   return {
     position: 'relative',
-    transform: `translate(${clamped.x}px, ${clamped.y}px) scale(${clamped.scale})`,
+    // Same order, same reasoning as `brandingElementTransform` above — these two are the
+    // ONLY places an angle becomes CSS, which is what makes screen, accurate preview,
+    // print and the saved PDF agree without any of them knowing rotation exists.
+    transform: `translate(${clamped.x}px, ${clamped.y}px)${rotationTerm(clamped.rotation)} scale(${clamped.scale})`,
     transformOrigin: 'center',
     opacity: clamped.opacity,
     zIndex: clamped.zIndex,

@@ -84,6 +84,20 @@ export interface BrandingElementLayout {
   opacity: number;
   zIndex: number;
   /**
+   * Rotation v1 — this element's own angle in degrees, normalized to `(-180, 180]`.
+   *
+   * OPTIONAL on purpose, exactly like `inkMode` below and for the same reason: absent
+   * means "never rotated", and the renderer then emits NO `rotate()` at all — not
+   * `rotate(0deg)`. A layout saved before this field existed therefore produces a
+   * byte-identical transform string to the one it produced before rotation existed.
+   * That is a stronger guarantee than "visually identical", and it is the reason this
+   * is not a required field defaulting to 0.
+   *
+   * Stored in the same `print.brandingLayout` record, so it shares Save/Reset/Undo/Redo
+   * with position, size and colour — there is no separate rotation store.
+   */
+  rotation?: number;
+  /**
    * Ink Color System v2 — this element's OWN color, independent of its sibling
    * (signature vs stamp). `undefined` means "never customized": the renderer falls
    * back to the legacy global `localStorage['manar.inkMode']` default via

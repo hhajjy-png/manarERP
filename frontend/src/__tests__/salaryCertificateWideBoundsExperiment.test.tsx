@@ -220,7 +220,9 @@ describe('إعادة الضبط تُرجع الأصل تمامًا', () => {
 
   it('إعادة الضبط تكتب المحايد لا حدًّا من الحدود — ولا لونًا مخصَّصًا', () => {
     const hook = src('src/print-templates/hooks/useBrandingDesigner.ts');
-    expect(hook).toContain('updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined })');
+    expect(hook).toContain(
+      'updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined })',
+    );
     expect(hook).not.toContain('minX');
     expect(hook).not.toContain('maxScale');
   });

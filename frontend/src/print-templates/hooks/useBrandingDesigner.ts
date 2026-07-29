@@ -12,6 +12,7 @@ import {
   getBrandingLayoutBounds,
   clampBrandingElementLayout,
   getBrandingLayoutForDocument,
+  normalizeRotation,
   serializeBrandingLayout,
   type BrandingLayoutBounds,
 } from '../utils/brandingLayout';
@@ -78,6 +79,21 @@ export interface BrandingDesignerHandle {
   startResize: (type: ElementType, pointerX: number, pointerY: number, renderScale?: number) => void;
   continueResize: (pointerX: number, pointerY: number) => void;
   endResize: () => void;
+
+  // Rotate — angle follows the pointer around the element's own centre
+  isRotating: boolean;
+  /**
+   * `centerX`/`centerY` are the element's visual centre in CLIENT coordinates. The
+   * caller measures them from the image's own bounding rect: because the element spins
+   * about `transform-origin: center`, the centre of that rect IS the true pivot at any
+   * angle, so the gesture stays accurate however far the element is already turned.
+   */
+  startRotate: (type: ElementType, centerX: number, centerY: number, pointerX: number, pointerY: number) => void;
+  /** `snap` ⇒ Shift is held ⇒ land on the nearest 15°. Read live, not snapshotted. */
+  continueRotate: (pointerX: number, pointerY: number, snap: boolean) => void;
+  endRotate: () => void;
+  /** Back to 0° for this element alone — leaves position, size and colour untouched. */
+  resetRotation: (type: ElementType) => void;
 
   // Alignment
   alignCenterH: (type: ElementType) => void;
@@ -307,6 +323,8 @@ export function useBrandingDesigner({
     scale: number;
     type: ElementType;
     renderScale: number;
+    /** The angle the element carried at grab time — see `continueResize`. */
+    rotation: number;
   } | null>(null);
 
   /** px of diagonal pointer travel that doubles the element's size. */
@@ -320,6 +338,7 @@ export function useBrandingDesigner({
       scale: el.scale,
       type,
       renderScale: renderScale && renderScale > 0 ? renderScale : effectiveZoom || 1,
+      rotation: el.rotation ?? 0,
     };
     setIsResizing(true);
     setSelected(type);
@@ -330,7 +349,19 @@ export function useBrandingDesigner({
     if (!rs) return;
     // Outward along the handle's diagonal grows, inward shrinks. Averaging the two axes
     // keeps the gesture predictable whichever way the pointer drifts.
-    const travel = ((pointerX - rs.px) + (pointerY - rs.py)) / 2 / rs.renderScale;
+    //
+    // The delta is first UN-ROTATED by the element's own angle. Without this the axes the
+    // average is taken over stay screen-aligned while the element's diagonal has turned
+    // away from them, so on a 90°-rotated stamp "pull outward" reads as shrink and the
+    // handle feels inverted. Rotating the delta by −θ expresses the pointer travel in the
+    // element's own frame, which is the frame the handle visually belongs to. At θ = 0 the
+    // rotation is the identity, so the unrotated gesture is bit-for-bit what it was.
+    const rawDx = (pointerX - rs.px) / rs.renderScale;
+    const rawDy = (pointerY - rs.py) / rs.renderScale;
+    const rad = (-rs.rotation * Math.PI) / 180;
+    const dx = rawDx * Math.cos(rad) - rawDy * Math.sin(rad);
+    const dy = rawDx * Math.sin(rad) + rawDy * Math.cos(rad);
+    const travel = (dx + dy) / 2;
     const next = patchDoc(rs.type, {
       scale: rs.scale * (1 + travel / RESIZE_PX_PER_DOUBLING),
     });
@@ -346,6 +377,75 @@ export function useBrandingDesigner({
     setIsResizing(false);
   }
 
+  // ── Rotate ──
+  /**
+   * The same `atan2`-around-a-centre gesture the layout designer and the cheque field
+   * designer already use (`useLayoutDesigner.startRotate`, `useDesignerRotation`) — the
+   * pointer's angle relative to the pivot at grab time is remembered, and every move
+   * applies the DELTA to the angle the element had then. Remembering the delta rather
+   * than the absolute angle is what stops the element snapping to the pointer on grab.
+   */
+  const [isRotating, setIsRotating] = useState(false);
+  const rotateStartRef = useRef<{
+    cx: number;
+    cy: number;
+    startPointerAngle: number;
+    startRotation: number;
+    type: ElementType;
+  } | null>(null);
+
+  /** Shift-snap increment, in degrees. */
+  const ROTATION_SNAP_DEG = 15;
+
+  const pointerAngle = (cx: number, cy: number, px: number, py: number): number =>
+    (Math.atan2(py - cy, px - cx) * 180) / Math.PI;
+
+  function startRotate(
+    type: ElementType,
+    centerX: number,
+    centerY: number,
+    pointerX: number,
+    pointerY: number,
+  ) {
+    const el = getBrandingLayoutForDocument(layoutRef.current, docType)[type];
+    rotateStartRef.current = {
+      cx: centerX,
+      cy: centerY,
+      startPointerAngle: pointerAngle(centerX, centerY, pointerX, pointerY),
+      startRotation: el.rotation ?? 0,
+      type,
+    };
+    setIsRotating(true);
+    setSelected(type);
+  }
+
+  function continueRotate(pointerX: number, pointerY: number, snap: boolean) {
+    const rs = rotateStartRef.current;
+    if (!rs) return;
+    const delta = pointerAngle(rs.cx, rs.cy, pointerX, pointerY) - rs.startPointerAngle;
+    const raw = rs.startRotation + delta;
+    // Snap the RESULTING angle, not the delta, so Shift always lands on an absolute
+    // multiple of 15° regardless of where the element started.
+    const angle = snap ? Math.round(raw / ROTATION_SNAP_DEG) * ROTATION_SNAP_DEG : raw;
+    // `patchDoc` → `clampBrandingElementLayout` normalizes into (-180, 180] and drops the
+    // field entirely at 0°, so a full turn back to upright leaves no trace behind.
+    const next = patchDoc(rs.type, { rotation: normalizeRotation(angle) });
+    layoutRef.current = next;
+    setLayoutState(next);
+  }
+
+  function endRotate() {
+    if (rotateStartRef.current) {
+      pushHistory(layoutRef.current);
+    }
+    rotateStartRef.current = null;
+    setIsRotating(false);
+  }
+
+  function resetRotation(type: ElementType) {
+    updateElement(type, { rotation: undefined });
+  }
+
   // ── Alignment ──
   function alignCenterH(type: ElementType) { updateElement(type, { x: 0 }); }
   function alignCenterV(type: ElementType) { updateElement(type, { y: 0 }); }
@@ -353,17 +453,18 @@ export function useBrandingDesigner({
   function sendBackward(type: ElementType) { updateElement(type, { zIndex: 1 }); }
 
   /**
-   * Back to the template's own placement — identity offset, scale 1, full opacity —
-   * AND back to no per-element ink color. `inkMode: undefined` must be explicit here:
-   * `DEFAULT_ELEMENT_LAYOUT` simply has no `inkMode` key, and `patchDoc`'s
-   * `{...current, ...patch}` merge only OVERWRITES keys the patch actually contains —
-   * an absent key would leave a previously-set color untouched, not clear it. Explicit
-   * `undefined` is the correct backward-compatible reset target: it is indistinguishable
-   * from an element that was never customized, so Reset falls back to the legacy global
-   * default exactly like a pre-v2 document would.
+   * Back to the template's own placement — identity offset, scale 1, full opacity, no
+   * rotation — AND back to no per-element ink color. `inkMode: undefined` and
+   * `rotation: undefined` must both be explicit here: `DEFAULT_ELEMENT_LAYOUT` simply has
+   * neither key, and `patchDoc`'s `{...current, ...patch}` merge only OVERWRITES keys the
+   * patch actually contains — an absent key would leave a previously-set color or angle
+   * untouched, not clear it. Explicit `undefined` is the correct backward-compatible reset
+   * target: it is indistinguishable from an element that was never customized, so Reset
+   * falls back to the legacy global default exactly like a pre-v2 document would, and the
+   * element's stored record loses the rotation key altogether.
    */
   function resetElement(type: ElementType) {
-    updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined });
+    updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined });
   }
 
   function resetDoc() {
@@ -371,8 +472,8 @@ export function useBrandingDesigner({
     const next: PrintBrandingLayoutSettings = {
       ...layoutRef.current,
       [docType]: {
-        signature: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined },
-        stamp: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined },
+        signature: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined },
+        stamp: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined },
       },
     };
     setLayout(next);
@@ -423,6 +524,11 @@ export function useBrandingDesigner({
     startResize,
     continueResize,
     endResize,
+    isRotating,
+    startRotate,
+    continueRotate,
+    endRotate,
+    resetRotation,
     alignCenterH,
     alignCenterV,
     bringForward,
