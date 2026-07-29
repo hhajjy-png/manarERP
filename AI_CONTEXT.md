@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `f59c5477` (merge of `feature/administrative-forms-english-translation-completion-v1`, carrying Administrative Forms English Translation Completion v1) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `607747f` |
 | **Current Stable Tag** | `stable-administrative-forms-english-translation-completion-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 371 (window 2026-06-07 → 2026-07-29) |
