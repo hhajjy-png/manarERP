@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `f59c5477` (merge of `feature/administrative-forms-english-translation-completion-v1`, carrying Administrative Forms English Translation Completion v1) |
-| **Current Documentation Commit** | `607747f` |
-| **Current Stable Tag** | `stable-administrative-forms-english-translation-completion-v1` |
+| **Current Merge Commit** | `5d893805` (merge of `feature/multi-signature-stamp-persistence-fix-v1`, carrying Multi-Signature & Stamp Persistence Fix v1) |
+| **Current Documentation Commit** | *(filled in by the follow-up commit)* |
+| **Current Stable Tag** | `stable-multi-signature-stamp-persistence-fix-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 371 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 372 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -408,6 +408,31 @@ Chromium PDF, and backend HTML reports.
 
 ## Latest Completed Releases
 
+- **Multi-Signature & Stamp Persistence Fix v1** (2026-07-29,
+  `stable-multi-signature-stamp-persistence-fix-v1`) — fixes a reported defect: saving a second
+  signature or stamp in Company Settings did not survive a reload. Root cause, proven against the
+  real dev database before any code changed: Multi-Signature & Stamp Management v1's Settings UI
+  moved every list edit (add/upload/delete/set-default/show-hide) to local React state only,
+  leaving the single top "حفظ" button as the sole writer — any edit not followed by an explicit
+  top-level save was silently lost on reload. Every asset-list mutation in `Settings.tsx` now
+  persists itself: structural changes write immediately, free-text name/title edits debounce
+  800ms (one `PUT` per pause, not per keystroke), writes are queued so two quick edits can never
+  land out of order, and every write reads the newest snapshot from a ref rather than a React-state
+  closure — closing a race where an edit made during an in-flight image upload could be dropped. A
+  pending debounced edit flushes on unmount. List-mutation logic was extracted into pure,
+  independently-tested functions in `brandingAssets.ts`; upload errors now render inside the
+  specific card that failed; `Date.now()` asset ids replaced with `crypto.randomUUID()`. **Storage
+  contract unchanged:** same `print.signatures`/`print.stamps` keys and legacy single-image
+  mirrors, no Prisma migration, no change to `CompanyPrintData`/`BrandingLayout`/Branding
+  Designer/Ink Color System v2/Preview/Print/PDF — this release touches only how Settings writes
+  the two lists it already owned. No multi-selection inside documents (still one signature + one
+  stamp per document — unchanged by design, explicitly out of scope). Frontend `tsc --noEmit` ✅
+  (frontend-only release); 67 new/updated unit tests plus an 18-check end-to-end scenario against
+  the real Express/Zod/Prisma/SQLite stack on a throwaway database copy, all passing; full frontend
+  suite 2156/2181 passing, the same 25 pre-existing failures across the same 8 files as baseline
+  (zero new regressions); backend suite 138 files/2009 tests unaffected. Product Owner manual
+  visual review: approved.
+
 - **Administrative Forms English Translation Completion v1** (2026-07-29,
   `stable-administrative-forms-english-translation-completion-v1`) — closes a real gap: switching an
   administrative/HR print form to English translated static labels only, leaving dynamic business
@@ -643,7 +668,10 @@ Chromium PDF, and backend HTML reports.
   (`BRANDING_LAYOUT_BOUNDS`: x/y ±150, scale 0.2–4) for every document, with the
   superseded Phase-4 bound constants removed. Payment Vouchers and Employment
   Contract are explicitly excluded (no company approval slot / asymmetric
-  footer). No backend, Prisma, or API change.
+  footer). No backend, Prisma, or API change. **As of Multi-Signature & Stamp
+  Persistence Fix v1 (2026-07-29):** every Settings list edit (add/upload/
+  delete/set-default/show-hide) writes immediately instead of waiting for the
+  page's top-level save — see that release entry above for the fix itself.
 
   Frontend, backend, and electron `tsc --noEmit` passed pre- and post-merge.
   Full frontend suite: 1971/1996 passing pre- and post-merge (identical); the
