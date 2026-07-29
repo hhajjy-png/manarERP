@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
 import FormLayout from '../forms/shared/FormLayout';
 import { PRINT_PROFILES, SELECTABLE_PROFILE_IDS } from '../forms/shared/printProfiles';
+import { SECTION_HEADER_BG } from '../forms/shared/formStyles';
 
 /**
  * Ready Paper — generalization guard.
@@ -52,6 +53,12 @@ function renderProfile(profile: string, extra: Record<string, unknown> = {}) {
 const headerOf = (c: HTMLElement) =>
   (c.querySelector('img') as HTMLElement | null)?.parentElement?.parentElement as HTMLElement | undefined;
 const printCss = (c: HTMLElement) => c.querySelector('style')!.textContent!;
+const logoTintMatrixValues = (c: HTMLElement) => c.querySelector('feColorMatrix')!.getAttribute('values');
+const hexToUnitRgbString = (hex: string) => {
+  const clean = hex.replace('#', '');
+  const chan = (i: number) => (parseInt(clean.slice(i, i + 2), 16) / 255).toString();
+  return `0 0 0 0 ${chan(0)} 0 0 0 0 ${chan(2)} 0 0 0 0 ${chan(4)} 0 0 0 1 0`;
+};
 
 // ── Central route ────────────────────────────────────────────────────────────
 describe('Ready Paper — one central route, no per-form logic', () => {
@@ -87,6 +94,24 @@ describe('Ready Paper — one central route, no per-form logic', () => {
     for (const id of Object.keys(PRINT_PROFILES).filter((k) => k !== 'ready-paper')) {
       expect(PRINT_PROFILES[id].logoHeader).toBe(false);
     }
+  });
+});
+
+// ── Logo tint (generalized) ──────────────────────────────────────────────────
+describe('Ready Paper — logo tint matches the section-header bars, centrally', () => {
+  it('ready-paper recolors the logo to SECTION_HEADER_BG with no per-form opt-in', () => {
+    const { container } = renderProfile('ready-paper');
+    expect(logoTintMatrixValues(container)).toBe(hexToUnitRgbString(SECTION_HEADER_BG));
+  });
+
+  it('an explicit logoTintColor prop still overrides the automatic ready-paper tint', () => {
+    const { container } = renderProfile('ready-paper', { logoTintColor: '#00ff00' });
+    expect(logoTintMatrixValues(container)).toBe(hexToUnitRgbString('#00ff00'));
+  });
+
+  it('payment-voucher (non-ready-paper, logo forced via useLogoHeader) keeps its own unrelated default tint', () => {
+    const { container } = renderProfile('payment-voucher', { useLogoHeader: true });
+    expect(logoTintMatrixValues(container)).not.toBe(hexToUnitRgbString(SECTION_HEADER_BG));
   });
 });
 

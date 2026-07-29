@@ -10,11 +10,18 @@ const COMPANY_NAME_EN =
 // constant (#2b2e83) — reused here (not a new/guessed color) to recolor the
 // logohead.png mark + wordmark for on-screen and print legibility.
 const LOGO_TINT_FILTER_ID = 'form-header-logo-tint';
-// #2b2e83 channel components normalized to 0-1, as required by the
-// feColorMatrix constant-offset (5th) column below.
-const LOGO_TINT_R = 43 / 255;
-const LOGO_TINT_G = 46 / 255;
-const LOGO_TINT_B = 131 / 255;
+const DEFAULT_LOGO_TINT_HEX = '#2b2e83';
+
+// Normalizes a '#rrggbb' hex color to the 0-1 channel components required by
+// the feColorMatrix constant-offset (5th) column below.
+function hexToUnitRgb(hex: string): { r: number; g: number; b: number } {
+  const clean = hex.replace('#', '');
+  return {
+    r: parseInt(clean.slice(0, 2), 16) / 255,
+    g: parseInt(clean.slice(2, 4), 16) / 255,
+    b: parseInt(clean.slice(4, 6), 16) / 255,
+  };
+}
 
 // logohead.png (930×268) has a large blank margin baked into the source file
 // around the mark+wordmark — measured by scanning the PNG's pixels: visible
@@ -125,6 +132,13 @@ interface Props {
    * untouched: full uncropped image, in flow, divider intact.
    */
   cropTransparentPadding?: boolean;
+  /**
+   * Opt-in override for the logo's recolor tint (hex, e.g. `'#1d4e6f'`).
+   * Undefined (default) keeps every existing form's `DEFAULT_LOGO_TINT_HEX`
+   * (#2b2e83) exactly as before — only a caller that explicitly passes this
+   * prop sees a different logo color.
+   */
+  tintColor?: string;
 }
 
 export default function FormHeader({
@@ -136,7 +150,9 @@ export default function FormHeader({
   overlayInsetRight = '0',
   overlayTop = '0',
   cropTransparentPadding = false,
+  tintColor,
 }: Props) {
+  const { r: logoTintR, g: logoTintG, b: logoTintB } = hexToUnitRgb(tintColor ?? DEFAULT_LOGO_TINT_HEX);
   // `overlay` (ready-paper) always implies the crop; `cropTransparentPadding` is
   // the same crop for an in-flow header (Receipt Voucher). Either source turns
   // it on — Payment Voucher sets neither, so it is completely unaffected.
@@ -192,7 +208,7 @@ export default function FormHeader({
             <filter id={LOGO_TINT_FILTER_ID} colorInterpolationFilters="sRGB">
               <feColorMatrix
                 type="matrix"
-                values={`0 0 0 0 ${LOGO_TINT_R} 0 0 0 0 ${LOGO_TINT_G} 0 0 0 0 ${LOGO_TINT_B} 0 0 0 1 0`}
+                values={`0 0 0 0 ${logoTintR} 0 0 0 0 ${logoTintG} 0 0 0 0 ${logoTintB} 0 0 0 1 0`}
               />
             </filter>
           </svg>

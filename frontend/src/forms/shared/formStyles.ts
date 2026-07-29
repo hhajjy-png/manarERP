@@ -35,8 +35,13 @@ export const valueCell: CSSProperties = {
   color: '#0f172a',
 };
 
+// Canonical source for the "بيانات الموظف"/"بيانات الراتب" section-header bar
+// color — reused by anything that needs to match it exactly (e.g. the
+// Salary Certificate ready-paper logo tint) instead of re-typing the hex.
+export const SECTION_HEADER_BG = '#1d4e6f';
+
 export const sectionHeader: CSSProperties = {
-  background: '#1d4e6f',
+  background: SECTION_HEADER_BG,
   color: '#fff',
   fontWeight: 800,
   fontSize: 13,
