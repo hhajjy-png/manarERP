@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `dacacd4a` — release `stable-cloud-sync-progress-dialog-rewire-v1` (rewires `syncEngine.service.ts`'s `setStatus()` to publish `emitSyncProgress()`, reconnecting the pre-existing Cloud Sync Progress Dialog to live startup/shutdown sync events) |
+| **Production HEAD** | `e5bb31df` — release `stable-invoice-number-status-color-v1` (colors the Invoices table's invoice-number text with the same tone as its row's status chip, read from the existing `STATUS_META` map) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-cloud-sync-progress-dialog-rewire-v1` (release date 2026-07-29) → merge `dacacd4a` |
-| **Previous stable tag** | `stable-customer-drawer-prices-board-equipment-data-pack-v1` (2026-07-29) → merge `8de53ed3` |
-| **Total stable releases** | 377 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | electron `tsc --noEmit` ✅ (feature branch, re-verified on `production` immediately after merge — identical) · `npm run electron:build` ✅ (production, post-merge) · `syncProgressBus.test.ts` 4/4 ✅ (feature branch only; not re-run post-merge — no logic in that file changed) · backend/frontend/Prisma untouched, not re-run (electron-only additive rewire — no schema/API/UI change) · Product Owner manual visual review — **completed & approved** for both startup and shutdown sync · scope confirmed: only `electron/services/syncEngine.service.ts` entered the release, with the pre-existing uncommitted Google Drive Deployment Pack working-tree edits and all 5 unrelated git stashes surgically excluded and confirmed untouched after merge |
-| **Remote sync** | `origin/production` — pushed with this release (merge `dacacd4a` + tag `stable-cloud-sync-progress-dialog-rewire-v1`) |
+| **Latest stable tag** | `stable-invoice-number-status-color-v1` (release date 2026-07-29) → merge `e5bb31df` |
+| **Previous stable tag** | `stable-cloud-sync-progress-dialog-rewire-v1` (2026-07-29) → merge `dacacd4a` |
+| **Total stable releases** | 378 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (feature branch, re-verified on `production` immediately after merge — identical) · `npm run build:front` ✅ (feature branch, before merge) · backend/electron/Prisma untouched, not re-run (frontend-only CSS/render-attribute change, no schema/API change) · Product Owner manual visual review — **completed & approved** · scope confirmed: only `frontend/src/pages/Invoices.tsx` + `frontend/src/pages/Invoices.css` entered the release, with the pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded and confirmed untouched after merge |
+| **Remote sync** | `origin/production` — pushed with this release (merge `e5bb31df` + tag `stable-invoice-number-status-color-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,48 @@ in a table cell.
 
 ---
 
-## Latest Release — Cloud Sync Progress Dialog Rewire v1
+## Latest Release — Invoice Number Status Color v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Invoice Number Status Color v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/invoice-number-status-color-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `8034dd6c` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — a scoped, single-page text-color tweak, per Quick Fix mode |
+| **Feature commit** | `aabf0083` |
+| **Production merge commit** | `e5bb31df` |
+| **Stable tag** | `stable-invoice-number-status-color-v1` → merge `e5bb31df` (annotated) |
+| **Reviews** | Product Owner manual visual review — **completed & approved** |
+| **Validation** | frontend `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge, identical) · `npm run build:front` ✅ (feature branch, before merge) · backend/electron/Prisma not touched, not re-run (frontend-only CSS/render change) |
+
+**Scope — two files, `frontend/src/pages/Invoices.tsx` + `frontend/src/pages/Invoices.css`:**
+
+```diff
+       render: (r) => <span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span>,
++      render: (r) => {
++        const tone = (STATUS_META[String(r.status)] ?? { tone: 'neutral' as Tone }).tone;
++        return <span className={`invcx-mono invcx-num--${tone}`}><strong>{r.invoiceNumber ?? r.number}</strong></span>;
++      },
+```
+
+```diff
++.invcx-num--neutral { color: var(--xpl-muted); }
++.invcx-num--green   { color: var(--xpl-green); }
++.invcx-num--red     { color: var(--xpl-red); }
++.invcx-num--orange  { color: var(--xpl-orange); }
++.invcx-num--blue    { color: var(--xpl-blue); }
++.invcx-num--indigo  { color: var(--xpl-primary); }
+```
+
+The invoice-number column now reads its row's `tone` from `STATUS_META` — the exact same map `invStatusChip()` already uses to color the status chip — and applies it as the number's text color only, via new `.invcx-num--{tone}` classes that point at the identical `--xpl-*` CSS variables the chip itself uses (`.xpl-chip--{tone}` in `explorer-kit.css`). No new color was introduced, no status logic was duplicated, and both light/dark themes are inherited automatically since the underlying variables already support both.
+
+**Not changed:** the status chip's own color/design, the invoices table layout, business logic, exported data, or any other column.
+
+---
+
+## Previous Release — Cloud Sync Progress Dialog Rewire v1
 
 | Field | Value |
 |-------|-------|

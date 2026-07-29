@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `dacacd4a` (merge of `fix/cloud-sync-progress-dialog-rewire`, rewiring `syncEngine.service.ts` to publish `emitSyncProgress()` so the pre-existing Cloud Sync Progress Dialog receives live startup/shutdown sync events again) |
-| **Current Documentation Commit** | `c73bd90` |
-| **Current Stable Tag** | `stable-cloud-sync-progress-dialog-rewire-v1` |
+| **Current Merge Commit** | `e5bb31df` (merge of `feature/invoice-number-status-color-v1`, coloring the Invoices table's invoice-number text with the same tone as its row's status chip) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-invoice-number-status-color-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 377 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 378 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,17 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Invoice Number Status Color v1** (2026-07-29, `stable-invoice-number-status-color-v1`) — colors
+  the Invoices table's invoice-number text with the same tone as its row's status chip. The
+  invoice-number column reads its row's `tone` from `STATUS_META` — the same map `invStatusChip()`
+  already uses for the chip itself — and applies it via new `.invcx-num--{tone}` classes that point
+  at the identical `--xpl-*` CSS variables the chip's own `.xpl-chip--{tone}` rules use. No new color
+  introduced, no status logic duplicated; both themes inherit automatically since the underlying
+  variables already support both. **Not changed:** the chip's own color/design, table layout,
+  business logic, or exported data. Feature commit `aabf0083`, merge `e5bb31df`. Validation: frontend
+  `tsc --noEmit` ✅ · `build:front` ✅, both re-verified on `production` post-merge · backend/electron/
+  Prisma untouched (frontend-only). Product Owner manual visual review: approved.
 
 - **Customer Drawer / Prices Board / Equipment Data Pack v1** (2026-07-29,
   `stable-customer-drawer-prices-board-equipment-data-pack-v1`) — bundles three separately
