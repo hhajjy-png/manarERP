@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { ProfileId, PRINT_PROFILES } from './printProfiles';
 import { loadCopies, saveCopies } from './usePrintProfileMemory';
+import { SECTION_HEADER_BG } from './formStyles';
 import FormHeader from './FormHeader';
 import FormQRCode, { QRData } from './FormQRCode';
 import ApprovalSection from './ApprovalSection';
@@ -123,6 +124,14 @@ interface FormLayoutProps {
    * every existing form keeps the plain-text header unchanged.
    */
   useLogoHeader?: boolean;
+  /**
+   * Explicit override for the logo header's recolor tint (hex, e.g. `'#1d4e6f'`).
+   * Rarely needed: on the `ready-paper` profile FormLayout already applies
+   * `SECTION_HEADER_BG` automatically (see `readyPaperLogoTintColor` below); on
+   * every other profile the default stays `FormHeader`'s own brand tint. Pass
+   * this only to override either of those defaults for a specific form.
+   */
+  logoTintColor?: string;
   /**
    * Opt-in: extra top offset added above the whole content block (e.g. `'2cm'`).
    * Off by default — every existing form keeps its current top spacing. Implemented
@@ -259,6 +268,7 @@ export default function FormLayout({
   docFontStack = DOC_FONT_STACK,
   compactTopMargin = false,
   useLogoHeader = false,
+  logoTintColor,
   contentTopOffset,
 }: FormLayoutProps) {
   const navigate = useNavigate();
@@ -346,6 +356,14 @@ export default function FormLayout({
   // page-level `useLogoHeader` opt-in is untouched — it never sets this, so its
   // header stays in-flow exactly as designed today.
   const logoHeaderIsOverlay = activeProfile.logoHeader;
+  // Ready-paper logo tint, centralized: `logoHeader: true` is set on the
+  // `ready-paper` profile ONLY (see printProfiles.ts) — reusing that same flag
+  // here means every current and future form on this profile gets the logo
+  // recolored to match its own section-header bars automatically, with zero
+  // per-page opt-in. Every other profile (`logoHeader: false`) leaves this
+  // `undefined`, so `FormHeader` falls back to its own unchanged default tint.
+  // An explicit `logoTintColor` prop still wins, preserving that escape hatch.
+  const readyPaperLogoTintColor = activeProfile.logoHeader ? SECTION_HEADER_BG : undefined;
 
   /**
    * PAGE-LEVEL HEADER MODEL (ready-paper only).
@@ -694,6 +712,7 @@ ${logoHeaderIsOverlay ? `
           lang={lang}
           logoSrc={showLogoHeader ? officialLogoHead : undefined}
           overlay={logoHeaderIsOverlay}
+          tintColor={logoTintColor ?? readyPaperLogoTintColor}
           // `.form-page` now spans the whole sheet, so inset the overlay by the
           // profile's own horizontal margins to keep the header exactly as wide
           // as the content column — the artwork's size is therefore unchanged.
