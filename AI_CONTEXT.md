@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5d893805` (merge of `feature/multi-signature-stamp-persistence-fix-v1`, carrying Multi-Signature & Stamp Persistence Fix v1) |
-| **Current Documentation Commit** | `2f663d1` |
-| **Current Stable Tag** | `stable-multi-signature-stamp-persistence-fix-v1` |
+| **Current Merge Commit** | `7ec79643` (merge of `feature/en-hi-administrative-forms-v1`, carrying EN+HI Administrative Forms v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-en-hi-administrative-forms-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 372 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 373 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,37 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **EN+HI Administrative Forms v1** (2026-07-29, `stable-en-hi-administrative-forms-v1`) — adds a
+  third document variant — **English + हिन्दी**, one line per field (`English — हिन्दी`) — to five
+  administrative forms: Leave Request, Return to Work, Salary Advance, Resignation, Employee
+  Warning. Selected per form via a new three-way `FormVariantToggle` (Arabic / English / EN+HI).
+  The Arabic and English templates for all five forms are **byte-unchanged**; the new variant lives
+  entirely in new `forms/enhi/` template files, chosen by the page — never a third branch inside an
+  existing template. `FormDocVariant` (`'ar'|'en'|'en-hi'`) is a type independent of the UI's `Lang`
+  (`'ar'|'en'`), resolved to `Lang` only at the shell boundary — no widening of the app-wide i18n
+  dictionary type. Built in two reviewed phases: a Leave Request pilot first (corrected after visual
+  review from stacked EN/HI sub-lines, which pushed the form to a second page, to **inline single-line**
+  pairs separated by a fixed ` — `, restoring one-page A4 output), then rolled out to the remaining
+  four forms without touching any pilot-approved shared file (`FormLayout.tsx`'s opt-in
+  `docFontStack`/`approvalSecondaryLabels` props, `ApprovalSection.tsx`'s opt-in secondary-label
+  rendering, the shared `enhi/shared/` primitives) — each new form's Hindi dictionary lives in its
+  own file. **Font:** Noto Sans Devanagari (SIL OFL 1.1) bundled locally as two woff2 weights, no
+  CDN, no Windows system-font dependency — layered *after* Cairo in a new `DOC_FONT_STACK_EN_HI`
+  stack so Latin/digits stay on Cairo and only Devanagari codepoints fall through; reaches Accurate
+  Preview and Save-PDF through the existing `capturePrintStyles`/`absolutizeUrls` mechanism, no new
+  preview/print/PDF path. **Hindi dynamic terms:** new sibling module `lib/businessTermsHi.ts`
+  (mirrors, does not modify, `businessTerms.ts`) resolves job title/department via new
+  `dict.forms.hi.*` Setting keys, falling back Hindi → English → stored Arabic; Company Settings
+  gained two dictionary tabs reusing the existing editor. **Not changed:** any Arabic/English form
+  template, Employment Contract (isolation re-verified), `Lang`/`lib/i18n.ts`'s dictionary shape,
+  `PRINT_PROFILES`, Branding Designer, Ink Color System v2, the composed-document/print-center
+  pipeline, backend, Prisma schema. Feature commit `627fbfb`, merge `7ec79643`. Validation: frontend
+  `tsc --noEmit` ✅ (frontend-only release) · `build:front` ✅, both re-verified on `production`
+  post-merge · 2 targeted test files, 93/93 passing (`leaveRequestEnHiPilot.test.tsx` 44,
+  `administrativeFormsEnHiRollout.test.tsx` 49) · full frontend suite last measured at 2156/2181
+  passing (same 25 pre-existing unrelated failures), unchanged since and not re-run this release.
+  Product Owner manual visual review: approved, in two passes (pilot, then rollout).
 
 - **Multi-Signature & Stamp Persistence Fix v1** (2026-07-29,
   `stable-multi-signature-stamp-persistence-fix-v1`) — fixes a reported defect: saving a second

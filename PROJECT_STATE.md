@@ -43,25 +43,52 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `5d893805` — release `stable-multi-signature-stamp-persistence-fix-v1` (Multi-Signature & Stamp Persistence Fix v1 — every add/upload/delete/default/show-hide on the Settings signature/stamp lists now persists immediately instead of only mutating React state, fixing "a second signature won't save"; structural edits write immediately, free-text edits debounce 800ms, writes are queued and always send the newest snapshot; upload errors render inside the offending card; `Date.now()` ids replaced with `crypto.randomUUID()`; same `print.signatures`/`print.stamps` keys and legacy mirrors, no Prisma migration, no change to `CompanyPrintData`/`BrandingLayout`/Branding Designer/Ink Color System v2/Preview/Print/PDF) |
+| **Production HEAD** | `7ec79643` — release `stable-en-hi-administrative-forms-v1` (EN+HI Administrative Forms v1 — a third document variant, English + हिन्दी on one line per field, added to five administrative forms via a new `FormVariantToggle`; Arabic and English templates byte-unchanged; Noto Sans Devanagari bundled locally and layered after Cairo; Hindi dynamic-term resolution falls back Hindi → English → stored Arabic; same `FormLayout`/print-profile/branding/signature-stamp/ink-color/PDF pipeline, no new print path) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-multi-signature-stamp-persistence-fix-v1` (release date 2026-07-29) → merge `5d893805` |
-| **Previous stable tag** | `stable-administrative-forms-english-translation-completion-v1` (2026-07-29) → merge `f59c5477` |
-| **Total stable releases** | 372 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · `build:back` ✅ · backend suite 138 files/2009 tests ✅ (unaffected — no backend files touched) · frontend suite 2181 tests, 2156 passing, 25 pre-existing failures across the same 8 unrelated files as the pre-pack baseline (identical file set and count; zero new regressions) · 67 new/updated unit tests for the persistence layer, all passing · re-verified (all three `tsc --noEmit`, `prisma validate`, both builds, both full suites) on `production` immediately after the merge, byte-identical results · 18-check end-to-end scenario (multiple signatures/stamps → save → reload → edit/default/delete → reload) run against the real Express/Zod/Prisma/SQLite stack on a throwaway database copy — all 18 passed, real dev database confirmed byte-identical afterward · Product Owner manual visual review — **completed & approved** · scope review confirmed only the 5 intended package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
-| **Remote sync** | `origin/production` — pushed with this release (merge `5d893805` + tag `stable-multi-signature-stamp-persistence-fix-v1`) |
+| **Latest stable tag** | `stable-en-hi-administrative-forms-v1` (release date 2026-07-29) → merge `7ec79643` |
+| **Previous stable tag** | `stable-multi-signature-stamp-persistence-fix-v1` (2026-07-29) → merge `5d893805` |
+| **Total stable releases** | 373 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ (both run twice — on the feature branch before commit and on `production` immediately after the merge — byte-identical results) · backend/electron/Prisma untouched by this release (frontend-only change) — not re-run, per explicit instruction to run only the release checks the change actually warrants · 2 targeted test files (`leaveRequestEnHiPilot.test.tsx` — PHASE 1 pilot, 44 tests; `administrativeFormsEnHiRollout.test.tsx` — PHASE 2 delta, 49 tests), 93/93 passing · full frontend suite not re-run this release (no shared code beyond the reviewed EN+HI delta changed since its last full run: 2181 tests, 2156 passing, the same 25 pre-existing unrelated failures) · Product Owner manual visual review — **completed & approved** (both the Leave Request EN+HI pilot and the four-form rollout) · scope review confirmed only the 32 EN+HI package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
+| **Remote sync** | `origin/production` — pushed with this release (merge `7ec79643` + tag `stable-en-hi-administrative-forms-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
 | **UI font** | `"IBM Plex Sans Arabic"` (WOFF2, local) → `"Cairo"` → `"Tajawal"` → Arial |
-| **Print/form font** | `"Cairo", Arial, sans-serif` (all printed documents) |
-| **Font CDN** | None — all fonts are local assets |
+| **Print/form font** | `"Cairo", Arial, sans-serif` (all printed documents) — the new EN+HI administrative-form variant alone uses `"Cairo", "Noto Sans Devanagari", Arial, sans-serif` (`fontRegistry.ts`'s `DOC_FONT_STACK_EN_HI`), so Latin/digits still render as Cairo and only Devanagari codepoints fall through to the new face; every Arabic and English document keeps the unchanged stack |
+| **Font CDN** | None — all fonts are local assets, including the two new Noto Sans Devanagari woff2 weights (OFL 1.1) |
 | **Backend port** | `127.0.0.1:48211` |
 | **Last DB reset** | 2026-06-13 — full operational reset; system config and COA preserved |
 
 ---
 
-## Latest Release — Multi-Signature & Stamp Persistence Fix v1
+## Latest Release — EN+HI Administrative Forms v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | EN+HI Administrative Forms v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/en-hi-administrative-forms-v1` (kept — not deleted per explicit instruction) |
+| **Baseline** | `production` @ `19a65e4c` (previous release's final documentation commit) |
+| **Feature commit** | `627fbfb` |
+| **Production merge commit** | `7ec79643` |
+| **Stable tag** | `stable-en-hi-administrative-forms-v1` → merge `7ec79643` (annotated) |
+| **Reviews** | Product Owner manual visual review — **completed & approved**, in two passes: the Leave Request EN+HI pilot, then the four-form rollout (Return to Work / Salary Advance / Resignation / Employee Warning). |
+| **Validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ — re-verified on `production` immediately after merge, byte-identical · `leaveRequestEnHiPilot.test.tsx` 44/44 ✅ · `administrativeFormsEnHiRollout.test.tsx` 49/49 ✅ · backend/electron/Prisma not touched, not re-run (frontend-only release) · full frontend suite last run at 2181 tests / 2156 passing / the same 25 pre-existing unrelated failures — unchanged since, not re-run for this release per explicit scope instruction |
+
+**Scope.** Adds a third document variant — **English + हिन्दी**, one line per field (`English — हिन्दी`) — to five administrative forms: Leave Request, Return to Work, Salary Advance, Resignation, Employee Warning. Selected per form via a new three-way `FormVariantToggle` (Arabic / English / EN+HI). The existing Arabic and English templates for all five forms are **byte-unchanged** (verified file-by-file before every commit); the new variant lives entirely in new `forms/enhi/` template files, selected by the page — never a third branch inside an existing template. `FormDocVariant` (`'ar' | 'en' | 'en-hi'`) is a type independent of the UI's `Lang` (`'ar'|'en'`), resolved to `Lang` only at the shell boundary (`toLayoutLang`) — no widening of the app-wide i18n dictionary type, no new translation-completeness surface.
+
+**Delivery sequence.** PHASE 1 built the pilot on Leave Request alone and, after visual review flagged a two-page overflow (stacked EN/HI sub-lines), corrected every label/section/paragraph/signature to render EN and HI **inline on one line** separated by a fixed ` — `, restoring one-page A4 output (measured +2.7mm vs. the English template in a real Chromium harness with the built fonts loaded, zero wrapped labels, zero overflow). PHASE 2 then rolled the approved architecture out to the remaining four forms **without touching any PHASE 1 shared file** (`FormLayout.tsx`'s opt-in `docFontStack`/`approvalSecondaryLabels` props, `ApprovalSection.tsx`'s opt-in secondary-label rendering, `enHiLabels.ts`, `enHiStyles.ts`, `enHiText.tsx`, `businessTermsHi.ts` — all byte-identical before and after PHASE 2, confirmed per-file) — each new form's dictionary lives in its own new `*EnHiLabels.ts` file to avoid re-touching approved code.
+
+**Font.** Noto Sans Devanagari (SIL OFL 1.1) bundled locally as two woff2 weights (Regular/SemiBold, `devanagari` subset only) — no CDN, no reliance on a Windows system font. Layered **after** Cairo in a new `DOC_FONT_STACK_EN_HI` stack (`fontRegistry.ts`), so Latin text and digits resolve to Cairo exactly as the English template does, and Devanagari is reached only for codepoints Cairo/Arial don't cover. Reaches Accurate Preview and Save-PDF through the existing `capturePrintStyles`/`absolutizeUrls` mechanism (the same fix that already made IBM Plex/Tajawal load in the hidden PDF window) — no new preview/print/PDF path.
+
+**Hindi dynamic terms.** New sibling module `lib/businessTermsHi.ts` (mirrors `businessTerms.ts`'s shape, does not modify it) resolves job title/department to Hindi via new `dict.forms.hi.*` Setting keys, falling back **Hindi → English → stored Arabic** (never inventing a translation). Company Settings gained two dictionary tabs (Job Titles (Hindi) / Departments (Hindi)) reusing the existing `DictTable` editor. No new term categories were needed — both rollout forms and the pilot use only the `jobTitle`/`department` categories already seeded in PHASE 1.
+
+**Not changed:** the Arabic and English templates of all five forms; Employment Contract (template, page, or its `dict.nationalities`/`dict.jobTitles` dictionary — isolation re-verified); `Lang`, `lib/i18n.ts`'s dictionary shape, or any existing translation-completeness contract; `PRINT_PROFILES`, `FORM_BRANDING_DOC_KEYS`, Branding Designer, Ink Color System v2, `composeDocument`/`composeStyledFromNode`/`printCenter`; backend, Prisma schema, permissions; Google Drive Deployment Pack in-progress working-tree edits (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — surgically excluded from every commit in this release, confirmed still uncommitted after merge; the 5 pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — Multi-Signature & Stamp Persistence Fix v1
 
 | Field | Value |
 |-------|-------|
