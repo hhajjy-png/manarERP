@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `7ec79643` — release `stable-en-hi-administrative-forms-v1` (EN+HI Administrative Forms v1 — a third document variant, English + हिन्दी on one line per field, added to five administrative forms via a new `FormVariantToggle`; Arabic and English templates byte-unchanged; Noto Sans Devanagari bundled locally and layered after Cairo; Hindi dynamic-term resolution falls back Hindi → English → stored Arabic; same `FormLayout`/print-profile/branding/signature-stamp/ink-color/PDF pipeline, no new print path) |
+| **Production HEAD** | `67afa7ac` — release `stable-branding-designer-rotation-v1` (Branding Designer Rotation v1 — optional `rotation` field on `BrandingElementLayout`; drag-to-rotate around center, Shift = 15° snap, double-click = 0°, on top of the existing position/size/opacity/ink-color controls; pre-existing layouts render byte-identically, no `rotate(0deg)` emitted) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-en-hi-administrative-forms-v1` (release date 2026-07-29) → merge `7ec79643` |
-| **Previous stable tag** | `stable-multi-signature-stamp-persistence-fix-v1` (2026-07-29) → merge `5d893805` |
-| **Total stable releases** | 373 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ (both run twice — on the feature branch before commit and on `production` immediately after the merge — byte-identical results) · backend/electron/Prisma untouched by this release (frontend-only change) — not re-run, per explicit instruction to run only the release checks the change actually warrants · 2 targeted test files (`leaveRequestEnHiPilot.test.tsx` — PHASE 1 pilot, 44 tests; `administrativeFormsEnHiRollout.test.tsx` — PHASE 2 delta, 49 tests), 93/93 passing · full frontend suite not re-run this release (no shared code beyond the reviewed EN+HI delta changed since its last full run: 2181 tests, 2156 passing, the same 25 pre-existing unrelated failures) · Product Owner manual visual review — **completed & approved** (both the Leave Request EN+HI pilot and the four-form rollout) · scope review confirmed only the 32 EN+HI package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
-| **Remote sync** | `origin/production` — pushed with this release (merge `7ec79643` + tag `stable-en-hi-administrative-forms-v1`) |
+| **Latest stable tag** | `stable-branding-designer-rotation-v1` (release date 2026-07-29) → merge `67afa7ac` |
+| **Previous stable tag** | `stable-en-hi-administrative-forms-v1` (2026-07-29) → merge `7ec79643` |
+| **Total stable releases** | 374 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ (both run twice — on the feature branch before commit and on `production` immediately after the merge — byte-identical results) · backend/electron/Prisma untouched by this release (frontend-only change, no schema/backend/IPC) — not re-run, per explicit instruction to run only the release checks the change actually warrants · 8 targeted branding test files run post-merge (`brandingRotation.test.tsx` — new, 57 tests; `formBrandingDesignMode.test.tsx`, `salaryCertificateWideBoundsExperiment.test.tsx`, `printTemplates/brandingLayout.test.ts`, `blankA4Print.test.tsx`, `inkColorSystem.test.tsx`, `approvalSectionBranding.test.tsx`, `pdfComposedDocumentPilotFidelity.test.ts`), 220/220 passing · full frontend suite not re-run this release (no shared code beyond the reviewed branding delta changed since its last full run) · Claude Code Review — clean, 0 CRITICAL/HIGH/MEDIUM (independent code-reviewer agent pass, hand-verified rotation math/un-rotation matrix/angle normalization) · Product Owner manual visual review — **completed & approved** · scope review confirmed only the 10 rotation package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
+| **Remote sync** | `origin/production` — pushed with this release (merge `67afa7ac` + tag `stable-branding-designer-rotation-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,35 @@ in a table cell.
 
 ---
 
-## Latest Release — EN+HI Administrative Forms v1
+## Latest Release — Branding Designer Rotation v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Branding Designer Rotation v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/branding-designer-rotation-v1` (kept — not deleted per explicit instruction) |
+| **Baseline** | `production` @ `b7678f09` (previous release's final documentation commit) |
+| **Checkpoint tag** | `pre-branding-designer-rotation-v1` → `b7678f09` |
+| **Feature commit** | `2285cdfa` |
+| **Production merge commit** | `67afa7ac` |
+| **Stable tag** | `stable-branding-designer-rotation-v1` → merge `67afa7ac` (annotated) |
+| **Reviews** | Claude Code Review — clean, 0 CRITICAL/HIGH/MEDIUM (independent code-reviewer agent pass; rotation math, un-rotation resize matrix, and angle-normalization edge cases hand-verified) · Product Owner manual visual review — **completed & approved** |
+| **Validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ — re-verified on `production` immediately after merge, byte-identical · 8 targeted branding test files, 220/220 ✅ (`brandingRotation.test.tsx` new — 57 tests; `formBrandingDesignMode.test.tsx`, `salaryCertificateWideBoundsExperiment.test.tsx`, `printTemplates/brandingLayout.test.ts`, `blankA4Print.test.tsx`, `inkColorSystem.test.tsx`, `approvalSectionBranding.test.tsx`, `pdfComposedDocumentPilotFidelity.test.ts`) · backend/electron/Prisma not touched, not re-run (frontend-only release, no schema/backend/IPC change) · full frontend suite not re-run this release per explicit scope instruction (no shared code outside the reviewed branding delta changed) |
+
+**Scope.** Adds signature/stamp **rotation** to the Branding Designer, on top of the existing drag/resize/opacity/ink-color system: a new optional `rotation?: number` on `BrandingElementLayout`, normalized to `(-180, 180]` by wrapping (not clamping, so a continuous circular drag never sticks at the boundary). A drag handle rotates the element around its own visual center; **Shift snaps to 15° increments** (read live on every pointer move, not snapshotted at grab); **double-click resets to 0°**. Wired into both design surfaces — `DesignableBrandingImage` (administrative forms, Blank A4, receipt voucher) and `UniversalDesignerOverlay` (invoice/quotation) — plus a live rotation slider + 0° reset button in `BrandingDesignerPanel` (previously a disabled "coming soon" placeholder) and the Settings calibration dialog (`BrandingLayoutDesigner`).
+
+**Backward compatibility is structural, not incidental.** `rotation` absent means "never rotated," and the two central transform emitters (`brandingElementTransform`, `applyBrandingElementStyle`) emit **no `rotate()` term at all** for such an element — not `rotate(0deg)`. A layout saved before this feature existed, or an element reset back to 0°, produces the exact same transform string as before this release (`translate(...) scale(...)`), verified byte-for-byte in tests. `clampBrandingElementLayout` drops the `rotation` key entirely at 0°, so a reset element's stored JSON is indistinguishable from one that was never rotated.
+
+**Transform order (`translate → rotate → scale`) is fixed in exactly two functions** and never re-derived elsewhere, which is what keeps Screen / Accurate Preview / Print / Saved PDF in agreement without any of those paths knowing rotation exists — they all clone the same live DOM with the same inline `style.transform`. Order matters mechanically: `translate` must precede `rotate` so the offset is interpreted in the parent's unrotated coordinate space, otherwise pointer-delta drag tracking would drift off at an angle once the element is rotated.
+
+**Resize gesture un-rotates the pointer delta** by the element's own angle before computing the grow/shrink travel — without this, "pull the handle outward" would read as shrink at certain rotation angles (e.g., 90°) because the visual diagonal no longer aligns with the screen axes the calculation averages over. Both rotation handles are DOM **siblings** of the image, never children, so neither inherits the image's own `rotate()`/`scale()` — a rotated ancestor would inflate `measureRenderScale`'s bounding-rect read to an axis-aligned box and corrupt both drag and resize math for every subsequent gesture.
+
+**Not changed:** the `BrandingLayoutBounds` travel/scale envelope (rotation deliberately has no bounds entry — a full turn is a full turn on every document, unlike per-document position/scale limits); the `print.brandingLayout` settings key or its Save/Undo/Redo cycle (rotation is one more field on the same per-element object, so it inherits all four for free); Prisma schema, backend routes, IPC channels (frontend-only); Multi-Signature architecture (deferred, untouched); Google Drive Deployment Pack in-progress working-tree edits (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — surgically excluded from every commit in this release, confirmed still uncommitted after merge; pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — EN+HI Administrative Forms v1
 
 | Field | Value |
 |-------|-------|

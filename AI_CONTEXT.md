@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `7ec79643` (merge of `feature/en-hi-administrative-forms-v1`, carrying EN+HI Administrative Forms v1) |
-| **Current Documentation Commit** | `deb9e3b` |
-| **Current Stable Tag** | `stable-en-hi-administrative-forms-v1` |
+| **Current Merge Commit** | `67afa7ac` (merge of `feature/branding-designer-rotation-v1`, carrying Branding Designer Rotation v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-branding-designer-rotation-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 373 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 374 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,34 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Branding Designer Rotation v1** (2026-07-29, `stable-branding-designer-rotation-v1`) — adds
+  signature/stamp **rotation** to the Branding Designer, alongside the existing drag/resize/opacity/
+  ink-color controls: a new optional `rotation?: number` on `BrandingElementLayout`, normalized to
+  `(-180, 180]` by wrapping (not clamping — a continuous circular drag never sticks at the
+  boundary). Drag rotates around the element's own center; **Shift snaps to 15°** (read live on
+  every pointer move); **double-click resets to 0°**. Wired into both design surfaces
+  (`DesignableBrandingImage` for forms/Blank A4/receipt voucher, `UniversalDesignerOverlay` for
+  invoice/quotation) plus a rotation slider + 0° reset in `BrandingDesignerPanel` (previously a
+  disabled placeholder) and the Settings calibration dialog. **Backward compatibility is
+  structural:** `rotation` absent means "never rotated," and the two central transform emitters
+  (`brandingElementTransform`, `applyBrandingElementStyle`) emit no `rotate()` term at all for such
+  an element — not `rotate(0deg)` — so a pre-existing layout, or one reset back to 0°, produces the
+  exact same transform string as before this release, verified byte-for-byte. Transform order is
+  fixed at `translate → rotate → scale` in exactly those two functions and nowhere else, which is
+  what keeps Screen/Accurate Preview/Print/Saved PDF in agreement without any of those paths
+  knowing rotation exists — they all clone the same live DOM. The resize gesture un-rotates the
+  pointer delta by the element's own angle so "pull outward" still means grow at any rotation angle.
+  Both rotation handles are DOM siblings of the image, never children, so neither inherits the
+  image's own transform and `measureRenderScale`'s bounding-rect read stays accurate. **Not
+  changed:** the `BrandingLayoutBounds` travel/scale envelope (rotation has no bounds entry — a full
+  turn is a full turn on every document), the `print.brandingLayout` settings key or its
+  Save/Undo/Redo cycle, Prisma schema, backend routes, IPC channels (frontend-only release),
+  Multi-Signature architecture (deferred, untouched). Feature commit `2285cdfa`, merge `67afa7ac`.
+  Validation: frontend `tsc --noEmit` ✅ (frontend-only) · `build:front` ✅, both re-verified on
+  `production` post-merge, byte-identical · 8 targeted branding test files, 220/220 passing
+  (`brandingRotation.test.tsx` new, 57 tests) · Claude Code Review clean (0 CRITICAL/HIGH/MEDIUM,
+  independent agent pass) · Product Owner manual visual review: approved.
 
 - **EN+HI Administrative Forms v1** (2026-07-29, `stable-en-hi-administrative-forms-v1`) — adds a
   third document variant — **English + हिन्दी**, one line per field (`English — हिन्दी`) — to five
