@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `5d893805` (merge of `feature/multi-signature-stamp-persistence-fix-v1`, carrying Multi-Signature & Stamp Persistence Fix v1) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit)* |
+| **Current Documentation Commit** | `2f663d1` |
 | **Current Stable Tag** | `stable-multi-signature-stamp-persistence-fix-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 372 (window 2026-06-07 → 2026-07-29) |
