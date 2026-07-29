@@ -11,6 +11,7 @@ import {
   longTextCell,
 } from './shared/formStyles';
 import { getPriorityLabelEn } from './shared/contractTranslations';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 // ─── Exported interfaces ──────────────────────────────────────────────────────
 // Future integration notes:
@@ -103,6 +104,10 @@ interface Props {
 
 export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }: Props) {
   const isAr = lang !== 'en';
+  const term = useBusinessTerms();
+  // القسم هنا نص يدوي وليس حقل موظف، لكنه يمرّ عبر نفس قاموس الأقسام المركزي:
+  // يُترجَم إن طابق مدخلًا مُهيّأً، وإلا يُعرض كما كُتب (سياسة السقوط نفسها).
+  const departmentDisplay = term('department', pf.department, lang, '');
 
   // ── English render path ───────────────────────────────────────────────────
   if (!isAr) {
@@ -126,7 +131,7 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
           <div style={sectionHeader}>Requester Information</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
             <InfoRow label="Requester Name" value={pf.requesterName} />
-            <InfoRow label="Department" value={pf.department} />
+            <InfoRow label="Department" value={departmentDisplay} />
             <div style={{ gridColumn: '1 / -1', display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
               <div style={{ ...labelCell, width: 130, flexShrink: 0 }}>Reason</div>
               <div style={{ ...valueCell, ...longTextCell }}>{pf.reason.trim() ? pf.reason : <span style={blankLine} />}</div>
@@ -207,7 +212,7 @@ export default function PurchaseRequestTemplate({ printFields: pf, lang = 'ar' }
         <div style={sectionHeader}>بيانات مقدم الطلب</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
           <InfoRow label="اسم مقدم الطلب" value={pf.requesterName} />
-          <InfoRow label="القسم" value={pf.department} />
+          <InfoRow label="القسم" value={departmentDisplay} />
           <div style={{ gridColumn: '1 / -1', display: 'flex', borderBottom: '1px solid #e2e8f0' }}>
             <div style={{ ...labelCell, width: 130, flexShrink: 0 }}>سبب الطلب</div>
             <div style={{ ...valueCell, ...longTextCell }}>{pf.reason.trim() ? pf.reason : <span style={blankLine} />}</div>

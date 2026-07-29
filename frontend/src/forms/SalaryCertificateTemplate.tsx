@@ -14,6 +14,7 @@ import {
   blankLine,
 } from './shared/formStyles';
 import { amountToWordsKWD } from '../lib/tafqeet';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 const COMPANY_NAME_EN =
   'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';
@@ -54,11 +55,14 @@ interface Props {
   printOverrides?: PrintOverrides;
 }
 
-function val(override: string | undefined, fallback: string | null | undefined, dash = '—'): string {
-  return override?.trim() || fallback || dash;
-}
-
 export default function SalaryCertificateTemplate({ employee: emp, latestPayroll, lang = 'ar', printOverrides }: Props) {
+  const term = useBusinessTerms();
+  // تجاوز الطباعة اليدوي يفوز على القيمة المخزَّنة، ثم يمرّ كلاهما عبر نفس المُحلِّل
+  // المركزي — فلا مسار ترجمة خاص بهذا النموذج.
+  const jobTitleDisplay = term('jobTitle', printOverrides?.jobTitle?.trim() || emp.jobTitle, lang);
+  const departmentDisplay = term('department', printOverrides?.department?.trim() || emp.department, lang);
+  const nationalityDisplay = term('nationality', emp.nationality, lang);
+  const purposeDisplay = term('certificatePurpose', printOverrides?.purpose, lang, '');
   const baseSalary = latestPayroll?.snapshotBaseSalary ?? emp.salary;
   const salaryDisplay = printOverrides?.salaryText?.trim() || null;
   const issueDateDisplay = printOverrides?.issueDate?.trim() || null;
@@ -93,15 +97,15 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{val(printOverrides?.jobTitle, emp.jobTitle)}</div>
+            <div style={valueCell}>{jobTitleDisplay}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{val(printOverrides?.department, emp.department)}</div>
+            <div style={valueCell}>{departmentDisplay}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Nationality</div>
-            <div style={valueCell}>{emp.nationality ?? '—'}</div>
+            <div style={valueCell}>{nationalityDisplay}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Date of Hire</div>
@@ -111,7 +115,7 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
             <div style={{ ...labelCell, textAlign: 'left' }}>Purpose</div>
             <div style={valueCell}>
               {printOverrides?.purpose?.trim()
-                ? <span>{printOverrides.purpose}</span>
+                ? <span>{purposeDisplay}</span>
                 : <span style={blankLine} />}
             </div>
           </div>
@@ -194,15 +198,15 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{val(printOverrides?.jobTitle, emp.jobTitle)}</div>
+          <div style={valueCell}>{jobTitleDisplay}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{val(printOverrides?.department, emp.department)}</div>
+          <div style={valueCell}>{departmentDisplay}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>الجنسية</div>
-          <div style={valueCell}>{emp.nationality ?? '—'}</div>
+          <div style={valueCell}>{nationalityDisplay}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ التعيين</div>
@@ -212,7 +216,7 @@ export default function SalaryCertificateTemplate({ employee: emp, latestPayroll
           <div style={labelCell}>الغرض</div>
           <div style={valueCell}>
             {printOverrides?.purpose?.trim()
-              ? <span>{printOverrides.purpose}</span>
+              ? <span>{purposeDisplay}</span>
               : <span style={blankLine} />}
           </div>
         </div>

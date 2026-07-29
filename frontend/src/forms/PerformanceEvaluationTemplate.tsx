@@ -10,6 +10,7 @@ import {
   issueDateStrEn,
   blankLine,
 } from './shared/formStyles';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 interface Employee {
   id: number;
@@ -79,6 +80,7 @@ const checkboxStyle = {
 } as const;
 
 export default function PerformanceEvaluationTemplate({ employee: emp, latestReview, lang = 'ar', printFields }: Props) {
+  const term = useBusinessTerms();
   const allFilled = printFields?.scores?.length === 5 && printFields.scores.every(s => s?.trim());
   const computedTotal = allFilled ? printFields!.scores!.reduce((a, s) => a + (parseFloat(s) || 0), 0) : null;
   const activeGrade: string | null = printFields?.overrideRating
@@ -104,11 +106,11 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+            <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{emp.department ?? '—'}</div>
+            <div style={valueCell}>{term('department', emp.department, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Review Period</div>
@@ -235,11 +237,11 @@ export default function PerformanceEvaluationTemplate({ employee: emp, latestRev
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{emp.department ?? '—'}</div>
+          <div style={valueCell}>{term('department', emp.department, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>فترة التقييم</div>

@@ -13,6 +13,7 @@ import {
   moneyEn,
   blankLine,
 } from './shared/formStyles';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 const COMPANY_NAME_EN =
   'ALAMANAR ALDAWLIYA FOR STREET CONSTRUCTION & MAINTENANCE CO., W.L.L.';
@@ -42,6 +43,8 @@ interface Props {
 }
 
 export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayroll, lang = 'ar', printFields }: Props) {
+  const term = useBusinessTerms();
+  const purposeDisplay = term('certificatePurpose', printFields?.certPurpose, lang, '');
   const baseSalary = latestPayroll?.snapshotBaseSalary ?? emp.salary;
 
   if (lang === 'en') {
@@ -75,15 +78,15 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+            <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{emp.department ?? '—'}</div>
+            <div style={valueCell}>{term('department', emp.department, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Nationality</div>
-            <div style={valueCell}>{emp.nationality ?? '—'}</div>
+            <div style={valueCell}>{term('nationality', emp.nationality, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Date of Hire</div>
@@ -98,7 +101,7 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
         <div style={{ marginBottom: 20, fontSize: 13, color: '#374151', direction: 'ltr' }}>
           <strong>Purpose:</strong>{' '}
           {printFields?.certPurpose?.trim()
-            ? <span>{printFields.certPurpose}</span>
+            ? <span>{purposeDisplay}</span>
             : <span style={blankLine} />}
         </div>
 
@@ -144,15 +147,15 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{emp.department ?? '—'}</div>
+          <div style={valueCell}>{term('department', emp.department, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>الجنسية</div>
-          <div style={valueCell}>{emp.nationality ?? '—'}</div>
+          <div style={valueCell}>{term('nationality', emp.nationality, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>تاريخ التعيين</div>
@@ -167,7 +170,7 @@ export default function ToWhomItMayConcernTemplate({ employee: emp, latestPayrol
       <div style={{ marginBottom: 20, fontSize: 13, color: '#374151' }}>
         <strong>الغرض من الشهادة:</strong>{' '}
         {printFields?.certPurpose?.trim()
-          ? <span>{printFields.certPurpose}</span>
+          ? <span>{purposeDisplay}</span>
           : <span style={blankLine} />}
       </div>
 
