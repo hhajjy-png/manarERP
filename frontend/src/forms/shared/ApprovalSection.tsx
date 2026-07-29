@@ -25,9 +25,32 @@ const IDENTITY_LAYOUT: BrandingLayout = {
  * the label at the label's own anchor — out of flow too in `stampInline` mode (the mode
  * every certificate-style form uses), in flow in the stacked mode.
  */
+/**
+ * Second-language sub-lines for the approval block's four labels — supplied by the
+ * caller, never authored here. Present ⇒ each label renders its own text with this
+ * translation beneath it. Absent (every existing caller) ⇒ nothing is rendered and the
+ * block is byte-identical to what it always was.
+ *
+ * Deliberately a plain string record rather than a language code: this component owns
+ * no dictionary and must not learn about a third language. The EN+HI form template
+ * passes the strings it already holds.
+ */
+export interface ApprovalSecondaryLabels {
+  title: string;
+  signature: string;
+  date: string;
+  stamp: string;
+}
+
 interface Props {
   lang?: 'ar' | 'en';
   title?: string;
+  /**
+   * Opt-in: render a second-language line under each of the four labels
+   * (title / signature / date / stamp). Off by default — see
+   * `ApprovalSecondaryLabels`.
+   */
+  secondaryLabels?: ApprovalSecondaryLabels;
   /** Opt-in: omit the date row under the signature. Off by default — every existing caller keeps the date. */
   hideDate?: boolean;
   /** Opt-in: render the stamp label on the same row as the signature instead of below it. Off by default. */
@@ -69,9 +92,30 @@ const LABELS = {
   },
 } as const;
 
+/**
+ * A label plus its optional second-language text. With no second text this renders
+ * exactly the bare string it replaced — same text node, same inline context — so the
+ * opted-out path (every existing form) is unchanged.
+ *
+ * The second text is rendered INLINE after an em-dash separator, never on its own
+ * line: a stacked sub-line added one extra line per label and, together with the
+ * same treatment in the form body, pushed a one-page A4 form onto a second page.
+ * Inline keeps the whole label on the row it already occupied.
+ */
+function Label({ text, secondary }: { text: string; secondary?: string }) {
+  if (!secondary) return <>{text}</>;
+  return (
+    <>
+      {text}
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}> — {secondary}</span>
+    </>
+  );
+}
+
 export default function ApprovalSection({
   lang = 'ar',
   title,
+  secondaryLabels,
   hideDate = false,
   stampInline = false,
   signatureUrl,
@@ -85,7 +129,9 @@ export default function ApprovalSection({
 
   const signature = (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-      <span style={{ minWidth: 80, fontWeight: 600 }}>{L.signature}</span>
+      <span style={{ minWidth: 80, fontWeight: 600 }}>
+        <Label text={L.signature} secondary={secondaryLabels?.signature} />
+      </span>
       {/* The ruling keeps its exact box (200 × border-bottom). The signature is drawn
           on top of it, out of flow, so the row's height — and every form's pagination
           — is byte-identical to the blank case. */}
@@ -149,7 +195,7 @@ export default function ApprovalSection({
           }}
         />
       ) : (
-        L.stamp
+        <Label text={L.stamp} secondary={secondaryLabels?.stamp} />
       )}
     </div>
   );
@@ -165,7 +211,7 @@ export default function ApprovalSection({
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 700, color: '#1d4e6f', marginBottom: 16 }}>
-        {title ?? L.defaultTitle}
+        <Label text={title ?? L.defaultTitle} secondary={secondaryLabels?.title} />
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13, color: '#374151' }}>
         {stampInline ? (
@@ -178,7 +224,9 @@ export default function ApprovalSection({
         )}
         {!hideDate && (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <span style={{ minWidth: 80, fontWeight: 600 }}>{L.date}</span>
+            <span style={{ minWidth: 80, fontWeight: 600 }}>
+              <Label text={L.date} secondary={secondaryLabels?.date} />
+            </span>
             <span>____ / ____ / ______</span>
           </div>
         )}

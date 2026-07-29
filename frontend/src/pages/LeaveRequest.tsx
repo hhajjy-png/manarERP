@@ -10,10 +10,14 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import { useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import LeaveRequestTemplate from '../forms/LeaveRequestTemplate';
+import LeaveRequestEnHiTemplate from '../forms/enhi/LeaveRequestEnHiTemplate';
+import { APPROVAL_SECONDARY_LABELS_HI, leaveRequestLabel, joinEnHi } from '../forms/enhi/shared/enHiLabels';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
-import LanguageToggle from '../forms/shared/LanguageToggle';
+import FormVariantToggle from '../forms/shared/FormVariantToggle';
+import { FormDocVariant, DEFAULT_FORM_DOC_VARIANT, toLayoutLang } from '../forms/shared/formVariant';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../styles/fontRegistry';
 
 const FORM_KEY = 'leave-request';
 
@@ -42,7 +46,23 @@ export default function LeaveRequest() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
-  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  /**
+   * نسخة المستند — ثلاث نسخ (`ar` / `en` / `en-hi`). `lang` المشتقّة منها هي ما
+   * يراه كل مكوّن مشترك (`FormLayout`، المعاينة، `t()`)، فلا يرى أيٌّ منها قيمة
+   * جديدة: `en-hi` تُصرَف إلى `en` — نفس الاتجاه ونفس مسار الطباعة و PDF.
+   */
+  const [variant, setVariant] = useState<FormDocVariant>(DEFAULT_FORM_DOC_VARIANT);
+  const lang = toLayoutLang(variant);
+  const isEnHi = variant === 'en-hi';
+  /**
+   * عنوان المستند. في النسخة الثنائية يُدمج الطرفان في **سطر واحد**
+   * (`Leave Request — अवकाश अनुरोध`) فيرسمهما `FormLayout` في `<h1>` الواحد الذي
+   * يملكه أصلًا — لا سطر عنوان ثانٍ داخل القالب، ولا تغيير في الـShell (خاصية
+   * `title` نوعها `string` كما كانت). النسختان ar/en تستعملان نفس النداء السابق.
+   */
+  const docTitle = isEnHi
+    ? joinEnHi(leaveRequestLabel('doc.title'))
+    : translate('page.leaveReq.title', lang);
   const [profile, setProfile] = usePrintProfileMemory(FORM_KEY, getProfileIdFromSearch(search));
   const daysManuallyEdited = useRef(false);
   const [printFields, setPrintFields] = useState({
@@ -117,8 +137,8 @@ export default function LeaveRequest() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: translate('page.leaveReq.title', lang),
-    documentLabel: `${translate('page.leaveReq.title', lang)} · ${formNumber}`,
+    title: docTitle,
+    documentLabel: `${docTitle} · ${formNumber}`,
     lang,
   });
 
@@ -143,7 +163,7 @@ export default function LeaveRequest() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={translate('page.leaveReq.title', lang)}
+      title={docTitle}
       profile={profile}
       // HR Print Templates – Shared Visual Consistency Pack v1: reuse the Salary
       // Certificate's opt-in ApprovalSection/FormLayout behavior.
@@ -153,9 +173,14 @@ export default function LeaveRequest() {
       // Multi-Signature & Stamp Management v1: the footer approval block draws the
       // signature/stamp chosen in the toolbar. No per-form logic — see FormLayout.
       approvalBranding
+      // EN+HI فقط: السطر الهندي تحت تسميات كتلة الاعتماد، وسلسلة خط تُضيف
+      // Devanagari **بعد** Cairo (فاللاتيني والأرقام يبقيان على Cairo كما هما).
+      // في النسختين ar/en تُمرَّر `undefined` و`DOC_FONT_STACK` ⇒ سلوك مطابق للسابق.
+      approvalSecondaryLabels={isEnHi ? APPROVAL_SECONDARY_LABELS_HI : undefined}
+      docFontStack={isEnHi ? DOC_FONT_STACK_EN_HI : DOC_FONT_STACK}
       toolbarExtra={
         <>
-          <LanguageToggle lang={lang} onChange={setLang} />
+          <FormVariantToggle variant={variant} onChange={setVariant} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
           <button
             type="button"
@@ -280,7 +305,13 @@ export default function LeaveRequest() {
           </button>
         </div>
       </div>
-      <LeaveRequestTemplate employee={data.employee} latestLeave={latestLeave} lang={lang} printFields={printFields} />
+      {/* اختيار القالب يحدث هنا وحده. `LeaveRequestTemplate` (العربي والإنجليزي)
+          لم يُمَسّ، والنسخة الثنائية ملف مستقل تمامًا. */}
+      {isEnHi ? (
+        <LeaveRequestEnHiTemplate employee={data.employee} latestLeave={latestLeave} printFields={printFields} />
+      ) : (
+        <LeaveRequestTemplate employee={data.employee} latestLeave={latestLeave} lang={lang} printFields={printFields} />
+      )}
       {showClearConfirm && (
         <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}
