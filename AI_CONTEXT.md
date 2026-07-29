@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `67afa7ac` (merge of `feature/branding-designer-rotation-v1`, carrying Branding Designer Rotation v1) |
-| **Current Documentation Commit** | `9464023` |
-| **Current Stable Tag** | `stable-branding-designer-rotation-v1` |
+| **Current Merge Commit** | `8f8990de` (merge of `feature/ready-paper-logo-tint-generalization-v1`, carrying Ready-Paper Logo Tint Generalization v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-ready-paper-logo-tint-generalization-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 374 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 375 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,32 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Ready-Paper Logo Tint Generalization v1** (2026-07-29,
+  `stable-ready-paper-logo-tint-generalization-v1`) — generalizes a prior Salary-Certificate-only
+  visual tweak (recolor the ready-paper logo to match the form's own section-header bar color) to
+  **every** form on the `ready-paper` print profile: ReturnToWork, SalaryAdvance, Resignation,
+  EmployeeWarning, LeaveRequest, ToWhomItMayConcern, PerformanceEvaluation, PurchaseRequest,
+  Quotation, and Salary Certificate — confirmed by an actual audit of every `<FormLayout` /
+  `PrintProfileToggle` consumer, not a guessed list. PaymentVoucher/AdminPaymentVoucher are
+  structurally excluded (hardcoded to the `payment-voucher` profile, no toggle). **Centralized in
+  `FormLayout`:** `PRINT_PROFILES['ready-paper'].logoHeader` is `true` on exactly one profile, and
+  `FormLayout` now derives `readyPaperLogoTintColor = activeProfile.logoHeader ? SECTION_HEADER_BG :
+  undefined` from that same flag, passing it as `FormHeader`'s default `tintColor` — so any current
+  or future ready-paper form inherits the tint automatically, no per-page opt-in. The existing
+  `logoTintColor` prop (from the original pass) is unchanged and still overrides the default when
+  passed explicitly; no new prop or token was introduced. `SECTION_HEADER_BG` (`formStyles.ts`) is
+  the same constant already backing the "بيانات الموظف"/"بيانات الراتب" bar color — extracted, not
+  retyped, so that bar's own rendering is byte-unchanged. Salary Certificate's own now-redundant
+  explicit wiring was removed; its diff against the prior approved state is zero. **Not changed:**
+  `plain-a4`/`letterhead` (never render the logo header), `payment-voucher`/`receipt-voucher`
+  (`logoHeader: false`, keep the original default tint), logo size/position/crop/margins on any
+  profile, the section-header bar's own design, any other form's or the general system logo's color,
+  Print Color Mode (explicitly out of scope, deferred). Feature commit `fcd55daf`, merge `8f8990de`.
+  Validation: frontend `tsc --noEmit` ✅ · `build:front` ✅, both re-verified on `production`
+  post-merge, byte-identical chunk hashes · targeted `readyPaperGeneralization.test.tsx`, 19/19
+  passing (3 new tint tests + 16 pre-existing profile-isolation tests) · Product Owner manual visual
+  review: approved.
 
 - **Branding Designer Rotation v1** (2026-07-29, `stable-branding-designer-rotation-v1`) — adds
   signature/stamp **rotation** to the Branding Designer, alongside the existing drag/resize/opacity/

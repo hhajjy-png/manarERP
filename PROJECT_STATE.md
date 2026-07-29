@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `67afa7ac` — release `stable-branding-designer-rotation-v1` (Branding Designer Rotation v1 — optional `rotation` field on `BrandingElementLayout`; drag-to-rotate around center, Shift = 15° snap, double-click = 0°, on top of the existing position/size/opacity/ink-color controls; pre-existing layouts render byte-identically, no `rotate(0deg)` emitted) |
+| **Production HEAD** | `8f8990de` — release `stable-ready-paper-logo-tint-generalization-v1` (Ready-Paper Logo Tint Generalization v1 — the Salary Certificate ready-paper logo tint now applies centrally, in FormLayout, to every form on the `ready-paper` print profile, keyed off the same `PRINT_PROFILES.logoHeader` flag that already gates the overlay header; no other profile affected) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-branding-designer-rotation-v1` (release date 2026-07-29) → merge `67afa7ac` |
-| **Previous stable tag** | `stable-en-hi-administrative-forms-v1` (2026-07-29) → merge `7ec79643` |
-| **Total stable releases** | 374 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ (both run twice — on the feature branch before commit and on `production` immediately after the merge — byte-identical results) · backend/electron/Prisma untouched by this release (frontend-only change, no schema/backend/IPC) — not re-run, per explicit instruction to run only the release checks the change actually warrants · 8 targeted branding test files run post-merge (`brandingRotation.test.tsx` — new, 57 tests; `formBrandingDesignMode.test.tsx`, `salaryCertificateWideBoundsExperiment.test.tsx`, `printTemplates/brandingLayout.test.ts`, `blankA4Print.test.tsx`, `inkColorSystem.test.tsx`, `approvalSectionBranding.test.tsx`, `pdfComposedDocumentPilotFidelity.test.ts`), 220/220 passing · full frontend suite not re-run this release (no shared code beyond the reviewed branding delta changed since its last full run) · Claude Code Review — clean, 0 CRITICAL/HIGH/MEDIUM (independent code-reviewer agent pass, hand-verified rotation math/un-rotation matrix/angle normalization) · Product Owner manual visual review — **completed & approved** · scope review confirmed only the 10 rotation package files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
-| **Remote sync** | `origin/production` — pushed with this release (merge `67afa7ac` + tag `stable-branding-designer-rotation-v1`) |
+| **Latest stable tag** | `stable-ready-paper-logo-tint-generalization-v1` (release date 2026-07-29) → merge `8f8990de` |
+| **Previous stable tag** | `stable-branding-designer-rotation-v1` (2026-07-29) → merge `67afa7ac` |
+| **Total stable releases** | 375 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ (both run twice — on the feature branch before commit and on `production` immediately after the merge — byte-identical chunk hashes) · backend/electron/Prisma untouched by this release (frontend-only change, no schema/backend/IPC) — not re-run, per explicit instruction to run only the release checks the change actually warrants · targeted `readyPaperGeneralization.test.tsx`, 19/19 passing (3 new logo-tint tests + 16 pre-existing profile-isolation tests, re-run unchanged) · full frontend suite not re-run this release (no shared code beyond the reviewed FormLayout/FormHeader delta changed since its last full run) · Product Owner manual visual review — **completed & approved** · scope review confirmed only the 4 package files (plus 1 test file) entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
+| **Remote sync** | `origin/production` — pushed with this release (merge `8f8990de` + tag `stable-ready-paper-logo-tint-generalization-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Branding Designer Rotation v1
+## Latest Release — Ready-Paper Logo Tint Generalization v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Ready-Paper Logo Tint Generalization v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/ready-paper-logo-tint-generalization-v1` (kept — not deleted per explicit instruction) |
+| **Baseline** | `production` @ `ae8430fb` (previous release's final documentation commit) |
+| **Checkpoint tag** | `pre-ready-paper-logo-tint-generalization-v1` → `ae8430fb` |
+| **Feature commit** | `fcd55daf` |
+| **Production merge commit** | `8f8990de` |
+| **Stable tag** | `stable-ready-paper-logo-tint-generalization-v1` → merge `8f8990de` (annotated) |
+| **Reviews** | Diff-based independent review (structural audit of all `FormLayout`/`printProfiles` consumers, confirmed no guessed form list) · Product Owner manual visual review — **completed & approved** |
+| **Validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ — re-verified on `production` immediately after merge, byte-identical chunk hashes · targeted `readyPaperGeneralization.test.tsx`, 19/19 ✅ (3 new: ready-paper tint matches `SECTION_HEADER_BG`, explicit `logoTintColor` override still wins, `payment-voucher` keeps its own unrelated default tint; 16 pre-existing profile-isolation tests unchanged) · backend/electron/Prisma not touched, not re-run (frontend-only release, no schema/backend/IPC change) · full frontend suite not re-run this release per explicit scope instruction (no shared code outside the reviewed delta changed) |
+
+**Scope.** Originally implemented as a Salary-Certificate-only, `ready-paper`-only visual tweak (recolor the logo to match that form's own "بيانات الموظف"/"بيانات الراتب" section-header bars), this release generalizes the same mechanism to **every** form on the `ready-paper` print profile: ReturnToWork, SalaryAdvance, Resignation, EmployeeWarning, LeaveRequest, ToWhomItMayConcern, PerformanceEvaluation, PurchaseRequest, Quotation, and Salary Certificate itself — confirmed by an actual audit of every `<FormLayout` / `PrintProfileToggle` consumer under `frontend/src/pages/`, not a guessed list. PaymentVoucher and AdminPaymentVoucher are structurally excluded: both hardcode `profile="payment-voucher"` with no profile toggle, so they can never reach `ready-paper`.
+
+**Mechanism, centralized.** `PRINT_PROFILES['ready-paper'].logoHeader` is `true` on exactly one profile (`printProfiles.ts`) and already drove whether `FormHeader`'s logo renders as the page-level overlay. `FormLayout` now derives `readyPaperLogoTintColor = activeProfile.logoHeader ? SECTION_HEADER_BG : undefined` from that same flag and passes it as `FormHeader`'s `tintColor` default — so any current or future form on `ready-paper` inherits the matching tint with zero per-page opt-in. The existing `logoTintColor` prop (introduced for the original Salary-Certificate-only pass) is preserved unchanged as an explicit override that still wins over the automatic default; no new prop, token, or code path was introduced. `SECTION_HEADER_BG` (`formStyles.ts`) is the same constant already backing the "بيانات الموظف"/"بيانات الراتب" bar color — extracted, not retyped, so the bar's own rendering is byte-unchanged.
+
+**Salary Certificate's own explicit wiring was removed** (`logoTintColor={profile === 'ready-paper' ? SECTION_HEADER_BG : undefined}` in `SalaryCertificate.tsx`) since it is now redundant — `FormLayout` applies the identical value centrally. The page's diff against its prior (already-approved) state is therefore zero; behavior is confirmed unchanged.
+
+**Not changed:** `plain-a4` and `letterhead` (`logoHeader: false` — never render the logo header at all, so the tint override is inert for them); `payment-voucher`/`receipt-voucher` (`logoHeader: false` — keep `FormHeader`'s original default tint, verified by a new test); logo size, position, crop, or margins on any profile; the section-header bar's own color or design; any other form's or the general system logo's color; Print Color Mode (explicitly out of scope, deferred); Google Drive Deployment Pack in-progress working-tree edits (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — surgically excluded from every commit in this release, confirmed still uncommitted after merge; pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — Branding Designer Rotation v1
 
 | Field | Value |
 |-------|-------|
