@@ -5,6 +5,7 @@ import { usePersistedState } from './usePersistedState';
  *
  * حالة فرز واحدة لكل وحدة، بدورة ثلاثية: افتراضي ← تصاعدي ← تنازلي ← افتراضي.
  * عمود نشط واحد فقط؛ النقر على عمود جديد يبدأ دورته من التصاعدي.
+ * «الافتراضي» = ترتيب الخادم للوحدة، أو `ModuleConfig.defaultSort` إن حُدِّد.
  *
  * الحالة **حالة عرض مستقلة**: البحث والفلاتر والترقيم وفتح الـ Drawer لا تمسّها.
  * تُمسح فقط عند إكمال الدورة إلى الافتراضي أو عند «إعادة تعيين الفلاتر».
@@ -34,26 +35,32 @@ export interface TableSortController {
   reset: () => void;
 }
 
-const DEFAULT_STATE: SortState = { by: null, dir: 'asc' };
+const NO_SORT: SortState = { by: null, dir: 'asc' };
 
 export function useTableSort(
   moduleKey: string,
   /** يُستدعى بعد كل تغيير فرز — تستخدمه ResourcePage للعودة للصفحة الأولى (فرز جديد = استعلام جديد). */
   onChange?: () => void,
+  /**
+   * ترتيب افتراضي خاص بالوحدة (`ModuleConfig.defaultSort`). عند غيابه يبقى
+   * الافتراضي كما كان: بلا معطيات فرز ⇒ ترتيب الخادم الافتراضي للوحدة.
+   */
+  defaultSort?: { by: string; dir: SortDir },
 ): TableSortController {
-  const [state, setState] = usePersistedState<SortState>(`rp:${moduleKey}:sort`, DEFAULT_STATE);
+  const fallback: SortState = defaultSort ? { by: defaultSort.by, dir: defaultSort.dir } : NO_SORT;
+  const [state, setState] = usePersistedState<SortState>(`rp:${moduleKey}:sort`, fallback);
 
   function toggle(columnKey: string) {
     setState((prev) => {
       if (prev.by !== columnKey) return { by: columnKey, dir: 'asc' };
       if (prev.dir === 'asc') return { by: columnKey, dir: 'desc' };
-      return DEFAULT_STATE;
+      return fallback;
     });
     onChange?.();
   }
 
   function reset() {
-    setState(DEFAULT_STATE);
+    setState(fallback);
     onChange?.();
   }
 

@@ -11,7 +11,7 @@ vi.mock('../api/client', () => ({
 import { api } from '../api/client';
 import CustomerHub from '../components/explorer/hubs/CustomerHub';
 import EquipmentHub from '../components/explorer/hubs/EquipmentHub';
-import type { EntityHubProps } from '../components/explorer/hubs/hubTypes';
+import { buildInfoItems, type EntityHubProps } from '../components/explorer/hubs/hubTypes';
 
 const cfg = {
   key: 'customers', title: 'nav.customers', explorerIcon: 'groups',
@@ -59,6 +59,18 @@ describe('CustomerHub', () => {
     (api.get as any).mockRejectedValue(new Error('boom'));
     renderHub();
     expect(await screen.findByText('عميل تجريبي')).toBeInTheDocument();
+  });
+});
+
+describe('buildInfoItems', () => {
+  it('flags English-name fields as LTR and leaves the rest plain', () => {
+    const items = buildInfoItems(
+      { ...cfg, fields: [{ name: 'nameEn', label: 'field.customer_name_en' }, { name: 'phone', label: 'field.phone' }] } as any,
+      { nameEn: 'National Contracting Co.', phone: '99887766' },
+      (k) => k,
+    );
+    expect(items.find((i) => i.value === 'National Contracting Co.')?.ltr).toBe(true);
+    expect(items.find((i) => i.value === '99887766')?.ltr).toBe(false);
   });
 });
 

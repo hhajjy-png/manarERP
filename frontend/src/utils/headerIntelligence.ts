@@ -40,6 +40,14 @@ const FIELD_ALIASES: Record<string, string[]> = {
   licenseExpiry: ['تاريخ انتهاء رخصة القيادة', 'انتهاء الرخصة', 'license expiry'],
   vehiclePlate: ['رقم لوحة المركبة', 'رقم اللوحة', 'plate'],
   plateNumber: ['رقم اللوحة', 'اللوحة', 'plate', 'plate number'],
+  // المعدات: «النوع» أُعيدت تسميته إلى «الشكل» عرضًا فقط — الاسمان يشيران إلى
+  // الحقل `type` نفسه كي تبقى ملفّات الاستيراد القديمة (بترويسة «نوع المعدة»)
+  // مطابَقةً تلقائيًا كما كانت.
+  type: ['نوع المعدة', 'النوع', 'شكل المعدة', 'الشكل', 'type'],
+  chassisNumber: ['رقم القاعدة', 'رقم الشاصي', 'الشاصي', 'chassis', 'chassis no', 'chassis number'],
+  manufacturer: ['الصنع', 'الشركة المصنعة', 'الماركة', 'make', 'manufacturer'],
+  manufactureYear: ['سنة الصنع', 'سنة الصنع رقم', 'year', 'manufacture year'],
+  color: ['اللون', 'color'],
   birthDate: ['تاريخ الميلاد', 'الميلاد', 'birth date', 'dob'],
   salary: ['الراتب الشهري', 'الراتب', 'salary'],
   hireDate: ['تاريخ التعيين', 'hire date'],

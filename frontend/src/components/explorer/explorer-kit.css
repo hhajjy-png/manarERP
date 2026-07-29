@@ -737,6 +737,16 @@
 .xpl-drawer-field-label { font-size: 12px; color: var(--xpl-muted); flex-shrink: 0; }
 .xpl-drawer-field-value { font-size: 13px; font-weight: 600; color: var(--xpl-text); text-align: left; word-break: break-word; line-height: 1.5; }
 .xpl-drawer-field-value.mono { font-family: var(--app-font-mono); font-size: 12px; }
+/* Latin-script values (English name): LTR text that wraps between words only —
+   never mid-word. Pairs with the full-width grid row rule in the info-grid. */
+.xpl-drawer-field-value--ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 
 /* ════════════════════════════════════════════════════════════════════════════
    Buttons (kit-local, premium)
@@ -1130,6 +1140,9 @@
 
 .xpl-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
 @media (max-width: 520px) { .xpl-info-grid { grid-template-columns: 1fr; } }
+/* Latin-script values need the full drawer width — a half-width cell squeezes
+   the English name until it wraps mid-word (Nation/al, Contra/cting). */
+.xpl-info-grid > .xpl-drawer-field--ltr { grid-column: 1 / -1; }
 
 .xpl-related { display: flex; flex-direction: column; gap: 6px; }
 .xpl-related-row {

@@ -71,7 +71,7 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const [filterValue, setFilterValue] = usePersistedState(`rp:${cfg.key}:filter`, '');
   // فرز خادمي موحّد لكل وحدة (rp:<module>:sort) — تغيير الفرز استعلام جديد فيعود
   // للصفحة الأولى؛ البحث/الفلاتر/الترقيم لا تمسّ حالة الفرز (حالة عرض مستقلة).
-  const sort = useTableSort(cfg.key, () => setPage(1));
+  const sort = useTableSort(cfg.key, () => setPage(1), cfg.defaultSort);
   const [error, setError] = useState('');
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [editing, setEditing] = useState<any | null>(null);

@@ -142,6 +142,13 @@ export interface ModuleConfig {
    */
   nativeExcelExport?: boolean;
   statusFilter?: { param: string; options: { value: string; labelKey: string }[] };
+  /**
+   * الترتيب الافتراضي للوحدة — يحلّ محلّ «بلا فرز» في دورة `useTableSort`: يُطبَّق
+   * حين لا يوجد اختيار محفوظ، وتعود إليه الدورة عند إكمالها وعند «إعادة تعيين
+   * الفلاتر». `by` مفتاح عمود مُدرج في القائمة البيضاء للفرز في الخادم.
+   * الوحدات بلا هذا الحقل تبقى على سلوكها السابق حرفيًا (ترتيب الخادم الافتراضي).
+   */
+  defaultSort?: { by: string; dir: 'asc' | 'desc' };
   /** Opt-in: render this module with the ExplorerKit executive layout (header,
    *  KPIs, sticky toolbar, modern table, detail drawer, sectioned dialog).
    *  Modules without this flag keep the classic ResourcePage layout unchanged. */
@@ -296,6 +303,9 @@ export const MODULES: Record<string, ModuleConfig> = {
     icon: '🚜', group: 'nav.group.core', createLabel: 'mod.equipment.create',
     emptyText: 'empty.equipment', supportsExport: true,
     explorer: true, explorerIcon: 'construction',
+    // الأقرب انتهاءً أولًا: `regRemaining` يُترجَم خادميًا إلى `registrationExpiry`
+    // (نفس مصدر «المدة الباقية»)، و«غير محدد» يبقى في الذيل عبر nulls: 'last'.
+    defaultSort: { by: 'regRemaining', dir: 'asc' },
     formSections: [
       { id: 'identity', title: 'page.form.equipment.identity', icon: 'badge' },
       { id: 'ownership', title: 'page.form.equipment.ownership', icon: 'person' },
@@ -312,10 +322,15 @@ export const MODULES: Record<string, ModuleConfig> = {
       // معيار ترقيم الصفوف: رقم المعدة معرّف تجاري غير ضروري في القائمة —
       // استُبدل بترقيم تسلسلي يتابع عبر الصفحات. الكود يبقى في البحث والتنبيهات والـ Drawer.
       { key: 'rowNo', label: '#', rowNumber: true },
-      { key: 'type', label: 'col.type', sortable: true },
+      // «النوع» → «الشكل»: تسمية عرض فقط؛ المفتاح والحقل الخلفي `type` بلا تغيير.
+      { key: 'type', label: 'col.eq_shape', sortable: true },
       { key: 'ownerName', label: 'col.owner_name', sortable: true },
       { key: 'driverName', label: 'col.driver_name', sortable: true, render: (r) => <strong>{r.driverName ?? '—'}</strong> },
       { key: 'plateNumber', label: 'col.plate_number', sortable: true, render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.plateNumber ?? '—'}</span> },
+      { key: 'chassisNumber', label: 'field.eq_chassis', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.chassisNumber ?? '—'}</span> },
+      { key: 'manufacturer', label: 'field.eq_make', render: (r) => r.manufacturer ?? '—' },
+      { key: 'manufactureYear', label: 'field.eq_make_year', render: (r) => r.manufactureYear ?? '—' },
+      { key: 'color', label: 'field.eq_color', render: (r) => r.color ?? '—' },
       // regExpiry يُفرز خادميًا عبر ترجمة القائمة البيضاء إلى registrationExpiry.
       // regRemaining (أدناه) مشتق بلا حقل خلفي → غير قابل للفرز عمدًا.
       { key: 'regExpiry', label: 'col.reg_expiry', sortable: true, render: (r) => {
@@ -324,18 +339,24 @@ export const MODULES: Record<string, ModuleConfig> = {
       }},
       // Equipment Table Visual Consistency Pack — soft tint + accent (shared
       // ToneCell), matching the Employee table's approved tone system exactly.
-      { key: 'regRemaining', label: 'col.reg_remaining', render: (r) => <RegRemainingCell registration={r.registration} /> },
+      // الفرز خادمي على `registrationExpiry` نفسه (المصدر ذاته الذي تُحسب منه
+      // المدة الباقية) — انظر القائمة البيضاء في equipment.service.ts.
+      { key: 'regRemaining', label: 'col.reg_remaining', sortable: true, render: (r) => <RegRemainingCell registration={r.registration} /> },
       { key: 'status', label: 'col.status', sortable: true, render: (r) => equipmentStatus(r.status) },
     ],
     fields: [
       { name: 'code', label: 'field.equipment_no', required: true, section: 'identity' },
       { name: 'type', label: 'field.eq_type', required: true, section: 'identity' },
+      { name: 'manufacturer', label: 'field.eq_make', section: 'identity' },
+      { name: 'manufactureYear', label: 'field.eq_make_year', type: 'number', section: 'identity' },
+      { name: 'color', label: 'field.eq_color', section: 'identity' },
       { name: 'status', label: 'field.vehicle_status', type: 'select', section: 'identity', options: [
         { value: 'WORKING', label: 'opt.eq.working' },
         { value: 'NOT_WORKING', label: 'opt.eq.not_working' }] },
       { name: 'ownerName', label: 'field.owner_name', section: 'ownership' },
       { name: 'driverName', label: 'field.driver_name', section: 'ownership' },
       { name: 'plateNumber', label: 'field.plate_number', section: 'ownership' },
+      { name: 'chassisNumber', label: 'field.eq_chassis', section: 'ownership' },
       { name: 'registrationExpiry', label: 'field.reg_expiry', type: 'date', section: 'registration' },
     ],
   },

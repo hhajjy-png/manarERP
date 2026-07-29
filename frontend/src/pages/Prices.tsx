@@ -39,6 +39,28 @@ import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 const contractUnits = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'] as const;
 
+// ── تفضيل عرض «لوحة الاتفاقيات» ───────────────────────────────────────────────
+// تفضيل واجهة فقط (لا بيانات ولا منطق) يُحفظ محليًا بنفس أسلوب وضع القائمة
+// الجانبية في uiStore. قيمة غائبة أو غير صالحة ⇒ اللوحة ظاهرة كما كانت دائمًا.
+const AGREEMENTS_BOARD_KEY = 'manarERP.prices.agreementsBoard';
+const AGREEMENTS_BOARD_ID = 'prices-agreements-board';
+
+function readBoardVisible(): boolean {
+  try {
+    return localStorage.getItem(AGREEMENTS_BOARD_KEY) !== 'hidden';
+  } catch {
+    return true;
+  }
+}
+
+function writeBoardVisible(visible: boolean) {
+  try {
+    localStorage.setItem(AGREEMENTS_BOARD_KEY, visible ? 'shown' : 'hidden');
+  } catch {
+    /* التخزين غير متاح — الجلسة الحالية تعمل، والاستعادة وحدها ما يضيع */
+  }
+}
+
 interface PricesStats { count: number; customerCount: number; lastUpdatedAt: string | null; }
 interface UsageRow { id: number; asphaltPlant: string; companyName: string; contractLocation: string; contractUnit: string; unitPrice: number; customer: { id: number; name: string } | null; usageCount: number; totalQuantity: number; totalAmount: number; }
 interface UsageReport { report: UsageRow[]; hasDirectTracking: boolean; note: string; }
@@ -86,6 +108,13 @@ export default function Prices() {
   const [groupByCompany, setGroupByCompany] = useState(false);
   const [agreementsDashboard, setAgreementsDashboard] = useState<AgreementsDashboard | null>(null);
   const [dashboardTab, setDashboardTab] = useState<'unused' | 'expiring' | 'top5' | 'least5'>('unused');
+  const [boardVisible, setBoardVisible] = useState(readBoardVisible);
+
+  function toggleBoard() {
+    const next = !boardVisible;
+    writeBoardVisible(next);
+    setBoardVisible(next);
+  }
 
   useEffect(() => {
     api.get('/customers', { params: { pageSize: 200 } }).then((res) => setCustomers(res.data.data.data ?? [])).catch(() => {});
@@ -203,13 +232,31 @@ export default function Prices() {
 
       {/* Agreements dashboard */}
       {agreementsDashboard && (
-        <SectionCard title={t('sec.prices.agreements_board')} icon="dashboard">
-          <div className="xpl-toolbar-row" style={{ marginBottom: 12 }}>
-            {dashTabs.map((tb) => (
-              <FilterChip key={tb.key} active={dashboardTab === tb.key} onClick={() => setDashboardTab(tb.key)}>{tb.label}</FilterChip>
-            ))}
+        <SectionCard
+          title={t('sec.prices.agreements_board')}
+          icon="dashboard"
+          padded={boardVisible}
+          actions={
+            <Button
+              variant="ghost"
+              small
+              icon={boardVisible ? 'visibility_off' : 'visibility'}
+              onClick={toggleBoard}
+              aria-expanded={boardVisible}
+              aria-controls={AGREEMENTS_BOARD_ID}
+            >
+              {boardVisible ? t('action.hide') : t('action.show')}
+            </Button>
+          }
+        >
+          <div id={AGREEMENTS_BOARD_ID} hidden={!boardVisible}>
+            <div className="xpl-toolbar-row" style={{ marginBottom: 12 }}>
+              {dashTabs.map((tb) => (
+                <FilterChip key={tb.key} active={dashboardTab === tb.key} onClick={() => setDashboardTab(tb.key)}>{tb.label}</FilterChip>
+              ))}
+            </div>
+            <AgreementMiniTable rows={agreementsDashboard[dashboardTab]} t={t} />
           </div>
-          <AgreementMiniTable rows={agreementsDashboard[dashboardTab]} t={t} />
         </SectionCard>
       )}
 
