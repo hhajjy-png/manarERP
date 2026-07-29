@@ -119,7 +119,10 @@ function buildInvoiceColumns(
       header: t('col.inv.number'),
       plainLabel: t('col.inv.number'),
       sortable: true,
-      render: (r) => <span className="invcx-mono"><strong>{r.invoiceNumber ?? r.number}</strong></span>,
+      render: (r) => {
+        const tone = (STATUS_META[String(r.status)] ?? { tone: 'neutral' as Tone }).tone;
+        return <span className={`invcx-mono invcx-num--${tone}`}><strong>{r.invoiceNumber ?? r.number}</strong></span>;
+      },
       exportValue: (r) => r.invoiceNumber ?? r.number ?? '',
     },
     // الجهة: علاقة مركّبة (عميل أو مورّد) بلا حقل خادمي واحد — غير قابلة للفرز.
