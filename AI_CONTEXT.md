@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `7408fa05` (merge of `feature/employee-entitlements-core-statement-v1`, carrying Employee Entitlements Core, Statement & Final Settlement v1) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `5066774d` |
 | **Current Stable Tag** | `stable-employee-entitlements-final-settlement-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 370 (window 2026-06-07 → 2026-07-29) |
