@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `67afa7ac` (merge of `feature/branding-designer-rotation-v1`, carrying Branding Designer Rotation v1) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `9464023` |
 | **Current Stable Tag** | `stable-branding-designer-rotation-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 374 (window 2026-06-07 → 2026-07-29) |
