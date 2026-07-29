@@ -26,9 +26,10 @@ class EquipmentRepository extends BaseRepository<{ id: number }> {
 const repo = new EquipmentRepository();
 
 // القائمة البيضاء للفرز — المفاتيح مطابقة لمفاتيح أعمدة الواجهة (modules.tsx).
-// `regExpiry` عمود عرضي مشتق من `registration` — تُترجمه القائمة إلى الحقل
-// الفعلي `registrationExpiry`. أمّا `regRemaining` فمشتق بلا حقل خلفي → غير قابل
-// للفرز عمدًا (غير مُدرج هنا وغير مُعلَّم sortable في الواجهة).
+// `regExpiry` و`regRemaining` عمودان عرضيان مشتقّان من `registration`، وكلاهما
+// يُترجَم إلى الحقل الفعلي `registrationExpiry`: المدة الباقية = تاريخ الانتهاء −
+// اليوم، فترتيبها **مطابق تمامًا** لترتيب التاريخ (دالة رتيبة تصاعديًا) — لا حساب
+// موازٍ ولا حقل مشتق مخزَّن. `nulls: 'last'` يُبقي «غير محدد» في الذيل.
 const SORTABLE: SortWhitelist = {
   code: 'code',
   type: 'type',
@@ -37,6 +38,7 @@ const SORTABLE: SortWhitelist = {
   driverName: { field: 'driverName', nullable: true },
   plateNumber: { field: 'plateNumber', nullable: true },
   regExpiry: { field: 'registrationExpiry', nullable: true },
+  regRemaining: { field: 'registrationExpiry', nullable: true },
 };
 const DEFAULT_ORDER = [{ id: 'desc' as const }];
 

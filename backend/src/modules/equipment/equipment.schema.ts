@@ -8,6 +8,8 @@ export const createEquipmentSchema = z.object({
     ownerName: z.string().optional(), // اسم المالك
     driverName: z.string().optional(), // اسم السائق
     plateNumber: z.string().optional(), // رقم اللوحة
+    chassisNumber: z.string().optional(), // رقم القاعدة
+    color: z.string().optional(), // اللون
     registrationExpiry: z.coerce.date().optional(), // تاريخ انتهاء دفتر المركبة
     status: z.enum(ENUMS.equipmentStatus).default('WORKING'), // WORKING | NOT_WORKING
     name: z.string().optional(),

@@ -2,8 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
  * Enterprise Data Grid Foundation v1 — المعدات: الحالة المرجعية للعمود المشتق.
- * `regExpiry` (عمود عرضي) يُترجم إلى الحقل الفعلي registrationExpiry مع nulls
- * آخرًا؛ و`regRemaining` (مشتق بلا حقل خلفي) مرفوض عمدًا.
+ * `regExpiry` و`regRemaining` عمودان عرضيان يُترجَمان إلى الحقل الفعلي
+ * registrationExpiry مع nulls آخرًا — المدة الباقية = التاريخ − اليوم، فترتيبها
+ * مطابق لترتيب التاريخ (Equipment Data Pack v1: صار الفرز عليه مسموحًا كي يكون
+ * الترتيب الافتراضي لجدول المعدات «الأقرب انتهاءً أولًا» بلا حساب موازٍ).
  */
 
 vi.mock('../../../config/database', () => ({
@@ -42,8 +44,24 @@ describe('equipment.list — server-side sorting', () => {
     ]);
   });
 
-  it('derived column with no backing field (regRemaining) is rejected → default', async () => {
+  it('regRemaining sorts by the very field it is derived from (registrationExpiry), nulls last', async () => {
     await equipmentService.list({ sortBy: 'regRemaining', sortDir: 'asc' });
+    expect(findManyArgs().orderBy).toEqual([
+      { registrationExpiry: { sort: 'asc', nulls: 'last' } },
+      { id: 'desc' },
+    ]);
+  });
+
+  it('regRemaining and regExpiry produce an identical query (one source, no parallel logic)', async () => {
+    await equipmentService.list({ sortBy: 'regRemaining', sortDir: 'asc' });
+    const remaining = findManyArgs().orderBy;
+    mp.equipment.findMany.mockClear();
+    await equipmentService.list({ sortBy: 'regExpiry', sortDir: 'asc' });
+    expect(findManyArgs().orderBy).toEqual(remaining);
+  });
+
+  it('an unknown sort key is still rejected → module default', async () => {
+    await equipmentService.list({ sortBy: 'color', sortDir: 'asc' });
     expect(findManyArgs().orderBy).toEqual([{ id: 'desc' }]);
   });
 

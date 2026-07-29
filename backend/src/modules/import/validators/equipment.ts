@@ -7,6 +7,8 @@ export interface NormalizedEquipment {
   ownerName?: string;
   driverName?: string;
   plateNumber?: string;
+  chassisNumber?: string;
+  color?: string;
   registrationExpiry?: Date;
   status: 'WORKING' | 'NOT_WORKING';
   name?: string;
@@ -71,6 +73,9 @@ export function validateEquipmentRow(row: Record<string, unknown>): {
       ownerName: str(row, 'ownerName'),
       driverName: str(row, 'driverName'),
       plateNumber: str(row, 'plateNumber'),
+      // أعمدة اختيارية: ملفّ استيراد قديم لا يحملها ⇒ undefined كما لو لم تُذكر.
+      chassisNumber: str(row, 'chassisNumber'),
+      color: str(row, 'color'),
       registrationExpiry: parseDate(row['registrationExpiry']),
       status,
       name: str(row, 'name'),

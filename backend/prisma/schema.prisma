@@ -558,6 +558,8 @@ model Equipment {
   ownerName          String? // اسم المالك
   driverName         String? // اسم السائق
   plateNumber        String? // رقم اللوحة
+  chassisNumber      String? // رقم القاعدة (الشاصي)
+  color              String? // اللون
   registrationExpiry DateTime? // تاريخ انتهاء دفتر المركبة
   insuranceExpiry    DateTime? // تاريخ انتهاء التأمين
   status             String    @default("WORKING") // WORKING (تعمل) | NOT_WORKING (لا تعمل)

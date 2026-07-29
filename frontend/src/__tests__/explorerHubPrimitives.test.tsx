@@ -84,6 +84,27 @@ describe('DrawerInfoGrid', () => {
     expect(screen.queryByText('المدينة')).toBeNull();
   });
 
+  // Latin-script values must read LTR and get the full drawer row, otherwise a
+  // half-width cell wraps the English name mid-word (Nation/al, Contra/cting).
+  it('renders an ltr item LTR on a full-width row', () => {
+    render(
+      <DrawerInfoGrid
+        items={[{ label: 'اسم العميل (بالإنجليزي)', value: 'National Contracting Co.', ltr: true }]}
+      />,
+    );
+    const value = screen.getByText('National Contracting Co.');
+    expect(value).toHaveAttribute('dir', 'ltr');
+    expect(value).toHaveClass('xpl-drawer-field-value--ltr');
+    expect(value.parentElement).toHaveClass('xpl-drawer-field--ltr');
+  });
+
+  it('leaves plain items untouched', () => {
+    render(<DrawerInfoGrid items={[{ label: 'الهاتف', value: '99887766' }]} />);
+    const value = screen.getByText('99887766');
+    expect(value).not.toHaveAttribute('dir');
+    expect(value.parentElement).not.toHaveClass('xpl-drawer-field--ltr');
+  });
+
   it('renders nothing when every item is empty', () => {
     const { container } = render(
       <DrawerInfoGrid items={[{ label: 'أ', value: '' }, { label: 'ب', value: null }]} />,

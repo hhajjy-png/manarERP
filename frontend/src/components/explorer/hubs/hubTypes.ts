@@ -14,6 +14,9 @@ export interface EntityHubProps {
 
 export type HubComponent = (props: EntityHubProps) => JSX.Element;
 
+/** Latin-script name fields (`nameEn`, `fullNameEn`) — displayed LTR, full-width. */
+const isEnglishNameField = (name: string): boolean => name === 'nameEn' || name.endsWith('NameEn');
+
 /**
  * Build drawer info-grid items for an entity. Prefers a column's `render()` (so
  * enum/currency values read exactly like the table) and falls back to the raw
@@ -33,5 +36,6 @@ export function buildInfoItems(
     .map((f) => ({
       label: t(f.label),
       value: renderByKey.has(f.name) ? renderByKey.get(f.name)!(entity) : (entity[f.name] ?? null),
+      ltr: isEnglishNameField(f.name),
     }));
 }

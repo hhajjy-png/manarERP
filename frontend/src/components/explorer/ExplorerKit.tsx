@@ -459,11 +459,11 @@ export function DrawerSection({ title, children }: { title?: string; children: R
   );
 }
 
-export function DrawerField({ label, value, mono }: { label: string; value: ReactNode; mono?: boolean }) {
+export function DrawerField({ label, value, mono, ltr }: { label: string; value: ReactNode; mono?: boolean; ltr?: boolean }) {
   return (
-    <div className="xpl-drawer-field">
+    <div className={`xpl-drawer-field${ltr ? ' xpl-drawer-field--ltr' : ''}`}>
       <span className="xpl-drawer-field-label">{label}</span>
-      <span className={`xpl-drawer-field-value${mono ? ' mono' : ''}`}>{value}</span>
+      <span className={`xpl-drawer-field-value${mono ? ' mono' : ''}${ltr ? ' xpl-drawer-field-value--ltr' : ''}`} dir={ltr ? 'ltr' : undefined}>{value}</span>
     </div>
   );
 }
@@ -542,7 +542,8 @@ export function DrawerQuickActions({ actions }: { actions: QuickAction[] }) {
   );
 }
 
-export interface InfoItem { label: string; value: ReactNode; mono?: boolean; }
+/** `ltr`: Latin-script value — rendered LTR on its own full-width grid row. */
+export interface InfoItem { label: string; value: ReactNode; mono?: boolean; ltr?: boolean; }
 
 function infoValueIsEmpty(v: ReactNode): boolean {
   return v == null || v === '' || v === '—';
@@ -555,7 +556,7 @@ export function DrawerInfoGrid({ title, items }: { title?: string; items: InfoIt
     <DrawerSection title={title}>
       <div className="xpl-info-grid">
         {shown.map((it, i) => (
-          <DrawerField key={i} label={it.label} value={it.value} mono={it.mono} />
+          <DrawerField key={i} label={it.label} value={it.value} mono={it.mono} ltr={it.ltr} />
         ))}
       </div>
     </DrawerSection>

@@ -96,15 +96,19 @@ export const IMPORT_ENTITIES: ImportEntityConfig[] = [
     previewSecondary: (row) => String(row['type'] ?? '—'),
     columns: [
       { key: 'code',               labelAr: 'رقم المعدة',                         labelEn: 'Equipment Code',                            required: true  },
-      { key: 'type',               labelAr: 'نوع المعدة (قلاب / شيول / حفار...)', labelEn: 'Equipment Type (Dump Truck / Loader / Excavator...)', required: true  },
+      // مفاتيح الأعمدة ثابتة (`type` لم يتغيّر) — التسمية وحدها صارت «الشكل»،
+      // فملفّات الاستيراد القديمة تبقى صالحة كما هي.
+      { key: 'type',               labelAr: 'شكل المعدة (قلاب / شيول / حفار...)', labelEn: 'Equipment Shape (Dump Truck / Loader / Excavator...)', required: true  },
       { key: 'ownerName',          labelAr: 'اسم المالك',                         labelEn: 'Owner Name',                                required: false },
       { key: 'driverName',         labelAr: 'اسم السائق',                         labelEn: 'Driver Name',                               required: false },
       { key: 'plateNumber',        labelAr: 'رقم اللوحة',                         labelEn: 'Plate Number',                              required: false },
+      { key: 'chassisNumber',      labelAr: 'رقم القاعدة',                        labelEn: 'Chassis Number',                            required: false },
       { key: 'registrationExpiry', labelAr: 'انتهاء دفتر المركبة (YYYY-MM-DD)',   labelEn: 'Vehicle Registration Expiry (YYYY-MM-DD)',  required: false },
       { key: 'status',             labelAr: 'الحالة: WORKING / NOT_WORKING',      labelEn: 'Status: WORKING / NOT_WORKING',             required: false },
-      { key: 'manufacturer',       labelAr: 'الشركة المصنعة',                     labelEn: 'Manufacturer',                              required: false },
+      { key: 'manufacturer',       labelAr: 'الصنع',                              labelEn: 'Make',                                      required: false },
       { key: 'model',              labelAr: 'الموديل',                            labelEn: 'Model',                                     required: false },
       { key: 'manufactureYear',    labelAr: 'سنة الصنع (رقم)',                    labelEn: 'Manufacture Year (number)',                 required: false },
+      { key: 'color',              labelAr: 'اللون',                              labelEn: 'Color',                                     required: false },
       { key: 'operatingHours',     labelAr: 'ساعات التشغيل (رقم)',                labelEn: 'Operating Hours (number)',                  required: false },
       { key: 'purchaseCost',       labelAr: 'تكلفة الشراء (رقم)',                 labelEn: 'Purchase Cost (number)',                    required: false },
       { key: 'notes',              labelAr: 'ملاحظات',                            labelEn: 'Notes',                                     required: false },
