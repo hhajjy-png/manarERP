@@ -28,6 +28,14 @@
 .invcx-remaining { color: var(--xpl-red); font-weight: 700; }
 .invcx-remaining--zero { color: var(--xpl-green); font-weight: 700; }
 
+/* رقم الفاتورة: نفس ألوان STATUS_META (invStatusChip) — مصدر واحد، عبر متغيرات --xpl-* المشتركة. */
+.invcx-num--neutral { color: var(--xpl-muted); }
+.invcx-num--green   { color: var(--xpl-green); }
+.invcx-num--red     { color: var(--xpl-red); }
+.invcx-num--orange  { color: var(--xpl-orange); }
+.invcx-num--blue    { color: var(--xpl-blue); }
+.invcx-num--indigo  { color: var(--xpl-primary); }
+
 /* customer summary strip */
 .invcx-customer-strip {
   display: flex;
