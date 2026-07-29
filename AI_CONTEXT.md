@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `a6024c8c` (merge of `feature/customer-transport-terminology-and-ui-polish-pack-v1`, bundling Customer Transport Invoice Terminology Finalization v1, status-colored Cheques/Salaries row identifiers, and the Expenses breakdown show/hide toggle) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `6b1945d` |
 | **Current Stable Tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` |
 | **Current Release Date** | 2026-07-30 |
 | **Total Stable Releases** | 379 (window 2026-06-07 → 2026-07-30) |
