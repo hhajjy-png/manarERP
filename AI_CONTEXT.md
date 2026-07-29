@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `8f8990de` (merge of `feature/ready-paper-logo-tint-generalization-v1`, carrying Ready-Paper Logo Tint Generalization v1) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `a3ed682` |
 | **Current Stable Tag** | `stable-ready-paper-logo-tint-generalization-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 375 (window 2026-06-07 → 2026-07-29) |
