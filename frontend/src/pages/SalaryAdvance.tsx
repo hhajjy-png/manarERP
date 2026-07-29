@@ -10,10 +10,15 @@ import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
 import { useAccurateFormPreview, isFlagEnabled, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
 import SalaryAdvanceTemplate from '../forms/SalaryAdvanceTemplate';
+import SalaryAdvanceEnHiTemplate from '../forms/enhi/SalaryAdvanceEnHiTemplate';
+import { salaryAdvanceLabel } from '../forms/enhi/shared/salaryAdvanceEnHiLabels';
+import { joinEnHi, APPROVAL_SECONDARY_LABELS_HI } from '../forms/enhi/shared/enHiLabels';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
-import LanguageToggle from '../forms/shared/LanguageToggle';
+import FormVariantToggle from '../forms/shared/FormVariantToggle';
+import { FormDocVariant, DEFAULT_FORM_DOC_VARIANT, toLayoutLang } from '../forms/shared/formVariant';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
+import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../styles/fontRegistry';
 
 const FORM_KEY = 'salary-advance';
 
@@ -34,7 +39,16 @@ export default function SalaryAdvance() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState('');
-  const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  /**
+   * نسخة المستند — ثلاث نسخ (`ar` / `en` / `en-hi`)، على نفس بنية «طلب
+   * الإجازة» المعتمدة في PHASE 1 حرفيًا. `en-hi` تُصرَف إلى `lang='en'`.
+   */
+  const [variant, setVariant] = useState<FormDocVariant>(DEFAULT_FORM_DOC_VARIANT);
+  const lang = toLayoutLang(variant);
+  const isEnHi = variant === 'en-hi';
+  const docTitle = isEnHi
+    ? joinEnHi(salaryAdvanceLabel('doc.title'))
+    : translate('page.salaryAdv.title', lang);
   const [profile, setProfile] = usePrintProfileMemory(FORM_KEY, getProfileIdFromSearch(search));
   const [printFields, setPrintFields] = useState({
     advanceAmount: '',
@@ -97,8 +111,8 @@ export default function SalaryAdvance() {
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
     getNode: () => printApiRef.current?.getNode() ?? null,
     onPrint: () => printApiRef.current?.print(),
-    title: translate('page.salaryAdv.title', lang),
-    documentLabel: `${translate('page.salaryAdv.title', lang)} · ${formNumber}`,
+    title: docTitle,
+    documentLabel: `${docTitle} · ${formNumber}`,
     lang,
   });
 
@@ -121,7 +135,7 @@ export default function SalaryAdvance() {
       onPrintApiReady={(api) => { printApiRef.current = api; }}
       ready
       formNumber={formNumber}
-      title={translate('page.salaryAdv.title', lang)}
+      title={docTitle}
       profile={profile}
       // Overflows the official-letterhead band by a few mm — reclaim the 10mm
       // bottom margin so it stays on one page (letterhead only; top unchanged).
@@ -134,9 +148,12 @@ export default function SalaryAdvance() {
       // Multi-Signature & Stamp Management v1: the footer approval block draws the
       // signature/stamp chosen in the toolbar. No per-form logic — see FormLayout.
       approvalBranding
+      // EN+HI فقط — نفس PHASE 1.
+      approvalSecondaryLabels={isEnHi ? APPROVAL_SECONDARY_LABELS_HI : undefined}
+      docFontStack={isEnHi ? DOC_FONT_STACK_EN_HI : DOC_FONT_STACK}
       toolbarExtra={
         <>
-          <LanguageToggle lang={lang} onChange={setLang} />
+          <FormVariantToggle variant={variant} onChange={setVariant} />
           <PrintProfileToggle profile={profile} onChange={setProfile} />
           <button
             type="button"
@@ -222,7 +239,13 @@ export default function SalaryAdvance() {
           </button>
         </div>
       </div>
-      <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} printFields={printFields} />
+      {/* اختيار القالب يحدث هنا وحده. `SalaryAdvanceTemplate` (العربي والإنجليزي)
+          لم يُمَسّ، والنسخة الثنائية ملف مستقل تمامًا. */}
+      {isEnHi ? (
+        <SalaryAdvanceEnHiTemplate employee={data.employee} latestAdvance={data.latestAdvance} printFields={printFields} />
+      ) : (
+        <SalaryAdvanceTemplate employee={data.employee} latestAdvance={data.latestAdvance} lang={lang} printFields={printFields} />
+      )}
       {showClearConfirm && (
         <ConfirmModal message={t('page.warning.clear_confirm')} confirmLabel={t('page.warning.clear_confirm_btn')} variant="warning" onConfirm={executeClear} onCancel={() => setShowClearConfirm(false)} />
       )}

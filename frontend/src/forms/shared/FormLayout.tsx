@@ -23,6 +23,7 @@ import type { BrandingDocKey, PrintBrandingLayoutSettings } from '../../print-te
 import { PrintWorkspace } from '../../components/print-workspace';
 import officialLogoHead from '../../assets/logohead.png';
 import { DOC_FONT_STACK } from '../../styles/fontRegistry';
+import type { ApprovalSecondaryLabels } from './ApprovalSection';
 
 interface FormLayoutProps {
   children: ReactNode;
@@ -84,6 +85,28 @@ interface FormLayoutProps {
    * A new form joins with this one prop; no per-form state, images or resolution logic.
    */
   approvalBranding?: boolean;
+  /**
+   * Opt-in: render a second-language line under each of the footer
+   * `ApprovalSection`'s four labels (title / signature / date / stamp). Passed
+   * straight through — this layer authors no text and knows no second language;
+   * the strings come from the form that needs them (the EN+HI templates).
+   *
+   * Absent (every existing form) ⇒ the approval block is byte-identical.
+   */
+  approvalSecondaryLabels?: ApprovalSecondaryLabels;
+  /**
+   * Opt-in: override the document font stack applied to `.form-page`. Off by
+   * default — every existing form keeps `DOC_FONT_STACK` (`Cairo, Arial,
+   * sans-serif`) exactly as before.
+   *
+   * Exists for the EN+HI variant, whose stack appends `Noto Sans Devanagari`
+   * AFTER Cairo: Latin and digits still resolve to Cairo (so the English half is
+   * visually identical to the English template), and the Devanagari family is
+   * reached only for codepoints Cairo/Arial do not cover. Setting it here rather
+   * than on the template's own root is what carries the family through every
+   * surface that clones `.form-page` — accurate preview, Save PDF and print.
+   */
+  docFontStack?: string;
   /**
    * Payment-voucher-only, opt-in top-margin trim: when a form on the
    * `payment-voucher` profile sets `compactTopMargin`, its `@page` top margin is
@@ -232,6 +255,8 @@ export default function FormLayout({
   hideFormNumber = false,
   hideApprovalSection = false,
   approvalBranding = false,
+  approvalSecondaryLabels,
+  docFontStack = DOC_FONT_STACK,
   compactTopMargin = false,
   useLogoHeader = false,
   contentTopOffset,
@@ -648,7 +673,7 @@ ${logoHeaderIsOverlay ? `
           // the original screen padding untouched.
           padding: logoHeaderIsOverlay ? `${mt} ${mr} ${mb} ${ml}` : '18px 32px',
           boxSizing: 'border-box',
-          fontFamily: DOC_FONT_STACK,
+          fontFamily: docFontStack,
           maxWidth: 793,
           margin: '0 auto',
           color: '#0f172a',
@@ -730,6 +755,7 @@ ${logoHeaderIsOverlay ? `
             {!hideApprovalSection && (
               <ApprovalSection
                 lang={lang}
+                secondaryLabels={approvalSecondaryLabels}
                 hideDate={approvalHideDate}
                 stampInline={approvalStampInline}
                 signatureUrl={approvalBranding && brandingSelection.showSignature ? brandingSelection.signatureUrl : undefined}

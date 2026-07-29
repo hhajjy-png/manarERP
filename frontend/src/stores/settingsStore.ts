@@ -9,6 +9,11 @@ import {
   parseBusinessTermDictionaries,
   resolveBusinessTerm,
 } from '../lib/businessTerms';
+import {
+  defaultBusinessTermHiDictionaries,
+  parseBusinessTermHiDictionaries,
+  resolveBusinessTermHi,
+} from '../lib/businessTermsHi';
 
 /** مفتاح إعداد لغة عرض العملة (جدول Setting الحر — لا يحتاج ترحيلًا). */
 export const CURRENCY_DISPLAY_LANGUAGE_KEY = 'finance.currencyDisplayLanguage';
@@ -18,6 +23,11 @@ interface SettingsState {
   currencyLanguage: CurrencyLanguage;
   /** قواميس ترجمة القيم التجارية للنماذج الإدارية — المصدر الوحيد للحقيقة. */
   businessTerms: BusinessTermDictionaries;
+  /**
+   * العمود الهندي للقيم نفسها (القالب الثنائي English + हिन्दी). مساحة مفاتيح
+   * منفصلة (`dict.forms.hi.*`) ⇒ لا يمسّ `businessTerms` الإنجليزي إطلاقًا.
+   */
+  businessTermsHi: BusinessTermDictionaries;
   loaded: boolean;
   /** يجلب إعدادات الشركة ويضبط لغة العملة وقواميس المصطلحات. يُستدعى بعد المصادقة. */
   loadCompanySettings: () => Promise<void>;
@@ -25,6 +35,8 @@ interface SettingsState {
   setCurrencyLanguage: (lang: CurrencyLanguage) => void;
   /** يضبط القواميس فورًا بعد الحفظ من «إعدادات الشركة» (بلا إعادة تحميل). */
   setBusinessTerms: (dictionaries: BusinessTermDictionaries) => void;
+  /** يضبط القواميس الهندية فورًا بعد الحفظ (بلا إعادة تحميل). */
+  setBusinessTermsHi: (dictionaries: BusinessTermDictionaries) => void;
 }
 
 /**
@@ -36,6 +48,7 @@ interface SettingsState {
 export const useSettings = create<SettingsState>((set) => ({
   currencyLanguage: 'english',
   businessTerms: defaultBusinessTermDictionaries(),
+  businessTermsHi: defaultBusinessTermHiDictionaries(),
   loaded: false,
 
   async loadCompanySettings() {
@@ -46,11 +59,17 @@ export const useSettings = create<SettingsState>((set) => ({
       set({
         currencyLanguage: normalizeCurrencyLanguage(raw),
         businessTerms: parseBusinessTermDictionaries(rows),
+        businessTermsHi: parseBusinessTermHiDictionaries(rows),
         loaded: true,
       });
     } catch {
       // فشل الجلب — نبقى على الافتراضي الآمن english وعلى القواميس المدمجة.
-      set({ currencyLanguage: 'english', businessTerms: defaultBusinessTermDictionaries(), loaded: true });
+      set({
+        currencyLanguage: 'english',
+        businessTerms: defaultBusinessTermDictionaries(),
+        businessTermsHi: defaultBusinessTermHiDictionaries(),
+        loaded: true,
+      });
     }
   },
 
@@ -60,6 +79,10 @@ export const useSettings = create<SettingsState>((set) => ({
 
   setBusinessTerms(dictionaries) {
     set({ businessTerms: dictionaries });
+  },
+
+  setBusinessTermsHi(dictionaries) {
+    set({ businessTermsHi: dictionaries });
   },
 }));
 
@@ -87,4 +110,23 @@ export type BusinessTermResolver = (
 export function useBusinessTerms(): BusinessTermResolver {
   const dictionaries = useSettings((s) => s.businessTerms);
   return (category, value, lang, dash) => resolveBusinessTerm(dictionaries, category, value, lang, dash);
+}
+
+/** دالة حلّ مصطلح تجاري بالهندية — انظر `resolveBusinessTermHi` لسياسة السقوط. */
+export type BusinessTermHiResolver = (
+  category: BusinessTermCategory,
+  value: string | null | undefined,
+  dash?: string,
+) => string;
+
+/**
+ * الواجهة الوحيدة التي يستهلكها القالب الثنائي English + हिन्दी لترجمة القيم
+ * الديناميكية. لا وسيط لغة: النسخة الثنائية تعني الهندية دائمًا، وسياسة السقوط
+ * (هندي → إنجليزي → العربية المخزَّنة) مركزية في `resolveBusinessTermHi`.
+ */
+export function useBusinessTermsHi(): BusinessTermHiResolver {
+  const hiDictionaries = useSettings((s) => s.businessTermsHi);
+  const enDictionaries = useSettings((s) => s.businessTerms);
+  return (category, value, dash) =>
+    resolveBusinessTermHi(hiDictionaries, enDictionaries, category, value, dash);
 }

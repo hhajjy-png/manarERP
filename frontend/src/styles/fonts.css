@@ -73,3 +73,34 @@
   font-style: normal;
   font-display: swap;
 }
+
+/* ── Noto Sans Devanagari ──────────────────────────────────────────────────
+   خط الديفاناغارية للقالب الثنائي English + हिन्दी (النماذج الإدارية).
+   ترخيص SIL OFL 1.1 — نسخة الترخيص بجوار الملفين في
+   `assets/fonts/NotoSansDevanagari-OFL.txt`.
+
+   لماذا هنا لا في `@fontsource`: هذا الملف هو مصدر خطوط المشروع المحلية
+   (IBM Plex Sans Arabic و Tajawal)، ولأن `capturePrintStyles` يلتقط أوراق
+   أنماط المستند ويحوّل كل `url()` إلى مسار مطلق — فتصل هاتان القاعدتان
+   إلى النافذة المخفية التي تُصيّر «المعاينة الدقيقة» و«حفظ PDF». وهذا هو
+   ما يجعل الخط واحدًا عبر الأسطح الأربعة (شاشة/معاينة/طباعة/PDF) بلا
+   اعتماد على خط نظام Windows ولا على أي CDN.
+
+   الملفان هما التقسيم الفرعي «devanagari» وحده (النطاق اللاتيني يأتي من
+   Cairo كما هو اليوم)، وزنان فقط: 400 للمتن و 600 للتسميات. */
+
+@font-face {
+  font-family: "Noto Sans Devanagari";
+  src: url("../assets/fonts/NotoSansDevanagari-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Noto Sans Devanagari";
+  src: url("../assets/fonts/NotoSansDevanagari-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}

@@ -78,6 +78,23 @@ export type DocLang = 'ar' | 'en';
  */
 export const DOC_FONT_STACK = '"Cairo", Arial, sans-serif';
 
+/**
+ * عائلة الديفاناغارية — للقالب الثنائي English + हिन्दी في النماذج الإدارية.
+ * تُعلَن `@font-face` لها في `styles/fonts.css` (ملفان محليان، OFL 1.1).
+ */
+export const DEVANAGARI_FONT_FAMILY = 'Noto Sans Devanagari';
+
+/**
+ * سلسلة خط المستند للقالب الثنائي English + हिन्दी.
+ *
+ * **Cairo أولًا عمدًا**: اللاتيني والأرقام تُحلّ إلى Cairo تمامًا كما في القالب
+ * الإنجليزي الحالي، فالنصف الإنجليزي مطابق بصريًا بلا أي انزياح. لا تُستدعى
+ * `Noto Sans Devanagari` إلا لنقاط الترميز التي تعوز Cairo/Arial — أي
+ * الديفاناغارية وحدها. `DOC_FONT_STACK` أعلاه **لم يُمَسّ**، فكل نموذج قائم
+ * (عربي أو إنجليزي) يبقى على سلسلته الحالية حرفيًا.
+ */
+export const DOC_FONT_STACK_EN_HI = `"Cairo", "${DEVANAGARI_FONT_FAMILY}", Arial, sans-serif`;
+
 /** العائلة المضمَّنة base64 داخل كل مستند مُولَّد. وزن واحد (Regular) — كما هو اليوم. */
 export const EMBEDDED_DOC_FONT_FAMILY = 'Cairo';
 

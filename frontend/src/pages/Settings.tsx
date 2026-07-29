@@ -16,6 +16,11 @@ import {
   serializeBusinessTermRows,
   type BusinessTermCategory,
 } from '../lib/businessTerms';
+import {
+  BUSINESS_TERM_HI_SETTING_KEYS,
+  BASE_BUSINESS_TERMS_HI,
+  parseBusinessTermHiDictionaries,
+} from '../lib/businessTermsHi';
 import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
@@ -217,15 +222,27 @@ function generatableYears(): number[] {
  */
 type DictTabKey =
   | `forms:${BusinessTermCategory}`
+  | `forms-hi:${HiDictCategory}`
   | 'contract:nationality'
   | 'contract:jobTitle';
+
+/**
+ * الفئات التي يملك القاموس الهندي تبويبًا لها في هذه المرحلة التجريبية.
+ * «طلب الإجازة» يعرض المسمى الوظيفي والقسم وحدهما، فهذان التبويبان هما **الحد
+ * الأدنى اللازم للـPilot**. بقية الفئات (الجنسية، غرض الشهادة) تُضاف عند تعميم
+ * القالب الثنائي على النماذج التي تعرضها.
+ */
+const HI_DICT_CATEGORIES = ['jobTitle', 'department'] as const;
+type HiDictCategory = typeof HI_DICT_CATEGORIES[number];
 
 interface DictTabSpec {
   key: DictTabKey;
   settingKey: string;
   baseMap: Record<string, string>;
   labelKey: string;
-  scope: 'forms' | 'contract';
+  scope: 'forms' | 'forms-hi' | 'contract';
+  /** ترويسة عمود اللغة الهدف — غير معرَّفة ⇒ `English` كما في كل تبويب قائم. */
+  targetLabel?: string;
 }
 
 const DICT_TABS: DictTabSpec[] = [
@@ -240,6 +257,17 @@ const DICT_TABS: DictTabSpec[] = [
       certificatePurpose: 'page.settings.dict.tab_purposes',
     }[c],
     scope: 'forms',
+  })),
+  ...HI_DICT_CATEGORIES.map((c): DictTabSpec => ({
+    key: `forms-hi:${c}`,
+    settingKey: BUSINESS_TERM_HI_SETTING_KEYS[c],
+    baseMap: BASE_BUSINESS_TERMS_HI[c],
+    labelKey: {
+      jobTitle: 'page.settings.dict.tab_job_titles_hi',
+      department: 'page.settings.dict.tab_departments_hi',
+    }[c],
+    scope: 'forms-hi',
+    targetLabel: 'हिन्दी',
   })),
   {
     key: 'contract:nationality',
@@ -257,6 +285,13 @@ const DICT_TABS: DictTabSpec[] = [
   },
 ];
 
+/** عنوان كل مجموعة قواميس في الواجهة. */
+const DICT_SCOPE_LABEL_KEY: Record<DictTabSpec['scope'], string> = {
+  'forms': 'page.settings.dict.scope_forms',
+  'forms-hi': 'page.settings.dict.scope_forms_hi',
+  'contract': 'page.settings.dict.scope_contract',
+};
+
 const DICT_TAB_BY_KEY: Record<DictTabKey, DictTabSpec> = Object.fromEntries(
   DICT_TABS.map((tab) => [tab.key, tab]),
 ) as Record<DictTabKey, DictTabSpec>;
@@ -266,6 +301,7 @@ type DictState = Record<DictTabKey, { ar: string; en: string }[]>;
 function emptyDictState(): DictState {
   return {
     'forms:nationality': [], 'forms:jobTitle': [], 'forms:department': [], 'forms:certificatePurpose': [],
+    'forms-hi:jobTitle': [], 'forms-hi:department': [],
     'contract:nationality': [], 'contract:jobTitle': [],
   };
 }
@@ -281,6 +317,7 @@ function DictTable({
   query,
   modifiedOnly,
   baseMap,
+  targetLabel = 'English',
   t,
 }: {
   rows: { ar: string; en: string }[];
@@ -288,6 +325,13 @@ function DictTable({
   query: string;
   modifiedOnly: boolean;
   baseMap: Record<string, string>;
+  /**
+   * ترويسة عمود اللغة الهدف. الافتراضي `'English'` — أي أن كل تبويب قائم يعرض
+   * ما كان يعرضه حرفيًا؛ تبويبات القاموس الهندي وحدها تمرّر قيمة أخرى. الحقل
+   * `row.en` يبقى اسمه كما هو: هو «القيمة المترجَمة» أيًّا كانت لغتها، وتغيير
+   * اسمه كان سيمسّ كل مستهلك لـ`dictionaryEditorRows`/`serializeBusinessTermRows`.
+   */
+  targetLabel?: string;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const tbodyRef = useRef<HTMLTableSectionElement>(null);
@@ -329,7 +373,7 @@ function DictTable({
           <thead>
             <tr>
               <th className="settings-dict-ar" style={{ width: '45%' }}>{t('page.settings.dict.col_ar')}</th>
-              <th className="settings-dict-en" style={{ width: '45%' }}>English</th>
+              <th className="settings-dict-en" style={{ width: '45%' }}>{targetLabel}</th>
               <th className="settings-dict-actions" aria-label={t('action.delete')}></th>
             </tr>
           </thead>
@@ -462,6 +506,8 @@ export default function Settings() {
         applyTranslationOverrides(natMap, jobMap);
         // النماذج الإدارية تقرأ من مفاتيحها المنفصلة عبر المخزن المركزي.
         useSettings.getState().setBusinessTerms(parseBusinessTermDictionaries(list));
+        // القاموس الهندي: مساحة مفاتيح ثالثة (`dict.forms.hi.*`) لا تمسّ ما سبق.
+        useSettings.getState().setBusinessTermsHi(parseBusinessTermHiDictionaries(list));
       } finally {
         setLoading(false);
       }
@@ -571,6 +617,8 @@ export default function Settings() {
       );
       // النماذج الإدارية: تُحدَّث من مفاتيح `dict.forms.*` وحدها.
       useSettings.getState().setBusinessTerms(parseBusinessTermDictionaries(rows));
+      // القاموس الهندي: من `dict.forms.hi.*` وحدها — لا تقاطع مع ما فوقه.
+      useSettings.getState().setBusinessTermsHi(parseBusinessTermHiDictionaries(rows));
       toast.ok(t('msg.settings.dict_saved'));
     } catch (err) {
       toast.error(errorMessage(err));
@@ -1296,11 +1344,13 @@ export default function Settings() {
             {t('page.settings.dict.desc')}
           </p>
 
-          {/* Tabs — مجموعتان معزولتان: النماذج الإدارية ثم عقد العمل */}
-          {(['forms', 'contract'] as const).map((scope) => (
+          {/* Tabs — ثلاث مجموعات معزولة، لكل منها مساحة مفاتيح `Setting` خاصة:
+              النماذج الإدارية (`dict.forms.*`)، ثم القاموس الهندي للنماذج
+              (`dict.forms.hi.*`)، ثم عقد العمل (`dict.*`). */}
+          {(['forms', 'forms-hi', 'contract'] as const).map((scope) => (
             <div key={scope} className="settings-dict-scope">
               <p className="settings-dict-scope-label">
-                {t(scope === 'forms' ? 'page.settings.dict.scope_forms' : 'page.settings.dict.scope_contract')}
+                {t(DICT_SCOPE_LABEL_KEY[scope])}
               </p>
               <div className="settings-dict-tabs">
                 {DICT_TABS.filter((tab) => tab.scope === scope).map((tab) => (
@@ -1338,6 +1388,7 @@ export default function Settings() {
             query={dictSearch}
             modifiedOnly={dictModifiedOnly}
             baseMap={dictBase}
+            targetLabel={DICT_TAB_BY_KEY[dictTab].targetLabel}
             t={t}
           />
         </SectionCard>
