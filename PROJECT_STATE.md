@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `e5bb31df` — release `stable-invoice-number-status-color-v1` (colors the Invoices table's invoice-number text with the same tone as its row's status chip, read from the existing `STATUS_META` map) |
+| **Production HEAD** | `a6024c8c` — release `stable-customer-transport-terminology-and-ui-polish-pack-v1` (bundles Customer Transport Invoice Terminology Finalization v1, status-colored Cheques/Salaries row identifiers, and the Expenses breakdown show/hide toggle) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-invoice-number-status-color-v1` (release date 2026-07-29) → merge `e5bb31df` |
-| **Previous stable tag** | `stable-cloud-sync-progress-dialog-rewire-v1` (2026-07-29) → merge `dacacd4a` |
-| **Total stable releases** | 378 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ (feature branch, re-verified on `production` immediately after merge — identical) · `npm run build:front` ✅ (feature branch, before merge) · backend/electron/Prisma untouched, not re-run (frontend-only CSS/render-attribute change, no schema/API change) · Product Owner manual visual review — **completed & approved** · scope confirmed: only `frontend/src/pages/Invoices.tsx` + `frontend/src/pages/Invoices.css` entered the release, with the pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded and confirmed untouched after merge |
-| **Remote sync** | `origin/production` — pushed with this release (merge `e5bb31df` + tag `stable-invoice-number-status-color-v1`) |
+| **Latest stable tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` (release date 2026-07-30) → merge `a6024c8c` |
+| **Previous stable tag** | `stable-invoice-number-status-color-v1` (2026-07-29) → merge `e5bb31df` |
+| **Total stable releases** | 379 (all merged onto `production`; window 2026-06-07 → 2026-07-30) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · `npm run build:back` ✅ · `npm run build:front` ✅ (all four: feature branch, re-verified on `production` immediately after merge — identical) · 211/211 targeted backend tests (`reports` + `invoices` + `statement.service.test.ts`) ✅ · 20/20 `referenceTypeScope.test.ts` (new permanent regression test) ✅ · electron/Prisma untouched, not re-run (no schema/IPC change in this release) · Claude Code Review — **APPROVE**, zero CRITICAL/HIGH/MEDIUM findings across all 15 files · Product Owner manual visual review — **completed & approved** for all three bundled items · scope confirmed: exactly 15 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` (Google Drive Deployment Pack v1 WIP) and all untracked Google Drive WIP paths surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched |
+| **Remote sync** | `origin/production` — pushed with this release (merge `a6024c8c` + tag `stable-customer-transport-terminology-and-ui-polish-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,84 @@ in a table cell.
 
 ---
 
-## Latest Release — Invoice Number Status Color v1
+## Latest Release — Customer Transport Terminology & UI Polish Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Customer Transport Terminology & UI Polish Pack v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-30 |
+| **Feature branch** | `feature/customer-transport-terminology-and-ui-polish-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `b722bd0c` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint/pre-customer-transport-terminology-and-ui-polish-pack-v1-b722bd0` (annotated — created because this bundles three separate changes spanning backend + frontend) |
+| **Feature commit** | `b8a3d2b1` |
+| **Production merge commit** | `a6024c8c` |
+| **Stable tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` → merge `a6024c8c` (annotated) |
+| **Reviews** | Claude Code Review — **APPROVE** (zero CRITICAL/HIGH/MEDIUM across all 15 files) · Product Owner manual visual review — **completed & approved** for all three items |
+| **Validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · `npm run build:back` ✅ · `npm run build:front` ✅ (feature branch + re-verified on `production` immediately after merge, identical) · 211/211 targeted backend tests ✅ · 20/20 `referenceTypeScope.test.ts` ✅ · electron/Prisma not touched, not re-run (no schema/IPC change) |
+
+**Scope — bundles three separately visually-approved changes, 15 files:**
+
+**(1) Customer Transport Invoice Terminology Finalization v1** — unifies the customer-invoice
+product term to **"فاتورة نقليات" / "Customer Transport Invoice"** and the direction term to
+**"نقليات عميل" / "Customer Transport"** across every user-visible surface: statement screens
+(`StatementTable.tsx`, `GroupedTable.tsx`, `FinancialCenter.tsx`), the Statement Center Excel
+export, the reports module (`reports.service.ts`), the invoice-creation validation message
+(`invoices.schema.ts`), and the full `i18n.ts` dictionary (AR + EN). Supplier statements keep
+their own correct **"فاتورة مشتريات" / "Purchase Invoice"** label:
+
+```diff
+-function refTypeAr(type: string): string {
+-  if (type === 'INVOICE') return 'فاتورة';
++function refTypeAr(type: string, entityType?: 'CUSTOMER' | 'SUPPLIER'): string {
++  if (type === 'INVOICE') {
++    if (entityType === 'CUSTOMER') return 'فاتورة نقليات';
++    if (entityType === 'SUPPLIER') return 'فاتورة مشتريات';
++    return 'فاتورة';
++  }
+```
+
+```diff
+-export function referenceTypeLabel(type: string | null | undefined, t: Translator): string {
++export function referenceTypeLabel(type, t: Translator, scope?: 'customer' | 'supplier'): string {
+   if (!type) return '';
++  if (type === 'INVOICE' && scope === 'supplier') return t('fc.ref.purchase_invoice');
+```
+
+Delivered via a display-only `scope`/`entityType` parameter threaded through the existing shared
+`referenceType` label helper and statement Excel formatter — **no new i18n keys, no new technical
+reference/movement type, and no change to the shared `referenceType: 'INVOICE'` value** used by
+both customer and supplier statements (API contract and filtering unaffected). Locked in by a new
+permanent regression test, `frontend/src/__tests__/referenceTypeScope.test.ts` (20 cases): all
+four customer/supplier × AR/EN label combinations, the no-scope journal/GL path (unchanged), every
+other reference type (unaffected by scope), and `_REVERSAL` inheritance. **Accounting/GL/Prisma/
+`SALES` identifiers/account 4000/historical journal entries are entirely untouched by design** —
+verified via `git diff --stat` showing zero changes in `invoices.accounting.ts`,
+`backend/src/modules/accounting/`, `backend/prisma/`, `historicalEntry.service.ts`,
+`summary.utils.ts`, and `backend/src/config/`.
+
+**(2) Status-colored row identifiers** — continuing the pattern already shipped for Invoices
+(`stable-invoice-number-status-color-v1`): the cheque number (`Cheques.tsx`/`.css`) and employee
+name (`Salaries.tsx`/`.css`) now read their row's existing status tone — the exact same
+`STATUS_META` / `STATUS_TONE` map that already drives each row's status chip — and apply it as
+text color only, via new `.chqx-num--{tone}` / `.salx-name--{tone}` classes pointing at the same
+shared `--xpl-*` variables the chips already use. No new color, no duplicated status logic, no
+chip/table/business-logic change.
+
+**(3) Expenses breakdown show/hide toggle** — adds a show/hide control for the "التحليل حسب
+التصنيف والمورد" breakdown section on the Expenses page (`Expenses.tsx`), reusing the existing
+`SectionCard` `actions` slot and the `Button`/i18n show-hide pattern already used elsewhere in the
+app (`Prices.tsx`'s agreements board toggle). Preference persists via the existing
+`usePersistedState` hook (`localStorage`), defaulting to visible. No new design, no data/API/
+business-logic change.
+
+**Not changed:** the status chips' own color/design, table layouts, business logic, exported data,
+`referenceType` values, API contracts, Prisma schema, `SALES` identifiers, account 4000, or any
+historical journal entry.
+
+---
+
+## Previous Release — Invoice Number Status Color v1
 
 | Field | Value |
 |-------|-------|

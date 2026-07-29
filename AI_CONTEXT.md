@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `e5bb31df` (merge of `feature/invoice-number-status-color-v1`, coloring the Invoices table's invoice-number text with the same tone as its row's status chip) |
-| **Current Documentation Commit** | `ffc98a6` |
-| **Current Stable Tag** | `stable-invoice-number-status-color-v1` |
-| **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 378 (window 2026-06-07 → 2026-07-29) |
+| **Current Merge Commit** | `a6024c8c` (merge of `feature/customer-transport-terminology-and-ui-polish-pack-v1`, bundling Customer Transport Invoice Terminology Finalization v1, status-colored Cheques/Salaries row identifiers, and the Expenses breakdown show/hide toggle) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` |
+| **Current Release Date** | 2026-07-30 |
+| **Total Stable Releases** | 379 (window 2026-06-07 → 2026-07-30) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,31 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Customer Transport Terminology & UI Polish Pack v1** (2026-07-30,
+  `stable-customer-transport-terminology-and-ui-polish-pack-v1`) — bundles three separately
+  visually-approved changes into one release. **(1) Customer Transport Invoice Terminology
+  Finalization v1:** unifies the customer-invoice product term to "فاتورة نقليات" / "Customer
+  Transport Invoice" and the direction term to "نقليات عميل" / "Customer Transport" across every
+  user-visible surface (statement screens, statement Excel export, reports module, invoice
+  validation message, `i18n.ts`). Supplier statements keep "فاتورة مشتريات" / "Purchase Invoice" via
+  a display-only entity-scope parameter on the shared `referenceTypeLabel` helper — no new i18n
+  keys, no new technical reference type, no change to the shared `referenceType: 'INVOICE'` value
+  (API contract/filtering unaffected). Locked in by a new permanent regression test,
+  `referenceTypeScope.test.ts` (20 cases). Accounting/GL/Prisma/`SALES`/account 4000/historical
+  journal entries entirely untouched by design. **(2) Status-colored row identifiers:** continuing
+  the Invoice Number Status Color v1 pattern, the cheque number and employee name (Cheques/Salaries
+  tables) now read their row's existing status tone (same `STATUS_META`/`STATUS_TONE` source as
+  each row's status chip) and apply it as text color only — no new color, no duplicated status
+  logic. **(3) Expenses breakdown show/hide toggle:** reuses the existing `SectionCard` actions slot
+  and show/hide pattern (already used on `Prices.tsx`); preference persists via the existing
+  `usePersistedState` hook, defaulting to visible. No new design, no data/API/business-logic change
+  anywhere in this release. Feature commit `b8a3d2b1`, merge `a6024c8c`. Validation: backend
+  `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ (all re-verified
+  on `production` post-merge, identical) · 211/211 targeted backend tests ✅ · 20/20
+  `referenceTypeScope.test.ts` ✅ · Claude Code Review: APPROVE (zero CRITICAL/HIGH/MEDIUM) ·
+  electron/Prisma untouched (no schema/IPC change). Product Owner manual visual review: approved
+  for all three items.
 
 - **Invoice Number Status Color v1** (2026-07-29, `stable-invoice-number-status-color-v1`) — colors
   the Invoices table's invoice-number text with the same tone as its row's status chip. The
