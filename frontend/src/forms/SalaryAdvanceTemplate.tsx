@@ -12,6 +12,7 @@ import {
   moneyEn,
   blankLine,
 } from './shared/formStyles';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 interface Employee {
   id: number;
@@ -48,6 +49,7 @@ interface Props {
 }
 
 export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, lang = 'ar', printFields }: Props) {
+  const term = useBusinessTerms();
   if (lang === 'en') {
     return (
       <>
@@ -67,11 +69,11 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+            <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{emp.department ?? '—'}</div>
+            <div style={valueCell}>{term('department', emp.department, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Monthly Salary</div>
@@ -160,11 +162,11 @@ export default function SalaryAdvanceTemplate({ employee: emp, latestAdvance, la
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{emp.department ?? '—'}</div>
+          <div style={valueCell}>{term('department', emp.department, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>الراتب الشهري</div>

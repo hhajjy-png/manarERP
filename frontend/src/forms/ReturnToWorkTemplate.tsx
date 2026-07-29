@@ -10,6 +10,7 @@ import {
   issueDateStrEn,
   blankLine,
 } from './shared/formStyles';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 const LEAVE_TYPES: Record<string, string> = {
   ANNUAL: 'إجازة سنوية',
@@ -59,6 +60,7 @@ interface Props {
 }
 
 export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang = 'ar', printFields }: Props) {
+  const term = useBusinessTerms();
   if (lang === 'en') {
     return (
       <>
@@ -74,11 +76,11 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+            <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{emp.department ?? '—'}</div>
+            <div style={valueCell}>{term('department', emp.department, lang)}</div>
           </div>
         </div>
 
@@ -156,11 +158,11 @@ export default function ReturnToWorkTemplate({ employee: emp, latestLeave, lang 
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{emp.department ?? '—'}</div>
+          <div style={valueCell}>{term('department', emp.department, lang)}</div>
         </div>
       </div>
 

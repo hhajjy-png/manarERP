@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { api } from '../api/client';
 import { CurrencyLanguage, normalizeCurrencyLanguage } from '../lib/format';
+import type { Lang } from './uiStore';
+import {
+  BusinessTermCategory,
+  BusinessTermDictionaries,
+  defaultBusinessTermDictionaries,
+  parseBusinessTermDictionaries,
+  resolveBusinessTerm,
+} from '../lib/businessTerms';
 
 /** مفتاح إعداد لغة عرض العملة (جدول Setting الحر — لا يحتاج ترحيلًا). */
 export const CURRENCY_DISPLAY_LANGUAGE_KEY = 'finance.currencyDisplayLanguage';
@@ -8,11 +16,15 @@ export const CURRENCY_DISPLAY_LANGUAGE_KEY = 'finance.currencyDisplayLanguage';
 interface SettingsState {
   /** لغة عرض العملة الحالية — المصدر الوحيد للحقيقة (english افتراضيًا). */
   currencyLanguage: CurrencyLanguage;
+  /** قواميس ترجمة القيم التجارية للنماذج الإدارية — المصدر الوحيد للحقيقة. */
+  businessTerms: BusinessTermDictionaries;
   loaded: boolean;
-  /** يجلب إعدادات الشركة ويضبط لغة العملة. يُستدعى بعد المصادقة. */
+  /** يجلب إعدادات الشركة ويضبط لغة العملة وقواميس المصطلحات. يُستدعى بعد المصادقة. */
   loadCompanySettings: () => Promise<void>;
   /** يضبط لغة عرض العملة فورًا (يستخدمه حفظ الإعدادات). */
   setCurrencyLanguage: (lang: CurrencyLanguage) => void;
+  /** يضبط القواميس فورًا بعد الحفظ من «إعدادات الشركة» (بلا إعادة تحميل). */
+  setBusinessTerms: (dictionaries: BusinessTermDictionaries) => void;
 }
 
 /**
@@ -23,6 +35,7 @@ interface SettingsState {
  */
 export const useSettings = create<SettingsState>((set) => ({
   currencyLanguage: 'english',
+  businessTerms: defaultBusinessTermDictionaries(),
   loaded: false,
 
   async loadCompanySettings() {
@@ -30,15 +43,23 @@ export const useSettings = create<SettingsState>((set) => ({
       const res = await api.get('/settings');
       const rows: Array<{ key: string; value: string }> = res.data?.data?.settings ?? [];
       const raw = rows.find((s) => s.key === CURRENCY_DISPLAY_LANGUAGE_KEY)?.value;
-      set({ currencyLanguage: normalizeCurrencyLanguage(raw), loaded: true });
+      set({
+        currencyLanguage: normalizeCurrencyLanguage(raw),
+        businessTerms: parseBusinessTermDictionaries(rows),
+        loaded: true,
+      });
     } catch {
-      // فشل الجلب — نبقى على الافتراضي الآمن english.
-      set({ currencyLanguage: 'english', loaded: true });
+      // فشل الجلب — نبقى على الافتراضي الآمن english وعلى القواميس المدمجة.
+      set({ currencyLanguage: 'english', businessTerms: defaultBusinessTermDictionaries(), loaded: true });
     }
   },
 
   setCurrencyLanguage(lang) {
     set({ currencyLanguage: normalizeCurrencyLanguage(lang) });
+  },
+
+  setBusinessTerms(dictionaries) {
+    set({ businessTerms: dictionaries });
   },
 }));
 
@@ -48,4 +69,22 @@ export const useSettings = create<SettingsState>((set) => ({
  */
 export function currentCurrencyLanguage(): CurrencyLanguage {
   return useSettings.getState().currencyLanguage;
+}
+
+/** دالة حلّ مصطلح تجاري واحد — انظر `resolveBusinessTerm` لسياسة السقوط. */
+export type BusinessTermResolver = (
+  category: BusinessTermCategory,
+  value: string | null | undefined,
+  lang: Lang,
+  dash?: string,
+) => string;
+
+/**
+ * الواجهة الوحيدة التي تستهلكها النماذج الإدارية لترجمة القيم الديناميكية.
+ * تُعيد الرسم تلقائيًا عند تحديث القواميس من «إعدادات الشركة» — لا حالة مكرَّرة
+ * ولا خريطة ترجمة داخل أي نموذج.
+ */
+export function useBusinessTerms(): BusinessTermResolver {
+  const dictionaries = useSettings((s) => s.businessTerms);
+  return (category, value, lang, dash) => resolveBusinessTerm(dictionaries, category, value, lang, dash);
 }

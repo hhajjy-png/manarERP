@@ -7,6 +7,15 @@ import type { CurrencyLanguage } from '../lib/format';
 import { useT, type Lang } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { BASE_NATIONALITY_EN, BASE_JOB_TITLE_EN, applyTranslationOverrides } from '../forms/shared/contractTranslations';
+import {
+  BUSINESS_TERM_CATEGORIES,
+  BUSINESS_TERM_SETTING_KEYS,
+  BASE_BUSINESS_TERMS,
+  dictionaryEditorRows,
+  parseBusinessTermDictionaries,
+  serializeBusinessTermRows,
+  type BusinessTermCategory,
+} from '../lib/businessTerms';
 import BrandingLayoutDesigner from '../print-templates/components/BrandingLayoutDesigner';
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
@@ -173,6 +182,68 @@ function generatableYears(): number[] {
   return [y, y + 1, y + 2];
 }
 
+/**
+ * تبويبات قسم القواميس. مجموعتان **معزولتان تمامًا** لكل منهما مفاتيحها وبذورها:
+ *   • `forms:*`    → النماذج الإدارية (`dict.forms.*`).
+ *   • `contract:*` → عقد العمل (`dict.nationalities` / `dict.jobTitles`) كما كان.
+ * تحرير إحداهما لا يمسّ الأخرى — نفس المحرّر المشترك، مصدران منفصلان.
+ */
+type DictTabKey =
+  | `forms:${BusinessTermCategory}`
+  | 'contract:nationality'
+  | 'contract:jobTitle';
+
+interface DictTabSpec {
+  key: DictTabKey;
+  settingKey: string;
+  baseMap: Record<string, string>;
+  labelKey: string;
+  scope: 'forms' | 'contract';
+}
+
+const DICT_TABS: DictTabSpec[] = [
+  ...BUSINESS_TERM_CATEGORIES.map((c): DictTabSpec => ({
+    key: `forms:${c}`,
+    settingKey: BUSINESS_TERM_SETTING_KEYS[c],
+    baseMap: BASE_BUSINESS_TERMS[c],
+    labelKey: {
+      nationality: 'page.settings.dict.tab_nationalities',
+      jobTitle: 'page.settings.dict.tab_job_titles',
+      department: 'page.settings.dict.tab_departments',
+      certificatePurpose: 'page.settings.dict.tab_purposes',
+    }[c],
+    scope: 'forms',
+  })),
+  {
+    key: 'contract:nationality',
+    settingKey: 'dict.nationalities',
+    baseMap: BASE_NATIONALITY_EN,
+    labelKey: 'page.settings.dict.tab_contract_nationalities',
+    scope: 'contract',
+  },
+  {
+    key: 'contract:jobTitle',
+    settingKey: 'dict.jobTitles',
+    baseMap: BASE_JOB_TITLE_EN,
+    labelKey: 'page.settings.dict.tab_contract_job_titles',
+    scope: 'contract',
+  },
+];
+
+const DICT_TAB_BY_KEY: Record<DictTabKey, DictTabSpec> = Object.fromEntries(
+  DICT_TABS.map((tab) => [tab.key, tab]),
+) as Record<DictTabKey, DictTabSpec>;
+
+type DictState = Record<DictTabKey, { ar: string; en: string }[]>;
+
+function emptyDictState(): DictState {
+  return {
+    'forms:nationality': [], 'forms:jobTitle': [], 'forms:department': [], 'forms:certificatePurpose': [],
+    'contract:nationality': [], 'contract:jobTitle': [],
+  };
+}
+
+
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -315,10 +386,10 @@ export default function Settings() {
   const [designerOpen, setDesignerOpen] = useState(false);
   const [studioOpen, setStudioOpen] = useState(false);
   const [brandingLayout, setBrandingLayout] = useState<PrintBrandingLayoutSettings>(DEFAULT_BRANDING_LAYOUT);
-  const [natDict, setNatDict] = useState<{ ar: string; en: string }[]>([]);
-  const [jobDict, setJobDict] = useState<{ ar: string; en: string }[]>([]);
+  // محرّر قواميس المصطلحات — محرّر واحد مشترك لكل التبويبات (لا نسخة لكل قاموس).
+  const [dicts, setDicts] = useState<Record<DictTabKey, { ar: string; en: string }[]>>(emptyDictState);
   const [dictSaving, setDictSaving] = useState(false);
-  const [dictTab, setDictTab] = useState<'nat' | 'job'>('nat');
+  const [dictTab, setDictTab] = useState<DictTabKey>('forms:nationality');
   const [dictSearch, setDictSearch] = useState('');
   const [dictModifiedOnly, setDictModifiedOnly] = useState(false);
 
@@ -335,14 +406,18 @@ export default function Settings() {
         const layoutEntry = list.find((s) => s.key === 'print.brandingLayout');
         if (layoutEntry?.value) setBrandingLayout(parseBrandingLayout(layoutEntry.value));
 
-        // Load translation dictionaries — fall back to built-in static dict
+        // Load translation dictionaries — كل تبويب من مفتاحه الخاص، وإلا بذوره.
+        const loaded = emptyDictState();
+        for (const tab of DICT_TABS) loaded[tab.key] = dictionaryEditorRows(list, tab.settingKey, tab.baseMap);
+        setDicts(loaded);
+        // عقد العمل: نفس النداء ونفس المفاتيح ونفس القيم تمامًا كما كان.
         const natEntry = list.find((s) => s.key === 'dict.nationalities');
         const jobEntry = list.find((s) => s.key === 'dict.jobTitles');
         const natMap: Record<string, string> = natEntry?.value ? JSON.parse(natEntry.value) : BASE_NATIONALITY_EN;
         const jobMap: Record<string, string> = jobEntry?.value ? JSON.parse(jobEntry.value) : BASE_JOB_TITLE_EN;
-        setNatDict(Object.entries(natMap).map(([ar, en]) => ({ ar, en })));
-        setJobDict(Object.entries(jobMap).map(([ar, en]) => ({ ar, en })));
         applyTranslationOverrides(natMap, jobMap);
+        // النماذج الإدارية تقرأ من مفاتيحها المنفصلة عبر المخزن المركزي.
+        useSettings.getState().setBusinessTerms(parseBusinessTermDictionaries(list));
       } finally {
         setLoading(false);
       }
@@ -416,15 +491,20 @@ export default function Settings() {
   async function saveDict() {
     setDictSaving(true);
     try {
-      const natMap = Object.fromEntries(natDict.filter(r => r.ar.trim()).map(r => [r.ar.trim(), r.en.trim()]));
-      const jobMap = Object.fromEntries(jobDict.filter(r => r.ar.trim()).map(r => [r.ar.trim(), r.en.trim()]));
-      await api.put('/settings', {
-        settings: [
-          { key: 'dict.nationalities', value: JSON.stringify(natMap), group: 'dict' },
-          { key: 'dict.jobTitles', value: JSON.stringify(jobMap), group: 'dict' },
-        ],
-      });
-      applyTranslationOverrides(natMap, jobMap);
+      // كل تبويب يُحفظ في مفتاحه الخاص — لا مفتاح مشترك بين المجموعتين.
+      const rows = DICT_TABS.map((tab) => ({
+        key: tab.settingKey,
+        value: JSON.stringify(serializeBusinessTermRows(dicts[tab.key])),
+        group: 'dict',
+      }));
+      await api.put('/settings', { settings: rows });
+      // عقد العمل: يُحدَّث من تبويباته وحدها.
+      applyTranslationOverrides(
+        serializeBusinessTermRows(dicts['contract:nationality']),
+        serializeBusinessTermRows(dicts['contract:jobTitle']),
+      );
+      // النماذج الإدارية: تُحدَّث من مفاتيح `dict.forms.*` وحدها.
+      useSettings.getState().setBusinessTerms(parseBusinessTermDictionaries(rows));
       toast.ok(t('msg.settings.dict_saved'));
     } catch (err) {
       toast.error(errorMessage(err));
@@ -755,8 +835,8 @@ export default function Settings() {
   const backupTime = values['backup.auto.time'] ?? DEFAULT_VALUES['backup.auto.time'];
   const visibleSigs = assets.signature.filter((a) => a.show).length;
   const visibleStamps = assets.stamp.filter((a) => a.show).length;
-  const dictRows = dictTab === 'nat' ? natDict : jobDict;
-  const dictBase = dictTab === 'nat' ? BASE_NATIONALITY_EN : BASE_JOB_TITLE_EN;
+  const dictRows = dicts[dictTab];
+  const dictBase = DICT_TAB_BY_KEY[dictTab].baseMap;
   const dictVisible = dictRows.filter((row) => {
     if (dictModifiedOnly) {
       if (!row.ar.trim() && !row.en.trim()) return false;
@@ -1079,19 +1159,26 @@ export default function Settings() {
             {t('page.settings.dict.desc')}
           </p>
 
-          {/* Tabs */}
-          <div className="settings-dict-tabs">
-            {([['nat', t('page.settings.dict.tab_nationalities')], ['job', t('page.settings.dict.tab_job_titles')]] as const).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setDictTab(key)}
-                className={`settings-dict-tab${dictTab === key ? ' settings-dict-tab--active' : ''}`}
-              >
-                {label} ({(key === 'nat' ? natDict : jobDict).length})
-              </button>
-            ))}
-          </div>
+          {/* Tabs — مجموعتان معزولتان: النماذج الإدارية ثم عقد العمل */}
+          {(['forms', 'contract'] as const).map((scope) => (
+            <div key={scope} className="settings-dict-scope">
+              <p className="settings-dict-scope-label">
+                {t(scope === 'forms' ? 'page.settings.dict.scope_forms' : 'page.settings.dict.scope_contract')}
+              </p>
+              <div className="settings-dict-tabs">
+                {DICT_TABS.filter((tab) => tab.scope === scope).map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setDictTab(tab.key)}
+                    className={`settings-dict-tab${dictTab === tab.key ? ' settings-dict-tab--active' : ''}`}
+                  >
+                    {t(tab.labelKey)} ({dicts[tab.key].length})
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
 
           {/* Search + filter toolbar */}
           <div className="settings-dict-toolbar">
@@ -1101,11 +1188,21 @@ export default function Settings() {
             <span className="settings-dict-count">{dictVisible} / {dictRows.length}</span>
           </div>
 
-          {/* Dictionary Table */}
-          {dictTab === 'nat'
-            ? <DictTable rows={natDict} setRows={setNatDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_NATIONALITY_EN} t={t} />
-            : <DictTable rows={jobDict} setRows={setJobDict} query={dictSearch} modifiedOnly={dictModifiedOnly} baseMap={BASE_JOB_TITLE_EN} t={t} />
-          }
+          {/* Dictionary Table — محرّر واحد مشترك لكل الفئات */}
+          <DictTable
+            key={dictTab}
+            rows={dicts[dictTab]}
+            setRows={(update) =>
+              setDicts((prev) => ({
+                ...prev,
+                [dictTab]: typeof update === 'function' ? update(prev[dictTab]) : update,
+              }))
+            }
+            query={dictSearch}
+            modifiedOnly={dictModifiedOnly}
+            baseMap={dictBase}
+            t={t}
+          />
         </SectionCard>
       </div>
 

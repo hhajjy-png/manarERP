@@ -10,6 +10,7 @@ import {
   issueDateStrEn,
   blankLine,
 } from './shared/formStyles';
+import { useBusinessTerms } from '../stores/settingsStore';
 
 type WarningLevel = '' | 'first' | 'second' | 'final';
 
@@ -111,6 +112,7 @@ function WarningCheckboxRow({
 }
 
 export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', printFields, onWarningLevelChange }: Props) {
+  const term = useBusinessTerms();
   if (lang === 'en') {
     return (
       <>
@@ -130,11 +132,11 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Job Title</div>
-            <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+            <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
           </div>
           <div style={{ ...tableRow, direction: 'ltr' }}>
             <div style={{ ...labelCell, textAlign: 'left' }}>Department</div>
-            <div style={valueCell}>{emp.department ?? '—'}</div>
+            <div style={valueCell}>{term('department', emp.department, lang)}</div>
           </div>
         </div>
 
@@ -220,11 +222,11 @@ export default function EmployeeWarningTemplate({ employee: emp, lang = 'ar', pr
         </div>
         <div style={tableRow}>
           <div style={labelCell}>المسمى الوظيفي</div>
-          <div style={valueCell}>{emp.jobTitle ?? '—'}</div>
+          <div style={valueCell}>{term('jobTitle', emp.jobTitle, lang)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>القسم / الإدارة</div>
-          <div style={valueCell}>{emp.department ?? '—'}</div>
+          <div style={valueCell}>{term('department', emp.department, lang)}</div>
         </div>
       </div>
 
