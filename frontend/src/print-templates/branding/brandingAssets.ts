@@ -138,6 +138,80 @@ export function serializeBrandingAssets(list: BrandingAsset[]): string {
   return JSON.stringify(withSingleDefault(list));
 }
 
+// ─── List operations ─────────────────────────────────────────────────────────
+//
+// The Settings page owns no list logic of its own: every add/remove/rename/visibility
+// change goes through one of these pure functions, so the shape that reaches
+// `serializeBrandingAssets` is the same shape the tests exercise here. All of them
+// return a NEW list and never mutate their input.
+
+/**
+ * A collision-proof id for a new asset.
+ *
+ * `crypto.randomUUID()` is available in every context this app runs in (Chromium treats
+ * both `file://` and the dev server's `localhost` as secure), but it is still guarded:
+ * the fallback combines the clock with randomness so that two assets added inside the
+ * same millisecond — a double-click on «إضافة توقيع» — can never share an id. Duplicate
+ * ids would give React duplicate keys and make edit/delete act on two cards at once.
+ */
+export function newBrandingAssetId(kind: BrandingAssetKind): string {
+  const prefix = kind === 'signature' ? 'sig' : 'stamp';
+  const uuid = globalThis.crypto?.randomUUID?.();
+  const unique = uuid ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}-${unique}`;
+}
+
+/** Appends an empty slot. The very first asset of a kind becomes its default. */
+export function appendBrandingAsset(list: BrandingAsset[], id: string): BrandingAsset[] {
+  return [
+    ...list,
+    { id, name: '', title: '', imageUrl: '', show: true, isDefault: list.length === 0 },
+  ];
+}
+
+/**
+ * Removes an asset and never leaves a non-empty list without a default — the first
+ * remaining asset takes the deleted one's place. `serializeBrandingAssets` would repair
+ * this on the way out anyway; doing it here as well keeps the on-screen «افتراضي» badge
+ * correct the instant the row disappears, without waiting for a reload.
+ */
+export function removeBrandingAsset(list: BrandingAsset[], id: string): BrandingAsset[] {
+  const remaining = list.filter((a) => a.id !== id);
+  if (remaining.length > 0 && !remaining.some((a) => a.isDefault)) {
+    return remaining.map((a, i) => (i === 0 ? { ...a, isDefault: true } : a));
+  }
+  return remaining;
+}
+
+/** Moves the default flag to `id`, clearing it everywhere else. */
+export function setDefaultBrandingAsset(list: BrandingAsset[], id: string): BrandingAsset[] {
+  return list.map((a) => ({ ...a, isDefault: a.id === id }));
+}
+
+export function toggleBrandingAssetVisibility(
+  list: BrandingAsset[],
+  id: string,
+): BrandingAsset[] {
+  return list.map((a) => (a.id === id ? { ...a, show: !a.show } : a));
+}
+
+export function updateBrandingAssetField(
+  list: BrandingAsset[],
+  id: string,
+  field: 'name' | 'title',
+  value: string,
+): BrandingAsset[] {
+  return list.map((a) => (a.id === id ? { ...a, [field]: value } : a));
+}
+
+export function setBrandingAssetImage(
+  list: BrandingAsset[],
+  id: string,
+  imageUrl: string,
+): BrandingAsset[] {
+  return list.map((a) => (a.id === id ? { ...a, imageUrl } : a));
+}
+
 /**
  * The asset the legacy mirror keys point at, and the one a document starts with.
  *

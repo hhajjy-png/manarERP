@@ -21,9 +21,16 @@ import type { PrintBrandingLayoutSettings } from '../print-templates/engine/type
 import { parseBrandingLayout, serializeBrandingLayout, DEFAULT_BRANDING_LAYOUT } from '../print-templates/utils/brandingLayout';
 import {
   BRANDING_ASSET_KEYS,
+  appendBrandingAsset,
   brandingAssetSettingsRows,
   findDefaultAsset,
+  newBrandingAssetId,
   parseBrandingAssets,
+  removeBrandingAsset,
+  setBrandingAssetImage,
+  setDefaultBrandingAsset,
+  toggleBrandingAssetVisibility,
+  updateBrandingAssetField,
   type BrandingAsset,
   type BrandingAssetKind,
 } from '../print-templates/branding/brandingAssets';
@@ -107,6 +114,26 @@ const ASSET_TEXT: Record<BrandingAssetKind, AssetSectionText> = {
     stageClass: 'settings-media-stage settings-stamp-stage',
     uploadFailedKey: 'msg.settings.stamp_upload_failed',
   },
+};
+
+/**
+ * How long a name/job-title edit waits before it is written.
+ *
+ * Structural changes (add, upload, delete, default, show/hide) are written immediately —
+ * they are single deliberate clicks. Only free-text typing is debounced, so a name is one
+ * PUT after the user stops typing instead of one per keystroke.
+ */
+const ASSET_TEXT_SAVE_DEBOUNCE_MS = 800;
+
+type AssetSaveState = 'idle' | 'saving' | 'saved' | 'failed';
+
+const ASSET_SAVE_CHIP: Record<
+  Exclude<AssetSaveState, 'idle'>,
+  { tone: 'blue' | 'green' | 'red'; icon: string; labelKey: string }
+> = {
+  saving: { tone: 'blue', icon: 'sync', labelKey: 'page.settings.assets.saving' },
+  saved: { tone: 'green', icon: 'cloud_done', labelKey: 'page.settings.assets.saved' },
+  failed: { tone: 'red', icon: 'error', labelKey: 'page.settings.assets.save_failed' },
 };
 
 function readAssets(kind: BrandingAssetKind, values: Record<string, string>): BrandingAsset[] {
@@ -381,6 +408,21 @@ export default function Settings() {
     stamp: [],
   });
   const assetFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  /**
+   * The newest asset lists, readable synchronously.
+   *
+   * Every mutation persists the WHOLE snapshot, and some of them run after an `await`
+   * (image upload). Reading `assets` from a closure would send a stale snapshot and
+   * silently drop whatever changed in between; this ref is always current.
+   */
+  const assetsRef = useRef<Record<BrandingAssetKind, BrandingAsset[]>>({ signature: [], stamp: [] });
+  /** Serializes the PUTs so two quick edits can never be applied out of order. */
+  const assetSaveChain = useRef<Promise<void>>(Promise.resolve());
+  const assetSavesInFlight = useRef(0);
+  const assetSaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [assetSaveState, setAssetSaveState] = useState<AssetSaveState>('idle');
+  /** Upload errors, keyed `kind:id` — shown inside the card that failed, not page-wide. */
+  const [assetErrors, setAssetErrors] = useState<Record<string, string>>({});
   const [brandingError, setBrandingError] = useState('');
   const [brandingSaving, setBrandingSaving] = useState(false);
   const [designerOpen, setDesignerOpen] = useState(false);
@@ -402,7 +444,9 @@ export default function Settings() {
         const v: Record<string, string> = { ...DEFAULT_VALUES };
         list.forEach((s) => (v[s.key] = s.value));
         setValues(v);
-        setAssets({ signature: readAssets('signature', v), stamp: readAssets('stamp', v) });
+        const loadedAssets = { signature: readAssets('signature', v), stamp: readAssets('stamp', v) };
+        assetsRef.current = loadedAssets;
+        setAssets(loadedAssets);
         const layoutEntry = list.find((s) => s.key === 'print.brandingLayout');
         if (layoutEntry?.value) setBrandingLayout(parseBrandingLayout(layoutEntry.value));
 
@@ -422,6 +466,25 @@ export default function Settings() {
         setLoading(false);
       }
     })();
+  }, []);
+
+  /**
+   * تعديل نصّي مؤجَّل ما زال في مهلته لحظة مغادرة الصفحة يُرسَل فورًا.
+   *
+   * يستدعي `api` مباشرة لا `persistAssets`: المكوّن يُفكَّك، فأي `setState` بعد ذلك
+   * بلا معنى — والمطلوب هنا هو وصول البيانات لا تحديث مؤشر الحالة.
+   */
+  useEffect(() => () => {
+    if (assetSaveTimer.current === undefined) return;
+    clearTimeout(assetSaveTimer.current);
+    assetSaveTimer.current = undefined;
+    api
+      .put('/settings', {
+        settings: ASSET_KINDS.flatMap((kind) =>
+          brandingAssetSettingsRows(kind, assetsRef.current[kind]),
+        ),
+      })
+      .catch(() => { /* لا واجهة باقية لعرض الخطأ */ });
   }, []);
 
   async function reloadHolidays() {
@@ -478,6 +541,9 @@ export default function Settings() {
       await api.put('/settings', { settings });
       // طبّق لغة عرض العملة فورًا على المُنسّق المشترك (بلا إعادة تحميل).
       useSettings.getState().setCurrencyLanguage(values['finance.currencyDisplayLanguage'] as CurrencyLanguage);
+      // التواقيع والأختام محفوظة أصلًا لحظة تعديلها؛ هذه إعادة تأكيد تلتقط أيضًا أي
+      // تعديل نصّي ما زال في مهلته.
+      cancelPendingAssetSave();
       await saveAssets();
       await window.manar?.backupReconfigure?.();
       toast.ok(t('page.settings.saved'));
@@ -561,41 +627,103 @@ export default function Settings() {
     }
   }
 
-  /** يعدّل قائمة نوع واحد بلا لمس الآخر. */
-  function updateAssets(
-    kind: BrandingAssetKind,
-    change: (list: BrandingAsset[]) => BrandingAsset[],
-  ) {
-    setAssets((prev) => ({ ...prev, [kind]: change(prev[kind]) }));
+  // ─── حفظ التواقيع والأختام ────────────────────────────────────────────────
+  //
+  // كل تعديل يُحفظ من نفسه: لا يوجد "تغييرات غير محفوظة" يمكن أن تضيع عند مغادرة
+  // الصفحة. زر «حفظ» العلوي يبقى كما هو ويحفظ نفس اللقطة — لم يُستبدل، بل صار
+  // تأكيدًا لا شرطًا.
+
+  const assetErrorKey = (kind: BrandingAssetKind, id: string) => `${kind}:${id}`;
+
+  function setAssetError(kind: BrandingAssetKind, id: string, message: string) {
+    setAssetErrors((prev) => ({ ...prev, [assetErrorKey(kind, id)]: message }));
   }
 
-  function addAsset(kind: BrandingAssetKind) {
-    updateAssets(kind, (list) => [
-      ...list,
-      {
-        id: `${kind === 'signature' ? 'sig' : 'stamp'}-${Date.now()}`,
-        name: '',
-        title: '',
-        imageUrl: '',
-        show: true,
-        isDefault: list.length === 0,
-      },
-    ]);
-  }
-
-  function removeAsset(kind: BrandingAssetKind, id: string) {
-    updateAssets(kind, (list) => {
-      const remaining = list.filter((a) => a.id !== id);
-      // القائمة لا تُترك بلا افتراضي — أول عنصر يتقدّم مكان المحذوف.
-      if (remaining.length > 0 && !remaining.some((a) => a.isDefault)) {
-        return remaining.map((a, i) => (i === 0 ? { ...a, isDefault: true } : a));
-      }
-      return remaining;
+  function clearAssetError(kind: BrandingAssetKind, id: string) {
+    setAssetErrors((prev) => {
+      const key = assetErrorKey(kind, id);
+      if (!(key in prev)) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
     });
   }
 
+  /** يحفظ القائمتين مع مرايا المفاتيح القديمة في طلب واحد. */
+  async function saveAssets(next: Record<BrandingAssetKind, BrandingAsset[]> = assetsRef.current) {
+    await api.put('/settings', {
+      settings: ASSET_KINDS.flatMap((kind) => brandingAssetSettingsRows(kind, next[kind])),
+    });
+  }
+
+  /**
+   * يضع لقطة كاملة في طابور الحفظ. الطلبات متسلسلة، وكل طلب يحمل القائمتين كاملتين،
+   * فآخر كتابة هي الأحدث دائمًا — لا دمج جزئي ولا سباق بين طلبين.
+   */
+  function persistAssets(next: Record<BrandingAssetKind, BrandingAsset[]>) {
+    assetSavesInFlight.current += 1;
+    setAssetSaveState('saving');
+    assetSaveChain.current = assetSaveChain.current
+      .then(() => saveAssets(next))
+      .then(() => {
+        assetSavesInFlight.current -= 1;
+        // آخر طلب فقط هو من يعلن النتيجة، حتى لا يومض المؤشر بين حفظين متتاليين.
+        if (assetSavesInFlight.current === 0) setAssetSaveState('saved');
+      })
+      .catch((err) => {
+        assetSavesInFlight.current -= 1;
+        if (assetSavesInFlight.current === 0) setAssetSaveState('failed');
+        toast.error(errorMessage(err));
+      });
+  }
+
+  function cancelPendingAssetSave() {
+    if (assetSaveTimer.current === undefined) return;
+    clearTimeout(assetSaveTimer.current);
+    assetSaveTimer.current = undefined;
+  }
+
+  function scheduleAssetSave() {
+    cancelPendingAssetSave();
+    assetSaveTimer.current = setTimeout(() => {
+      assetSaveTimer.current = undefined;
+      persistAssets(assetsRef.current);
+    }, ASSET_TEXT_SAVE_DEBOUNCE_MS);
+  }
+
+  /**
+   * يعدّل قائمة نوع واحد بلا لمس الآخر، ثم يحفظ.
+   *
+   * `persist: 'now'` يلغي أي حفظ مؤجَّل — واللقطة المرسلة مأخوذة من `assetsRef` فتحمل
+   * أصلًا ما كُتب في حقل الاسم قبل لحظة، فلا يضيع نص كان بانتظار مهلته.
+   */
+  function mutateAssets(
+    kind: BrandingAssetKind,
+    change: (list: BrandingAsset[]) => BrandingAsset[],
+    persist: 'now' | 'debounced',
+  ) {
+    const next = { ...assetsRef.current, [kind]: change(assetsRef.current[kind]) };
+    assetsRef.current = next;
+    setAssets(next);
+    if (persist === 'now') {
+      cancelPendingAssetSave();
+      persistAssets(next);
+    } else {
+      scheduleAssetSave();
+    }
+  }
+
+  function addAsset(kind: BrandingAssetKind) {
+    mutateAssets(kind, (list) => appendBrandingAsset(list, newBrandingAssetId(kind)), 'now');
+  }
+
+  function removeAsset(kind: BrandingAssetKind, id: string) {
+    clearAssetError(kind, id);
+    mutateAssets(kind, (list) => removeBrandingAsset(list, id), 'now');
+  }
+
   function setAssetAsDefault(kind: BrandingAssetKind, id: string) {
-    updateAssets(kind, (list) => list.map((a) => ({ ...a, isDefault: a.id === id })));
+    mutateAssets(kind, (list) => setDefaultBrandingAsset(list, id), 'now');
   }
 
   function updateAssetField(
@@ -604,11 +732,11 @@ export default function Settings() {
     field: 'name' | 'title',
     value: string,
   ) {
-    updateAssets(kind, (list) => list.map((a) => (a.id === id ? { ...a, [field]: value } : a)));
+    mutateAssets(kind, (list) => updateBrandingAssetField(list, id, field, value), 'debounced');
   }
 
   function toggleAssetShow(kind: BrandingAssetKind, id: string) {
-    updateAssets(kind, (list) => list.map((a) => (a.id === id ? { ...a, show: !a.show } : a)));
+    mutateAssets(kind, (list) => toggleBrandingAssetVisibility(list, id), 'now');
   }
 
   async function handleAssetFileUpload(
@@ -618,27 +746,21 @@ export default function Settings() {
   ) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { setBrandingError(t('msg.settings.select_image_file')); return; }
-    if (file.size > 1_048_576) { setBrandingError(t('msg.settings.image_exceeds_1mb')); return; }
-    setBrandingError('');
+    // كل خطأ رفع يُعرض داخل البطاقة صاحبة المشكلة — لا في أسفل القسم حيث قد لا يُرى.
+    if (!file.type.startsWith('image/')) { setAssetError(kind, id, t('msg.settings.select_image_file')); e.target.value = ''; return; }
+    if (file.size > 1_048_576) { setAssetError(kind, id, t('msg.settings.image_exceeds_1mb')); e.target.value = ''; return; }
+    clearAssetError(kind, id);
     setBrandingSaving(true);
     try {
       const bounds = ASSET_IMAGE_BOUNDS[kind];
       const dataUrl = await resizeImage(file, bounds.maxW, bounds.maxH);
-      updateAssets(kind, (list) => list.map((a) => (a.id === id ? { ...a, imageUrl: dataUrl } : a)));
+      mutateAssets(kind, (list) => setBrandingAssetImage(list, id, dataUrl), 'now');
     } catch (err) {
-      setBrandingError(err instanceof Error ? err.message : t(ASSET_TEXT[kind].uploadFailedKey));
+      setAssetError(kind, id, err instanceof Error ? err.message : t(ASSET_TEXT[kind].uploadFailedKey));
     } finally {
       setBrandingSaving(false);
       e.target.value = '';
     }
-  }
-
-  /** يحفظ القائمتين مع مرايا المفاتيح القديمة في طلب واحد. */
-  async function saveAssets(next: Record<BrandingAssetKind, BrandingAsset[]> = assets) {
-    await api.put('/settings', {
-      settings: ASSET_KINDS.flatMap((kind) => brandingAssetSettingsRows(kind, next[kind])),
-    });
   }
 
   /**
@@ -657,9 +779,19 @@ export default function Settings() {
           title={t(text.navKey)}
           icon={text.icon}
           actions={
-            <Button variant="secondary" icon="add" small onClick={() => addAsset(kind)} disabled={brandingSaving}>
-              {t(text.addKey)}
-            </Button>
+            <>
+              {assetSaveState !== 'idle' && (
+                <StatusChip
+                  tone={ASSET_SAVE_CHIP[assetSaveState].tone}
+                  icon={ASSET_SAVE_CHIP[assetSaveState].icon}
+                >
+                  {t(ASSET_SAVE_CHIP[assetSaveState].labelKey)}
+                </StatusChip>
+              )}
+              <Button variant="secondary" icon="add" small onClick={() => addAsset(kind)} disabled={brandingSaving}>
+                {t(text.addKey)}
+              </Button>
+            </>
           }
         >
           {list.length === 0 && (
@@ -757,6 +889,11 @@ export default function Settings() {
                     {t(text.showKey)}
                   </label>
                 </div>
+
+                {/* خطأ الرفع يخصّ هذه البطاقة وحدها فيُعرض فيها — لا في أسفل القسم. */}
+                {assetErrors[refKey(asset.id)] && (
+                  <div className="branding-error">{assetErrors[refKey(asset.id)]}</div>
+                )}
               </div>
             );
           })}
