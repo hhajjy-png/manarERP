@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `e5bb31df` (merge of `feature/invoice-number-status-color-v1`, coloring the Invoices table's invoice-number text with the same tone as its row's status chip) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `ffc98a6` |
 | **Current Stable Tag** | `stable-invoice-number-status-color-v1` |
 | **Current Release Date** | 2026-07-29 |
 | **Total Stable Releases** | 378 (window 2026-06-07 → 2026-07-29) |
