@@ -274,6 +274,40 @@ export default function UniversalDesignerOverlay({
           const [v, h] = pos.split('-') as ['top' | 'bottom', 'left' | 'right'];
           return <div key={pos} style={{ position: 'absolute', [v]: -4, [h]: -4, width: 8, height: 8, background: '#3b82f6', border: '1.5px solid #fff', borderRadius: 2 }} />;
         })}
+
+        {/* Rotation handle — same gesture as the layout elements' one directly below, but
+            driving the BRANDING designer's angle. It lives in this overlay layer, outside
+            the document's own transform tree, so nothing it measures is affected by the
+            rotation it applies. `rect` is the image's axis-aligned box, whose centre is
+            the true pivot under `transform-origin: center` at any angle. */}
+        {isSel && (
+          <div
+            title="اسحب للتدوير — Shift بخطوات 15° · نقر مزدوج للعودة إلى 0°"
+            style={{
+              position: 'absolute', left: rect.w / 2 - 5, top: -24,
+              width: 10, height: 10, background: '#fff',
+              border: '1.5px solid #3b82f6', borderRadius: '50%',
+              cursor: 'crosshair', pointerEvents: 'all', zIndex: 2,
+            }}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+              const container = docRef.current?.getBoundingClientRect();
+              if (!container) return;
+              designer.startRotate(
+                type,
+                container.left + rect.x + rect.w / 2,
+                container.top + rect.y + rect.h / 2,
+                e.clientX,
+                e.clientY,
+              );
+            }}
+            onPointerMove={(e) => { if (designer.isRotating) designer.continueRotate(e.clientX, e.clientY, e.shiftKey); }}
+            onPointerUp={(e) => { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); designer.endRotate(); }}
+            onPointerCancel={(e) => { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); designer.endRotate(); }}
+            onDoubleClick={(e) => { e.stopPropagation(); designer.resetRotation(type); }}
+          />
+        )}
       </div>
     );
   }

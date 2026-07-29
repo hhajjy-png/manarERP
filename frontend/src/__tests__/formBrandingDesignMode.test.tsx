@@ -232,7 +232,9 @@ describe('وضع التصميم — التفاعل ومصدر الحقيقة', (
 
   it('إعادة الضبط ترجع للتخطيط المحايد لا لقيمة أخرى — ولإلغاء اللون المخصَّص أيضًا', () => {
     const hookSrc = readFileSync('src/print-templates/hooks/useBrandingDesigner.ts', 'utf8');
-    expect(hookSrc).toContain("updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined })");
+    expect(hookSrc).toContain(
+      "updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined })",
+    );
   });
 
   it('عرض السعر لا يعرّف حدودًا ولا يستدعي السحب بنفسه — الطبقة المشتركة تفعل', () => {
@@ -262,7 +264,10 @@ describe('وضع التصميم فعّال داخل المستند', () => {
     const { container } = render(
       <ApprovalSection signatureUrl={SIG} stampUrl={STAMP} stampInline designer={fakeDesigner()} />,
     );
-    expect(container.querySelectorAll('[role="slider"]')).toHaveLength(2);
+    // Targeted by label, not by counting every `role="slider"`: Rotation v1 added a
+    // SECOND slider-role handle per image, and the claim this test makes is specifically
+    // "a size handle per image" — matching the label keeps it testing that claim.
+    expect(container.querySelectorAll('[aria-label^="تغيير حجم"]')).toHaveLength(2);
   });
 
   it('العنصر المحدَّد بإطار متّصل وغير المحدَّد بإطار متقطّع', () => {

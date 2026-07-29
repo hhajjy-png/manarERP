@@ -3,6 +3,8 @@ import type { PrintDocumentType, PrintBrandingLayoutSettings, BrandingElementLay
 import {
   BRANDING_LAYOUT_BOUNDS,
   DEFAULT_BRANDING_LAYOUT,
+  ROTATION_MAX,
+  ROTATION_MIN,
   clampBrandingElementLayout,
   applyBrandingElementStyle,
   getBrandingLayoutForDocument,
@@ -158,6 +160,34 @@ export default function BrandingLayoutDesigner({ signatureUrl, stampUrl, initial
         <Slider label="رأسي" min={BRANDING_LAYOUT_BOUNDS.minY} max={BRANDING_LAYOUT_BOUNDS.maxY} step={1} value={el.y} onChange={(v) => updateElement(type, { y: v })} />
         <Slider label="حجم" min={BRANDING_LAYOUT_BOUNDS.minScale} max={BRANDING_LAYOUT_BOUNDS.maxScale} step={0.05} value={el.scale} onChange={(v) => updateElement(type, { scale: v })} />
         <Slider label="شفافية" min={0.2} max={1} step={0.05} value={el.opacity} onChange={(v) => updateElement(type, { opacity: v })} />
+        {/* الدوران هنا هو نفسه الذي يحرّره وضع التصميم — الحقل ذاته في السجل ذاته. وجوده
+            في هذا الحوار يمنع محرّرًا يعرض الزاوية ولا يستطيع تعديلها. زر ↺ يكتب
+            `undefined` لا 0، فيُحذف المفتاح ويعود العنصر إلى حالة "لم يُدوَّر قط". */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <Slider
+              label="دوران °"
+              min={ROTATION_MIN}
+              max={ROTATION_MAX}
+              step={1}
+              value={el.rotation ?? 0}
+              onChange={(v) => updateElement(type, { rotation: v })}
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => updateElement(type, { rotation: undefined })}
+            title="إعادة الدوران إلى 0°"
+            aria-label="إعادة الدوران إلى 0°"
+            style={{
+              flexShrink: 0, marginBottom: 8, padding: '3px 6px', borderRadius: 5,
+              fontSize: 11, border: '1px solid var(--border, #d1d5db)',
+              background: 'transparent', cursor: 'pointer', color: 'var(--text-muted, #6b7280)',
+            }}
+          >
+            ↺ 0°
+          </button>
+        </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 4 }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted, #6b7280)' }}>الطبقة</span>
           {[1, 2].map((z) => (

@@ -5,6 +5,7 @@ import type { StaticTextDesignerHandle } from '../designer/useStaticTextDesigner
 import type { DesignerElement } from '../designer/designerTypes';
 import { isBrandingElement, isTextElement } from '../designer/designerTypes';
 import { formatUnit, GRID_PRESETS, type GridSizeOption } from '../utils/designerUtils';
+import { ROTATION_MAX, ROTATION_MIN } from '../utils/brandingLayout';
 import { INK_MODE_LABELS, INK_COLOR_HEX, NEW_INK_COLOR_IDS, resolveInkMode, type InkMode } from '../utils/inkFilter';
 import type { PrintDocumentType } from '../engine/types';
 import type {
@@ -269,7 +270,7 @@ export default function BrandingDesignerPanel({
   const {
     selected, setSelected, docType, updateElement,
     alignCenterH, alignCenterV, bringForward, sendBackward,
-    resetElement, resetDoc, snapEnabled, setSnapEnabled,
+    resetElement, resetDoc, resetRotation, snapEnabled, setSnapEnabled,
     gridSize, setGridSize,
     bounds, docLayout,
     saving, saveError, save,
@@ -428,13 +429,52 @@ export default function BrandingDesignerPanel({
           <NumSlider lbl="حجم" min={bounds.minScale} max={bounds.maxScale} step={0.05} value={el.scale} onChange={(v) => updateElement(selected, { scale: v })} />
           <NumSlider lbl="شفافية" min={0.2} max={1} step={0.05} value={el.opacity} onChange={(v) => updateElement(selected, { opacity: v })} />
 
-          {/* Rotation — placeholder for Phase 5D+ */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, opacity: 0.45 }}>
+          {/*
+            Rotation v1 — the angle is a field on the SAME per-element object x/y/scale/
+            opacity come from, so this slider is an ordinary `updateElement` call and joins
+            the identical Save/Reset/Undo/Redo cycle. An element that was never rotated has
+            no `rotation` key at all; `?? 0` reads that as upright, and the ↺ button writes
+            `undefined` back rather than 0 so resetting removes the key instead of storing
+            a zero.
+          */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <label style={{ width: 52, fontSize: 11, color: '#6b7280', textAlign: 'end', flexShrink: 0 }}>
-              دوران
+              دوران °
             </label>
-            <input type="range" min={-180} max={180} step={1} value={0} disabled onChange={() => {}} title="الدوران — قريباً" aria-label="الدوران — قريباً" style={{ flex: 1 }} />
-            <span style={{ width: 48, fontSize: 11, textAlign: 'center', color: '#94a3b8' }}>قريباً</span>
+            <input
+              type="range"
+              min={ROTATION_MIN}
+              max={ROTATION_MAX}
+              step={1}
+              value={el.rotation ?? 0}
+              title="زاوية الدوران"
+              aria-label="زاوية الدوران"
+              onChange={(e) => updateElement(selected, { rotation: Number(e.target.value) })}
+              style={{ flex: 1 }}
+            />
+            <input
+              type="number"
+              min={ROTATION_MIN}
+              max={ROTATION_MAX}
+              step={1}
+              value={formatUnit(el.rotation ?? 0)}
+              aria-label="زاوية الدوران بالأرقام"
+              onChange={(e) => { const v = Number(e.target.value); if (!isNaN(v)) updateElement(selected, { rotation: v }); }}
+              style={{ width: 48, fontSize: 11, textAlign: 'center', border: '1px solid #d1d5db', borderRadius: 4, padding: '2px 3px' }}
+            />
+            <button
+              type="button"
+              onClick={() => resetRotation(selected)}
+              title="إعادة الدوران إلى 0°"
+              aria-label="إعادة الدوران إلى 0°"
+              style={{
+                flexShrink: 0, padding: '2px 5px', borderRadius: 5, fontSize: 10,
+                border: '1px solid #d1d5db', background: 'transparent',
+                cursor: 'pointer', color: '#6b7280',
+              }}
+            >
+              ↺ 0°
+            </button>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>

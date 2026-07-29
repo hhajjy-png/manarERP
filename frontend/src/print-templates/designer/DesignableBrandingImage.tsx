@@ -1,6 +1,11 @@
 import { useEffect, useRef, type CSSProperties } from 'react';
 import type { BrandingElementLayout } from '../engine/types';
-import { BRANDING_LAYOUT_BOUNDS, brandingElementTransform } from '../utils/brandingLayout';
+import {
+  BRANDING_LAYOUT_BOUNDS,
+  ROTATION_MAX,
+  ROTATION_MIN,
+  brandingElementTransform,
+} from '../utils/brandingLayout';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
 import { getInkFilterStyle, resolveInkMode } from '../utils/inkFilter';
 import InkColorFilterDefs from './InkColorFilterDefs';
@@ -17,12 +22,17 @@ import InkColorFilterDefs from './InkColorFilterDefs';
  * style is `…baseStyle + translate(0px, 0px) scale(1)` — visually and geometrically the
  * same element as before design mode existed.
  *
- * Two invariants worth stating out loud:
+ * Three invariants worth stating out loud:
  *  · Size is a single uniform `scale`, never a width/height pair, so the image's aspect
  *    ratio cannot change no matter how the handle is dragged.
  *  · Pointer deltas are divided by the scale the document is ACTUALLY rendered at,
  *    measured from the DOM at gesture start — `PrintWorkspace` owns the forms' zoom, so
  *    a hard-coded assumption would make the element drift away from the cursor.
+ *  · BOTH handles are siblings of the image, never children of it, so neither inherits
+ *    the image's `rotate()`/`scale()`. That is not cosmetic: `measureRenderScale` reads a
+ *    handle's bounding rect, and a rotated ancestor would inflate that rect to the box's
+ *    axis-aligned bounding box — the measured "render scale" would come back wrong and
+ *    both drag and resize would drift on every rotated element.
  */
 interface Props {
   src: string;
@@ -82,7 +92,8 @@ export default function DesignableBrandingImage({
    */
   const resolvedInk = resolveInkMode(layout.inkMode);
   const handleRef = useRef<HTMLSpanElement>(null);
-  const gestureRef = useRef<'drag' | 'resize' | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const gestureRef = useRef<'drag' | 'resize' | 'rotate' | null>(null);
 
   // Pointer move/up live on the window so a fast gesture that leaves the small image
   // still tracks, and always ends — a pointerup outside the element would otherwise
@@ -93,10 +104,15 @@ export default function DesignableBrandingImage({
     function handleMove(e: PointerEvent) {
       if (gestureRef.current === 'drag') designer!.continueDrag(e.clientX, e.clientY);
       else if (gestureRef.current === 'resize') designer!.continueResize(e.clientX, e.clientY);
+      // Shift is read LIVE on every move rather than snapshotted at grab time, so the
+      // operator can drop into 15° steps part-way through a free rotation and back out
+      // again — the way every other design tool behaves.
+      else if (gestureRef.current === 'rotate') designer!.continueRotate(e.clientX, e.clientY, e.shiftKey);
     }
     function handleUp() {
       if (gestureRef.current === 'drag') designer!.endDrag();
       else if (gestureRef.current === 'resize') designer!.endResize();
+      else if (gestureRef.current === 'rotate') designer!.endRotate();
       gestureRef.current = null;
     }
 
@@ -130,6 +146,7 @@ export default function DesignableBrandingImage({
 
   const img = (
     <img
+      ref={imgRef}
       src={src}
       alt=""
       data-bd-type={kind}
@@ -195,6 +212,52 @@ export default function DesignableBrandingImage({
           background: '#fff',
           border: `2px solid ${OUTLINE_COLOR[kind]}`,
           cursor: 'nwse-resize',
+          zIndex: 30,
+        }}
+      />
+      <span
+        role="slider"
+        tabIndex={-1}
+        aria-label={kind === 'signature' ? 'تدوير التوقيع' : 'تدوير الختم'}
+        aria-valuenow={Math.round(layout.rotation ?? 0)}
+        aria-valuemin={ROTATION_MIN}
+        aria-valuemax={ROTATION_MAX}
+        title="اسحب للتدوير — Shift للتدوير بخطوات 15° · نقر مزدوج للعودة إلى 0°"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          /**
+           * The pivot is the IMAGE's own rect centre, measured fresh at grab time. Under
+           * `transform-origin: center` the centre is the one point rotation leaves fixed,
+           * so the centre of the (axis-aligned) rect is the true pivot at ANY existing
+           * angle — which is what keeps a second rotation as accurate as the first.
+           */
+          const rect = imgRef.current?.getBoundingClientRect();
+          if (!rect) return;
+          gestureRef.current = 'rotate';
+          designer.startRotate(
+            kind,
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+            e.clientX,
+            e.clientY,
+          );
+        }}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          designer.resetRotation(kind);
+        }}
+        style={{
+          position: 'absolute',
+          insetInlineEnd: -6,
+          top: -22,
+          width: 11,
+          height: 11,
+          borderRadius: '50%',
+          background: '#fff',
+          border: `2px solid ${OUTLINE_COLOR[kind]}`,
+          cursor: 'crosshair',
           zIndex: 30,
         }}
       />
