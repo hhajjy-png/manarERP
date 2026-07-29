@@ -21,6 +21,7 @@ import { checkSqliteIntegrity, checkpointWal, sha256File } from './dbIntegrity';
 import { withRetry } from './retry';
 import { getOrCreateDeviceIdentity } from './deviceIdentity.service';
 import { isBackendRunning, stopBackendForRestart, startBackend, getInternalSecret } from './backendLauncher';
+import { emitSyncProgress } from './syncProgressBus';
 
 /**
  * محرّك المزامنة — يُنسّق بين المصادقة وطبقة Drive API وفحوصات السلامة.
@@ -89,6 +90,7 @@ let currentMessage = '';
 function setStatus(status: SyncStatus, message = ''): void {
   currentStatus = status;
   currentMessage = message;
+  emitSyncProgress(status, message);
 }
 
 function metadataPath(dataDir: string): string {
