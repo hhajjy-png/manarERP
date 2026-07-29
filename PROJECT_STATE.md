@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `60f358b6` — release `stable-font-foundation-pack-v1` (Font Foundation Pack v1 — unified frontend/backend font-stack registry; PDF export consolidated onto the same `composeStyledFromNode` pipeline as Accurate Preview; `buildFormPdfDocument` and the dead PDFKit `reportEngine/pdf.service.ts` retired; `--font-ui` renamed `--app-font-ui`; no backend/Prisma change) |
+| **Production HEAD** | `7408fa05` — release `stable-employee-entitlements-final-settlement-v1` (Employee Entitlements Core, Statement & Final Settlement v1 — self-contained entitlements domain: canonical calculation engine (`Employee.salary`-only wage source, 30 days/year annual leave, 6-month eligibility gate, calendar-date-safe service duration), the "تفاصيل مستحقات الموظف" statement page, entitlement payment create/edit/delete, and a Final Settlement workflow — draft → approved frozen snapshot → paid, with payment correction and cancellation/reversal to a `CANCELLED` history state enforced by a SQLite partial unique index; fully isolated from Payroll and Accounting) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-font-foundation-pack-v1` (release date 2026-07-29) → merge `60f358b6` |
-| **Previous stable tag** | `stable-ink-color-system-v2` (2026-07-28) → merge `5a220235` |
-| **Total stable releases** | 369 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · `build:back` ✅ · full frontend suite (2069/2094 passing; the 25 failures across 8 files are the pre-existing baseline, confirmed identical file-for-file and count-for-count against `production` HEAD `7942ce88` before this feature) — re-run on the merged `production` branch after merge, results identical pre/post-merge · backend suite 135 files/1902 tests ✅ (unaffected — no backend files touched) · scope review confirmed only the 73 intended files entered the release (2 already-staged deletions + 71 added/modified), with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded · Product Owner Manual Visual Review — **completed & approved** |
-| **Remote sync** | `origin/production` — pushed with this release (merge `60f358b6` + tag `stable-font-foundation-pack-v1`) |
+| **Latest stable tag** | `stable-employee-entitlements-final-settlement-v1` (release date 2026-07-29) → merge `7408fa05` |
+| **Previous stable tag** | `stable-font-foundation-pack-v1` (2026-07-29) → merge `60f358b6` |
+| **Total stable releases** | 370 (all merged onto `production`; window 2026-06-07 → 2026-07-29) |
+| **Latest validation** | (feature-branch validation, carried into this release per the "no repeat of completed audits" release instruction) frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · `build:back` ✅ · backend suite 138 files/2009 tests ✅ · Prisma `migrate status` up to date (48 migrations, including the two additive Employee Final Settlement migrations) — re-verified (`tsc --noEmit` backend, `prisma validate`) on `production` immediately after the merge · Product Owner manual visual/functional review — **completed & approved** · Gemini final independent review — **APPROVED, READY FOR RELEASE, no BLOCKER/HIGH/MEDIUM/LOW findings** · scope review confirmed only the 33 intended entitlements/Final-Settlement files entered the release, with unrelated pre-existing uncommitted Google Drive Deployment Pack working-tree edits surgically excluded |
+| **Remote sync** | `origin/production` — pushed with this release (merge `7408fa05` + tag `stable-employee-entitlements-final-settlement-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,32 @@ in a table cell.
 
 ---
 
-## Latest Release — Font Foundation Pack v1
+## Latest Release — Employee Entitlements Core, Statement & Final Settlement v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Entitlements Core, Statement & Final Settlement v1 |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-29 |
+| **Feature branch** | `feature/employee-entitlements-core-statement-v1` (kept — not deleted per explicit instruction) |
+| **Baseline** | `production` @ `958b8a7b` (Font Foundation Pack v1's final documentation commit) |
+| **Feature commit** | `d745600c` |
+| **Production merge commit** | `7408fa05` |
+| **Stable tag** | `stable-employee-entitlements-final-settlement-v1` → merge `7408fa05` (annotated) |
+| **Reviews** | Product Owner manual visual/functional review — **completed & approved**. Gemini final independent review — **APPROVED, READY FOR RELEASE**, no BLOCKER/HIGH/MEDIUM/LOW findings. |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · Prisma `validate` ✅ · `build:front` ✅ · `build:back` ✅ · backend suite 138 files / 2009 tests ✅ (focused Employee Entitlements/Final Settlement suites plus full-repo regression, all passing) · Prisma `migrate status` up to date (48 migrations applied, including the two additive migrations this pack introduces) · re-verified on `production` immediately after merge (`tsc --noEmit` backend, `prisma validate`) |
+
+**Scope.** A four-session build-out landing as one release: (1) **Entitlements Core** — a single canonical calculation engine (`backend/src/modules/employees/entitlements.calc.ts`) where the entitlement wage is `Employee.salary` **only** (no allowances, no `Payroll.snapshotBaseSalary`, no `PayrollAllowance`), annual leave accrues at 30 days/year gated by 6 completed months of service (accrual counted from the original hire date, not from the eligibility date), the daily-wage divisor is 26 (an approved manarERP calculation rule, not presented as verbatim statute), and all service-duration/date-boundary arithmetic is calendar-day-safe (normalized to UTC midnight) so the same `asOf` produces the same result at any hour. (2) **Employee Statement** — "تفاصيل مستحقات الموظف" (`frontend/src/pages/EmployeeEntitlementsCenter.tsx`), a progressive-disclosure statement replacing the older dense multi-card layout: financial-position hero, annual-leave summary, payment history, and collapsed-by-default calculation-details/EOS-estimate/historical-activity/leave-history sections. (3) **Entitlement payments** — create/edit/delete against `EmployeeEntitlementLedger`, with backend-authoritative overpayment rejection (never clamped) and edit validation that excludes the payment being edited from the "already paid" total. (4) **Final Settlement v1** — a new bounded sub-domain (`employee-entitlements/finalSettlement.service.ts`) with its own lifecycle `DRAFT → APPROVED (frozen snapshot) → PAID (derived from persisted settlement payments) → CANCELLED (terminal history state, snapshot and payments preserved, never deleted)`; settlement payment edit/delete with lifecycle re-derivation (e.g. lowering a payment on a `PAID` settlement automatically reopens it to `APPROVED`); and a SQLite **partial unique index** (`WHERE status <> 'CANCELLED'`) enforcing "at most one active settlement per employee, unlimited cancelled history" — expressed as raw SQL in the migration because Prisma's schema language has no partial-index syntax.
+
+**Data model.** Two additive Prisma migrations, no destructive change to any existing table: `20260729120000_add_employee_final_settlement` (creates `employee_final_settlements` and `final_settlement_payments`) and `20260729140000_final_settlement_cancellation` (adds `cancelledAt`/`cancelledBy`/`cancellationReason`, replaces the original `UNIQUE(employeeId)` with the partial unique index described above). **The partial index is intentional and must be preserved** — it is invisible to `prisma migrate dev`'s drift detection (Prisma has no syntax to declare it), so a future `prisma migrate dev` run may propose dropping it; do not accept that suggestion.
+
+**Retired:** the duplicate `employee-entitlements/calculators/legalEntitlementCalculator.ts` re-export shim (zero consumers, superseded by the single canonical engine) and the old settlement-adjacent UI (`EntitlementLedgerDialog.tsx`, `LeaveSettlementDialog.tsx`, `entitlementLedgerDisplay.ts` + its test) that predated this pack's payment/settlement model.
+
+**Not changed:** Payroll calculation/approval/payment, `SalaryPayment`, the NBK bank export, any Accounting/GL posting, Leave record semantics, or `Employee.status` write paths — Final Settlement approval/payment/cancellation never mutates `Employee.status`, and `Employee.status` never gates or activates a settlement; Google Drive Deployment Pack in-progress working-tree edits (`.gitignore`, `electron-builder.yml`, `electron/services/googleDriveAuth.service.ts`, and untracked `electron/__tests__/`, `electron/resources/`, `electron/services/__tests__/googleDriveClientConfig.pure.test.ts`, `electron/services/googleDriveClientConfig.pure.ts`) — surgically excluded from every commit in this release, confirmed still uncommitted after merge; the 5 pre-existing unrelated git stashes — confirmed untouched.
+
+---
+
+## Previous Release — Font Foundation Pack v1
 
 | Field | Value |
 |-------|-------|

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `60f358b6` (merge of `feature/font-foundation-pack-v1`, carrying Font Foundation Pack v1) |
-| **Current Documentation Commit** | `1ba00da` |
-| **Current Stable Tag** | `stable-font-foundation-pack-v1` |
+| **Current Merge Commit** | `7408fa05` (merge of `feature/employee-entitlements-core-statement-v1`, carrying Employee Entitlements Core, Statement & Final Settlement v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-employee-entitlements-final-settlement-v1` |
 | **Current Release Date** | 2026-07-29 |
-| **Total Stable Releases** | 369 (window 2026-06-07 → 2026-07-29) |
+| **Total Stable Releases** | 370 (window 2026-06-07 → 2026-07-29) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -178,6 +178,37 @@ Chromium PDF, and backend HTML reports.
   still-GL-based `transactions.service.ts` `/transactions/profit-loss` endpoint (intentionally
   not yet migrated — deferred to a future cleanup pack; duplicates the Accounting Summary panel).
   `glMonthlyProfitAndLoss` was removed (zero remaining callers) in the migration's Cleanup Pack 1.
+- **Employee Entitlements domain** (current as of Employee Entitlements Core, Statement & Final Settlement
+  v1, 2026-07-29) — self-contained bounded domain under `backend/src/modules/employee-entitlements/`, isolated
+  from Payroll and Accounting (no GL entries, no `SalaryPayment`, no NBK export effect, no `Employee.status`
+  writes). **One canonical calculation engine** (`backend/src/modules/employees/entitlements.calc.ts`,
+  exposed via `entitlements.service.ts`'s `computeAtDate`/`sumLeavePaymentsUpTo`) — the duplicate
+  `calculators/legalEntitlementCalculator.ts` re-export shim from the earlier Foundation pack is retired.
+  **Superseded prior rules (do not use):** the old 9-month first-year eligibility gate is now **6 completed
+  months**; the entitlement wage base is now **`Employee.salary` only** — allowances
+  (`EmployeeAllowance`/`PayrollAllowance`) and `Payroll.snapshotBaseSalary` are explicitly excluded, not
+  summed in. Daily wage = salary ÷ 26 (an approved manarERP calculation rule, not presented as verbatim
+  statute). All service-duration/date-boundary math is calendar-day-safe (dates normalized to UTC midnight)
+  so a given `asOf` is deterministic across the whole day. **Statement UI:** "تفاصيل مستحقات الموظف"
+  (`frontend/src/pages/EmployeeEntitlementsCenter.tsx`, route `/employees/:id/entitlements`) — a
+  progressive-disclosure page (financial-position hero, annual-leave summary, payment history all visible by
+  default; calculation-details/EOS-estimate/historical-activity/leave-history collapsed by default). The
+  employee-drawer tab (`EmployeeEntitlementsTab.tsx`) remains a lightweight summary linking into the full
+  statement. **Entitlement payments** (`EmployeeEntitlementLedger`) support create/edit/delete with
+  backend-authoritative, never-clamped overpayment rejection; the old `LeaveSettlementDialog`/
+  `EntitlementLedgerDialog`/`entitlementLedgerDisplay` UI that predated this payment model is retired.
+  **Final Settlement v1** (`finalSettlement.service.ts`, tables `employee_final_settlements` +
+  `final_settlement_payments`) is a new sub-domain with lifecycle `DRAFT` (live-recalculated, not a
+  snapshot) → `APPROVED` (frozen snapshot, written once) → `PAID` (derived live from persisted settlement
+  payments vs. the frozen total — never a stored mutable balance) → `CANCELLED` (terminal history state;
+  snapshot and payments preserved, never deleted or reused). Settlement payment edit/delete re-derives the
+  lifecycle status transactionally (e.g. lowering a payment can reopen `PAID` back to `APPROVED`). At most
+  one **active** (non-`CANCELLED`) settlement per employee is enforced by a SQLite **partial unique index**
+  (`employee_final_settlements_active_employee_key`, `WHERE status <> 'CANCELLED'`, added in migration
+  `20260729140000_final_settlement_cancellation`) — expressed as raw SQL because Prisma's schema language
+  has no partial-index syntax; **this index is intentional and must be preserved** — `prisma migrate dev`
+  cannot see it and may propose dropping it as drift; do not accept that suggestion. An employee may have
+  unlimited historical `CANCELLED` settlements alongside their one active one.
 - **Banking modules** — Bank Statement Import/Explorer, Bank Reconciliation (manual-confirm only, never
   auto-posts by policy), Bank Account Explorer, Payroll Bank Import/Analytics, NBK Salary XLS export —
   all production-complete.
@@ -376,6 +407,41 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Employee Entitlements Core, Statement & Final Settlement v1** (2026-07-29,
+  `stable-employee-entitlements-final-settlement-v1`) — a four-session build-out landing as one
+  release, replacing an older, inconsistent entitlements architecture with a single self-contained
+  domain. See the "Employee Entitlements domain" bullet under Active Foundations above for the
+  current architecture; this entry records the release event. **(1) Entitlements Core:** one
+  canonical calculation engine — `Employee.salary`-only wage base (no allowances, no
+  `Payroll.snapshotBaseSalary`), 30 days/year annual leave gated by a 6-month eligibility rule
+  (replacing the earlier 9-month rule), accrual counted from the original hire date once eligible
+  (not from the eligibility date), daily-wage divisor 26 (an approved manarERP rule, not presented
+  as verbatim statute), and calendar-day-safe (UTC-midnight-normalized) date arithmetic so results
+  are stable across a whole day. **(2) Statement UI:** "تفاصيل مستحقات الموظف"
+  (`EmployeeEntitlementsCenter.tsx`) redesigned into progressive disclosure — financial-position
+  hero, annual-leave summary, and payment history visible by default; calculation
+  details/EOS-estimate/history collapsed. **(3) Entitlement payments:** create/edit/delete on
+  `EmployeeEntitlementLedger` with backend-authoritative, never-clamped overpayment rejection; edit
+  validation excludes the payment being edited from the "already paid" total. **(4) Final Settlement
+  v1:** new bounded sub-domain (`employee-entitlements/finalSettlement.service.ts`,
+  `employee_final_settlements` + `final_settlement_payments` tables) with lifecycle `DRAFT →
+  APPROVED (frozen snapshot) → PAID (derived from persisted payments) → CANCELLED (terminal,
+  preserved history)`; settlement payment correction re-derives lifecycle status transactionally; a
+  SQLite partial unique index (`WHERE status <> 'CANCELLED'`) enforces one active settlement per
+  employee while allowing unlimited cancelled history — expressed as raw SQL in migration
+  `20260729140000_final_settlement_cancellation` since Prisma's schema language has no partial-index
+  syntax (**must be preserved** — invisible to `prisma migrate dev` drift detection). Two additive
+  Prisma migrations total, no destructive change to any existing table. **Retired:** the duplicate
+  `calculators/legalEntitlementCalculator.ts` re-export shim and the pre-payment-model UI
+  (`EntitlementLedgerDialog.tsx`, `LeaveSettlementDialog.tsx`, `entitlementLedgerDisplay.ts`).
+  **Not changed:** Payroll, `SalaryPayment`, the NBK export, any Accounting/GL posting, Leave record
+  semantics, or `Employee.status` (never written by, and never gates, Final Settlement). Feature
+  commit `d745600c`, merge `7408fa05`. Validation: frontend/backend/electron `tsc --noEmit`, Prisma
+  `validate`, `build:front`/`build:back`, backend suite 138 files/2009 tests, all passing; Prisma
+  `migrate status` up to date post-merge. Product Owner manual visual/functional review: **APPROVED**.
+  Gemini final independent review: **APPROVED, READY FOR RELEASE**, no BLOCKER/HIGH/MEDIUM/LOW
+  findings.
 
 - **Font Foundation Pack v1** (2026-07-29, `stable-font-foundation-pack-v1`) — two related
   problems solved together across a multi-phase migration: scattered, literally-duplicated
