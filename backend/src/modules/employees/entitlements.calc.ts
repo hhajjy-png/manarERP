@@ -21,13 +21,16 @@
  *        - 3 إلى أقل من 5 سنوات: نصف المكافأة.
  *        - 5 إلى أقل من 10 سنوات: ثلثا المكافأة.
  *        - 10 سنوات فأكثر: كامل المكافأة (كإنهاء الخدمة من صاحب العمل).
- *  • المادة 55/62: تُحتسب المستحقات على أساس «الأجر المعتمد» — الأجر الأساسي مضافًا إليه
- *    العناصر الدورية المنتظمة (بدلات، مكافآت دورية، إلخ). القاعدة القانونية الحاكمة على
- *    قاسم الأجر اليومي معتمَدة كخط أساس ثابت للمشروع (انظر DAILY_WAGE_DIVISOR أدناه).
- *  • المادة 70 (استحقاق السنة الأولى): لا يُستحق إجازة السنة الأولى إلا بعد إتمام تسعة
- *    (9) أشهر خدمة. قبل ذلك: لا رصيد إجازة مستحَق، ولا بدل إجازة قابل للصرف (صفر). فور
- *    إتمام 9 أشهر، يبدأ الاحتساب تلقائيًا وفق نفس صيغة التراكم التناسبي القائمة (بلا أي
- *    تغيير في الصيغة نفسها) — بوابة أهلية واحدة على مخرج التراكم، لا صيغة موازية.
+ *  • المادة 55/62: تُحتسب المستحقات على أساس «الأجر المعتمد». **قرار عمل نهائي للمشروع:**
+ *    الشركة لا تستخدم البدلات إطلاقًا، والمصدر الوحيد المعتمَد لأجر الاستحقاقات هو
+ *    `Employee.salary` — لا بدلات (PayrollAllowance/EmployeeAllowance)، ولا لقطات الرواتب
+ *    (Payroll.snapshotBaseSalary)، ولا أي مصدر بديل. القاعدة القانونية الحاكمة على قاسم
+ *    الأجر اليومي معتمَدة كخط أساس ثابت للمشروع (انظر DAILY_WAGE_DIVISOR أدناه).
+ *  • أهلية إجازة السنة الأولى — **قرار عمل نهائي للمشروع:** لا تُستحق الإجازة السنوية إلا
+ *    بعد إتمام ستة (6) أشهر خدمة. قبل ذلك: لا رصيد إجازة مستحَق، ولا بدل إجازة قابل للصرف
+ *    (صفر). فور إتمام 6 أشهر، يبدأ الاحتساب تلقائيًا وفق نفس صيغة التراكم التناسبي القائمة
+ *    (بلا أي تغيير في الصيغة نفسها) — بوابة أهلية واحدة على مخرج التراكم، لا صيغة موازية.
+ *    (كانت البوابة سابقًا 9 أشهر؛ استُبدلت صراحةً بقرار المالك أعلاه.)
  *  • المادة 70 (استثناء العطلات وأيام المرض): العطلات الرسمية وأيام الإجازة المرضية
  *    المعتمدة الواقعة داخل فترة إجازة سنوية معتمدة لا تُحتسب استهلاكًا من رصيد الإجازة
  *    السنوية. يُطبَّق هذا الاستثناء عبر دالة نقيّة واحدة (computeEffectiveAnnualLeaveDays)
@@ -35,10 +38,9 @@
  *    تخزين سجلات الإجازة نفسها (Leave.days يبقى كما هو، للعرض التاريخي فقط).
  *
  * ── الافتراضات المتبقية (لعدم وجود بيانات إضافية في النظام — لا تُخمَّن ولا تُختلق) ──
- *  1) الأجر المعتمد = الراتب الشهري المسجّل + البدلات الدورية النشطة للموظف حاليًا
- *     (EmployeeAllowance.isActive ضمن نافذة التاريخ)، وفق المادتين 55/62. تُجمَّع هذه
- *     القيمة مرة واحدة في طبقة الخدمة (employees.service.ts) وتُمرَّر هنا كرقم واحد
- *     (monthlyWageBase) — هذه الدالة لا تعرف مصدر الرقم، فتبقى نقيّة.
+ *  1) الأجر المعتمد = `Employee.salary` وحده (بلا بدلات — قرار عمل نهائي أعلاه). يُقرأ مرة
+ *     واحدة في طبقة الخدمة (employee-entitlements/entitlements.service.ts) ويُمرَّر هنا كرقم
+ *     واحد (monthlyWageBase) — هذه الدالة لا تعرف مصدر الرقم، فتبقى نقيّة.
  *  2) قاسم الأجر اليومي = 26 — خط أساس قانوني معتمَد للمشروع (غير قابل لإعادة التقييم
  *     هنا)؛ ثابت واحد مركزي (DAILY_WAGE_DIVISOR) تشتق منه كل القيم اليومية دون تكرار.
  *  3) مكافأة نهاية الخدمة تُعرض بسيناريوهَين معًا (لا افتراض بأحدهما): الأساس الكامل
@@ -47,6 +49,8 @@
  *     تُنقلان صراحةً بدل افتراض أحدهما ضمنيًا.
  */
 
+import { roundMoney } from '@shared/utils/money';
+
 // ── ثوابت قانونية ثابتة (المواد 70 و51 و53) ───────────────────────────────────────
 const ANNUAL_LEAVE_DAYS_PER_YEAR = 30; // المادة 70
 const GRATUITY_FIRST_TIER_DAYS = 15; // المادة 51 — أجر 15 يومًا/سنة للخمس الأولى
@@ -54,7 +58,7 @@ const GRATUITY_FIRST_TIER_YEARS = 5;
 const GRATUITY_CAP_MONTHS = 18; // المادة 51 — الحد الأقصى = أجر سنة ونصف
 // قاسم الأجر اليومي — ثابت مركزي واحد (خط الأساس القانوني المعتمد للمشروع). كل قيمة
 // «يومية» في هذه الحاسبة تُشتق من هذا الثابت فقط — لا قاسم مكرر في أي مكان آخر.
-const DAILY_WAGE_DIVISOR = 26;
+export const DAILY_WAGE_DIVISOR = 26;
 const DAYS_PER_YEAR = 365; // أساس التناسب السنوي
 
 // المادة 53 — كسور مكافأة الاستقالة (عقد غير محدد المدة).
@@ -64,19 +68,43 @@ const RESIGNATION_FRACTION_5_TO_10_YEARS = 2 / 3;
 const RESIGNATION_FRACTION_10_PLUS_YEARS = 1;
 
 // المادة 70 — لا يُستحق إجازة السنة الأولى إلا بعد إتمام هذا العدد من الأشهر خدمةً.
-const FIRST_YEAR_ELIGIBILITY_MONTHS = 9;
+const FIRST_YEAR_ELIGIBILITY_MONTHS = 6;
 
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * تطبيع أي لحظة زمنية إلى **يومها التقويمي** (منتصف ليل UTC).
+ *
+ * كل تواريخ النظام مخزَّنة عند منتصف ليل UTC (تاريخ التعيين، الإجازات، العطلات، تواريخ
+ * الدفع)، بينما «الآن» لحظة تحمل وقتًا. مقارنتهما كلحظتين خامتين كانت تجعل مدة الخدمة
+ * تنقص يومًا كاملًا خلال الساعات الأولى من اليوم المحلي (حين يكون UTC ما يزال في اليوم
+ * السابق) — فيتغيّر الاستحقاق المعروض بتغيّر ساعة فتح الكشف لا بتغيّر أي حقيقة.
+ *
+ * بعد التطبيع تصبح كل الحسابات **تقويمية بحتة**: نفس التاريخ ⇒ نفس النتيجة طوال اليوم.
+ */
+export function toCalendarDayUtc(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+/** فهرس اليوم التقويمي (عدد صحيح) — أساس كل فروق الأيام في هذه الوحدة. */
+function calendarDayIndex(date: Date): number {
+  return Math.floor(toCalendarDayUtc(date).getTime() / MS_PER_DAY);
+}
+
+/** تقريب الأيام/السنوات (كميات لا نقود) — خانتان عشريتان. */
 const round2 = (n: number): number => Math.round(n * 100) / 100;
-const round3 = (n: number): number => Math.round(n * 1000) / 1000;
+/**
+ * كل قيمة نقدية هنا تمرّ عبر وحدة النقود المركزية (roundMoney) — لا سياسة تقريب مستقلة
+ * في نطاق الاستحقاقات (ثلاث خانات، نصف بعيدًا عن الصفر).
+ */
+const money = roundMoney;
 
 export interface EntitlementInput {
   /** تاريخ التعيين — قد يكون غير مُدخل (null) فتُعرض البطاقات المعتمدة عليه كـ«بيانات غير مكتملة». */
   hireDate: Date | null;
   /**
-   * الأجر الشهري المعتمد = الراتب الأساسي + البدلات الدورية النشطة (المادتان 55/62).
-   * يُجمَّع في طبقة الخدمة (مصدر واحد للحقيقة) ويُمرَّر هنا جاهزًا.
+   * الأجر الشهري المعتمد = `Employee.salary` وحده (بلا بدلات — قرار عمل نهائي).
+   * يُقرأ في طبقة الخدمة (مصدر واحد للحقيقة) ويُمرَّر هنا جاهزًا.
    */
   monthlyWageBase: number;
   /** لحظة الاحتساب — عادةً «اليوم». */
@@ -91,7 +119,7 @@ export interface EntitlementInput {
 
 export interface GratuityBreakdown {
   serviceYears: number; // سنوات الخدمة (كسريّة) من تاريخ التعيين
-  approvedWage: number; // الأجر الشهري المعتمد (راتب + بدلات دورية نشطة)
+  approvedWage: number; // الأجر الشهري المعتمد = Employee.salary (بلا بدلات)
   dailyWage: number; // الأجر اليومي = الأجر المعتمد ÷ 26
   firstTierYears: number; // min(serviceYears, 5)
   firstTierAmount: number; // استحقاق أول مدة (15 يومًا × الأجر اليومي × السنوات)
@@ -105,10 +133,15 @@ export interface GratuityBreakdown {
   resignationAmount: number; // إجمالي المكافأة على أساس الاستقالة = total × resignationFraction
 }
 
+/**
+ * تركيبة الأجر المعتمد — مصدر واحد صريح لا غير: `Employee.salary`. لا بدلات، ولا لقطات
+ * رواتب، ولا أي احتياطي بديل (قرار عمل نهائي). تبقى كنوع مستقل لتوثيق المصدر في الاستجابة
+ * بدل تمرير رقم مجهول المصدر.
+ */
 export interface WageBaseComposition {
-  baseSalary: number; // الراتب الأساسي المسجّل (Employee.salary)
-  allowancesTotal: number; // إجمالي البدلات الدورية النشطة وقت الاحتساب
-  total: number; // الأجر المعتمد = baseSalary + allowancesTotal (المادتان 55/62)
+  baseSalary: number; // الراتب الشهري المسجّل (Employee.salary) — المصدر الوحيد
+  total: number; // الأجر المعتمد = baseSalary (لا إضافات)
+  source: 'EMPLOYEE_SALARY';
 }
 
 export interface EntitlementResult {
@@ -118,13 +151,13 @@ export interface EntitlementResult {
   duration: { years: number; months: number; days: number; totalDays: number } | null;
 
   /**
-   * هل أتم الموظف 9 أشهر خدمة (المادة 70)؟ null فقط عند غياب تاريخ التعيين (لا يمكن
+   * هل أتم الموظف 6 أشهر خدمة (قرار العمل النهائي)؟ null فقط عند غياب تاريخ التعيين (لا يمكن
    * تحديد الأهلية). قبل الأهلية: accruedLeaveDays/remainingLeaveDays/leaveAllowance* = صفر.
    */
   firstYearEligible: boolean | null;
 
   annualEntitlementDays: number; // 30 دائمًا (نسبة الاستحقاق القانونية)
-  accruedLeaveDays: number | null; // الرصيد المستحق حتى اليوم من تاريخ التعيين (يحتاج تاريخ التعيين + إتمام 9 أشهر)
+  accruedLeaveDays: number | null; // الرصيد المستحق حتى asOf من تاريخ التعيين (يحتاج تاريخ التعيين + إتمام 6 أشهر)
   usedLeaveDays: number; // الأيام المستخدمة (معروف دائمًا)
   remainingLeaveDays: number | null; // الأيام المتبقية = المستحق − المستخدم
 
@@ -141,18 +174,23 @@ export interface EntitlementResult {
 /**
  * تفكيك مدة الخدمة إلى سنوات/أشهر/أيام تقويمية دقيقة + إجمالي الأيام.
  * يُقصّ إجمالي الأيام السالب (تاريخ تعيين مستقبلي/بيانات غير سليمة) إلى صفر.
+ *
+ * حسابٌ تقويمي بحت: يُطبَّع الطرفان إلى يومهما التقويمي أولًا، وتُقرأ مكوّنات التاريخ
+ * بتوقيت UTC حصريًا — فلا يؤثّر وقت اليوم ولا فارق المنطقة الزمنية في عدد أيام الخدمة.
  */
-function serviceDuration(hire: Date, asOf: Date): { years: number; months: number; days: number; totalDays: number } {
-  const totalDays = Math.max(0, Math.floor((asOf.getTime() - hire.getTime()) / MS_PER_DAY));
+function serviceDuration(hireInput: Date, asOfInput: Date): { years: number; months: number; days: number; totalDays: number } {
+  const hire = toCalendarDayUtc(hireInput);
+  const asOf = toCalendarDayUtc(asOfInput);
+  const totalDays = Math.max(0, calendarDayIndex(asOf) - calendarDayIndex(hire));
 
-  let years = asOf.getFullYear() - hire.getFullYear();
-  let months = asOf.getMonth() - hire.getMonth();
-  let days = asOf.getDate() - hire.getDate();
+  let years = asOf.getUTCFullYear() - hire.getUTCFullYear();
+  let months = asOf.getUTCMonth() - hire.getUTCMonth();
+  let days = asOf.getUTCDate() - hire.getUTCDate();
 
   if (days < 0) {
     months -= 1;
-    // عدد أيام الشهر السابق للحظة الاحتساب (اليوم 0 من الشهر الحالي).
-    const prevMonthDays = new Date(asOf.getFullYear(), asOf.getMonth(), 0).getDate();
+    // عدد أيام الشهر السابق لتاريخ الاحتساب (اليوم 0 من الشهر الحالي، بتوقيت UTC).
+    const prevMonthDays = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), 0)).getUTCDate();
     days += prevMonthDays;
   }
   if (months < 0) {
@@ -166,7 +204,7 @@ function serviceDuration(hire: Date, asOf: Date): { years: number; months: numbe
   return { years, months, days, totalDays };
 }
 
-/** هل أتم الموظف 9 أشهر خدمة تقويميًا (المادة 70 — استحقاق إجازة السنة الأولى)؟ */
+/** هل أتم الموظف 6 أشهر خدمة تقويميًا (قرار العمل النهائي — أهلية الإجازة السنوية)؟ */
 function isFirstYearEligible(duration: { years: number; months: number }): boolean {
   return duration.years * 12 + duration.months >= FIRST_YEAR_ELIGIBILITY_MONTHS;
 }
@@ -177,9 +215,8 @@ export interface DateInterval {
   end: Date;
 }
 
-function dayIndex(d: Date): number {
-  return Math.floor(d.getTime() / MS_PER_DAY);
-}
+/** نفس فهرس اليوم التقويمي المستخدَم في مدة الخدمة — مصدر واحد لعدّ الأيام في الوحدة. */
+const dayIndex = calendarDayIndex;
 
 /**
  * يحسب عدد أيام إجازة سنوية واحدة المستهلكة فعليًا من الرصيد، مستثنيًا (المادة 70):
@@ -251,18 +288,18 @@ function computeGratuity(serviceYears: number, monthlyWageBase: number): Gratuit
 
   return {
     serviceYears: round2(serviceYears),
-    approvedWage: round3(monthlyWageBase),
-    dailyWage: round3(dailyWage),
+    approvedWage: money(monthlyWageBase),
+    dailyWage: money(dailyWage),
     firstTierYears: round2(firstTierYears),
-    firstTierAmount: round3(firstTierAmount),
+    firstTierAmount: money(firstTierAmount),
     secondTierYears: round2(secondTierYears),
-    secondTierAmount: round3(secondTierAmount),
-    rawTotal: round3(rawTotal),
-    capAmount: round3(capAmount),
+    secondTierAmount: money(secondTierAmount),
+    rawTotal: money(rawTotal),
+    capAmount: money(capAmount),
     capApplied,
-    total: round3(total),
+    total: money(total),
     resignationFraction,
-    resignationAmount: round3(resignationAmount),
+    resignationAmount: money(resignationAmount),
   };
 }
 
@@ -278,11 +315,11 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
   const duration = hasHireDate ? serviceDuration(input.hireDate as Date, input.asOf) : null;
   const serviceYears = duration ? duration.totalDays / DAYS_PER_YEAR : null;
 
-  // بوابة أهلية واحدة على مخرج التراكم (المادة 70) — الصيغة نفسها لا تتغيّر بعد الأهلية.
+  // بوابة أهلية واحدة على مخرج التراكم (6 أشهر) — الصيغة نفسها لا تتغيّر بعد الأهلية.
   const firstYearEligible = duration !== null ? isFirstYearEligible(duration) : null;
 
   // رصيد الإجازة يتراكم دومًا من تاريخ التعيين — لا خط أساس بديل (المادتان 73/74) — لكن
-  // لا يُستحق شيء قبل إتمام 9 أشهر خدمة (المادة 70)؛ فور الأهلية يبدأ نفس التراكم التناسبي
+  // لا يُستحق شيء قبل إتمام 6 أشهر خدمة؛ فور الأهلية يبدأ نفس التراكم التناسبي
   // من تاريخ التعيين تلقائيًا وبلا أي تغيير في الصيغة.
   const accruedLeaveDays =
     duration !== null
@@ -295,11 +332,11 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
   // قيمة يومية خام واحدة (غير مقرَّبة) يُشتق منها كل من dailyWage المعروض وبدل الإجازة —
   // لا حساب مكرر للقاسم (DAILY_WAGE_DIVISOR) في أكثر من موضع.
   const rawDailyWage = hasWageBase ? input.monthlyWageBase / DAILY_WAGE_DIVISOR : null;
-  const dailyWage = rawDailyWage !== null ? round3(rawDailyWage) : null;
+  const dailyWage = rawDailyWage !== null ? money(rawDailyWage) : null;
 
   const leaveAllowanceDays = remainingLeaveDays;
   const leaveAllowanceValue =
-    remainingLeaveDays !== null && rawDailyWage !== null ? round3(remainingLeaveDays * rawDailyWage) : null;
+    remainingLeaveDays !== null && rawDailyWage !== null ? money(remainingLeaveDays * rawDailyWage) : null;
 
   const gratuity =
     serviceYears !== null && hasWageBase ? computeGratuity(serviceYears, input.monthlyWageBase) : null;

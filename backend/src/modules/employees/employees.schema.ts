@@ -84,18 +84,8 @@ export const createLeaveSettlementSchema = z.object({
   }),
 });
 
-// سجل المستحقات المصروفة (تاريخي فقط). عدد الأيام اختياري ويخصّ بدل الإجازة فقط.
-export const createEntitlementLedgerSchema = z.object({
-  body: z.object({
-    entryType: z.enum(ENUMS.entitlementLedgerType),
-    entryDate: z.coerce.date(),
-    description: z.string().optional(),
-    leaveDays: z.coerce.number().nonnegative('عدد الأيام لا يمكن أن يكون سالبًا').optional(),
-    amount: z.coerce.number().nonnegative('المبلغ لا يمكن أن يكون سالبًا'),
-    paymentMethod: z.enum(ENUMS.leaveSettlementPaymentMethod),
-    notes: z.string().optional(),
-  }),
-});
+// ملاحظة: مخطط تسجيل دفعة المستحق انتقل إلى نطاق الاستحقاقات المستقل
+// (modules/employee-entitlements/entitlements.schema.ts) — مصدر واحد لقواعد الدفع.
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>['body'];
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>['body'];
@@ -104,4 +94,3 @@ export type UpdateAttendanceInput = z.infer<typeof updateAttendanceSchema>['body
 export type LeaveInput = z.infer<typeof leaveSchema>['body'];
 export type AdjustmentInput = z.infer<typeof adjustmentSchema>['body'];
 export type CreateLeaveSettlementInput = z.infer<typeof createLeaveSettlementSchema>['body'];
-export type CreateEntitlementLedgerInput = z.infer<typeof createEntitlementLedgerSchema>['body'];

@@ -203,14 +203,18 @@ describe('calculateEntitlements — leave balance is never reset by a settlement
   });
 });
 
-describe('calculateEntitlements — first-year annual leave eligibility (Article 70, 9 months)', () => {
+/**
+ * أهلية الإجازة السنوية — البوابة المعتمدة للمشروع **6 أشهر** (قرار عمل نهائي حلّ محلّ
+ * بوابة الـ9 أشهر السابقة). الحدود الثلاثة مُختبَرة صراحةً: دون الستة، عند الستة بالضبط، وفوقها.
+ */
+describe('calculateEntitlements — annual leave eligibility gate (6 completed months)', () => {
   const asOf = new Date('2026-01-01T00:00:00Z');
   const wage = 900;
 
-  it('grants no payable annual leave entitlement at 8 months of service', () => {
-    const hireDate = new Date('2025-05-01T00:00:00Z'); // 8 أشهر تقويمية بالضبط حتى asOf
+  it('grants no payable annual leave entitlement below 6 completed months', () => {
+    const hireDate = new Date('2025-08-01T00:00:00Z'); // 5 أشهر تقويمية بالضبط حتى asOf
     const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
-    expect(r.duration).toEqual({ years: 0, months: 8, days: 0, totalDays: 245 });
+    expect(r.duration!.years * 12 + r.duration!.months).toBe(5);
     expect(r.firstYearEligible).toBe(false);
     expect(r.accruedLeaveDays).toBe(0);
     expect(r.remainingLeaveDays).toBe(0);
@@ -219,10 +223,18 @@ describe('calculateEntitlements — first-year annual leave eligibility (Article
     expect(r.leaveAllowanceValue).toBe(0);
   });
 
-  it('begins accrual automatically at exactly 9 months of service, using the unchanged proportional formula', () => {
-    const hireDate = new Date('2025-04-01T00:00:00Z'); // 9 أشهر تقويمية بالضبط حتى asOf
+  it('is still not eligible one day before completing 6 months', () => {
+    const hireDate = new Date('2025-07-02T00:00:00Z'); // ينقصه يوم واحد على إتمام 6 أشهر
     const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
-    expect(r.duration!.years * 12 + r.duration!.months).toBe(9);
+    expect(r.duration!.years * 12 + r.duration!.months).toBe(5);
+    expect(r.firstYearEligible).toBe(false);
+    expect(r.accruedLeaveDays).toBe(0);
+  });
+
+  it('begins accrual automatically at exactly 6 completed months, using the unchanged proportional formula', () => {
+    const hireDate = new Date('2025-07-01T00:00:00Z'); // 6 أشهر تقويمية بالضبط حتى asOf
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.duration!.years * 12 + r.duration!.months).toBe(6);
     expect(r.firstYearEligible).toBe(true);
     // نفس صيغة التراكم التناسبي القائمة (30 × الأيام الكلية / 365) — بلا بوابة أخرى مضافة.
     const expected = Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100;
@@ -230,23 +242,215 @@ describe('calculateEntitlements — first-year annual leave eligibility (Article
     expect(r.accruedLeaveDays).toBeGreaterThan(0);
   });
 
-  it('continues normal accrual for more than 9 months of service', () => {
-    const hireDate = new Date('2025-02-01T00:00:00Z'); // 11 شهرًا تقويميًا
-    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
-    expect(r.duration!.years * 12 + r.duration!.months).toBe(11);
-    expect(r.firstYearEligible).toBe(true);
-    const expected = Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100;
-    expect(r.accruedLeaveDays).toBe(expected);
+  it('continues normal accrual above 6 months (including what the old 9-month gate used to block)', () => {
+    for (const hire of ['2025-05-01T00:00:00Z', '2025-04-01T00:00:00Z', '2025-02-01T00:00:00Z']) {
+      const r = calculateEntitlements({ hireDate: new Date(hire), monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+      expect(r.firstYearEligible).toBe(true);
+      const expected = Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100;
+      expect(r.accruedLeaveDays).toBe(expected);
+      expect(r.accruedLeaveDays).toBeGreaterThan(0);
+    }
   });
 
-  it('does not affect end-of-service gratuity — EOS calculation is untouched by the 9-month gate', () => {
-    const hireDate = new Date('2025-05-01T00:00:00Z'); // نفس حالة الشهر الثامن غير المؤهلة للإجازة
+  it('applies the annual rate of 30 days per year of service', () => {
+    const hireDate = new Date('2025-01-01T00:00:00Z'); // سنة كاملة (365 يومًا)
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.annualEntitlementDays).toBe(30);
+    expect(r.duration!.totalDays).toBe(365);
+    expect(r.accruedLeaveDays).toBe(30);
+  });
+
+  it('does not affect end-of-service gratuity — EOS calculation is untouched by the eligibility gate', () => {
+    const hireDate = new Date('2025-08-01T00:00:00Z'); // غير مؤهل للإجازة (5 أشهر)
     const r = calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf, usedAnnualLeaveDays: 0 });
     expect(r.firstYearEligible).toBe(false);
     expect(r.accruedLeaveDays).toBe(0);
     // المكافأة تُحتسب دائمًا من مدة الخدمة والأجر فقط — لا علاقة لها ببوابة الإجازة.
     expect(r.gratuity).not.toBeNull();
     expect(r.gratuity!.total).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * حتمية الاحتساب عند asOf صريح — نفس المدخلات تُنتج نفس النتيجة مهما تغيّر «اليوم»، وهو
+ * شرط إعادة إنتاج الكشوف والتسويات المستقبلية.
+ */
+describe('calculateEntitlements — explicit asOf determinism', () => {
+  const hireDate = new Date('2020-01-01T00:00:00Z');
+
+  it('produces identical output for the same explicit asOf, independent of wall-clock time', () => {
+    const asOf = new Date('2026-03-15T00:00:00Z');
+    const a = calculateEntitlements({ hireDate, monthlyWageBase: 900, asOf, usedAnnualLeaveDays: 10 });
+    const b = calculateEntitlements({ hireDate, monthlyWageBase: 900, asOf, usedAnnualLeaveDays: 10 });
+    expect(b).toEqual(a);
+  });
+
+  it('yields a larger accrued balance for a later asOf — service duration drives the value', () => {
+    const early = calculateEntitlements({ hireDate, monthlyWageBase: 900, asOf: new Date('2025-01-01T00:00:00Z'), usedAnnualLeaveDays: 0 });
+    const late = calculateEntitlements({ hireDate, monthlyWageBase: 900, asOf: new Date('2026-01-01T00:00:00Z'), usedAnnualLeaveDays: 0 });
+    expect(late.accruedLeaveDays!).toBeGreaterThan(early.accruedLeaveDays!);
+    expect(late.gratuity!.total).toBeGreaterThan(early.gratuity!.total);
+  });
+
+  it('treats a default (current-date) calculation as an ordinary asOf — no separate code path', () => {
+    const now = new Date();
+    const explicit = calculateEntitlements({ hireDate, monthlyWageBase: 900, asOf: now, usedAnnualLeaveDays: 0 });
+    expect(explicit.hasHireDate).toBe(true);
+    expect(explicit.accruedLeaveDays).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * أجر الاستحقاق = `Employee.salary` وحده. الحاسبة نقيّة فلا تعرف مصادر أخرى أصلًا؛ ما
+ * يُثبَت هنا هو أن القيمة الممرَّرة (الراتب) هي وحدها ما يحرّك الناتج — فأي بدل أو لقطة راتب
+ * تاريخية لا تجد طريقًا إلى الرقم.
+ */
+describe('calculateEntitlements — entitlement wage is Employee.salary only', () => {
+  const hireDate = new Date('2020-01-01T00:00:00Z');
+  const asOf = new Date('2026-01-01T00:00:00Z');
+  const salary = 500;
+
+  it('derives the approved wage and daily wage from the passed salary alone', () => {
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: salary, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.gratuity!.approvedWage).toBe(salary);
+    expect(r.dailyWage).toBe(Math.round((salary / 26) * 1000) / 1000);
+  });
+
+  it('would change if an allowance were added — proving the exclusion is material, not cosmetic', () => {
+    const withoutAllowance = calculateEntitlements({ hireDate, monthlyWageBase: salary, asOf, usedAnnualLeaveDays: 0 });
+    const ifAllowanceHadBeenAdded = calculateEntitlements({ hireDate, monthlyWageBase: salary + 150, asOf, usedAnnualLeaveDays: 0 });
+    expect(ifAllowanceHadBeenAdded.gratuity!.total).not.toBe(withoutAllowance.gratuity!.total);
+    expect(withoutAllowance.gratuity!.approvedWage).toBe(salary);
+  });
+
+  it('is unchanged by any historical payroll snapshot value', () => {
+    const current = calculateEntitlements({ hireDate, monthlyWageBase: salary, asOf, usedAnnualLeaveDays: 0 });
+    const historicalSnapshot = calculateEntitlements({ hireDate, monthlyWageBase: 400, asOf, usedAnnualLeaveDays: 0 });
+    expect(current.gratuity!.approvedWage).toBe(salary);
+    expect(historicalSnapshot.gratuity!.approvedWage).not.toBe(current.gratuity!.approvedWage);
+  });
+});
+
+/**
+ * تثبيت العيّنة المرصودة أثناء المراجعة البصرية (راتب 150 د.ك، تعيين 23/10/2024).
+ *
+ * الغرض توثيقي لا تصحيحي: تُظهر هذه الاختبارات **سلوك المحرّك الحالي كما هو** خطوة بخطوة
+ * (عدد أيام الخدمة ← التراكم ← الأجر اليومي ← القيمة النقدية) حتى يكون أي تغيير مستقبلي في
+ * القاسم 26 أو في معالجة التراكم قرارًا صريحًا يُسقط اختبارًا، لا انزلاقًا صامتًا.
+ *
+ * ملاحظة مهمة: `totalDays` فرق لحظات زمنية (UTC). تاريخ التعيين مخزَّن عند منتصف ليل UTC،
+ * بينما الاحتساب الافتراضي يستخدم لحظة «الآن» — فيتغيّر العدّ بيوم واحد حسب لحظة التنفيذ
+ * خلال اليوم. لذلك تُمرَّر هنا لحظات asOf صريحة، ويُغطّى الطرفان معًا.
+ */
+/**
+ * العيّنة المعتمدة: راتب 150 د.ك، تعيين 23/10/2024، احتساب 29/07/2026.
+ *
+ * تُثبّت هذه الاختبارات **سلسلة الاحتساب** لا رقمًا محفوظًا: كل قيمة متوقَّعة تُشتق هنا من
+ * القواعد المعتمدة (30 يومًا/سنة · القاسم 26 · التراكم التناسبي من تاريخ التعيين) ثم تُقارن
+ * بمخرج المحرّك — فأي انحراف مستقبلي في أي حلقة يسقط الاختبار.
+ */
+describe('calculateEntitlements — approved sample (150 KWD, hired 23/10/2024, asOf 29/07/2026)', () => {
+  const hireDate = new Date('2024-10-23T00:00:00.000Z');
+  const asOf = new Date('2026-07-29T00:00:00.000Z');
+  const salary = 150;
+
+  const run = (at: Date) => calculateEntitlements({ hireDate, monthlyWageBase: salary, asOf: at, usedAnnualLeaveDays: 0 });
+
+  it('derives the whole chain from the approved rules', () => {
+    const r = run(asOf);
+
+    // ١) مدة الخدمة بالأيام التقويمية — من 23/10/2024 إلى 29/07/2026.
+    const expectedDays =
+      (Date.UTC(2026, 6, 29) - Date.UTC(2024, 9, 23)) / 86_400_000;
+    expect(r.duration!.totalDays).toBe(expectedDays);
+
+    // ٢) التراكم = 30 يومًا/سنة × (أيام الخدمة ÷ 365)، مقرَّبًا لخانتين.
+    const expectedAccrued = Math.round(30 * (expectedDays / 365) * 100) / 100;
+    expect(r.accruedLeaveDays).toBe(expectedAccrued);
+    expect(r.remainingLeaveDays).toBe(expectedAccrued);
+
+    // ٣) الأجر اليومي = الراتب ÷ 26 (القاعدة المعتمدة)، مقرَّبًا لثلاث خانات.
+    expect(r.dailyWage).toBe(Math.round((salary / 26) * 1000) / 1000);
+
+    // ٤) القيمة النقدية = الأيام المتبقية × الأجر اليومي **الخام**، مقرَّبة مرة واحدة.
+    expect(r.leaveAllowanceValue).toBe(Math.round(expectedAccrued * (salary / 26) * 1000) / 1000);
+  });
+
+  it('is identical at every hour of the calculation day — no time-of-day drift', () => {
+    const baseline = run(asOf);
+    for (const hour of ['T00:00:00.000Z', 'T03:30:00.000Z', 'T12:00:00.000Z', 'T21:00:00.000Z', 'T23:59:59.999Z']) {
+      const r = run(new Date('2026-07-29' + hour));
+      expect(r.duration!.totalDays).toBe(baseline.duration!.totalDays);
+      expect(r.accruedLeaveDays).toBe(baseline.accruedLeaveDays);
+      expect(r.leaveAllowanceValue).toBe(baseline.leaveAllowanceValue);
+    }
+  });
+
+  it('advances by exactly one service day on the next calendar date', () => {
+    const today = run(asOf);
+    const tomorrow = run(new Date('2026-07-30T00:00:00.000Z'));
+    expect(tomorrow.duration!.totalDays).toBe(today.duration!.totalDays + 1);
+  });
+
+  it('counts service from the original hire date — the first 6 months are not discarded', () => {
+    const r = run(asOf);
+    const discardedFirst6Months = 30 * ((r.duration!.totalDays - 182) / 365);
+    expect(r.accruedLeaveDays!).toBeGreaterThan(discardedFirst6Months);
+    expect(r.accruedLeaveDays).toBe(Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100);
+  });
+});
+
+/**
+ * القاسم 26 — قاعدة احتساب معتمَدة في المنار (لا صيغة قانونية حرفية). مركزية في المحرّك
+ * الوحيد، ومقفلة هنا صراحةً حتى يكون أي تغيير مستقبلي قرارًا واعيًا يُسقط اختبارًا.
+ */
+describe('calculateEntitlements — approved daily-wage divisor (26)', () => {
+  const hireDate = new Date('2020-01-01T00:00:00.000Z');
+  const asOf = new Date('2026-01-01T00:00:00.000Z');
+
+  it('always derives the daily wage as Employee.salary / 26', () => {
+    for (const salary of [150, 260, 500, 901]) {
+      const r = calculateEntitlements({ hireDate, monthlyWageBase: salary, asOf, usedAnnualLeaveDays: 0 });
+      expect(r.dailyWage).toBe(Math.round((salary / 26) * 1000) / 1000);
+      expect(r.gratuity!.dailyWage).toBe(Math.round((salary / 26) * 1000) / 1000);
+    }
+  });
+
+  it('uses the same divisor for the end-of-service first tier — one central rule, not two', () => {
+    const salary = 260; // يقسم على 26 بلا كسور: الأجر اليومي = 10 بالضبط
+    const r = calculateEntitlements({ hireDate, monthlyWageBase: salary, asOf, usedAnnualLeaveDays: 0 });
+    expect(r.dailyWage).toBe(10);
+    expect(r.gratuity!.firstTierAmount).toBe(
+      Math.round(15 * 10 * r.gratuity!.firstTierYears * 1000) / 1000,
+    );
+  });
+});
+
+/**
+ * بوابة الأهلية (6 أشهر) تقويمية أيضًا: لا تنفتح ولا تنغلق بتغيّر ساعة الاحتساب.
+ */
+describe('calculateEntitlements — eligibility gate is calendar-stable', () => {
+  const hireDate = new Date('2025-01-31T00:00:00.000Z');
+  const wage = 900;
+  const at = (iso: string) => calculateEntitlements({ hireDate, monthlyWageBase: wage, asOf: new Date(iso), usedAnnualLeaveDays: 0 });
+
+  it('stays closed for the whole day before the gate opens', () => {
+    for (const hour of ['T00:00:00.000Z', 'T12:00:00.000Z', 'T23:59:59.999Z']) {
+      const r = at('2025-07-30' + hour); // ما يزال دون 6 أشهر كاملة
+      expect(r.firstYearEligible).toBe(false);
+      expect(r.accruedLeaveDays).toBe(0);
+      expect(r.leaveAllowanceValue).toBe(0);
+    }
+  });
+
+  it('opens on the completion date and stays open for the whole day', () => {
+    for (const hour of ['T00:00:00.000Z', 'T12:00:00.000Z', 'T23:59:59.999Z']) {
+      const r = at('2025-07-31' + hour); // 6 أشهر كاملة بالضبط
+      expect(r.firstYearEligible).toBe(true);
+      expect(r.accruedLeaveDays!).toBeGreaterThan(0);
+      // التراكم يعود لتاريخ التعيين الأصلي، لا لتاريخ فتح البوابة.
+      expect(r.accruedLeaveDays).toBe(Math.round(30 * (r.duration!.totalDays / 365) * 100) / 100);
+    }
   });
 });
 
