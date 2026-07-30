@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `f9f3cb86` (merge of `feature/frontend-reliability-pack-v1`, bundling the Scroll Lock Leak Fix, Historical Data Period Reliability Fix v1, and CalendarDayButton Ref Compatibility Fix v1) |
-| **Current Documentation Commit** | `27cdac1` |
-| **Current Stable Tag** | `stable-frontend-reliability-pack-v1` |
+| **Current Merge Commit** | `1e91f12a` (merge of `feature/database-google-drive-runtime-safety-pack-v1`, bundling R1 split-brain runtime lock, R2 orphan sync-temp cleanup, R3 manual/shutdown snapshot consistency, restore reliability, and first-run bootstrap seed safety) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-database-google-drive-runtime-safety-pack-v1` |
 | **Current Release Date** | 2026-07-30 |
-| **Total Stable Releases** | 380 (window 2026-06-07 → 2026-07-30) |
+| **Total Stable Releases** | 381 (window 2026-06-07 → 2026-07-30) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,51 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Database & Google Drive Runtime Safety Pack v1** (2026-07-30,
+  `stable-database-google-drive-runtime-safety-pack-v1`) — closes three operational risks found by
+  the Database Source of Truth & Google Drive Sync Safety Audit v1, ahead of manual entry of
+  historical 2025 accounting data. **(1) R1 — dev/packaged split-brain lock:**
+  `electron/services/runtimeLock.ts`, a cross-environment `~/.manarERP/runtime.lock` keyed on the
+  home directory alone (not `dataDir`, which differs between dev and packaged), blocks a second
+  manarERP instance from running against a different local database while syncing the same Google
+  Drive file — `app.requestSingleInstanceLock()` alone doesn't cover this since dev and packaged have
+  separate single-instance locks. `acquireRuntimeLock()` never throws; every failure path returns a
+  discriminated `{ok:false, reason:'HELD'|'UNAVAILABLE'}`, and `guardAgainstSplitBrain()` fails
+  closed on both (blocks startup) rather than continuing unprotected. **(2) R2 — orphan sync-temp
+  cleanup:** `syncTempCleanup.ts` sweeps stale `sync-tmp-snapshot-*`/`sync-tmp-download-*` files
+  older than 2h on startup. **(3) R3 — manual/shutdown snapshot consistency:** uploads now snapshot
+  via SQLite `VACUUM INTO` (`dbIntegrity.ts`'s `snapshotDatabase()`) instead of a raw file copy;
+  `SyncMetadata` gained `lastSyncedLocalHash` to track the live file's own hash separately from the
+  snapshot's hash, since the two legitimately differ — without this, `decide()` would see a
+  permanent false "local changed" after every upload (self-caught and fixed before any user report).
+  **(4) Restore reliability:** local restore (`backup.ipc.ts`) now stops the backend, retries the
+  file replace against Windows file-lock errors, and restarts the backend — mirroring the Drive
+  restore path. **(5) First-run packaged database bootstrap safety:** `dbBootstrapState.ts` proves
+  the template database copied on first run is a pristine seed (not real user data) via two
+  independent proofs — an explicit `SEED`/`REAL` state tag, and a template-sha256 fallback closing
+  the atomicity gap between the copy and the tag-write — either alone is sufficient, and `REAL`
+  always wins permanently. Prevents a false startup-sync `CONFLICT` from uploading a stale template
+  over real Google Drive data. **(6) Startup-abort lifecycle guard:** a rejected split-brain check
+  now sets `startupAborted` before `app.quit()`, checked in `before-quit` before
+  `event.preventDefault()`, so a rejected environment can no longer fall through to
+  `performShutdownSync` and upload to Drive. This package went through two rounds of independent
+  FINAL REVIEW ONLY audits: round 1 returned `VERDICT: BLOCK` (HIGH-1 — rejected startup could still
+  upload; MEDIUM-1 — seed-marking atomicity gap; MEDIUM-2 — runtime-lock fail-open on I/O errors),
+  all three fixed in a Corrective Pass with before/after regression proof (each fix was temporarily
+  reverted, the new test confirmed it failed, then restored); round 2 returned `VERDICT: APPROVE`,
+  with one non-blocking MEDIUM explicitly deferred (M-A — runtime-lock's initial write is not fully
+  atomic; a theoretical microsecond-scale simultaneous-start race whose worst outcome is an explicit
+  conflict, not silent data loss) alongside a documented non-blocking observation that
+  `getUserDataPaths()` has filesystem side effects before the runtime guard runs (verified harmless:
+  no existing DB touched, no Drive operation, seed-misclassification risk independently closed by
+  `isPristineSeed()`). **Not changed:** frontend, Prisma schema/migrations, accounting/GL, any API
+  contract, historical data, or the in-progress Google Drive Deployment Pack v1 OAuth work (present
+  in the working tree but explicitly excluded from this release). Feature commit `86eb4114`, merge
+  `1e91f12a`. Validation: electron `tsc --noEmit` ✅ · `npm run electron:build` ✅ · backend
+  `tsc --noEmit` ✅ · electron vitest 11 files/199 tests — 199/199 (72 new) · frontend untouched
+  (electron/backend-only release). Product Owner manual visual review: approved, release explicitly
+  requested.
 
 - **Frontend Reliability Pack v1** (2026-07-30, `stable-frontend-reliability-pack-v1`) — bundles
   three independently audited and reviewed fixes uncovered while preparing the system for historical
