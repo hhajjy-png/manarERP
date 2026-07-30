@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `f9f3cb86` (merge of `feature/frontend-reliability-pack-v1`, bundling the Scroll Lock Leak Fix, Historical Data Period Reliability Fix v1, and CalendarDayButton Ref Compatibility Fix v1) |
-| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Documentation Commit** | `27cdac1` |
 | **Current Stable Tag** | `stable-frontend-reliability-pack-v1` |
 | **Current Release Date** | 2026-07-30 |
 | **Total Stable Releases** | 380 (window 2026-06-07 → 2026-07-30) |
