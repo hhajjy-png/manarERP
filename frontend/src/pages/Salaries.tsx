@@ -83,6 +83,13 @@ type SalaryPaymentRow = {
   civilId?: string | null;
   status?: string | null;
 };
+/** An ACTIVE employee the selected period holds no payroll row for — reported by
+ *  /payroll/stats so a silent omission becomes visible instead of invisible. */
+type MissingPayrollEmployee = {
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+};
 
 const STATUS_TONE: Record<string, Tone> = { PAID: 'green', APPROVED: 'blue', CANCELLED: 'neutral', DRAFT: 'orange' };
 const STATUS_ICON: Record<string, string> = { PAID: 'task_alt', APPROVED: 'verified', CANCELLED: 'block', DRAFT: 'edit_note' };
@@ -108,7 +115,7 @@ export default function Salaries() {
   const [loading, setLoading] = useState(true);
   // Period KPI totals come from the backend /payroll/stats aggregate (full filtered
   // dataset, CANCELLED excluded) — never from the current page of `rows`.
-  const [stats, setStats] = useState<{ count: number; gross: number; net: number; paid: number; importedCount?: number; grossIsPartial?: boolean } | null>(null);
+  const [stats, setStats] = useState<{ count: number; gross: number; net: number; paid: number; importedCount?: number; grossIsPartial?: boolean; missingPayrollCount?: number; missingPayrollEmployees?: MissingPayrollEmployee[] } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [statsError, setStatsError] = useState(false);
   const [page, setPage] = useState(1);
@@ -316,7 +323,12 @@ export default function Salaries() {
   async function generatePayroll() {
     await runAction(async () => {
       const res = await api.post('/payroll/generate', { month, year, employeeId: employeeId ? Number(employeeId) : undefined });
-      setMessage(t('page.salaries.generated', { count: res.data.data.generated }));
+      const { generated, skippedLocked } = res.data.data as { generated: number; skippedLocked?: number };
+      // Generation is incremental — approved/paid payslips are skipped, never rewritten.
+      // Say so, so a partial run never reads as "nothing happened" or "everything ran".
+      setMessage(skippedLocked
+        ? t('page.salaries.generated_partial', { count: generated, skipped: skippedLocked })
+        : t('page.salaries.generated', { count: generated }));
     });
   }
 
@@ -422,6 +434,33 @@ export default function Salaries() {
             </div>
           </div>
           {statsError && <ErrorBanner>{t('page.salaries.stats_error')}</ErrorBanner>}
+
+          {/* Eligibility gap — ACTIVE employees with no payroll row for this period.
+              The grid shows payroll RECORDS, so an employee who was ON_LEAVE when the
+              month was generated is otherwise indistinguishable from one who does not
+              exist. This names them instead. It is a warning only: no row is fabricated,
+              nothing is auto-generated, and the operator still decides whether to run
+              generation and approve. Shown regardless of the status filter — a filter
+              hides rows, it does not make anyone un-missing. */}
+          {!statsLoading && (stats?.missingPayrollCount ?? 0) > 0 && (
+            <div className="xpl-form-error" role="status"
+              style={{ background: 'rgba(245,158,11,.07)', borderColor: 'rgba(245,158,11,.3)', color: 'var(--xpl-amber, #b45309)', display: 'block' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="material-symbols-outlined">person_alert</span>
+                <strong>{t('msg.payroll.missing_active', { count: stats!.missingPayrollCount! })}</strong>
+              </div>
+              {stats?.missingPayrollEmployees?.length ? (
+                <div style={{ marginTop: 6, paddingInlineStart: 30, fontSize: '.86em', lineHeight: 1.7 }}>
+                  {stats.missingPayrollEmployees.map((e) => (
+                    <span key={e.employeeId} style={{ marginInlineEnd: 12, whiteSpace: 'nowrap' }}>
+                      {e.employeeName} <span style={{ opacity: .65 }}>({e.employeeCode})</span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+              {canGenerate && <div style={{ marginTop: 8, paddingInlineStart: 30, fontSize: '.86em', opacity: .85 }}>{t('msg.payroll.missing_active_hint')}</div>}
+            </div>
+          )}
 
           <div className="xpl-toolbar xpl-toolbar--sticky">
             <div className="xpl-toolbar-row">
