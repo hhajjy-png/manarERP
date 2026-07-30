@@ -17,10 +17,11 @@ import {
   checkConnectivity,
   isRetryableSyncError,
 } from './googleDriveApi.service';
-import { checkSqliteIntegrity, checkpointWal, sha256File } from './dbIntegrity';
+import { checkSqliteIntegrity, checkpointWal, snapshotDatabase, sha256File } from './dbIntegrity';
+import { isPristineSeed, markBootstrapComplete } from './dbBootstrapState';
 import { withRetry } from './retry';
 import { getOrCreateDeviceIdentity } from './deviceIdentity.service';
-import { isBackendRunning, stopBackendForRestart, startBackend, getInternalSecret } from './backendLauncher';
+import { isBackendRunning, stopBackendForRestart, startBackend, getInternalSecret, getSeedTemplatePath } from './backendLauncher';
 import { emitSyncProgress } from './syncProgressBus';
 
 /**
@@ -58,7 +59,23 @@ interface SyncLogEntry {
 }
 
 interface SyncMetadata {
+  /** بصمة **البايتات المرفوعة/المنزَّلة** (هوية النسخة السحابية). */
   lastSyncedHash: string | null;
+  /**
+   * بصمة **الملف المحلي** لحظة آخر مزامنة ناجحة.
+   *
+   * كانت الاثنتان متطابقتين حين كان الرفع نسخًا مباشرًا للملف. بعد التحوّل إلى
+   * لقطة `VACUUM INTO` (تُعيد كتابة الصفحات فتختلف البايتات عن الأصل) صارتا
+   * هويتين مختلفتين: بصمة اللقطة تُعرِّف النسخة السحابية، وبصمة الملف المحلي
+   * تُعرِّف «آخر حالة محلية معروفة أنها مُزامَنة».
+   *
+   * بدون هذا الفصل كان `localChanged` يبقى `true` أبدًا بعد أي رفع — فيُعاد
+   * الرفع في كل إغلاق، والأخطر: يُنتج **تعارضًا كاذبًا** لو تغيّرت النسخة
+   * السحابية من جهاز آخر.
+   *
+   * `null` في البيانات القديمة ⇒ نعود إلى `lastSyncedHash` (سلوك ما قبل التغيير).
+   */
+  lastSyncedLocalHash?: string | null;
   lastSyncedFileId: string | null;
   /** رقم النسخة (revision) التصاعدي الذي اتفق عليه آخر مزامنة ناجحة — مُعرِّف نسخة محلي/سحابي مبسّط. */
   lastSyncedVersion: number | null;
@@ -307,6 +324,8 @@ async function decide(client: OAuth2Client, dbPath: string, dataDir: string): Pr
   const remote = await withRetry(() => findRemoteSyncFile(client), { maxAttempts: 2, isRetryable: isRetryableSyncError });
 
   if (!remote) {
+    // حالة أول تشغيل بلا نسخة سحابية: البذرة تُهيَّأ محليًا بالطريقة المعتادة
+    // وتصير قاعدة المستخدم الحقيقية — ويمكن رفعها لاحقًا وفق السياسة القائمة.
     return localHash
       ? { action: 'UPLOAD', reason: 'لا توجد نسخة سحابية بعد' }
       : { action: 'NONE', reason: 'لا توجد بيانات محلية أو سحابية' };
@@ -316,8 +335,28 @@ async function decide(client: OAuth2Client, dbPath: string, dataDir: string): Pr
     return { action: 'NONE', reason: 'محدّث بالفعل' };
   }
 
+  /**
+   * حارس بذرة أول تشغيل — يسبق كل مقارنات التغيير عمدًا.
+   *
+   * إن كانت القاعدة المحلية ما زالت **بذرة القالب المُضمَّنة كما نُسخت حرفيًا**
+   * (وسم صريح + تطابق بصمة — انظر `dbBootstrapState.ts`) وتوجد نسخة سحابية، فهي
+   * ليست «تغييرًا محليًا» بأي معنى: لا مستخدم كتب فيها شيئًا. تصنيفها كذلك كان
+   * يُنتج CONFLICT ويعرض خيار «المحلي» الذي يرفع القالب القديم فوق بيانات Drive.
+   *
+   * القرار هنا **تنزيل حصرًا** — فلا يُعرض تعارض ولا يُتاح خيار الرفع أصلًا.
+   * والتنزيل يمرّ بمسار `performDownload` الآمن نفسه: فحص سلامة + مطابقة بصمة +
+   * نسخة أمان قبل الاستبدال + استبدال ذرّي.
+   */
+  if (isPristineSeed(dataDir, localHash, getSeedTemplatePath())) {
+    return { action: 'DOWNLOAD', reason: 'أول تشغيل: تهيئة القاعدة من النسخة السحابية (القالب المحلي بذرة لا بيانات مستخدم)' };
+  }
+
   const remoteChanged = remote.sha256 !== null && remote.sha256 !== metadata.lastSyncedHash;
-  const localChanged = localHash !== null && localHash !== metadata.lastSyncedHash;
+  // الهوية المحلية تُقارَن ببصمة الملف المحلي وقت آخر مزامنة، لا ببصمة البايتات
+  // المرفوعة — فهما مختلفتان منذ صارت اللقطة تمرّ بـ`VACUUM INTO`. العودة إلى
+  // `lastSyncedHash` تحفظ سلوك البيانات القديمة التي لا تحمل الحقل الجديد.
+  const localBaseline = metadata.lastSyncedLocalHash ?? metadata.lastSyncedHash;
+  const localChanged = localHash !== null && localHash !== localBaseline;
 
   if (remoteChanged && localChanged) {
     const reason = 'تعارض: توجد تغييرات محلية وتغييرات على Google Drive منذ آخر مزامنة';
@@ -369,16 +408,19 @@ export async function performUpload(
   const snapshotPath = path.join(dataDir, `sync-tmp-snapshot-${Date.now()}.db`);
 
   try {
-    setStatus('UPLOADING', 'جارٍ تفريغ سجلّ WAL والتحقق من سلامة قاعدة البيانات...');
-    // تفريغ WAL في الملف الرئيسي أولًا: يضمن أن النسخة القادمة تعكس كل معاملة
-    // مُلتزَمة (committed) بالكامل — لا كتابة جزئية أبدًا. عملية قصيرة لا تُعطّل
-    // عمل الخادم الخلفي (Offline-First محفوظ، لا توقّف مطلوب).
+    setStatus('UPLOADING', 'جارٍ تجهيز لقطة متسقة والتحقق من سلامة قاعدة البيانات...');
+    // تفريغ WAL أولًا — بلا أثر في وضع الـjournal الافتراضي، ويبقى صحيحًا لو
+    // فُعّل WAL مستقبلًا. أفضل جهد.
     await checkpointWal(dbPath);
 
     const liveIntegrity = await checkSqliteIntegrity(dbPath);
     if (!liveIntegrity.valid) throw new Error(`فشل فحص السلامة قبل الرفع: ${liveIntegrity.reason}`);
 
-    fs.copyFileSync(dbPath, snapshotPath);
+    // لقطة **متسقة معاملاتيًا** عبر `VACUUM INTO` بدل نسخ ملف حيّ بالبايت.
+    // مسار الرفع اليدوي (`sync:upload`) يعمل والخادم الخلفي ما زال يكتب — بخلاف
+    // مسار الإغلاق الذي يوقفه أولًا. والقاعدة ليست في وضع WAL، فالنسخ المباشر
+    // كان قد يلتقط معاملة جارية نصفَ مكتوبة. انظر `snapshotDatabase`.
+    await snapshotDatabase(dbPath, snapshotPath);
 
     // فحص ثانٍ على اللقطة المجمَّدة نفسها — تحصين إضافي ضد أي كتابة نادرة تسللت
     // بين التفريغ والنسخ؛ هذا هو الفحص الحاسم لأنه على البايتات المرفوعة فعليًا.
@@ -387,9 +429,28 @@ export async function performUpload(
 
     const { client } = requireClient(dataDir);
     const hash = await sha256File(snapshotPath);
+    // بصمة الملف المحلي نفسه — تختلف عن بصمة اللقطة (VACUUM INTO يُعيد الكتابة)،
+    // وهي المرجع الذي يقارن به `decide()` لاحقًا ليعرف هل تغيّر المحلي فعلًا.
+    const localHash = await sha256File(dbPath);
     const device = getOrCreateDeviceIdentity(dataDir);
     const retryOpts = driveRetryOptions(dataDir, 'UPLOAD');
     const remote = await withRetry(() => findRemoteSyncFile(client), retryOpts);
+
+    /**
+     * حارس أخير: لا تُرفع بذرة القالب فوق نسخة سحابية قائمة — أبدًا.
+     *
+     * `decide()` لا يُنتج تعارضًا في هذه الحالة أصلًا، فلا يصل مستخدم عادي إلى هنا.
+     * لكن `sync:upload` (زر «رفع الآن») و`resolveConflict('LOCAL')` مسارا IPC
+     * مباشران؛ هذا الحارس يجعل الحماية بنيوية لا معتمدة على إخفاء زرّ في الواجهة.
+     */
+    if (remote && isPristineSeed(dataDir, localHash, getSeedTemplatePath())) {
+      throw new Error(
+        'رُفض الرفع: قاعدة البيانات المحلية ما زالت قالب التهيئة الأوّلي ولم تُدخَل فيها أي بيانات، ' +
+          'وتوجد نسخة حقيقية على Google Drive. رفعها كان سيستبدل بياناتك السحابية بقالب فارغ. ' +
+          'أعد تشغيل التطبيق ليُنزّل النسخة السحابية أولًا.',
+      );
+    }
+
     const version = (remote?.version ?? 0) + 1;
 
     setStatus('UPLOADING', 'جارٍ رفع قاعدة البيانات إلى Google Drive...');
@@ -409,6 +470,7 @@ export async function performUpload(
     metadata = {
       ...metadata,
       lastSyncedHash: hash,
+      lastSyncedLocalHash: localHash,
       lastSyncedFileId: uploaded.id,
       lastSyncedVersion: uploaded.version,
       lastUploadAt: now,
@@ -508,9 +570,11 @@ export async function performDownload(
 
     const now = new Date().toISOString();
     let metadata = loadMetadata(dataDir);
+    // بعد التنزيل، الملف المحلي **هو** البايتات المنزَّلة — فالهويتان متطابقتان هنا.
     metadata = {
       ...metadata,
       lastSyncedHash: downloadedHash,
+      lastSyncedLocalHash: downloadedHash,
       lastSyncedFileId: remote.id,
       lastSyncedVersion: remote.version,
       lastDownloadAt: now,
@@ -524,6 +588,10 @@ export async function performDownload(
       ...(opts.resolvesConflict ? { conflictResolved: true, resolutionSelected: 'REMOTE' as const } : {}),
     });
     saveMetadata(dataDir, metadata);
+    // القاعدة المحلية لم تعد بذرة قالب: صارت النسخة السحابية الحقيقية. التشغيل
+    // التالي يعاملها كقاعدة مستخدم كاملة الحقوق (رفع/تعارض/حلّ صريح كالمعتاد).
+    // يُستدعى بعد نجاح الاستبدال والتحقق فقط — الفشل يُبقيها بذرة فتُعاد المحاولة.
+    markBootstrapComplete(dataDir);
     setStatus('COMPLETED', 'اكتملت الاستعادة بنجاح');
     // requiresRestart: false — لم يعد إعادة تشغيل التطبيق كاملًا مطلوبة؛ الخادم
     // الخلفي أُعيد تشغيله تلقائيًا. backendRestarted تُخبر الواجهة أن تُعيد تحميل
