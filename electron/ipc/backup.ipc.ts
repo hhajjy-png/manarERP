@@ -1,9 +1,23 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { getUserDataPaths, stopBackend } from '../services/backendLauncher';
+import {
+  getUserDataPaths,
+  stopBackend,
+  stopBackendForRestart,
+  startBackend,
+  isBackendRunning,
+  getInternalSecret,
+} from '../services/backendLauncher';
 import { reconfigureBackupScheduler } from '../services/backupScheduler';
 import { hasSessionPermission } from './session.ipc';
+import { withRetry } from '../services/retry';
+
+/** أخطاء قفل الملف على ويندوز — الوحيدة القابلة لإعادة المحاولة عند الاستبدال. */
+function isFileLockError(err: unknown): boolean {
+  const code = (err as NodeJS.ErrnoException)?.code;
+  return code === 'EPERM' || code === 'EBUSY';
+}
 
 function timestamp(): string {
   const now = new Date();
@@ -143,21 +157,30 @@ export function registerBackupIpc() {
       }
     }
 
-    // ── خطوة 2: إيقاف الخادم الخلفي لقطع اتصالات Prisma ──────────────────────
+    // ── خطوة 2: إيقاف الخادم الخلفي والتأكّد من خروجه فعليًا ──────────────────
+    // كان هذا المسار يستدعي `stopBackend()` (إرسال إشارة بلا انتظار) ثم ينام 800ms
+    // ثابتة ويأمل أن يكون قفل الملف قد تحرّر. على ويندوز هذا رهان لا ضمانة. الآن
+    // نستخدم نفس آلية مسار استعادة Google Drive: `stopBackendForRestart()` تنتظر
+    // حدث `exit` الفعلي للعملية (بمهلة قصوى)، ولا تُثير معالج «توقّف غير متوقع».
+    const backendWasRunning = isBackendRunning();
+    let backendStopped = false;
     try {
-      stopBackend();
+      await stopBackendForRestart();
+      backendStopped = backendWasRunning;
       // eslint-disable-next-line no-console
-      console.log('[backup:restore] تم إيقاف الخادم الخلفي');
+      console.log('[backup:restore] تم إيقاف الخادم الخلفي والتأكّد من خروجه');
     } catch {
-      // قد يكون متوقفًا مسبقًا
+      // قد يكون متوقفًا مسبقًا — نُكمل؛ إعادة المحاولة أدناه تغطّي أي قفل متبقٍّ.
     }
-
-    // انتظار 800ms لإغلاق الاتصالات
-    await new Promise((r) => setTimeout(r, 800));
 
     // ── خطوة 3: استبدال قاعدة البيانات ────────────────────────────────────────
     try {
-      fs.copyFileSync(sourcePath, dbPath);
+      // إعادة محاولة على أخطاء القفل فقط (EPERM/EBUSY) — نفس سياسة مسار Drive:
+      // ويندوز قد يتأخّر لحظة في تحرير المقبض حتى بعد خروج العملية المؤكَّد.
+      await withRetry(
+        async () => { fs.copyFileSync(sourcePath, dbPath); },
+        { maxAttempts: 6, baseDelayMs: 500, maxDelayMs: 4000, isRetryable: isFileLockError },
+      );
 
       const { size } = fs.statSync(dbPath);
       if (size === 0) {
@@ -187,6 +210,21 @@ export function registerBackupIpc() {
         console.error('[backup:restore] فشل التراجع:', rollbackErr);
       }
       return { success: false, error: `فشل استبدال قاعدة البيانات: ${String(err)}` };
+    } finally {
+      // لا يُترك التطبيق بلا خادم خلفي مهما كانت النتيجة — نفس ضمانة `finally`
+      // في مسار استعادة Drive. `requiresRestart: true` يبقى كما هو في الاستجابة:
+      // الواجهة ما زالت تطلب إعادة تشغيل نظيفة، لكن التطبيق يبقى صالحًا للعمل
+      // بدل أن يبقى معلّقًا بلا خادم إن تجاهل المستخدم الطلب.
+      if (backendStopped) {
+        try {
+          await startBackend(getInternalSecret());
+          // eslint-disable-next-line no-console
+          console.log('[backup:restore] أُعيد تشغيل الخادم الخلفي');
+        } catch (restartErr) {
+          // eslint-disable-next-line no-console
+          console.error('[backup:restore] تعذّر إعادة تشغيل الخادم الخلفي — يلزم إعادة تشغيل التطبيق:', restartErr);
+        }
+      }
     }
   });
 

@@ -47,6 +47,8 @@ function checkHeaderSanity(filePath: string): IntegrityResult {
 
 interface MinimalPrismaClient {
   $queryRawUnsafe<T = unknown>(query: string): Promise<T>;
+  /** لعبارات لا تُعيد صفوفًا (SQLite يرفض إعادة نتائج من مسار execute). */
+  $executeRawUnsafe(query: string): Promise<number>;
   $disconnect(): Promise<void>;
 }
 
@@ -96,6 +98,31 @@ async function withAdHocConnection<T>(filePath: string, fn: (client: MinimalPris
  * (نسخ مباشر عبر fs) تعكس كل المعاملات المُلتزَمة (committed)، لا حالة جزئية.
  * أفضل جهد: إن لم تكن القاعدة في وضع WAL أصلًا فالـ PRAGMA لا تفعل شيئًا ضارًا.
  */
+/**
+ * يُنتج **لقطة متسقة معاملاتيًا** من قاعدة حيّة عبر `VACUUM INTO` — بديل آمن عن
+ * `fs.copyFileSync` عند الرفع بينما الخادم الخلفي ما زال يكتب.
+ *
+ * لماذا لا يكفي النسخ المباشر: قاعدة هذا النظام تعمل بوضع الـjournal الافتراضي
+ * (rollback journal) لا WAL — لا شيء في `initDatabase` يضبط `journal_mode=WAL`،
+ * ولذلك `wal_checkpoint` عمليًا بلا أثر. في هذا الوضع تُكتب المعاملات **داخل
+ * الملف الرئيسي نفسه**، فنسخُه أثناء معاملة جارية قد يلتقط حالة ممزّقة. و
+ * `PRAGMA integrity_check` فحص **بنيوي**: قد يمرّ على ملف سليم البنية لكنه غير
+ * متسق منطقيًا.
+ *
+ * `VACUUM INTO` يفتح معاملة قراءة ويكتب قاعدة جديدة كاملة ومتسقة، ولا يحجب
+ * الكُتّاب المتزامنين — فيمنح مسار الرفع اليدوي ضمانة مسار الإغلاق (الذي يوقف
+ * الخادم أولًا) **دون إيقاف الخادم ولا تعطيل تجربة المستخدم**.
+ *
+ * المسار يُقتبَس بمضاعفة علامة الاقتباس المفردة — `VACUUM INTO` لا يقبل معاملات
+ * مربوطة (bound parameters)، والمسار هنا مُولَّد داخليًا لا من إدخال مستخدم.
+ */
+export async function snapshotDatabase(sourcePath: string, targetPath: string): Promise<void> {
+  const quoted = targetPath.replace(/'/g, "''");
+  await withAdHocConnection(sourcePath, async (client) => {
+    await client.$executeRawUnsafe(`VACUUM INTO '${quoted}'`);
+  });
+}
+
 export async function checkpointWal(filePath: string): Promise<void> {
   await withAdHocConnection(filePath, async (client) => {
     try {

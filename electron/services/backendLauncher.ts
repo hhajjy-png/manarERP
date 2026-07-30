@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fork, ChildProcess } from 'child_process';
 import { randomBytes, randomUUID } from 'crypto';
+import { markSeeded, sha256FileSync } from './dbBootstrapState';
 
 let backendProcess: ChildProcess | null = null;
 let appQuitting = false;
@@ -62,8 +63,13 @@ export function getUserDataPaths() {
     if (fs.existsSync(templateDb)) {
       try {
         fs.copyFileSync(templateDb, dbPath);
+        // وسم البذرة **في نفس اللحظة** التي نُسخت فيها — هذه هي اللحظة الوحيدة
+        // التي نعرف فيها يقينًا أن هذه قاعدة قالب لا قاعدة مستخدم. بدونها كانت
+        // مزامنة البدء تعامل القالب كتغيير محلي وتُنتج CONFLICT يسمح برفعه فوق
+        // نسخة Drive الحقيقية. انظر `dbBootstrapState.ts`.
+        markSeeded(dataDir, sha256FileSync(dbPath), templateDb);
         // eslint-disable-next-line no-console
-        console.log(`[DB] تم نسخ قاعدة البيانات المبدئية إلى: ${dbPath}`);
+        console.log(`[DB] تم نسخ قاعدة البيانات المبدئية إلى: ${dbPath} (موسومة كبذرة تهيئة)`);
       } catch (err) {
         // eslint-disable-next-line no-console
         console.error(`[DB] فشل نسخ قاعدة البيانات المبدئية:`, err);
@@ -75,6 +81,26 @@ export function getUserDataPaths() {
   }
 
   return { isDev, backendCwd, dataDir, dbPath, backupDir };
+}
+
+/**
+ * مسار قاعدة القالب المشحونة مع المثبّت — أو `null` حين لا ينطبق مفهوم «القالب».
+ *
+ * تُستخدم كشبكة أمان لاكتشاف بذرة أول تشغيل حتى لو فُقد ملف حالة الـbootstrap
+ * (انظر `isPristineSeed`). وترجع `null` في حالتين حاسمتين:
+ *
+ *   • **بيئة التطوير:** `dataDir` هناك هو `backendCwd/data` نفسه، فمسار «القالب»
+ *     و`dbPath` **نفس الملف حرفيًا** — والمقارنة كانت ستُصنّف قاعدة المطوّر
+ *     الحقيقية بذرةً وتقترح استبدالها من Drive. فحص `path.resolve` أدناه هو
+ *     الحارس الفعلي، و`isDev` تأكيد إضافي.
+ *   • **غياب القالب:** لا مرجع للمقارنة.
+ */
+export function getSeedTemplatePath(): string | null {
+  const { isDev, backendCwd, dbPath } = getUserDataPaths();
+  if (isDev) return null;
+  const templateDb = path.join(backendCwd, 'data', 'manar.db');
+  if (path.resolve(templateDb) === path.resolve(dbPath)) return null;
+  return fs.existsSync(templateDb) ? templateDb : null;
 }
 
 /** تحويل المسار إلى صيغة URL مقبولة بـ SQLite (شرطات أمامية — مهم على Windows). */

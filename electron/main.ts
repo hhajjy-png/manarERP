@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu } from 'electron';
+import { app, BrowserWindow, Menu, dialog } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { beginSyncProgressUI } from './windows/syncProgressWindow';
 import { registerMainWindow, shouldQuitOnAllWindowsClosed } from './windows/windowLifecycle';
@@ -16,6 +16,8 @@ import { registerPrintIpc } from './services/printService';
 import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
 import { registerWysiwygViewerGuard } from './ipc/wysiwygViewerGuard.ipc';
 import { registerNbkExportIpc } from './ipc/nbkExport.ipc';
+import { acquireRuntimeLock, releaseRuntimeLock, describeLockConflict, runtimeLockPath } from './services/runtimeLock';
+import { cleanupOrphanSyncTemps } from './services/syncTempCleanup';
 
 const INTERNAL_SECRET = getInternalSecret();
 
@@ -27,8 +29,82 @@ if (!gotLock) {
 
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * حارس Dev/Packaged Split-Brain — يجب أن يسبق **أي** مزامنة أو تشغيل للخادم.
+ *
+ * `app.requestSingleInstanceLock()` أعلاه مُفهرَس بمسار `userData`، وهو مختلف بين
+ * بيئة التطوير والنسخة المُعبَّأة — فلا يرى أيٌّ منهما قفل الآخر. هذا القفل يعيش في
+ * مسار ثابت مشتق من المجلد الشخصي للمستخدم وحده، فيراه الاثنان. انظر
+ * `services/runtimeLock.ts`.
+ *
+ * عند التقاطع: رسالة واضحة ثم خروج. لا حذف ولا دمج ولا نسخ لأي قاعدة بيانات.
+ */
+function guardAgainstSplitBrain(dataDir: string): boolean {
+  const lock = acquireRuntimeLock(dataDir);
+
+  if (!lock.ok) {
+    // `HELD` = الحماية عملت ورفضت. `UNAVAILABLE` = تعذّر إنشاء القفل أصلًا.
+    // كلتاهما **تمنع التشغيل**: في حزمة غرضها منع الـsplit-brain، المتابعة بلا
+    // قفل تعني تشغيلًا غير محمي بصمت — وهو أسوأ من عدم التشغيل. FAIL CLOSED.
+    const held = lock.reason === 'HELD';
+    dialog.showMessageBoxSync({
+      type: held ? 'warning' : 'error',
+      title: held ? 'نظام المنار — نسخة أخرى تعمل بالفعل' : 'نظام المنار — تعذّر تأمين التشغيل',
+      message: 'تعذّر بدء التشغيل',
+      detail: held
+        ? describeLockConflict(lock.holder, dataDir)
+        : 'تعذّر إنشاء قفل الأمان الذي يمنع تشغيل نسختين من النظام على قاعدتَي بيانات مختلفتين ' +
+          'تُزامنان حساب Google Drive نفسه.\n\n' +
+          'لم يبدأ التطبيق، ولم تُنفَّذ أي مزامنة، ولم يُغيَّر أي ملف — التشغيل بلا هذه الحماية ' +
+          'قد يؤدي إلى فقدان بيانات.\n\n' +
+          `المسار: ${runtimeLockPath()}\n` +
+          `السبب: ${lock.error}\n\n` +
+          'تحقّق من صلاحيات الكتابة في مجلد المستخدم ومن توفّر مساحة على القرص، ثم أعد المحاولة.',
+      buttons: ['حسناً'],
+    });
+    // eslint-disable-next-line no-console
+    console.error(`[runtime-lock] رُفض بدء التشغيل (${lock.reason})`);
+    return false;
+  }
+
+  if (lock.tookOverStaleLock) {
+    // eslint-disable-next-line no-console
+    console.warn('[runtime-lock] عُثر على قفل يتيم من إغلاق غير نظيف — تم الاستحواذ عليه');
+  }
+  return true;
+}
+
 async function bootstrap() {
   try {
+    // ── حارس التقاطع أولًا: قبل المزامنة وقبل تشغيل الخادم وقبل أي كتابة ──────
+    const { dataDir: bootDataDir } = getUserDataPaths();
+    if (!guardAgainstSplitBrain(bootDataDir)) {
+      // بيئة رُفض دخولها ليست بيئة عاملة: يجب ألّا تمرّ بتسلسل الإغلاق المتدرّج
+      // إطلاقًا. بدون هذا الوسم كان `app.quit()` يُطلق `before-quit` بـ
+      // `quitConfirmed=false` فيُنفَّذ `performShutdownSync` — أي **رفع محتمل إلى
+      // Drive من البيئة التي رفضناها للتوّ**، وهو نقض مباشر لغرض الحارس.
+      startupAborted = true;
+      app.quit();
+      return;
+    }
+
+    // كنس لقطات المزامنة اليتيمة (بقايا إغلاق قسري أثناء رفع/تنزيل سابق).
+    // أفضل جهد بحت — لا يُعطّل بدء التطبيق مهما فشل.
+    try {
+      const swept = cleanupOrphanSyncTemps(bootDataDir);
+      if (swept.deleted.length || swept.failed.length) {
+        // eslint-disable-next-line no-console
+        console.log(
+          `[sync-temp] حُذف ${swept.deleted.length} ملفًا يتيمًا` +
+            (swept.skippedRecent.length ? ` · تُرك ${swept.skippedRecent.length} حديثًا` : '') +
+            (swept.failed.length ? ` · تعذّر حذف ${swept.failed.length}` : ''),
+        );
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[sync-temp] فشل كنس الملفات المؤقتة — المتابعة:', err);
+    }
+
     registerDialogIpc();
     registerBackupIpc();
     registerSessionIpc();
@@ -133,8 +209,19 @@ app.on('window-all-closed', () => {
 // قاعدة البيانات إلى Google Drive إن تغيّرت، ثم نُنهي التطبيق فعليًا. `event.preventDefault`
 // يوقف الإغلاق الفوري مرّة واحدة فقط — `quitConfirmed` يمنع حلقة لا نهائية.
 let quitConfirmed = false;
+/**
+ * صحيح حين رفض حارس التشغيل هذه البيئة (قفل بيد بيئة أخرى، أو تعذّر إنشاء القفل).
+ *
+ * عندها لم يبدأ خادم خلفي، ولم تُسجَّل معالجات IPC للمزامنة/النسخ الاحتياطي، ولم
+ * تجرِ مزامنة بدء. الخروج يجب أن يكون **فوريًا وصامتًا**: لا مزامنة إغلاق، ولا
+ * أي عملية Drive أو قاعدة بيانات. مُعرَّف قبل `bootstrap` في ترتيب التنفيذ لأن
+ * `bootstrap` لا يعمل إلا بعد `app.whenReady()`.
+ */
+let startupAborted = false;
+
 app.on('before-quit', (event) => {
-  if (quitConfirmed) return;
+  // بيئة مرفوضة: لا `preventDefault` ولا تسلسل إغلاق — اخرج مباشرة.
+  if (quitConfirmed || startupAborted) return;
   event.preventDefault();
 
   (async () => {
@@ -156,7 +243,15 @@ app.on('before-quit', (event) => {
       await shutdownSyncUI.finish();
     }
 
+    // تحرير قفل التشغيل **بعد** اكتمال مزامنة الإغلاق — القفل يحمي المزامنة نفسها،
+    // فتحريره قبلها كان سيفتح نافذة تبدأ فيها بيئة أخرى الرفع بالتوازي.
+    releaseRuntimeLock();
+
     quitConfirmed = true;
     app.quit();
   })();
 });
+
+// شبكة أمان: خروج غير مارّ بـ`before-quit` (إنهاء من نظام التشغيل مثلًا) يجب ألّا
+// يترك قفلًا حيًّا. البقايا تُعامَل كقفل يتيم لاحقًا، لكن التحرير هنا أنظف.
+app.on('will-quit', () => releaseRuntimeLock());
