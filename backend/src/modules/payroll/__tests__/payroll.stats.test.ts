@@ -25,6 +25,8 @@ import { payrollService } from '../payroll.service';
 const agg = prisma.payroll.aggregate as unknown as ReturnType<typeof vi.fn>;
 const count = prisma.payroll.count as unknown as ReturnType<typeof vi.fn>;
 const salaryPaymentFindMany = prisma.salaryPayment.findMany as unknown as ReturnType<typeof vi.fn>;
+const payrollFindMany = prisma.payroll.findMany as unknown as ReturnType<typeof vi.fn>;
+const employeeFindMany = prisma.employee.findMany as unknown as ReturnType<typeof vi.fn>;
 
 describe('PayrollService.stats', () => {
   beforeEach(() => {
@@ -34,6 +36,10 @@ describe('PayrollService.stats', () => {
     count.mockResolvedValue(4);
     // No imported salary transfers for the period by default.
     salaryPaymentFindMany.mockResolvedValue([]);
+    // Eligibility-gap detection runs alongside the totals: no ACTIVE employees and no
+    // payroll rows by default → an empty gap that leaves the totals untouched.
+    employeeFindMany.mockResolvedValue([]);
+    payrollFindMany.mockResolvedValue([]);
   });
 
   it('aggregates across the full filtered dataset and excludes CANCELLED by default', async () => {
@@ -46,8 +52,44 @@ describe('PayrollService.stats', () => {
     expect(where.year).toBe(2026);
     expect(where.status).toEqual({ not: 'CANCELLED' });
 
-    // Additive imported fields present and zero when the register is empty.
-    expect(result).toEqual({ count: 13, gross: 5000, net: 4200, paid: 4, importedCount: 0, importedNet: 0, grossIsPartial: false });
+    // Additive imported + eligibility-gap fields present and zero when both are empty.
+    expect(result).toEqual({
+      count: 13, gross: 5000, net: 4200, paid: 4,
+      importedCount: 0, importedNet: 0, grossIsPartial: false,
+      missingPayrollCount: 0, missingPayrollEmployees: [],
+    });
+  });
+
+  it('reports the eligibility gap for ACTIVE employees the period has no row for', async () => {
+    employeeFindMany.mockResolvedValue([{ id: 77, code: '25', fullName: 'عائد من إجازة' }]);
+    payrollFindMany.mockResolvedValue([]); // period holds no row for them
+
+    const result = await payrollService.stats({ month: '7', year: '2026' });
+
+    expect(result.missingPayrollCount).toBe(1);
+    expect(result.missingPayrollEmployees).toEqual([
+      { employeeId: 77, employeeCode: '25', employeeName: 'عائد من إجازة' },
+    ]);
+  });
+
+  it('reports the gap even when a status filter is active — a filter hides rows, it does not un-miss anyone', async () => {
+    // Guards the persisted-`sal:status` foot-gun: a stale filter must never be able to
+    // suppress the warning that tells the operator someone is absent.
+    employeeFindMany.mockResolvedValue([{ id: 77, code: '25', fullName: 'عائد من إجازة' }]);
+    payrollFindMany.mockResolvedValue([]);
+
+    const result = await payrollService.stats({ month: '7', year: '2026', status: 'APPROVED' });
+
+    expect(result.missingPayrollCount).toBe(1);
+  });
+
+  it('skips gap detection entirely when no period is selected', async () => {
+    employeeFindMany.mockResolvedValue([{ id: 77, code: '25', fullName: 'عائد من إجازة' }]);
+
+    const result = await payrollService.stats({ employeeId: '7' });
+
+    expect(result.missingPayrollCount).toBe(0);
+    expect(result.missingPayrollEmployees).toEqual([]);
   });
 
   it('reports counts independent of pagination (same result regardless of page)', async () => {

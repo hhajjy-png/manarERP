@@ -78,6 +78,21 @@ export interface MonthFilters {
   status?: string;
 }
 
+/** Minimal identity of an eligible employee the period does not represent. No
+ *  personal data beyond what the grid already shows for every other row. */
+export interface MissingPayrollEmployee {
+  employeeId: number;
+  employeeCode: string;
+  employeeName: string;
+}
+
+export interface PayrollEligibilityGap {
+  eligibleCount: number;
+  representedCount: number;
+  missingPayrollCount: number;
+  missingPayrollEmployees: MissingPayrollEmployee[];
+}
+
 // ── Route-id safety ──────────────────────────────────────────────────────────
 
 export function isImportedRowId(raw: string): boolean {
@@ -269,4 +284,72 @@ export async function buildUnifiedMonthRows(month: number, year: number, filters
   const computed = await fetchComputedRowsForMonth(month, year, filters);
   const imported = filters.status ? [] : await resolveImportedRowsForMonth(month, year, { employeeId: filters.employeeId });
   return [...computed, ...imported];
+}
+
+// ── Eligibility gap ──────────────────────────────────────────────────────────
+
+/**
+ * Employees who are payroll-eligible RIGHT NOW but whom the selected period does
+ * not represent at all — the silent-omission detector.
+ *
+ * WHY THIS EXISTS
+ * ---------------
+ * `payroll` rows are a materialized snapshot: `generate` samples `status = 'ACTIVE'`
+ * once, at the instant the operator clicks it, and freezes the result. An employee who
+ * is ON_LEAVE at that instant gets no row, and returning to ACTIVE afterwards creates
+ * nothing — the grid reads rows, not eligibility, so the person simply is not there.
+ * Nothing in the system ever noticed. This function is the reconciliation the snapshot
+ * model never had: it re-evaluates eligibility against LIVE employee data and reports
+ * who the frozen snapshot is missing.
+ *
+ * STRICTLY READ-ONLY. It creates nothing, updates nothing, and deletes nothing — the
+ * caller is a GET. Materialization stays an explicit operator action (`generate`), so
+ * merely opening the Salaries page can never write payroll rows. Detection tells the
+ * operator someone is missing; only the operator decides to pay them.
+ *
+ * "Represented" deliberately means ANY payroll row for the period — including
+ * CANCELLED. A cancelled payslip still renders in the grid, so the employee is visible
+ * and accounted for; re-flagging them would nag the operator about a decision they
+ * made on purpose. Imported bank transfers count as representation too, via the same
+ * identity resolution the grid itself uses — so a historical month settled outside
+ * manarERP never reports a false gap.
+ *
+ * Callers must NOT pass a workflow-status filter: a status filter narrows which rows
+ * are *displayed*, but an employee hidden by a filter is not missing from the period.
+ * Conflating the two is exactly how a stale persisted filter would fake a gap.
+ */
+export async function findPayrollEligibilityGap(
+  month: number,
+  year: number,
+  filters: { employeeId?: number } = {},
+): Promise<PayrollEligibilityGap> {
+  const employeeWhere: Prisma.EmployeeWhereInput = { status: 'ACTIVE' };
+  if (filters.employeeId != null) employeeWhere.id = filters.employeeId;
+
+  const [eligible, computedRows, importedRows] = await Promise.all([
+    prisma.employee.findMany({
+      where: employeeWhere,
+      select: { id: true, code: true, fullName: true },
+      orderBy: { code: 'asc' },
+    }),
+    // Every status, CANCELLED included — see "Represented" above.
+    prisma.payroll.findMany({ where: { month, year }, select: { employeeId: true } }),
+    resolveImportedRowsForMonth(month, year, { employeeId: filters.employeeId }),
+  ]);
+
+  const represented = new Set<number>(computedRows.map((r) => r.employeeId));
+  for (const row of importedRows) if (row.employeeId != null) represented.add(row.employeeId);
+
+  const missing = eligible.filter((e) => !represented.has(e.id));
+
+  return {
+    eligibleCount: eligible.length,
+    representedCount: eligible.length - missing.length,
+    missingPayrollCount: missing.length,
+    missingPayrollEmployees: missing.map((e) => ({
+      employeeId: e.id,
+      employeeCode: e.code,
+      employeeName: e.fullName,
+    })),
+  };
 }

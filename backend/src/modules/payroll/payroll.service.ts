@@ -41,6 +41,7 @@ import {
 } from './payroll.calc';
 import {
   buildUnifiedMonthRows,
+  findPayrollEligibilityGap,
   resolveImportedRowsForMonth,
   toUnifiedComputed,
 } from './payrollMonth.readModel';
@@ -157,6 +158,18 @@ export class PayrollService {
       importedNet = round3(imported.reduce((sum, r) => sum + r.netSalary, 0));
     }
 
+    // Eligibility gap — ACTIVE employees this period does not represent at all.
+    // Deliberately computed WITHOUT `query.status`: a workflow-status filter changes
+    // which rows are displayed, not who the period is missing. Honouring it here would
+    // let a stale persisted filter (`sal:status`) suppress the very warning that tells
+    // the operator someone is absent — the failure mode this pack exists to end.
+    // Requires a concrete period; without one there is nothing to reconcile against.
+    const gap = query.month && query.year
+      ? await findPayrollEligibilityGap(Number(query.month), Number(query.year), {
+          employeeId: query.employeeId ? Number(query.employeeId) : undefined,
+        })
+      : { missingPayrollCount: 0, missingPayrollEmployees: [], eligibleCount: 0, representedCount: 0 };
+
     return {
       count: computedCount + importedCount,
       // Gross is computed-only — imported transfers are net amounts with no gross.
@@ -167,6 +180,8 @@ export class PayrollService {
       importedCount,
       importedNet,
       grossIsPartial: importedCount > 0,
+      missingPayrollCount: gap.missingPayrollCount,
+      missingPayrollEmployees: gap.missingPayrollEmployees,
     };
   }
 
@@ -389,18 +404,51 @@ export class PayrollService {
     return { generated: items.length, items };
   }
 
+  /**
+   * Materialize payroll for a period — INCREMENTALLY.
+   *
+   * The lock used to be month-wide: one APPROVED payslip anywhere in the period aborted
+   * the whole transaction, so an employee who became eligible after the month was
+   * generated could not be added without first un-approving everyone else. That made the
+   * only recovery path for a returning employee (re-generate) unusable in practice.
+   *
+   * Now the lock is per-employee. Each targeted employee is classified independently:
+   *
+   *   • no row yet          → CREATE  (this is how a returning ACTIVE employee reappears)
+   *   • existing DRAFT      → UPDATE  (unchanged recalculation semantics)
+   *   • APPROVED/PAID/other → SKIP    (never modified, never deleted, never recreated)
+   *
+   * Non-DRAFT rows are financially settled records: they are not read, not rewritten, and
+   * their lines are not touched. `@@unique([employeeId, month, year])` plus `upsert` keep
+   * this idempotent — re-running can never duplicate a row.
+   *
+   * If there is genuinely nothing to write and something WAS locked, the original error is
+   * still raised: a deliberate re-generate of a fully-approved month is an operator mistake
+   * worth reporting, not a silent no-op.
+   */
   async generate(input: PayrollPeriodInput, req: Request) {
     const snapshots = await this.buildSnapshots(input);
     const result = await prisma.$transaction(async (tx) => {
       const employeeIds = snapshots.map((s) => s.employeeId);
       const existing = await tx.payroll.findMany({
         where: { employeeId: { in: employeeIds }, month: input.month, year: input.year },
+        select: { employeeId: true, status: true },
       });
-      const locked = existing.find((p) => p.status !== 'DRAFT');
-      if (locked) throw AppError.badRequest('لا يمكن إعادة توليد كشف راتب معتمد أو مدفوع');
+      const lockedEmployeeIds = new Set(existing.filter((p) => p.status !== 'DRAFT').map((p) => p.employeeId));
+      const draftEmployeeIds = new Set(existing.filter((p) => p.status === 'DRAFT').map((p) => p.employeeId));
 
+      const writable = snapshots.filter((s) => !lockedEmployeeIds.has(s.employeeId));
+      const skippedLocked = snapshots.length - writable.length;
+      if (writable.length === 0 && skippedLocked > 0) {
+        throw AppError.badRequest('لا يمكن إعادة توليد كشف راتب معتمد أو مدفوع');
+      }
+
+      let created = 0;
+      let updated = 0;
       const items = [];
-      for (const snapshot of snapshots) {
+      for (const snapshot of writable) {
+        if (draftEmployeeIds.has(snapshot.employeeId)) updated += 1;
+        else created += 1;
         const payrollData = {
           baseSalary: snapshot.baseSalary,
           snapshotBaseSalary: snapshot.snapshotBaseSalary,
@@ -435,11 +483,31 @@ export class PayrollService {
         });
         items.push(payroll);
       }
-      return items;
+      return { items, created, updated, skippedLocked };
     });
 
-    await recordAudit({ req, action: 'CREATE', module: 'payroll', newValue: { month: input.month, year: input.year, count: result.length } });
-    return { generated: result.length, items: result };
+    await recordAudit({
+      req,
+      action: 'CREATE',
+      module: 'payroll',
+      newValue: {
+        month: input.month,
+        year: input.year,
+        count: result.items.length,
+        created: result.created,
+        updated: result.updated,
+        skippedLocked: result.skippedLocked,
+      },
+    });
+    // `generated` is preserved as the count of rows actually written (created + updated)
+    // so the existing client contract keeps working; the breakdown is additive.
+    return {
+      generated: result.items.length,
+      created: result.created,
+      updated: result.updated,
+      skippedLocked: result.skippedLocked,
+      items: result.items,
+    };
   }
 
   async update(id: number, input: UpdatePayrollInput, req: Request) {
