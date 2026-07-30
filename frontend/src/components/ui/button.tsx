@@ -38,20 +38,43 @@ const buttonVariants = cva(
   }
 )
 
-function Button({
-  className,
-  variant = "default",
-  size = "default",
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+/**
+ * ── لماذا `forwardRef` هنا رغم أن النسخة الأصلية (upstream) لا تستخدمه ──────────
+ *
+ * ملف shadcn الأصلي مكتوب لاصطلاح **React 19**، حيث صار `ref` خاصية عادية تصل ضمن
+ * `props` لمكوّنات الدوال. هذا المشروع يعمل على **React 18.3.1**، وفيها `createElement`
+ * ينتزع `ref` من خصائص JSX ولا يُمرّره لمكوّن دالة إطلاقًا، ويطبع:
+ *   «Function components cannot be given refs».
+ *
+ * الأثر لم يكن تجميليًا: `CalendarDayButton` في `ui/calendar.tsx` يحتاج عقدة الـDOM
+ * فعليًا (`ref.current?.focus()` عند `modifiers.focused`) — وهي آلية react-day-picker
+ * لتحريك التركيز بين الأيام بأسهم لوحة المفاتيح. وبلا تمرير الـref كان `ref.current`
+ * يبقى `null` أبدًا، فتتعطّل تلك الحركة بصمت.
+ *
+ * ولم يلتقطه TypeScript لأن النوع كان `React.ComponentProps<"button">` وهو **يتضمّن
+ * `ref`** — فيمرّ موضع النداء بالفحص بينما يُسقطه التشغيل. لذلك صار النوع
+ * `ComponentPropsWithoutRef` ومصدر `ref` الوحيد هو `forwardRef`: لا إعلان مزدوج،
+ * ولا فجوة بين ما يعد به النوع وما ينفّذه التشغيل.
+ *
+ * لا شيء آخر تغيّر: نفس `buttonVariants`، نفس الافتراضيات، نفس `data-*`، نفس دمج
+ * `className`، ونفس سلوك `asChild` (‏`Slot.Root` يدعم الـref أصلًا فيَدمجه مع ref الابن).
+ * يُراجَع عند الترقية إلى React 19 — حينها يعود الاصطلاح الأصلي كافيًا.
+ */
+const Button = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<"button"> &
+    VariantProps<typeof buttonVariants> & {
+      asChild?: boolean
+    }
+>(function Button(
+  { className, variant = "default", size = "default", asChild = false, ...props },
+  ref
+) {
   const Comp = asChild ? Slot.Root : "button"
 
   return (
     <Comp
+      ref={ref}
       data-slot="button"
       data-variant={variant}
       data-size={size}
@@ -59,6 +82,6 @@ function Button({
       {...props}
     />
   )
-}
+})
 
 export { Button, buttonVariants }

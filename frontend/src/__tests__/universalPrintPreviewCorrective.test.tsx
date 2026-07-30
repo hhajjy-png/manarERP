@@ -348,8 +348,11 @@ describe('نافذة المعاينة — التحسينات', () => {
 
   it('تمرير صفحة التطبيق مقفل أثناء الفتح ويعود بعد الإغلاق', () => {
     const c = code(dialogSrc);
-    expect(c).toContain("document.body.style.overflow = 'hidden'");
-    expect(c).toContain('document.body.style.overflow = prev');
+    // القفل صار عبر العدّاد المرجعي المشترك (`lib/scrollLock`) بدل كتابة
+    // `body.style.overflow` مباشرة — النيّة نفسها، والآلية آمنة عند التداخل.
+    expect(c).toContain('lockScroll()');
+    expect(c).toContain('unlockScroll()');
+    expect(c).not.toContain('document.body.style.overflow');
   });
 
   it('عدد الصفحات تقديري ولا أزرار تنقّل وهمية', async () => {

@@ -43,16 +43,14 @@ function formatIsoLocal(date: Date): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// Known, accepted limitation: the vendor `ui/calendar.tsx`/`ui/button.tsx`
-// target React 19's ref-as-prop convention (no `forwardRef`), so React 18
-// logs "Function components cannot be given refs" on every open, and
-// react-day-picker's programmatic keyboard day-focus silently no-ops. This
-// doesn't affect the shipped UX: the trigger is `aria-hidden`/`tabIndex={-1}`
-// (mouse-only by design, matching DateInput's own icon-button convention) and
-// Radix's own positioning primitives are unaffected (they are forwardRef).
-// Per the standing "shadcn files stay upstream-pure" rule, this is not
-// patched here — revisit if/when keyboard day-navigation is required, in the
-// deferred design-system restyling phase.
+// [مُحلّ — CalendarDayButton Ref Compatibility v1] كان `ui/button.tsx` مكتوبًا
+// لاصطلاح React 19 (ref كخاصية عادية) بينما المشروع على React 18، فكان React يطبع
+// "Function components cannot be given refs" عند كل فتح، ويبقى `ref.current` في
+// `CalendarDayButton` فارغًا فيتعطّل تحريك التركيز بين الأيام بالأسهم.
+// أُصلح العقد من جذره: `Button` صار يمرّر الـref عبر `forwardRef` (انظر الشرح في
+// `ui/button.tsx`). لا تغيير هنا ولا في `CalendarDayButton`.
+// يبقى المُشغِّل `aria-hidden`/`tabIndex={-1}` — الفتح بالفأرة عمدًا، مطابقًا
+// لاصطلاح زر أيقونة `DateInput` نفسه.
 export default function DateCalendarPicker({ value, onChange, min, max, disabled }: DateCalendarPickerProps) {
   const [open, setOpen] = useState(false);
   const selected = value ? parseIsoLocal(value) : undefined;

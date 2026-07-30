@@ -75,15 +75,32 @@ describe('FinancialPeriodProvider', () => {
     expect(screen.getByTestId('from').textContent).toBe(`${curYear}-01-01`);
   });
 
-  it('إعادة تركيب المزوّد تعيد السنة الحالية ولا تسترجع 2024 من localStorage', () => {
-    // نضع قيمة قديمة في التخزين للتأكد أن المزوّد لا يقرؤها إطلاقًا.
+  /**
+   * تحديث مقصود للعقد (Historical Data Period Reliability v1): الفترة صارت تنجو من
+   * **إعادة التحميل داخل نفس الجلسة** عبر `sessionStorage` — كان فقدانها الصامت يُعيد
+   * المستخدم إلى السنة الحالية وهو يظن أنه يراجع 2025.
+   *
+   * الشقّ الذي لم يتغيّر ويبقى مؤكَّدًا هنا: **لا قراءة ولا كتابة إلى `localStorage`
+   * إطلاقًا** — فلا تُثبَّت سنة تاريخية بين تشغيلَين للتطبيق.
+   * تغطية «جلسة جديدة ⇒ عودة للافتراضي» في `financialPeriodSession.test.tsx`.
+   */
+  it('لا يقرأ من localStorage إطلاقًا، ويصمد عبر إعادة التركيب داخل نفس الجلسة', () => {
+    // قيمة قديمة في localStorage — يجب أن تُتجاهَل تمامًا.
     localStorage.setItem('manar.period', JSON.stringify({ preset: 'year', selectedYear: 2024 }));
     const { unmount } = renderProbe();
     act(() => screen.getByText('year2024').click());
     expect(screen.getByTestId('preset').textContent).toBe('year');
     unmount();
 
-    // مزوّد جديد (يحاكي إعادة تشغيل التطبيق) → افتراضي، لا 2024.
+    // مزوّد جديد داخل نفس الجلسة (إعادة تحميل) → يبقى على اختيار المستخدم.
+    const second = renderProbe();
+    expect(screen.getByTestId('preset').textContent).toBe('year');
+    expect(screen.getByTestId('to').textContent).toContain('2024');
+    second.unmount();
+
+    // والمصدر هو sessionStorage لا localStorage: مسح الجلسة يعيد الافتراضي
+    // رغم بقاء قيمة 2024 في localStorage.
+    sessionStorage.clear();
     renderProbe();
     expect(screen.getByTestId('preset').textContent).toBe('year-to-date');
     expect(screen.getByTestId('to').textContent).not.toContain('2024');

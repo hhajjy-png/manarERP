@@ -18,6 +18,7 @@ import {
 } from 'react';
 import { useT } from '../../lib/i18n';
 import { useUI } from '../../stores/uiStore';
+import { lockScroll, unlockScroll } from '../../lib/scrollLock';
 
 export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -70,12 +71,14 @@ export function useFocusTrap(onClose: () => void) {
     };
     document.addEventListener('keydown', onKey);
 
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    // القفل عبر العدّاد المشترك (`lib/scrollLock`) لا بلقطة محلية: اللقطة كانت
+    // تلتقط `'hidden'` حين يُفتح هذا السطح فوق `Modal` مفتوح، ثم تُعيدها بعد أن
+    // يكون `Modal` قد أفرج عن القفل — فيبقى التمرير مقفلًا بلا نافذة على الشاشة.
+    lockScroll();
 
     return () => {
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
+      unlockScroll();
       previouslyFocused?.focus?.();
     };
     // Runs once on open; `onClose` is read via `onCloseRef` so a changing

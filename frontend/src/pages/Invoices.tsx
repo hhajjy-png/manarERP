@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useHighlight } from '../hooks/useHighlight';
@@ -24,7 +24,7 @@ import { canEditInvoice, collectionDateAction } from '../utils/invoiceGovernance
 import ExportExcelButton from '../components/ExportExcelButton';
 import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
-import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
+import { ARABIC_MONTHS } from '../utils/dateUtils';
 import CreateInvoice from './CreateInvoice';
 import EditInvoice from './EditInvoice';
 import AddPayment from './AddPayment';
@@ -235,8 +235,10 @@ export default function Invoices() {
   const [statusFilter, setStatusFilter] = usePersistedState('inv:status', '');
   const [directionFilter, setDirectionFilter] = usePersistedState('inv:direction', '');
   const [customerFilter, setCustomerFilter] = usePersistedState('inv:customer', '');
-  const [monthFilter, setMonthFilter] = usePersistedState('inv:month', '');
-  const [yearFilter, setYearFilter] = usePersistedState('inv:year', '');
+  // فلترا «شهر/سنة الفوترة» المحليان أُزيلا: كانا يُرسَلان كـ billingMonth/billingYear
+  // ويتقاطعان (AND) مع نطاق `issueDate` القادم من PeriodControl على عمودين مختلفين،
+  // فاختيار 2025 هنا مع فترة عليا 2026 كان يُنتج مجموعة فارغة حتمًا. المصدر الزمني
+  // الوحيد للقائمة صار PeriodControl. قدرة الـbackend على الفلترة بهما لم تُمسّ.
   // فرز خادمي موحّد (Enterprise Data Grid Foundation) — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
   const sort = useTableSort('invoices', () => setPage(1));
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -258,47 +260,58 @@ export default function Invoices() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [correcting, setCorrecting] = useState<any | null>(null);
 
-  const isFiltered = !!(search || statusFilter || directionFilter || customerFilter || monthFilter || yearFilter);
+  const isFiltered = !!(search || statusFilter || directionFilter || customerFilter);
 
   function resetFilters() {
     setSearch('');
     setStatusFilter('');
     setDirectionFilter('');
     setCustomerFilter('');
-    setMonthFilter('');
-    setYearFilter('');
     sort.reset();
     setPage(1);
   }
 
+  // الفترة العالمية على تاريخ الإصدار (from/to) — المصدر الزمني الوحيد. القائمة
+  // والإحصاء والتصدير يتشاركون هذه المعاملات حرفيًا، فلا ينحرف المُصدَّر عن المعروض.
+  const periodRange = periodToReportParams(period);
+  const filterParams = {
+    search: search || undefined,
+    status: statusFilter || undefined,
+    direction: directionFilter || undefined,
+    customerId: customerFilter || undefined,
+    from: periodRange.from,
+    to: periodRange.to,
+  };
+
+  /**
+   * رقم الطلب الجاري. تغيير الفترة/الفلاتر بسرعة يُطلق طلبات متتالية، وترتيب وصولها
+   * غير مضمون — فاستجابة قديمة بطيئة كانت تكتب فوق أحدث منها وتُظهر نتائج فترة سابقة.
+   * كل استدعاء يحجز رقمًا؛ ولا يُسمح بالكتابة في الحالة إلا لصاحب الرقم الأحدث.
+   * الحارس داخل `load` نفسها لا داخل الـeffect، فيغطّي أيضًا النداءات اليدوية
+   * (تحديث القائمة بعد حفظ/حذف) لا نداء الـeffect وحده.
+   */
+  const reqIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     setLoadError('');
-    // الفترة العالمية على تاريخ الإصدار (from/to)؛ القائمة والإحصاء يتشاركانها.
-    const periodRange = periodToReportParams(period);
-    const filterParams = {
-      search: search || undefined,
-      status: statusFilter || undefined,
-      direction: directionFilter || undefined,
-      customerId: customerFilter || undefined,
-      billingMonth: monthFilter || undefined,
-      billingYear: yearFilter || undefined,
-      from: periodRange.from,
-      to: periodRange.to,
-    };
     try {
       const res = await api.get('/invoices', { params: { page, pageSize: 15, ...filterParams, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) } });
+      if (reqId !== reqIdRef.current) return; // استجابة تجاوزها طلب أحدث — تُهمَل
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } catch (e) {
+      if (reqId !== reqIdRef.current) return;
       setLoadError(errorMessage(e));
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
     api.get('/invoices/stats', { params: filterParams })
-      .then((r) => setStats(r.data.data ?? null))
+      .then((r) => { if (reqId === reqIdRef.current) setStats(r.data.data ?? null); })
       .catch(() => { /* stats are non-critical */ });
-  }, [page, search, statusFilter, directionFilter, customerFilter, monthFilter, yearFilter, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, search, statusFilter, directionFilter, customerFilter, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
@@ -354,12 +367,7 @@ export default function Invoices() {
     setExportingExcel(true);
     try {
       const allRows = await fetchAllRows('/invoices', {
-        search: search || undefined,
-        status: statusFilter || undefined,
-        direction: directionFilter || undefined,
-        customerId: customerFilter || undefined,
-        billingMonth: monthFilter || undefined,
-        billingYear: yearFilter || undefined,
+        ...filterParams,
         ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
       });
       downloadTableExcel(
@@ -452,14 +460,7 @@ export default function Invoices() {
             <option value="">{t('opt.party_all')}</option>
             {customers.map((c) => <option key={c.id} value={c.id}>{resolveName(c, lang)}</option>)}
           </select>
-          <select className="xpl-select" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }} aria-label={t('lbl.inv.billing_period')}>
-            <option value="">{t('opt.month_all')}</option>
-            {ARABIC_MONTHS.map((name, idx) => <option key={idx + 1} value={idx + 1}>{name}</option>)}
-          </select>
-          <select className="xpl-select" value={yearFilter} onChange={(e) => { setYearFilter(e.target.value); setPage(1); }} aria-label={t('field.inv.billing_year_filter')}>
-            <option value="">{t('opt.year_all')}</option>
-            {billingYearOptions().map((y) => <option key={y} value={y}>{y}</option>)}
-          </select>
+          {/* أُزيل فلترا «شهر/سنة الفوترة» — النطاق الزمني من PeriodControl وحده. */}
           {isFiltered && <button type="button" className="xpl-clear-link" onClick={resetFilters}>{t('action.reset_filters')}</button>}
           <span className="xpl-result-count" style={{ marginInlineStart: 'auto' }}>{(meta?.total ?? rows.length)} {t('page.dashboard.invoice_unit')}</span>
         </div>
@@ -701,7 +702,6 @@ export default function Invoices() {
             direction: directionFilter || undefined,
             status: statusFilter || undefined,
             customerId: customerFilter || undefined,
-            billingYear: yearFilter || undefined,
           }}
           onClose={() => setShowMonthlyReport(false)}
         />

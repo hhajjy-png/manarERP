@@ -228,7 +228,7 @@ describe('Canvas والتمرير والتوسيط', () => {
     expect(CSS).toMatch(/\.pc-canvas\s*\{[\s\S]*?overflow:\s*auto/);
     expect(CSS).toMatch(/overscroll-behavior:\s*contain/);
     const src = readFileSync('src/printing/components/PrintPreviewDialog.tsx', 'utf8');
-    expect(src).toContain("document.body.style.overflow = 'hidden'"); // الصفحة خلفه مقفلة
+    expect(src).toContain('lockScroll()'); // الصفحة خلفه مقفلة (عبر العدّاد المشترك)
   });
 
   it('حشوة 40–60px حول الورقة، تتقلّص تدريجيًا', () => {
