@@ -152,7 +152,13 @@ describe('Print Center Foundation — scope discipline', () => {
     // The cheque print engine's own anchors are exactly as they were.
     expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_X_MM: number = 0;');
     expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;');
-    expect(cheques).toContain('@page { size: A4 landscape; }');
+    // Classic's page is now pinned by the shared cheque print contract instead of
+    // the old bare `@page { size: A4 landscape; }` (which left the MARGINS — and so
+    // the page box every Classic field percentage is measured against — to the
+    // printer driver). Deterministic Geometry & Unified Pipeline Pack v1. Still
+    // owned by the cheque module, still nothing to do with the Print Center.
+    expect(cheques).toContain('cssPageRule(CLASSIC_PAGE)');
+    expect(cheques).toContain("from '../modules/chequePrint'");
 
     const calibrator = readFileSync('src/components/ChequeCalibrator.tsx', 'utf8');
     expect(calibrator).not.toContain('submitPrintJob');

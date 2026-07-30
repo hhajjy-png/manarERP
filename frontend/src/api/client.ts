@@ -25,8 +25,15 @@ declare global {
       chooseSavePath: (n: string) => Promise<string | null>;
       chooseBackupFile: () => Promise<string | null>;
       restartApp: () => Promise<void>;
-      /** يُحل بالنتيجة الحقيقية من Electron بعد إغلاق حوار الطباعة (راجع utils/print.ts). */
-      printPage: (options?: { landscape?: boolean }) => Promise<{ success: boolean; failureReason?: string }>;
+      /** يُحل بالنتيجة الحقيقية من Electron بعد إغلاق حوار الطباعة (راجع utils/print.ts).
+       *  خيارات الهندسة الفيزيائية إضافية واختيارية — تستخدمها طباعة الشيكات لتثبيت
+       *  مقاس الورق/الهوامش/المقياس (راجع modules/chequePrint/physicalPage.ts). */
+      printPage: (options?: {
+        landscape?: boolean;
+        pageSize?: string | { width: number; height: number };
+        marginType?: 'default' | 'none' | 'printableArea' | 'custom';
+        scaleFactor?: number;
+      }) => Promise<{ success: boolean; failureReason?: string }>;
       getAppInfo: () => Promise<{ version: string; platform: string }>;
       // ─── Backup / Restore IPC ────────────────────────────────────────────────
       backupCreate: () => Promise<{

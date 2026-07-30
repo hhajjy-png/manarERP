@@ -43,6 +43,11 @@ const FIELDS: DesignerField[] = [{
   id: 'note', label: '', value: 'x', x: 10, y: 10, width: 20, height: 6, rotation: 0,
   fontSize: 12, fontWeight: 400, textAlign: 'left', color: '#000000', zIndex: 1, visible: true,
 }];
+// Real print state must carry runtime data (Cheque Printing Data Integrity &
+// Formatting Pack v1): a state with only a layout is rejected so mock/sample
+// values can never reach cheque paper. These tests exercise TRACKING, so the data
+// only has to be present and well-formed.
+const RUNTIME = { beneficiary: 'Ali', chequeDate: '02 / 08 / 2026', amount: '#1,370.000#' };
 
 function renderPage(state: Record<string, unknown>) {
   return render(
@@ -60,7 +65,7 @@ describe('ChequeTemplatePrintPage — print-result tracking', () => {
     vi.mocked(printCurrentViewWithResult).mockResolvedValue({ outcome: 'success' });
     vi.mocked(markChequePrinted).mockResolvedValue({ id: 5, status: 'PRINTED', printedAt: null, paymentVoucherNumber: null });
 
-    renderPage({ surface: SURFACE, fields: FIELDS, tracking: { id: 5, status: 'DRAFT', chequeNumber: 'C-1', beneficiaryName: 'Ali' } });
+    renderPage({ surface: SURFACE, fields: FIELDS, runtimeData: RUNTIME, tracking: { id: 5, status: 'DRAFT', chequeNumber: 'C-1', beneficiaryName: 'Ali' } });
 
     fireEvent.click(screen.getByRole('button', { name: /طباعة/ }));
     await flushAsyncUpdates();
@@ -74,7 +79,7 @@ describe('ChequeTemplatePrintPage — print-result tracking', () => {
     vi.mocked(printCurrentViewWithResult).mockResolvedValue({ outcome: 'success' });
     vi.mocked(reprintCheque).mockResolvedValue({ id: 9, status: 'PRINTED', printedAt: null, paymentVoucherNumber: null });
 
-    renderPage({ surface: SURFACE, fields: FIELDS, tracking: { id: 9, status: 'PRINTED', chequeNumber: 'C-2', beneficiaryName: 'Sara' } });
+    renderPage({ surface: SURFACE, fields: FIELDS, runtimeData: RUNTIME, tracking: { id: 9, status: 'PRINTED', chequeNumber: 'C-2', beneficiaryName: 'Sara' } });
 
     fireEvent.click(screen.getByRole('button', { name: /طباعة/ }));
     await flushAsyncUpdates();
@@ -92,7 +97,7 @@ describe('ChequeTemplatePrintPage — print-result tracking', () => {
   it('never offers tracking and never marks printed when the print was cancelled', async () => {
     vi.mocked(printCurrentViewWithResult).mockResolvedValue({ outcome: 'cancelled', failureReason: 'Print job canceled' });
 
-    renderPage({ surface: SURFACE, fields: FIELDS, tracking: { id: 5, status: 'DRAFT', chequeNumber: 'C-1', beneficiaryName: 'Ali' } });
+    renderPage({ surface: SURFACE, fields: FIELDS, runtimeData: RUNTIME, tracking: { id: 5, status: 'DRAFT', chequeNumber: 'C-1', beneficiaryName: 'Ali' } });
 
     fireEvent.click(screen.getByRole('button', { name: /طباعة/ }));
     await flushAsyncUpdates();
@@ -105,7 +110,7 @@ describe('ChequeTemplatePrintPage — print-result tracking', () => {
   it('never offers tracking when the print result is an error', async () => {
     vi.mocked(printCurrentViewWithResult).mockResolvedValue({ outcome: 'error', failureReason: 'Invalid printer settings' });
 
-    renderPage({ surface: SURFACE, fields: FIELDS, tracking: { id: 5, status: 'DRAFT', chequeNumber: 'C-1', beneficiaryName: 'Ali' } });
+    renderPage({ surface: SURFACE, fields: FIELDS, runtimeData: RUNTIME, tracking: { id: 5, status: 'DRAFT', chequeNumber: 'C-1', beneficiaryName: 'Ali' } });
 
     fireEvent.click(screen.getByRole('button', { name: /طباعة/ }));
     await flushAsyncUpdates();

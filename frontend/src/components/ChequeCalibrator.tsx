@@ -1203,6 +1203,19 @@ export default function ChequeCalibrator({
               </button>
               {showGeom && (
                 <>
+                  {/* TRUTHFUL SCOPE (Deterministic Geometry & Unified Pipeline Pack
+                      v1). These values drive the calibration TEST SHEET and the
+                      Measurement Assistant only — the backend schema says so too
+                      ("Does NOT affect the real print engine"). Production cheque
+                      printing takes its physical page from the shared contract in
+                      modules/chequePrint/physicalPage.ts. Wiring this into
+                      production would layer a second coordinate system over the
+                      Designer templates, so it is deliberately NOT done here; the
+                      migration is documented in the pack report. The note below
+                      exists so the UI never implies otherwise. */}
+                  <p className="chq-geom__scope-note">
+                    {t('note.calib.geometry_test_sheet_only')}
+                  </p>
                   <div className="chq-geom__grid">
                     {GEOMETRY_FIELDS.map((gf) => (
                       <label key={gf.key}>

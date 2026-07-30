@@ -17,8 +17,10 @@
  */
 import { clampNumber, PHYSICAL_CHEQUE_SURFACE_CM } from '../chequeTemplateDesigner';
 import type { DesignerSurfaceSpec, DesignerTextAlign } from '../chequeTemplateDesigner';
+import { textDefinitelyOverflows } from '../chequePrint/textFit';
 import { MOCK_RUNTIME_DATA } from './mockRuntimeData';
 import {
+  REQUIRED_PRINT_KEYS,
   SEMANTIC_KEYS,
   type RenderIssue,
   type ResolvedGeometry,
@@ -31,6 +33,7 @@ import {
 } from './runtimeTypes';
 
 const KNOWN_KEYS = new Set<string>(SEMANTIC_KEYS);
+const REQUIRED_KEYS = new Set<string>(REQUIRED_PRINT_KEYS);
 const DEFAULT_FONT_SIZE = 12;
 const DEFAULT_FONT_WEIGHT = 400;
 const DEFAULT_WIDTH = 10;
@@ -61,24 +64,69 @@ export function isSemanticKey(value: unknown): value is SemanticKey {
 }
 
 /**
+ * Legacy field-id → semantic-key aliases, used ONLY when a stored field carries
+ * no explicit `binding`.
+ *
+ * Templates saved before the Data Binding pack shipped have no `binding` property
+ * at all, so they rely on id-inference below. Three of the four standard field
+ * ids happen to BE semantic keys (`beneficiary`, `amount`, `amountInWords`) and so
+ * kept working; the date field's id is `'date'` while its canonical key is
+ * `'chequeDate'`, so inference returned null and every such template silently
+ * printed its design-time sample date instead of the real cheque date.
+ *
+ * This map closes that namespace gap for existing templates without rewriting
+ * stored data. It is a bounded legacy concern: `normalizeFieldBindings` below
+ * upgrades templates to explicit bindings as they are loaded and re-saved.
+ */
+export const LEGACY_FIELD_ID_ALIASES: Readonly<Record<string, SemanticKey>> = {
+  date: 'chequeDate',
+};
+
+/**
  * Default binding resolution — the single source of truth for "is this field
  * bound, and to what".
  *
  * Primary source is the field's explicit `binding` (set by the Data Source
  * dropdown): a valid semantic key binds the field; any other stored value
- * (`'none'`, `'custom'`, unknown) means static/layout-only. Only when a field
- * carries NO `binding` at all do we fall back to id-inference (legacy fields
- * whose `id` happens to be a semantic key). A future pack can replace this
- * without touching the rest of the engine.
+ * (`'none'`, `'custom'`, unknown) means static/layout-only — an explicit binding
+ * is ALWAYS authoritative and is never second-guessed by the legacy aliases.
+ * Only when a field carries NO `binding` at all do we fall back to id-inference:
+ * first the id itself when it is a semantic key, then the legacy alias map.
  */
 export function defaultBindingResolver(field: { id: string; binding?: string }): SemanticKey | null {
   if (field.binding !== undefined) {
     return isSemanticKey(field.binding) ? field.binding : null;
   }
-  return isSemanticKey(field.id) ? field.id : null;
+  if (isSemanticKey(field.id)) return field.id;
+  return LEGACY_FIELD_ID_ALIASES[field.id] ?? null;
 }
 
-/** Merge provided runtime data over the mock defaults (placeholder for real binding). */
+/**
+ * Upgrade legacy stored fields to an EXPLICIT `binding`, in memory.
+ *
+ * Fields that already declare a `binding` (including the deliberate `'none'` /
+ * `'custom'` static markers) are returned untouched — user intent wins. A field
+ * with no `binding` gets the one `defaultBindingResolver` infers for it, so the
+ * corrected shape is what the designer edits and what the next ordinary save
+ * persists. Nothing is written here: this is a pure function, and no template is
+ * ever deleted or recreated.
+ */
+export function normalizeFieldBindings<T extends { id: string; binding?: string }>(fields: T[]): T[] {
+  return fields.map((field) => {
+    if (field.binding !== undefined) return field;
+    const inferred = defaultBindingResolver(field);
+    return inferred ? { ...field, binding: inferred } : field;
+  });
+}
+
+/**
+ * DESIGN-MODE runtime values: provided data merged over the mock placeholders, so
+ * a bound field shows something meaningful while the layout is being edited.
+ *
+ * NEVER call this on a real cheque print path — the mock is the reason a print
+ * could once show `شركة الخليج للمقاولات` / `3500.000 KD`. `resolveChequeTemplateForPrint`
+ * deliberately does not use it.
+ */
 export function resolveRuntimeValues(data?: RuntimeData): RuntimeData {
   return { ...MOCK_RUNTIME_DATA, ...(data ?? {}) };
 }
@@ -202,6 +250,55 @@ function resolveGeometry(field: SafeField, surface: ResolvedSurface): ResolvedGe
   };
 }
 
+/**
+ * Per-field text resolution, with the print-mode integrity guard.
+ *
+ * Design mode keeps the historical behaviour exactly: bound value if present,
+ * else the field's own static value, never an issue.
+ *
+ * Print mode treats a bound-but-unresolved field as a defect rather than an
+ * opportunity to substitute placeholder text — see `resolveChequeTemplateForPrint`.
+ */
+function resolveText(
+  field: SafeField,
+  runtime: RuntimeData,
+  binding: SemanticKey | null,
+  mode: ResolveMode,
+): { text: string; issue?: RenderIssue } {
+  const bound = binding ? runtime[binding] : undefined;
+  const hasValue = bound !== undefined && bound !== '';
+
+  if (hasValue) return { text: bound };
+
+  // Not bound at all: genuine static template text (a label, or an explicit
+  // 'none'/'custom' field). Always legitimate, in either mode.
+  if (!binding) return { text: field.value };
+
+  if (mode === 'design') return { text: field.value };
+
+  // Print mode, bound, no real value.
+  if (REQUIRED_KEYS.has(binding)) {
+    return {
+      text: '',
+      issue: {
+        code: 'UNRESOLVED_DATA_BINDING',
+        severity: 'error',
+        fieldId: field.id,
+        message: `الحقل «${field.id}» مرتبط ببيانات الشيك (${binding}) لكن لا توجد قيمة حقيقية له — الطباعة موقوفة حتى لا تُطبع قيمة تجريبية على شيك حقيقي.`,
+      },
+    };
+  }
+  return {
+    text: field.value,
+    issue: {
+      code: 'UNRESOLVED_DATA_BINDING',
+      severity: 'info',
+      fieldId: field.id,
+      message: `الحقل «${field.id}» مرتبط بـ (${binding}) بلا قيمة — يُطبع نصه الثابت.`,
+    },
+  };
+}
+
 function emptyModel(issues: RenderIssue[]): ResolvedRenderModel {
   return {
     surface: resolveSurface(undefined, []),
@@ -214,8 +311,16 @@ function emptyModel(issues: RenderIssue[]): ResolvedRenderModel {
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
+/** How a field's text is resolved. See `resolveChequeTemplate` vs `resolveChequeTemplateForPrint`. */
+type ResolveMode = 'design' | 'print';
+
 /**
  * Resolve a cheque template + runtime data into a fully-resolved render model.
+ *
+ * DESIGN MODE. Runtime values are the mock placeholders overridden by whatever
+ * `data` supplies, and an unresolved bound field falls back to its own static
+ * value — both are wanted while a layout is being edited. This is NOT safe for
+ * printing a real cheque; use `resolveChequeTemplateForPrint` for that.
  *
  * @param template     the stored template layout (surface + fields)
  * @param data         runtime values; defaults to the mock placeholder, and any
@@ -227,6 +332,48 @@ export function resolveChequeTemplate(
   data?: RuntimeData,
   bindingResolver: (field: { id: string; binding?: string }) => SemanticKey | null = defaultBindingResolver,
 ): ResolvedRenderModel {
+  return resolveModel(template, data, bindingResolver, 'design');
+}
+
+/**
+ * Resolve a template for PRINTING A REAL CHEQUE — the hardened entry point.
+ *
+ * Differs from design mode in exactly two ways, both of them safety properties:
+ *
+ *   1. `MOCK_RUNTIME_DATA` is structurally unreachable. Only the caller's real
+ *      `data` is consulted, so no mock beneficiary, date, or amount can ever be
+ *      composed into a printable model — not even for a key the caller forgot.
+ *   2. An unresolved binding is REPORTED, never papered over. A field bound to a
+ *      `REQUIRED_PRINT_KEYS` key that has no real value resolves to empty text and
+ *      raises an `error`, which sets `meta.hasErrors` and so blocks the print
+ *      button. A field bound to a supporting key keeps its static value and
+ *      raises `info`. Unbound (`'none'` / `'custom'` / non-semantic) fields are
+ *      genuine static template text and are left completely alone.
+ *
+ * Absent `data` entirely is itself an error: a real print always has runtime data.
+ */
+export function resolveChequeTemplateForPrint(
+  template: RuntimeTemplateInput | null | undefined,
+  data: RuntimeData | null | undefined,
+  bindingResolver: (field: { id: string; binding?: string }) => SemanticKey | null = defaultBindingResolver,
+): ResolvedRenderModel {
+  if (!data || typeof data !== 'object') {
+    return emptyModel([{
+      code: 'UNRESOLVED_DATA_BINDING',
+      severity: 'error',
+      fieldId: null,
+      message: 'لا توجد بيانات شيك حقيقية للطباعة. أعد فتح الطباعة من صفحة الشيكات.',
+    }]);
+  }
+  return resolveModel(template, data, bindingResolver, 'print');
+}
+
+function resolveModel(
+  template: RuntimeTemplateInput | null | undefined,
+  data: RuntimeData | undefined | null,
+  bindingResolver: (field: { id: string; binding?: string }) => SemanticKey | null,
+  mode: ResolveMode,
+): ResolvedRenderModel {
   // ── Validate template shape ──
   if (!template || typeof template !== 'object' || !Array.isArray(template.fields)) {
     return emptyModel([{ code: 'INVALID_TEMPLATE', severity: 'error', fieldId: null, message: 'القالب غير صالح أو غير موجود.' }]);
@@ -234,7 +381,8 @@ export function resolveChequeTemplate(
 
   const issues: RenderIssue[] = [];
   const surface = resolveSurface(template.surface, issues);
-  const runtime = resolveRuntimeValues(data);
+  // Print mode consults ONLY the caller's real data — the mock never participates.
+  const runtime: RuntimeData = mode === 'print' ? { ...(data ?? {}) } : resolveRuntimeValues(data ?? undefined);
 
   if (template.fields.length === 0) {
     issues.push({ code: 'EMPTY_TEMPLATE', severity: 'error', fieldId: null, message: 'القالب لا يحتوي على أي حقول.' });
@@ -248,9 +396,22 @@ export function resolveChequeTemplate(
     if (!field) return;
 
     const binding = bindingResolver(field);
+    const { text, issue } = resolveText(field, runtime, binding, mode);
+    if (issue) issues.push(issue);
+    // Print mode only: a value that cannot fit its own box would be clipped by the
+    // renderer. Clipping protects the neighbouring fields, but an amount or payee
+    // must never be silently cropped on a real cheque — so report and block.
+    if (mode === 'print' && field.visible && textDefinitelyOverflows(text, field.fontSize, field.width, surface.widthCm)) {
+      issues.push({
+        code: 'FIELD_TEXT_OVERFLOW',
+        severity: 'error',
+        fieldId: field.id,
+        message: `القيمة في الحقل «${field.id}» أطول من عرض الحقل ولا يمكن طباعتها كاملة — وسّع الحقل أو صغّر الخط في القالب. الطباعة موقوفة حتى لا تُطبع قيمة ناقصة.`,
+      });
+    }
     resolved.push({
       id: field.id,
-      text: resolveFieldText(field, runtime, binding),
+      text,
       binding,
       geometry: resolveGeometry(field, surface),
       font: { sizePx: field.fontSize, weight: field.fontWeight },

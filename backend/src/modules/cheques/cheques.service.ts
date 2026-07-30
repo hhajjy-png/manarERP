@@ -145,7 +145,25 @@ export class ChequesService {
     const current = await prisma.cheque.findUnique({ where: { id } });
     if (!current) throw AppError.notFound('الشيك غير موجود');
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تعديل شيك ملغي');
-    if (current.status === 'PRINTED') throw AppError.badRequest('لا يمكن تعديل شيك مطبوع');
+    // Cheque Printed Record Editing Fix v1 — a PRINTED cheque stays editable.
+    //
+    // The cheques module is an operational/reference register for PRINTING, not an
+    // immutable financial ledger: it posts nothing to the GL and owns no accounting
+    // entry. Locking a record the moment it was printed meant a mis-keyed payee,
+    // amount or date could never be corrected — the operator had to cancel and
+    // re-create, which broke the cheque-number continuity the register exists to
+    // preserve. Editing is therefore allowed at any status except CANCELLED (a
+    // cancelled cheque is genuinely terminal and its guard above is untouched).
+    //
+    // The edit is still fully accountable and non-destructive:
+    //   • `recordAudit` below logs the UPDATE with the complete old and new values;
+    //   • print STATE is untouched — this method writes only the eight business
+    //     fields, never `status`, `printedAt`, `printCount`, `cancelledAt`, and it
+    //     never touches ChequePrintLog, so the print history of an already-printed
+    //     cheque survives an edit intact;
+    //   • the chequeNumber uniqueness check below still applies.
+    // Re-printing an edited PRINTED cheque continues to go through the existing
+    // reprint flow (justification + logged), which is deliberately unchanged.
 
     if (input.chequeNumber && input.chequeNumber !== current.chequeNumber) {
       const dup = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });

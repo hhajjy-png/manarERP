@@ -11,6 +11,16 @@
   background: #fff;
 }
 
+/* ── PHYSICAL PRINT GEOMETRY ────────────────────────────────────────────────
+   Same rule as the cheque surface: the A4 sheet may shrink to fit a screen
+   panel, but on paper it must be exactly 297 × 210 mm. Clamping it rescaled the
+   nested cheque slot and moved the cheque on the sheet. */
+@media print {
+  .cha4-sheet {
+    max-width: none;
+  }
+}
+
 .cha4-cheque-slot {
   position: absolute;
 }

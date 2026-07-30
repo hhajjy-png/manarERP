@@ -16,6 +16,7 @@
  * without changing the manager UI.
  */
 import type { DesignerField, DesignerSurfaceSpec } from '../../modules/chequeTemplateDesigner';
+import { normalizeFieldBindings } from '../../modules/chequeTemplateRuntime';
 
 const STORAGE_KEY = 'chequeDesigner.templates.v1';
 
@@ -40,13 +41,37 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+/**
+ * Load-time migration for LEGACY templates — non-destructive, in memory.
+ *
+ * Templates saved before the Data Binding pack shipped have no `binding` on any
+ * field. Because the date field's id is `'date'` while its canonical semantic key
+ * is `'chequeDate'`, such a template silently printed its design-time sample date
+ * instead of the real cheque date. Every read therefore hands out fields with
+ * explicit bindings restored, so:
+ *   - the designer, live preview and print pipeline all see the corrected shape,
+ *   - the next ORDINARY save persists it (no forced write, no template rewritten
+ *     behind the user's back, nothing deleted or recreated),
+ *   - a field the user deliberately marked `'none'` / `'custom'` is left alone.
+ *
+ * A template whose fields are missing or malformed degrades to an empty field
+ * list rather than throwing, exactly as the surrounding parse already did.
+ */
+function normalizeStoredTemplate(record: StoredChequeTemplate): StoredChequeTemplate {
+  if (!Array.isArray(record.fields)) return { ...record, fields: [] };
+  const fields = normalizeFieldBindings(record.fields);
+  // Preserve reference identity when nothing changed, so React memoisation and
+  // the designer's change detection do not see a phantom edit.
+  return fields.every((f, i) => f === record.fields[i]) ? record : { ...record, fields };
+}
+
 function readStore(): StoreShape {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { version: 1, templates: [] };
     const parsed = JSON.parse(raw) as StoreShape;
     if (!parsed || !Array.isArray(parsed.templates)) return { version: 1, templates: [] };
-    return { version: 1, templates: parsed.templates };
+    return { version: 1, templates: parsed.templates.map(normalizeStoredTemplate) };
   } catch {
     return { version: 1, templates: [] };
   }

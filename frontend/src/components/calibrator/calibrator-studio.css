@@ -133,6 +133,9 @@
 .chq-geom { border: 1px solid var(--xpl-border); border-radius: 12px; overflow: hidden; }
 .chq-geom__head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; background: var(--xpl-bg); border: none; cursor: pointer; font-size: 12.5px; font-weight: 800; color: var(--xpl-text); }
 .chq-geom__head .material-symbols-outlined { font-size: 18px !important; color: var(--xpl-orange); }
+/* Scope note — states plainly that these measurements drive the calibration test
+   sheet, not production cheque print geometry (which is pinned by the app). */
+.chq-geom__scope-note { margin: 0; padding: 10px 12px 0; font-size: 11.5px; line-height: 1.7; color: var(--xpl-muted); }
 .chq-geom__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; }
 .chq-geom__grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--xpl-muted); }
 .chq-geom__grid input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--xpl-border); background: var(--xpl-surface); color: var(--xpl-text); font-family: var(--app-font-mono); font-size: 13px; }
