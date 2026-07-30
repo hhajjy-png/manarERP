@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `589f7847` (merge of `feature/cheque-printing-reliability-pack-v1`, bundling the Cheque Printing Data Integrity & Formatting Pack v1, Deterministic Geometry & Unified Pipeline Pack v1, and Printed Record Editing Fix v1) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit — see `docs: fill in AI_CONTEXT.md's self-referencing documentation-commit hash`)* |
+| **Current Documentation Commit** | `feb228f` |
 | **Current Stable Tag** | `stable-cheque-printing-reliability-pack-v1` |
 | **Current Release Date** | 2026-07-30 |
 | **Total Stable Releases** | 383 (window 2026-06-07 → 2026-07-30) |
