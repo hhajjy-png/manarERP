@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `a6024c8c` (merge of `feature/customer-transport-terminology-and-ui-polish-pack-v1`, bundling Customer Transport Invoice Terminology Finalization v1, status-colored Cheques/Salaries row identifiers, and the Expenses breakdown show/hide toggle) |
-| **Current Documentation Commit** | `6b1945d` |
-| **Current Stable Tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` |
+| **Current Merge Commit** | `f9f3cb86` (merge of `feature/frontend-reliability-pack-v1`, bundling the Scroll Lock Leak Fix, Historical Data Period Reliability Fix v1, and CalendarDayButton Ref Compatibility Fix v1) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-frontend-reliability-pack-v1` |
 | **Current Release Date** | 2026-07-30 |
-| **Total Stable Releases** | 379 (window 2026-06-07 → 2026-07-30) |
+| **Total Stable Releases** | 380 (window 2026-06-07 → 2026-07-30) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,41 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Frontend Reliability Pack v1** (2026-07-30, `stable-frontend-reliability-pack-v1`) — bundles
+  three independently audited and reviewed fixes uncovered while preparing the system for historical
+  2025 data entry. **(1) Scroll Lock Leak Fix:** a shared reference-counted `lockScroll()`/
+  `unlockScroll()` (`frontend/src/lib/scrollLock.ts`) replaces independent `body.style.overflow`
+  management in `Modal`, `useFocusTrap`/`Dialog` (`ExplorerKit`), and `PrintPreviewDialog`. Root
+  cause: when a `Dialog` stacked on an open `Modal` (e.g. `CreateInvoice`'s save-confirmation step)
+  closed both surfaces in the same commit, cleanup ran in DOM order rather than open/close order —
+  the `Dialog`'s cleanup re-applied `'hidden'` after `Modal`'s had already cleared it, permanently
+  locking page scroll. The counter makes unlock order irrelevant. **(2) Historical Data Period
+  Reliability Fix v1:** `PeriodControl` is now the single time-range source for Invoices/Expenses;
+  removed the local `billingMonth`/`billingYear` table filters that silently ANDed against
+  `PeriodControl`'s `issueDate`/`date` range on a different column, making real historical records
+  (e.g. `MN-INV-2025-0004`) appear "missing." `FinancialPeriodContext` now persists the selected
+  period in `sessionStorage` (survives an in-session reload/HMR without resetting to the current
+  year; never `localStorage`, still resets to the safe default on a fresh app launch). Both screens'
+  list loads gained a request-id race guard; Excel export now shares the exact filter params as the
+  screen. Backend filtering capability, Prisma schema, and the Expense record's own
+  `billingMonth`/`billingYear` fields are untouched. **(3) CalendarDayButton Ref Compatibility Fix
+  v1:** `ui/button.tsx` (vendored shadcn primitive) now forwards its ref via `React.forwardRef` for
+  React 18 compatibility (the vendored file targeted React 19's ref-as-prop convention) — restoring
+  `react-day-picker`'s keyboard day-to-day focus navigation inside the date picker, silently broken
+  until now. No visual change, no date-semantic change (`DD/MM/YYYY` untouched), no
+  `Calendar`/`DateInput`/`DateCalendarPicker` API change. **Not changed anywhere in this release:**
+  backend, database, Prisma schema/migrations, accounting/GL, any API contract, invoice/expense
+  creation or posting logic, historical data, or the Google Drive sync engine (whose in-progress
+  Deployment Pack v1 work was present in the working tree but explicitly excluded from this release).
+  Feature commit `060260b6`, merge `f9f3cb86`. Validation: frontend `tsc --noEmit` ✅ · full vitest
+  suite 151 files/2415 tests — 143 passed files/2390 passed tests, 8 pre-existing failing
+  files/25 pre-existing failing tests (confirmed unchanged vs. baseline via an isolated HEAD-worktree
+  comparison, none in this release) + 63 new passing regression tests · `build:front` ✅ (re-verified
+  on `production` post-merge, identical) · backend/electron/Prisma untouched (frontend-only release).
+  Delivered as three separately AUDIT-ONLY-then-IMPLEMENTATION passes across prior sessions, each
+  stopped for visual review before proceeding; Product Owner manual visual review: approved, release
+  explicitly requested.
 
 - **Customer Transport Terminology & UI Polish Pack v1** (2026-07-30,
   `stable-customer-transport-terminology-and-ui-polish-pack-v1`) — bundles three separately

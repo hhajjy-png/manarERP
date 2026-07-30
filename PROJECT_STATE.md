@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `a6024c8c` — release `stable-customer-transport-terminology-and-ui-polish-pack-v1` (bundles Customer Transport Invoice Terminology Finalization v1, status-colored Cheques/Salaries row identifiers, and the Expenses breakdown show/hide toggle) |
+| **Production HEAD** | `f9f3cb86` — release `stable-frontend-reliability-pack-v1` (bundles Scroll Lock Leak Fix, Historical Data Period Reliability Fix v1, and CalendarDayButton Ref Compatibility Fix v1) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` (release date 2026-07-30) → merge `a6024c8c` |
-| **Previous stable tag** | `stable-invoice-number-status-color-v1` (2026-07-29) → merge `e5bb31df` |
-| **Total stable releases** | 379 (all merged onto `production`; window 2026-06-07 → 2026-07-30) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · `npm run build:back` ✅ · `npm run build:front` ✅ (all four: feature branch, re-verified on `production` immediately after merge — identical) · 211/211 targeted backend tests (`reports` + `invoices` + `statement.service.test.ts`) ✅ · 20/20 `referenceTypeScope.test.ts` (new permanent regression test) ✅ · electron/Prisma untouched, not re-run (no schema/IPC change in this release) · Claude Code Review — **APPROVE**, zero CRITICAL/HIGH/MEDIUM findings across all 15 files · Product Owner manual visual review — **completed & approved** for all three bundled items · scope confirmed: exactly 15 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` (Google Drive Deployment Pack v1 WIP) and all untracked Google Drive WIP paths surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched |
-| **Remote sync** | `origin/production` — pushed with this release (merge `a6024c8c` + tag `stable-customer-transport-terminology-and-ui-polish-pack-v1`) |
+| **Latest stable tag** | `stable-frontend-reliability-pack-v1` (release date 2026-07-30) → merge `f9f3cb86` |
+| **Previous stable tag** | `stable-customer-transport-terminology-and-ui-polish-pack-v1` (2026-07-30) → merge `a6024c8c` |
+| **Total stable releases** | 380 (all merged onto `production`; window 2026-06-07 → 2026-07-30) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge — identical) · full frontend vitest suite: 151 files / 2415 tests — 143 passed files, 2390 passed tests, 8 pre-existing failing files / 25 pre-existing failing tests (unchanged baseline, none in this release's 3 packages — confirmed via isolated HEAD-worktree comparison before starting) + 63 new passing regression tests across the three packages · `npm run build:front` ✅ · backend/electron/Prisma untouched, not re-run (frontend-only release) · scope confirmed: exactly 17 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all pre-existing git stashes confirmed untouched |
+| **Remote sync** | `origin/production` — pushed with this release (merge `f9f3cb86` + tag `stable-frontend-reliability-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,78 @@ in a table cell.
 
 ---
 
-## Latest Release — Customer Transport Terminology & UI Polish Pack v1
+## Latest Release — Frontend Reliability Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Frontend Reliability Pack v1 (Scroll Lock + Period Source + Calendar Ref) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-30 |
+| **Feature branch** | `feature/frontend-reliability-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `6eb6307d` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — Quick-Fix-scale UI-only bundle; no schema/IPC/backend surface touched |
+| **Feature commit** | `060260b6` |
+| **Production merge commit** | `f9f3cb86` |
+| **Stable tag** | `stable-frontend-reliability-pack-v1` → merge `f9f3cb86` (annotated) |
+| **Reviews** | Delivered as three separately-audited, user-reviewed fixes across prior sessions (AUDIT ONLY reports + IMPLEMENTATION passes, each stopped for visual review before proceeding) · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | frontend `tsc --noEmit` ✅ · full vitest suite 151 files / 2415 tests — 143 passed files / 2390 passed tests, 8 pre-existing failing files / 25 pre-existing failing tests (confirmed unchanged vs. baseline via isolated HEAD-worktree run before starting; none of the 8 are in this release's 3 packages) + 63 new passing regression tests · `npm run build:front` ✅ (feature branch + re-verified on `production` immediately after merge, identical) · backend/electron/Prisma not touched, not re-run (frontend-only release) |
+
+**Scope — bundles three independently audited fixes uncovered while preparing for historical 2025 data entry, 17 files:**
+
+**(1) Scroll Lock Leak Fix** — a shared reference-counted `lockScroll()`/`unlockScroll()`
+(`frontend/src/lib/scrollLock.ts`) replaces independent `document.body.style.overflow`
+management previously duplicated in `Modal.tsx`, `useFocusTrap`/`Dialog` (`ExplorerKit.tsx`), and
+`PrintPreviewDialog.tsx`. Root cause: when a `Dialog` (e.g. `CreateInvoice`'s save-confirmation
+step) is stacked on top of an open `Modal` and both unmount in the same commit (a successful save
+closes both at once), each surface's cleanup ran in DOM order rather than open/close order — the
+`Dialog`'s `useFocusTrap` cleanup re-applied `'hidden'` *after* `Modal`'s cleanup had already
+cleared it, permanently locking page scroll with no visible dialog left on screen. The counter
+makes unlock order irrelevant: only the first `lockScroll()` captures the pre-lock value, and only
+the last matching `unlockScroll()` restores it.
+
+**(2) Historical Data Period Reliability Fix v1** — `PeriodControl` (the global financial-period
+selector) is now the **single time-range source** for the Invoices and Expenses list screens. Root
+cause: both screens also carried a local "billing month/year" table filter
+(`billingMonth`/`billingYear`) that was ANDed server-side against `PeriodControl`'s
+`issueDate`/`date` range on a **different column** — selecting a historical year in one control
+while the other stayed on the current year silently produced zero rows, making real historical
+invoices/expenses (e.g. `MN-INV-2025-0004`) appear "missing" even though they were present and
+correctly stored. The local month/year filters are removed from these two screens only; backend
+filtering capability, Prisma schema, and the expense-record `billingMonth`/`billingYear` fields
+themselves are untouched (still written by the Expense create/edit form, still displayed in row
+detail). `FinancialPeriodContext` now persists the selected period's *input* (preset/year/range) in
+`sessionStorage` — surviving an in-session reload (including Vite HMR in dev) without silently
+resetting to the current year — while still resetting to the safe default ("year to date") on a
+fresh app launch (`localStorage` is never touched). Both screens' list-loading effects gained a
+request-id race guard so a slow, stale response for an old period selection can no longer overwrite
+a newer one already on screen. Excel export on both screens now shares the exact same filter
+params object as the visible list (previously it silently omitted the period range).
+
+**(3) CalendarDayButton Ref Compatibility Fix v1** — `frontend/src/components/ui/button.tsx` (a
+vendored shadcn primitive) now forwards its ref via `React.forwardRef`. Root cause: the vendored
+file was written for React 19's ref-as-a-regular-prop convention, while this project runs React
+18.3.1, where a plain function component silently drops any `ref` passed to it. This was not
+cosmetic — `react-day-picker`'s `CalendarDayButton` relies on that ref to call `.focus()` on the
+active day during keyboard navigation, so arrow-key day-to-day focus movement inside the date
+picker was silently broken (in addition to the visible React console warning). No visual change, no
+date-semantic change (`DD/MM/YYYY` display/parsing untouched), no `Calendar`/`DateInput`/
+`DateCalendarPicker` API change; `asChild` composition verified still correct.
+
+**Not changed:** backend, database, Prisma schema/migrations, accounting/GL, any API contract,
+invoice/expense creation or posting logic, historical data, Google Drive sync engine or its
+in-progress Deployment Pack v1 work, visual design, or date display/parsing semantics.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google
+Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`,
+`electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`,
+`electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled
+OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from
+`git add` and confirmed still present, unstaged, and unmodified in the working tree after the merge
+and push completed.
+
+---
+
+## Previous Release — Customer Transport Terminology & UI Polish Pack v1
 
 | Field | Value |
 |-------|-------|
