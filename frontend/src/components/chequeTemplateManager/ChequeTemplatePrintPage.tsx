@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { resolveChequeTemplate } from '../../modules/chequeTemplateRuntime';
+import { resolveChequeTemplateForPrint } from '../../modules/chequeTemplateRuntime';
 import type { RuntimeData } from '../../modules/chequeTemplateRuntime';
+import { cssPageRule, physicalPageFor, printOptionsFor } from '../../modules/chequePrint';
 import type { DesignerField, DesignerSurfaceSpec } from '../../modules/chequeTemplateDesigner';
 import { printCurrentViewWithResult } from '../../utils/print';
 import type { PrintOutcome } from '../../utils/print';
@@ -73,12 +74,43 @@ interface PrintState {
    *  (length > 0) the page shows the Previous/Next navigator over it instead
    *  of the single top-level `runtimeData`/`tracking`. */
   ctppBatchItems?: BatchItem[];
+  /**
+   * Why this job exists. `'production'` (default) is a real cheque print and
+   * records tracking. `'test'` comes from the Cheque Studio, prints the template
+   * currently open in the designer — including unsaved edits — and must NEVER
+   * mark a cheque printed. See the Studio's Test Print button.
+   */
+  purpose?: 'production' | 'test';
+  /** Which template this job resolved to, for the on-screen provenance line. */
+  templateName?: string;
 }
 
+/** Real runtime data must be a plain object of resolved cheque values. */
+function isRuntimeData(value: unknown): value is RuntimeData {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * A print state is valid only if it carries REAL runtime data for every item.
+ *
+ * The layout alone is not enough: a state with `surface` + `fields` but no
+ * `runtimeData` used to be accepted and then resolved against the mock, which
+ * could put placeholder cheque values on real cheque paper. Requiring runtime
+ * data here — and refusing mock fallback in `resolveChequeTemplateForPrint` —
+ * closes that path from both ends. An invalid state falls through to the page's
+ * "could not load print data" message, which is the safe outcome.
+ */
 function isPrintState(value: unknown): value is PrintState {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
-  return !!v.surface && typeof v.surface === 'object' && Array.isArray(v.fields);
+  if (!v.surface || typeof v.surface !== 'object' || !Array.isArray(v.fields)) return false;
+  if (Array.isArray(v.ctppBatchItems)) {
+    return (
+      v.ctppBatchItems.length > 0 &&
+      v.ctppBatchItems.every((item) => isRuntimeData((item as { runtimeData?: unknown } | null)?.runtimeData))
+    );
+  }
+  return isRuntimeData(v.runtimeData);
 }
 
 type PrintResultState = { outcome: PrintOutcome; failureReason?: string } | null;
@@ -111,15 +143,36 @@ export default function ChequeTemplatePrintPage() {
   // Unify single-print and batch under one array: a single print is simply a
   // batch of one item, so exactly one code path renders/prints/tracks both —
   // the Previous/Next bar only appears when there is more than one.
-  const items: BatchItem[] = state
-    ? (state.ctppBatchItems && state.ctppBatchItems.length > 0
-      ? state.ctppBatchItems
-      : [{ runtimeData: state.runtimeData ?? {}, tracking: state.tracking as ChequeTrackingInfo }])
-    : [];
+  // Memoised on `state` so the array identity is stable per print state, which is
+  // what the reset guard below compares against.
+  const items: BatchItem[] = useMemo(
+    () =>
+      state
+        ? (state.ctppBatchItems && state.ctppBatchItems.length > 0
+          ? state.ctppBatchItems
+          : [{ runtimeData: state.runtimeData ?? {}, tracking: state.tracking as ChequeTrackingInfo }])
+        : [],
+    [state],
+  );
   const isBatch = items.length > 1;
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [itemStates, setItemStates] = useState<ItemState[]>(() => items.map(freshItemState));
+
+  // ── Print-state identity guard ────────────────────────────────────────────
+  // `items` comes from the router location, but `activeIndex`/`itemStates` are
+  // mount-scoped. React Router does NOT remount on same-route navigation, so a
+  // second print arriving at this same path would otherwise keep the previous
+  // cheque's index and per-item print/tracking status — cheque A's state leaking
+  // into cheque B, and an index pointing past a now-shorter list. Re-deriving
+  // during render (the supported "adjust state when props change" pattern) keeps
+  // them in lockstep with whatever print state is currently mounted.
+  const [stateEpoch, setStateEpoch] = useState<unknown>(state);
+  if (stateEpoch !== state) {
+    setStateEpoch(state);
+    setActiveIndex(0);
+    setItemStates(items.map(freshItemState));
+  }
 
   // Hooks must run unconditionally (before the "invalid state" early return
   // below) — they live here, before any conditional return.
@@ -134,6 +187,8 @@ export default function ChequeTemplatePrintPage() {
   // (a plain in-page state change — no navigation, no remount, no timing
   // dependency). The historical `printResult`/`trackingDone` per item is NOT
   // reset here — it lives in `itemStates` and persists across browsing.
+  // Also keyed on `state`, so a NEW print state arriving on the same route clears
+  // any in-flight modal/error even when the index happens to already be 0.
   useEffect(() => {
     setPrintBusy(false);
     setTrackingBusy(false);
@@ -141,7 +196,7 @@ export default function ChequeTemplatePrintPage() {
     setShowReprintModal(false);
     setReprintReason('');
     setReprintNote('');
-  }, [activeIndex]);
+  }, [activeIndex, state]);
 
   if (!state || items.length === 0) {
     return (
@@ -155,22 +210,40 @@ export default function ChequeTemplatePrintPage() {
 
   const { surface, fields } = state;
   const paperMode: ChequePaperMode = state.paperMode === 'a4' ? 'a4' : 'real-cheque';
-  const current = items[activeIndex];
-  const currentState = itemStates[activeIndex] ?? freshItemState();
+  // The ONE physical page for this job: derived from the template surface + paper
+  // mode, and used for BOTH the CSS @page rule and the Electron print options, so
+  // layout and paper are guaranteed to agree. A test print uses the identical
+  // geometry — only tracking differs.
+  const physicalPage = physicalPageFor(surface, paperMode);
+  const isTestPrint = state.purpose === 'test';
+  // Clamp before indexing: `items` is location-scoped while `activeIndex` is
+  // state-scoped, so nothing may assume they agree. Past this line the index is
+  // guaranteed to address a real item (the early return above proved items ≥ 1).
+  const safeIndex = Math.min(Math.max(activeIndex, 0), items.length - 1);
+  const current = items[safeIndex];
+  const currentState = itemStates[safeIndex] ?? freshItemState();
   const tracking = current.tracking;
-  const model = resolveChequeTemplate({ surface, fields }, current.runtimeData);
+  // PRINT-MODE resolution: the mock is unreachable, and any required cheque field
+  // that cannot resolve real data raises an error that blocks printing below.
+  const model = resolveChequeTemplateForPrint({ surface, fields }, current.runtimeData);
   const blocked = model.meta.hasErrors;
 
   function updateCurrentItemState(patch: Partial<ItemState>) {
-    setItemStates((prev) => prev.map((s, i) => (i === activeIndex ? { ...s, ...patch } : s)));
+    // Rebuild against the CURRENT items so a short/stale array self-heals instead
+    // of silently dropping the patch.
+    setItemStates((prev) => {
+      const next = items.map((_, i) => prev[i] ?? freshItemState());
+      next[safeIndex] = { ...next[safeIndex], ...patch };
+      return next;
+    });
   }
 
   // ── Navigation — pure browsing, never prints, never tracks ─────────────────
   function goPrevious() {
-    setActiveIndex((i) => Math.max(0, i - 1));
+    setActiveIndex(Math.max(0, safeIndex - 1));
   }
   function goNext() {
-    setActiveIndex((i) => Math.min(items.length - 1, i + 1));
+    setActiveIndex(Math.min(items.length - 1, safeIndex + 1));
   }
 
   // ── Printing (current item only) ────────────────────────────────────────────
@@ -179,8 +252,13 @@ export default function ChequeTemplatePrintPage() {
     setPrintBusy(true);
     setTrackingError('');
     try {
-      const result = await printCurrentViewWithResult({ landscape: true });
+      // Pinned physical page — never the OS dialog's inherited geometry.
+      const result = await printCurrentViewWithResult(printOptionsFor(physicalPage));
       updateCurrentItemState({ printResult: result, trackingDone: false });
+      // A TEST PRINT never touches production tracking: no printed status, no
+      // printCount, no print log. `tracking` is stripped from test jobs at build
+      // time too, so this is a second, independent guard.
+      if (isTestPrint) return;
       // Not successful, or nothing to track (unsaved form draft, or a status
       // other than DRAFT/PRINTED) — nothing more to do here.
       if (result.outcome !== 'success' || !tracking || (tracking.status !== 'DRAFT' && tracking.status !== 'PRINTED')) return;
@@ -245,6 +323,20 @@ export default function ChequeTemplatePrintPage() {
         <button type="button" className="btn" disabled={blocked || printBusy} onClick={handlePrint}>
           <span className="material-symbols-outlined" aria-hidden="true">print</span>{printBusy ? 'جارٍ الطباعة…' : 'طباعة'}
         </button>
+        {/* Provenance — which template is actually about to print, and whether
+            this is a production cheque or a template test. Screen only. */}
+        {state.templateName && (
+          <span className="ctpp-template-name" title="القالب المستخدم في هذه الطباعة">
+            <span className="material-symbols-outlined" aria-hidden="true">dashboard_customize</span>
+            {state.templateName}
+          </span>
+        )}
+        {isTestPrint && (
+          <span className="ctpp-testprint">
+            <span className="material-symbols-outlined" aria-hidden="true">science</span>
+            طباعة تجريبية للقالب — لن تُسجَّل كطباعة شيك ولن تُغيّر حالة الشيك.
+          </span>
+        )}
         {blocked && (
           <span className="ctpp-blocked">
             <span className="material-symbols-outlined" aria-hidden="true">error</span>
@@ -265,10 +357,10 @@ export default function ChequeTemplatePrintPage() {
         )}
         {isBatch && (
           <div className="ctpp-batch-bar">
-            <button type="button" className="btn secondary" disabled={activeIndex === 0} onClick={goPrevious}>السابق</button>
-            <span>الشيك {activeIndex + 1} من {items.length}</span>
+            <button type="button" className="btn secondary" disabled={safeIndex === 0} onClick={goPrevious}>السابق</button>
+            <span>الشيك {safeIndex + 1} من {items.length}</span>
             <span className="ctpp-item-status">{itemStatusLabel(currentState)}</span>
-            <button type="button" className="btn secondary" disabled={activeIndex === items.length - 1} onClick={goNext}>التالي</button>
+            <button type="button" className="btn secondary" disabled={safeIndex === items.length - 1} onClick={goNext}>التالي</button>
           </div>
         )}
       </div>
@@ -336,13 +428,29 @@ export default function ChequeTemplatePrintPage() {
         </Modal>
       )}
 
+      {/* PHYSICAL GEOMETRY — the @page rule below is generated from the SAME
+          `physicalPage` the Electron print options are generated from, so
+          Chromium's layout page and the print job's paper can never disagree.
+          In print the area is anchored at the page ORIGIN with no padding and no
+          centering: padding shifted the origin and centering made the cheque's
+          left edge depend on the paper width, both of which moved the ink
+          between otherwise identical prints. Screen keeps its centered, padded
+          presentation — the two are now explicitly separate. */}
       <style>{`
-        @page { size: ${paperMode === 'a4' ? 'A4 landscape' : `${model.surface.widthCm}cm ${model.surface.heightCm}cm`}; margin: 0; }
+        ${cssPageRule(physicalPage)}
         @media print {
           .ctpp-chrome { display: none !important; }
           body > * { visibility: hidden !important; }
           .ctpp-print-area, .ctpp-print-area * { visibility: visible !important; }
-          .ctpp-print-area { position: fixed; inset: 0; }
+          .ctpp-print-area {
+            position: fixed;
+            top: 0;
+            inset-inline-start: auto;
+            left: 0;
+            display: block;
+            padding: 0;
+            margin: 0;
+          }
         }
       `}</style>
     </div>

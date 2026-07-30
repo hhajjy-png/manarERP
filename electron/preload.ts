@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import type { PrintPageOptions } from './ipc/printPageOptions';
 
 /** معلومات نسخة قاعدة بيانات واحدة (محلية أو سحابية) — لعرضها في حوار حلّ التعارض. */
 interface DatabaseVersionInfo {
@@ -34,8 +35,13 @@ const api = {
   restartApp: (): Promise<void> => ipcRenderer.invoke('app:restart'),
 
   /** طباعة الصفحة الحالية (للفواتير/التقارير). يُحل بعد إغلاق حوار الطباعة فعليًا
-   *  بالنتيجة الحقيقية من Electron (نجاح/إلغاء/فشل) — راجع app:print في dialog.ipc.ts. */
-  printPage: (options?: { landscape?: boolean }): Promise<{ success: boolean; failureReason?: string }> =>
+   *  بالنتيجة الحقيقية من Electron (نجاح/إلغاء/فشل) — راجع app:print في dialog.ipc.ts.
+   *
+   *  خيارات الهندسة الفيزيائية (pageSize/marginType/scaleFactor) إضافية واختيارية
+   *  — تستخدمها طباعة الشيكات لتثبيت مقاس الورق والهوامش والمقياس بدل توارثها من
+   *  حوار نظام التشغيل. المستدعون القدامى (الفواتير/التقارير/ورقة المعايرة) الذين
+   *  لا يمرّرون شيئًا أو يمرّرون landscape فقط يبقى سلوكهم مطابقًا تمامًا. */
+  printPage: (options?: PrintPageOptions): Promise<{ success: boolean; failureReason?: string }> =>
     ipcRenderer.invoke('app:print', options),
 
   /** معلومات التطبيق (الإصدار). */

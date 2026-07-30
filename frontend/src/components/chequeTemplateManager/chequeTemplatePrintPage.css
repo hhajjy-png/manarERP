@@ -42,12 +42,44 @@
   font-size: 18px;
 }
 
-/* The print area — centered on screen; becomes the whole page in print. */
+/* SCREEN presentation only — centered with padding so the cheque sits nicely in
+   the page. The PRINT geometry is defined separately in the component's inline
+   @media print block, where the area is anchored at the page origin with zero
+   padding and no centering. Screen presentation and physical print geometry are
+   deliberately kept apart: this padding used to apply on paper too, shrinking
+   every cheque to ~97.6% and shifting its origin. */
 .ctpp-print-area {
   display: flex;
   justify-content: center;
   align-items: flex-start;
   padding: 8px;
+}
+
+/* Provenance + test-print chips (screen only — .ctpp-chrome is hidden in print). */
+.ctpp-template-name,
+.ctpp-testprint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.ctpp-template-name {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text-muted, #64748b);
+}
+
+.ctpp-testprint {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ctpp-template-name .material-symbols-outlined,
+.ctpp-testprint .material-symbols-outlined {
+  font-size: 16px;
 }
 
 .ctpp-issues {

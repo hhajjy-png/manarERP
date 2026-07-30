@@ -18,13 +18,31 @@
 // caller (e.g. cheque-template printing) can force landscape orientation via
 // Chromium instead of relying on @page CSS alone. Omitted → identical to before.
 //
+// Cheque Printing Deterministic Geometry & Unified Pipeline Pack v1 widens this
+// to the FULL physical page contract (pageSize / marginType / scaleFactor), so a
+// cheque print job can pin the paper instead of inheriting whatever the OS print
+// dialog was last set to. Callers build these via
+// `modules/chequePrint/physicalPage.ts` — never by hand. Everything stays
+// optional: a caller that passes nothing, or only `landscape`, is unchanged.
+//
 // Existing callers of `printCurrentView` only care that the promise resolves —
 // none inspect a return value — so its signature and behavior stay untouched
 // even though the underlying bridge now resolves with a real result instead of
 // firing-and-forgetting. `.then(() => undefined, ...)` discards that result
 // deliberately, for backward compatibility; use `printCurrentViewWithResult`
 // below for any NEW caller that needs to know what actually happened.
-export function printCurrentView(options?: { landscape?: boolean }): Promise<void> {
+/**
+ * Physical page options accepted by the native print bridge. Shapes mirror
+ * Electron 31's `WebContentsPrintOptions` (`pageSize` object = MICRONS).
+ */
+export interface PrintPhysicalOptions {
+  landscape?: boolean;
+  pageSize?: string | { width: number; height: number };
+  marginType?: 'default' | 'none' | 'printableArea' | 'custom';
+  scaleFactor?: number;
+}
+
+export function printCurrentView(options?: PrintPhysicalOptions): Promise<void> {
   const p = window.manar?.printPage?.(options);
   if (p) return p.then(() => undefined, () => { window.print(); });
   window.print();
@@ -56,7 +74,7 @@ export interface PrintResult {
 /** Same physical print as `printCurrentView`, but resolves with the real outcome
  *  instead of discarding it — for callers that must gate tracking/batch
  *  progression on whether printing actually succeeded. */
-export function printCurrentViewWithResult(options?: { landscape?: boolean }): Promise<PrintResult> {
+export function printCurrentViewWithResult(options?: PrintPhysicalOptions): Promise<PrintResult> {
   const bridge = window.manar?.printPage;
   if (!bridge) {
     window.print();

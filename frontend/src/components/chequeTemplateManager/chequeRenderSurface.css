@@ -10,6 +10,26 @@
   max-width: 100%;
   overflow: hidden;
   background: #fff;
+  /* Container context for the field font sizes, which are expressed in `cqw`
+     (percent of THIS surface's inline size) rather than px. That makes type
+     scale with the cheque instead of staying at a fixed pixel size while the
+     box shrinks — the mechanism behind fields overflowing into their
+     neighbours. `inline-size` (not `size`) keeps the aspect-ratio box intact
+     and adds no block containment. Container-relative, never viewport-relative:
+     in print the surface is exactly its declared cm width, so type is
+     deterministic; on screen preview and print scale together. */
+  container-type: inline-size;
+}
+
+/* ── PHYSICAL PRINT GEOMETRY ────────────────────────────────────────────────
+   Screen may shrink the surface to fit a panel; PAPER may not. `max-width: 100%`
+   let the page box clamp the cheque, so a narrower paper (or a print dialog set
+   to a different sheet) silently rescaled the whole cheque and moved its origin.
+   In print the surface renders at exactly its declared physical size. */
+@media print {
+  .crs-surface {
+    max-width: none;
+  }
 }
 
 .crs-bg {
@@ -22,13 +42,22 @@
   pointer-events: none;
 }
 
+/* A field box is a hard boundary. `overflow: hidden` guarantees that whatever a
+   field contains can never be painted over a NEIGHBOURING field — the visible
+   symptom of overlapping cheque text. It is a containment guarantee, not a way
+   of hiding bad data: a value that does not fit also raises an error-level
+   FIELD_TEXT_OVERFLOW issue, which blocks physical printing rather than
+   silently clipping the amount or the payee. */
 .crs-field {
   position: absolute;
   pointer-events: none;
+  overflow: hidden;
 }
 
+/* Cheque fields are single-line by nature (payee, date, amount, tafqeet). Wrapping
+   was what pushed a too-long value down onto the field below. */
 .crs-field-text {
   display: block;
   width: 100%;
-  overflow-wrap: break-word;
+  white-space: nowrap;
 }

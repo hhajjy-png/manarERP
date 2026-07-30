@@ -1,6 +1,25 @@
 import type { CSSProperties } from 'react';
-import type { ResolvedRenderModel } from '../../modules/chequeTemplateRuntime';
+import { LTR_ISOLATED_KEYS } from '../../modules/chequeTemplateRuntime';
+import type { ResolvedRenderModel, SemanticKey } from '../../modules/chequeTemplateRuntime';
+import { fontSizeToCqw } from '../../modules/chequePrint';
 import './chequeRenderSurface.css';
+
+const LTR_ISOLATED = new Set<string>(LTR_ISOLATED_KEYS);
+
+/**
+ * Dates, amounts and cheque numbers must keep their LOGICAL character order.
+ * Both cheque surfaces live under `dir="rtl"`, where the Unicode Bidi Algorithm
+ * would otherwise lay out the number runs of `02 / 08 / 2026` right-to-left and
+ * make it read `2026 / 08 / 02`. Isolating those fields to LTR pins the order.
+ *
+ * `text-align` is a PHYSICAL property, so isolation changes no field's position
+ * or alignment — pre-calibrated templates print exactly where they did before.
+ * Arabic fields (beneficiary, tafqeet, bank/company names) are untouched and stay RTL.
+ */
+function bidiStyle(binding: SemanticKey | null): CSSProperties {
+  if (!binding || !LTR_ISOLATED.has(binding)) return {};
+  return { direction: 'ltr', unicodeBidi: 'isolate' };
+}
 
 /**
  * Cheque Render Surface — the single, shared "Print Renderer" (Cheque Template
@@ -52,14 +71,20 @@ export default function ChequeRenderSurface({ model, backgroundSrc, showBackgrou
           zIndex: f.zIndex,
         };
         const textStyle: CSSProperties = {
-          fontSize: f.font.sizePx,
+          // Container-relative type: `cqw` is a percentage of THIS surface's
+          // inline size, so the authored pixel size is reproduced exactly when
+          // the surface is at its declared physical width (print) and scales
+          // proportionally when it is shrunk to fit a panel (preview). Never
+          // viewport-relative — see modules/chequePrint/textFit.ts.
+          fontSize: `${fontSizeToCqw(f.font.sizePx, surface.widthCm)}cqw`,
           fontWeight: f.font.weight,
           textAlign: f.align,
           color: f.color,
+          ...bidiStyle(f.binding),
         };
         return (
           <div key={f.id} className="crs-field" style={wrapperStyle}>
-            <span className="crs-field-text" style={textStyle}>{f.text}</span>
+            <span className="crs-field-text" data-binding={f.binding ?? ''} style={textStyle}>{f.text}</span>
           </div>
         );
       })}

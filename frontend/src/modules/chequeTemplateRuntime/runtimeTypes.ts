@@ -37,6 +37,42 @@ export const SEMANTIC_KEYS: readonly SemanticKey[] = [
   'issueDate',
 ] as const;
 
+/**
+ * The semantic keys that MUST carry real cheque data before a physical cheque may
+ * be printed — the legally material face of the instrument. In print mode a field
+ * bound to one of these that cannot resolve a real runtime value raises an
+ * `UNRESOLVED_DATA_BINDING` error and blocks printing, instead of silently
+ * falling back to the template's design-time sample text.
+ *
+ * Keys outside this set (bank/branch/company/cheque number, issue date) are
+ * supporting text: an unresolved one falls back to the field's static value and
+ * is reported as `info`, never blocking a print.
+ */
+export const REQUIRED_PRINT_KEYS: readonly SemanticKey[] = [
+  'beneficiary',
+  'chequeDate',
+  'amount',
+  'amountInWords',
+] as const;
+
+/**
+ * Semantic keys whose value is a Latin-ordered number or date and must therefore
+ * keep its LOGICAL character order when rendered inside the app's RTL surfaces.
+ *
+ * Without isolation, the Unicode Bidi Algorithm reorders the number runs of a
+ * string like `02 / 08 / 2026` in an RTL paragraph — the neutral `" / "`
+ * separators take the RTL base direction (UBA W6 → N1, where European numbers
+ * count as R), so the date is laid out right-to-left and READS as
+ * `2026 / 08 / 02`. The renderer pins `direction: ltr; unicode-bidi: isolate` on
+ * exactly these fields. Alignment is unaffected — `text-align` is physical.
+ */
+export const LTR_ISOLATED_KEYS: readonly SemanticKey[] = [
+  'chequeDate',
+  'issueDate',
+  'amount',
+  'chequeNumber',
+] as const;
+
 /** Placeholder runtime data. For this pack the values are mock-only. */
 export type RuntimeData = Partial<Record<SemanticKey, string>>;
 
@@ -58,7 +94,24 @@ export type RenderIssueCode =
   | 'MISSING_FIELD_PROPS'
   | 'INVALID_POSITION'
   | 'INVALID_SIZE'
-  | 'INVISIBLE_FIELD';
+  | 'INVISIBLE_FIELD'
+  /**
+   * PRINT MODE ONLY. A field bound to a semantic key could not resolve a real
+   * runtime value. For a `REQUIRED_PRINT_KEYS` binding this is an `error`, so
+   * `meta.hasErrors` becomes true and the print button is disabled; for any other
+   * binding it is `info` and the static value still prints. This is the guard
+   * that stops a design-time sample or mock value reaching cheque paper.
+   */
+  | 'UNRESOLVED_DATA_BINDING'
+  /**
+   * PRINT MODE ONLY. A field's resolved value cannot fit inside its own box, so
+   * the renderer would have to clip it. The field box is clipped rather than
+   * allowed to overlap its neighbours, but silently cropping an amount or a payee
+   * on a financial instrument is unacceptable — so this is an `error`, it sets
+   * `meta.hasErrors`, and it blocks printing until the template box is widened
+   * (or the font reduced). Nothing is ever auto-truncated.
+   */
+  | 'FIELD_TEXT_OVERFLOW';
 
 export interface RenderIssue {
   code: RenderIssueCode;

@@ -20,6 +20,7 @@ import chequeBg from '../../assets/cheakv1.png';
 import DataSourceControl from './DataSourceControl';
 import ChequePreview from './ChequePreview';
 import type { ChequePaperMode } from './ChequeA4Sheet';
+import { buildChequePrintJob } from '../../modules/chequePrint';
 import { buildChequeRuntimeData } from './chequeRuntimeData';
 import type { ChequeRecordInput } from './chequeRuntimeData';
 import {
@@ -145,10 +146,45 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
     [current.surface, current.fields, runtimeData],
   );
 
-  function handlePrint() {
-    if (!chequeRecord) return;
+  /**
+   * TEST PRINT — Deterministic Geometry & Unified Pipeline Pack v1.
+   *
+   * This button prints the template CURRENTLY OPEN IN THE DESIGNER, including
+   * unsaved edits, because that is the only useful thing to print from a design
+   * surface. It was previously indistinguishable from production printing: it
+   * silently ignored the flagged default template, carried its own paper-mode
+   * toggle, and passed no tracking — so a designer draft could be printed on real
+   * cheque stock while the cheque's printed status, printCount and print log were
+   * never updated.
+   *
+   * It is now an EXPLICIT test print: labelled as such, banner-flagged on the
+   * print page, and structurally unable to record production tracking
+   * (`buildChequePrintJob` strips tracking from `purpose: 'test'` jobs). Physical
+   * geometry is the identical shared contract production printing uses, so what
+   * you measure here is what a production print will land.
+   *
+   * Production cheque printing lives on the Cheques page and always uses the
+   * flagged default template.
+   */
+  function handleTestPrint() {
+    if (!chequeRecord || !runtimeData) return;
+    const job = buildChequePrintJob({
+      purpose: 'test',
+      template: { id: current.id, name: current.name, source: 'designer-open-template' },
+      surface: current.surface,
+      fields: current.fields,
+      paperMode,
+      items: [{ runtimeData }],
+    });
     navigate('/cheque-template/print', {
-      state: { surface: current.surface, fields: current.fields, runtimeData, paperMode },
+      state: {
+        surface: job.surface,
+        fields: job.fields,
+        paperMode: job.paperMode,
+        purpose: job.purpose,
+        templateName: job.template.name,
+        runtimeData: job.items[0].runtimeData,
+      },
     });
   }
 
@@ -296,12 +332,14 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
         </button>
         <button
           type="button"
-          className="btn sm"
-          onClick={handlePrint}
+          className="btn secondary sm"
+          onClick={handleTestPrint}
           disabled={!chequeRecord}
-          title={chequeRecord ? 'طباعة الشيك بالقالب الحالي' : 'اختر شيكًا من صفحة الشيكات للطباعة'}
+          title={chequeRecord
+            ? 'طباعة تجريبية للقالب المفتوح حاليًا (بما فيه التعديلات غير المحفوظة). لا تُسجَّل كطباعة شيك ولا تُغيّر حالة الشيك. الطباعة الفعلية تتم من صفحة الشيكات بالقالب الافتراضي.'
+            : 'اختر شيكًا من صفحة الشيكات للطباعة التجريبية'}
         >
-          <span className="material-symbols-outlined" aria-hidden="true">print</span>طباعة
+          <span className="material-symbols-outlined" aria-hidden="true">science</span>طباعة تجريبية
         </button>
 
         <div className="ctm-toolbar-spacer" />

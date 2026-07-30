@@ -1,4 +1,4 @@
-import { formatInteger, formatNumber } from '../lib/format';
+import { formatNumber } from '../lib/format';
 
 export type FieldKey = 'beneficiary' | 'date' | 'tafqeet' | 'numeric';
 
@@ -244,14 +244,34 @@ export interface ChequePrinterPreference {
 // ── End future stubs ─────────────────────────────────────────────────────────
 
 /**
- * Formats a cheque amount: hides .000 fils, keeps any non-zero fils.
- * 5000     → #5,000#
- * 5000.250 → #5,000.250#
+ * The canonical printed cheque amount — the SINGLE formatter for every cheque
+ * print surface (Classic `ChequePrintOutput` and the Designer Template runtime
+ * alike), so the two providers can never drift.
+ *
+ * Invariant, always, with no exceptions:
+ *   #<thousands-separated integer part>.<exactly 3 decimals>#
+ *
+ *   1370     → #1,370.000#      5550     → #5,550.000#
+ *   1370.000 → #1,370.000#      5550.250 → #5,550.250#
+ *   90       → #90.000#         0        → #0.000#
+ *   999.9999 → #1,000.000#      0.001    → #0.001#
+ *
+ * Two earlier defects are closed here:
+ *   1. the fils-suppression branch, which printed `#1,370#` for a whole-dinar
+ *      cheque and so violated the bank's 3-decimal cheque format;
+ *   2. a rounding-basis disagreement — the fils test used `Math.round` while the
+ *      integer branch used `Math.floor`, so `999.9999` printed as `#999#`
+ *      (a one-dinar understatement on a live financial instrument).
+ * Both are fixed by rounding ONCE, to fils, and formatting that single value.
+ *
+ * PRESENTATION ONLY. This never touches a stored amount, the KWD 3-decimal
+ * accounting policy, GL postings, or API monetary semantics — and the tafqeet
+ * (`amountToWordsKWD`) is a SIBLING consumer of the same raw numeric amount, so
+ * it is unaffected by anything here.
  */
 export function fmtChequeAmount(amount: number): string {
-  const fils = Math.round(amount * 1000) % 1000;
-  if (fils === 0) {
-    return `#${formatInteger(Math.floor(amount))}#`;
-  }
-  return `#${formatNumber(amount)}#`;
+  // Round once, to fils — one consistent basis for the whole format.
+  // `formatNumber` pins exactly 3 decimals, adds thousands separators, and
+  // collapses -0, so a non-finite input degrades to `#0.000#` rather than `#NaN#`.
+  return `#${formatNumber(Math.round(amount * 1000) / 1000)}#`;
 }
