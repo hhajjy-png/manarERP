@@ -23,6 +23,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { lockScroll, unlockScroll } from '../../lib/scrollLock';
 import './PrintCenter.css';
 
 /** نسب التكبير الصريحة. Fit Width / Fit Page ليسا نسبتين ثابتتين — بل يُحسبان. */
@@ -143,12 +144,13 @@ export default function PrintPreviewDialog({
   }, [open]);
 
   // قفل تمرير الصفحة خلف النافذة، واستعادته عند الإغلاق.
+  // عبر العدّاد المشترك (`lib/scrollLock`) لا بلقطة محلية — المعاينة قد تُفتح فوق
+  // سطح حاجب آخر، واللقطة المحلية تصطدم بترتيب تنظيفه (انظر `lib/scrollLock`).
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
     return () => {
-      document.body.style.overflow = prev;
+      unlockScroll();
     };
   }, [open]);
 

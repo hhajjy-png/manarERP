@@ -1,5 +1,6 @@
 import { ReactNode, useCallback, useEffect, useRef } from 'react';
 import { useDraggable } from '../hooks/useDraggable';
+import { lockScroll, unlockScroll } from '../lib/scrollLock';
 
 interface Props {
   title: string;
@@ -19,12 +20,15 @@ export default function Modal({ title, onClose, onBeforeClose, children, footer,
 
   useEffect(() => { resetPosition(); }, [resetPosition]);
 
-  // Save previous focus, lock body scroll, restore on unmount
+  // Save previous focus, lock body scroll, restore on unmount.
+  // القفل عبر العدّاد المشترك (`lib/scrollLock`) لا بكتابة `overflow` مباشرة:
+  // كتابة `''` ثابتة هنا كانت تصطدم بسطح آخر مُكدَّس فوق هذه النافذة (حوار تأكيد
+  // `CreateInvoice`) يستعيد لقطته `'hidden'` بعدها، فيبقى التمرير مقفلًا للأبد.
   useEffect(() => {
     previousFocusRef.current = document.activeElement as HTMLElement;
-    document.body.style.overflow = 'hidden';
+    lockScroll();
     return () => {
-      document.body.style.overflow = '';
+      unlockScroll();
       previousFocusRef.current?.focus();
     };
   }, []);
