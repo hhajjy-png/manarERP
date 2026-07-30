@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `29e592e1` — merge of `feature/payroll-eligibility-reconciliation-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-payroll-eligibility-reconciliation-pack-v1` (merge commit `29e592e1`) | High |
-| **Previous stable tag** | `stable-database-google-drive-runtime-safety-pack-v1` (`1e91f12a`) | High |
+| **Current HEAD** | `589f7847` — merge of `feature/cheque-printing-reliability-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-cheque-printing-reliability-pack-v1` (merge commit `589f7847`) | High |
+| **Previous stable tag** | `stable-payroll-eligibility-reconciliation-pack-v1` (`29e592e1`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
