@@ -2,14 +2,15 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-30 (previously 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-30 (previously 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Database & Google Drive Runtime Safety Pack v1), like the Frontend Reliability Pack v1 pass
-> and the ones before it, refreshed the "Current Production State" table only (re-derived directly from `git`) —
+> below. This pass (Payroll Eligibility Reconciliation Pack v1), like the Database & Google Drive Runtime Safety
+> Pack v1 pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
+> from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
 > this pass — treat their specifics as of those dates, not current-day. This pass only repoints the table below
@@ -36,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `1e91f12a` — merge of `feature/database-google-drive-runtime-safety-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-database-google-drive-runtime-safety-pack-v1` (merge commit `1e91f12a`) | High |
-| **Previous stable tag** | `stable-frontend-reliability-pack-v1` (`f9f3cb86`) | High |
+| **Current HEAD** | `29e592e1` — merge of `feature/payroll-eligibility-reconciliation-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-payroll-eligibility-reconciliation-pack-v1` (merge commit `29e592e1`) | High |
+| **Previous stable tag** | `stable-database-google-drive-runtime-safety-pack-v1` (`1e91f12a`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |

@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `1e91f12a` (merge of `feature/database-google-drive-runtime-safety-pack-v1`, bundling R1 split-brain runtime lock, R2 orphan sync-temp cleanup, R3 manual/shutdown snapshot consistency, restore reliability, and first-run bootstrap seed safety) |
-| **Current Documentation Commit** | `853a9c4` |
-| **Current Stable Tag** | `stable-database-google-drive-runtime-safety-pack-v1` |
+| **Current Merge Commit** | `29e592e1` (merge of `feature/payroll-eligibility-reconciliation-pack-v1`, closing RC-1 silent payroll eligibility-gap omission and RC-2 month-wide re-generation lock) |
+| **Current Documentation Commit** | *(this field is self-referencing — a commit cannot know its own hash while being written; a small follow-up commit fills it in immediately after)* |
+| **Current Stable Tag** | `stable-payroll-eligibility-reconciliation-pack-v1` |
 | **Current Release Date** | 2026-07-30 |
-| **Total Stable Releases** | 381 (window 2026-06-07 → 2026-07-30) |
+| **Total Stable Releases** | 382 (window 2026-06-07 → 2026-07-30) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,41 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Payroll Eligibility Reconciliation Pack v1** (2026-07-30,
+  `stable-payroll-eligibility-reconciliation-pack-v1`) — closes two confirmed root causes from the
+  Payroll Employee Eligibility & Missing Active Employees audit, reproduced end-to-end via employee
+  77 (code 25, احمد رمضان احمد على): ON_LEAVE at July 2026 generation, later reactivated to ACTIVE,
+  silently never reappeared in Payroll/Payslip/Reports/NBK export across two periods (2026-07,
+  2026-01). **(1) RC-1 — no reconciliation between the frozen payroll snapshot and live employee
+  eligibility:** `payroll` rows are materialized once at `generate()` time from `status='ACTIVE'`; an
+  employee ON_LEAVE at that instant gets no row, and returning to ACTIVE afterwards creates
+  nothing — the grid renders rows, not eligibility, so the omission was completely silent. Fixed via
+  `findPayrollEligibilityGap()` (`payrollMonth.readModel.ts`), a strictly read-only reconciliation
+  that re-evaluates ACTIVE status against live employee data for the selected period and reports who
+  the period's payroll rows do not represent — any status including CANCELLED, and imported bank
+  transfers via the same identity resolution the grid already uses, both count as represented.
+  Surfaced through `payroll.service.ts`'s `stats()` as additive `missingPayrollCount`/
+  `missingPayrollEmployees` fields, deliberately computed ignoring any workflow-status filter so a
+  persisted `sal:status` filter can never suppress the warning. `Salaries.tsx` renders it as a named
+  amber banner — a warning only; no row is fabricated and nothing is auto-generated or
+  auto-approved. **(2) RC-2 — month-wide re-generation lock:** `generate()`'s lock aborted the
+  entire transaction on a single non-DRAFT payslip anywhere in the period, so the only recovery path
+  for a returning employee (re-generate) required first un-approving every other payslip in the
+  month. Fixed by making the lock per-employee: each targeted employee is classified independently
+  as CREATE (no row yet), UPDATE (existing DRAFT, unchanged recalculation semantics), or SKIP
+  (APPROVED/PAID/other — never read, rewritten, or deleted). Duplicate protection unchanged and
+  structural (`@@unique([employeeId, month, year])` + `upsert`); a deliberate re-generate where every
+  targeted row is locked still raises the original error rather than silently no-op-ing. Verified
+  read-only against `CURRENT_DB` that the fix detects employee 77 as missing in both affected periods
+  and would create exactly his row while skipping all 23 currently-approved July payslips. The Ahmed
+  regression test was confirmed to fail against the prior month-wide lock via temporary revert, then
+  restored passing. **Not changed:** Employee/Payroll Prisma schema, GL/accounting posting (payroll
+  still posts no GL entry by existing design), NBK export format, historical payroll data, or
+  employee 77's database record. Feature commit `59ed053e`, merge `29e592e1`. Validation: backend
+  `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · full backend vitest suite 141 files/2037 tests —
+  2037/2037 (19 new + 3 extended) · `npm run build:back` ✅ · `npm run build:front` ✅. Product Owner
+  manual visual review: approved, release explicitly requested.
 
 - **Database & Google Drive Runtime Safety Pack v1** (2026-07-30,
   `stable-database-google-drive-runtime-safety-pack-v1`) — closes three operational risks found by

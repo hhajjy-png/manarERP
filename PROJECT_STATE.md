@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `1e91f12a` — release `stable-database-google-drive-runtime-safety-pack-v1` (bundles R1 split-brain runtime lock, R2 orphan sync-temp cleanup, R3 manual/shutdown snapshot consistency, restore reliability, and first-run bootstrap seed safety) |
+| **Production HEAD** | `29e592e1` — release `stable-payroll-eligibility-reconciliation-pack-v1` (closes RC-1 silent eligibility-gap omission + RC-2 month-wide re-generation lock) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-database-google-drive-runtime-safety-pack-v1` (release date 2026-07-30) → merge `1e91f12a` |
-| **Previous stable tag** | `stable-frontend-reliability-pack-v1` (2026-07-30) → merge `f9f3cb86` |
-| **Total stable releases** | 381 (all merged onto `production`; window 2026-06-07 → 2026-07-30) |
-| **Latest validation** | electron `tsc -p electron/tsconfig.json --noEmit` ✅ · `npm run electron:build` ✅ · backend `tsc --noEmit` ✅ · full electron vitest suite (`vitest.electron.config.ts`): 11 files / 199 tests — 199/199 passing (includes 72 new tests: `runtimeLock` 16, `dbBootstrapState` 21, `syncTempCleanup` 8, `dbRuntimeSafety.contract` 36 minus 9 pre-existing) · frontend not touched, not re-run (electron/backend-only release) · two rounds of independent Final Review (AUDIT ONLY) — first round `VERDICT: BLOCK` (HIGH-1 rejected-startup could still upload to Drive, MEDIUM-1 seed-marking atomicity gap, MEDIUM-2 runtime-lock fail-open), Corrective Pass closed all three with before/after regression proof, second round `VERDICT: APPROVE` (zero unresolved HIGH/CRITICAL; one accepted non-blocking MEDIUM — M-A runtime-lock initial-write atomicity — deferred, not fixed) · scope confirmed: exactly 12 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `1e91f12a` + tag `stable-database-google-drive-runtime-safety-pack-v1`) |
+| **Latest stable tag** | `stable-payroll-eligibility-reconciliation-pack-v1` (release date 2026-07-30) → merge `29e592e1` |
+| **Previous stable tag** | `stable-database-google-drive-runtime-safety-pack-v1` (2026-07-30) → merge `1e91f12a` |
+| **Total stable releases** | 382 (all merged onto `production`; window 2026-06-07 → 2026-07-30) |
+| **Latest validation** | backend `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge — identical) · frontend `tsc --noEmit` ✅ (same) · full backend vitest suite: 141 files / 2037 tests — 2037/2037 passing (includes 19 new tests: `payroll.eligibilityGap` 9, `payroll.generate.incremental` 10, plus 3 extended in `payroll.stats`) · `npm run build:back` ✅ · `npm run build:front` ✅ · Ahmed regression test (F/J) proven to fail against the prior month-wide lock via temporary revert, then restored and re-verified passing · scope confirmed: exactly 7 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `29e592e1` + tag `stable-payroll-eligibility-reconciliation-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,39 @@ in a table cell.
 
 ---
 
-## Latest Release — Database & Google Drive Runtime Safety Pack v1
+## Latest Release — Payroll Eligibility Reconciliation Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Payroll Eligibility Reconciliation Pack v1 (RC-1 silent eligibility-gap detection + RC-2 per-employee incremental generation) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-30 |
+| **Feature branch** | `feature/payroll-eligibility-reconciliation-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `ef03ffea` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — bundle scoped and reviewed as a single package across its own audit → implementation → verification lifecycle instead of a separate checkpoint tag |
+| **Feature commit** | `59ed053e` |
+| **Production merge commit** | `29e592e1` |
+| **Stable tag** | `stable-payroll-eligibility-reconciliation-pack-v1` → merge `29e592e1` (annotated) |
+| **Reviews** | AUDIT ONLY — Payroll Employee Eligibility & Missing Active Employees audit (traced employee 77 end-to-end; confirmed RC-1 + RC-2, ruled out stale leave records, caching, period-filter races, and duplicate eligibility predicates elsewhere in the codebase) → IMPLEMENTATION (this pack) · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · full backend vitest suite: 141 files / 2037 tests — 2037/2037 ✅ (19 new across two new test files + 3 extended in `payroll.stats.test.ts`) · `npm run build:back` ✅ · `npm run build:front` ✅ |
+
+**Scope — closes two confirmed root causes from the Payroll Employee Eligibility & Missing Active Employees audit, reproduced end-to-end via employee 77 (code 25, احمد رمضان احمد على): ON_LEAVE at July 2026 generation, later reactivated to ACTIVE, silently never reappeared in Payroll/Payslip/Reports/NBK export in two periods (2026-07, 2026-01), 7 files:**
+
+**(1) RC-1 — No reconciliation between the frozen payroll snapshot and live employee eligibility** (`backend/src/modules/payroll/payrollMonth.readModel.ts`'s new `findPayrollEligibilityGap()`, surfaced via `payroll.service.ts`'s `stats()`) — `payroll` rows are a materialized snapshot: `generate()` samples `status = 'ACTIVE'` once, at the instant an operator clicks it, and freezes the result. An employee ON_LEAVE at that instant gets no row, and returning to ACTIVE afterwards creates nothing — the Payroll grid renders rows, not eligibility, so the omission was completely silent, with no count and no warning anywhere in the system. `findPayrollEligibilityGap()` is a strictly read-only reconciliation: it re-evaluates ACTIVE status against live employee data for the selected period and reports `missingPayrollCount`/`missingPayrollEmployees` (employeeId/code/name only). "Represented" deliberately means any payroll row including CANCELLED (a cancelled payslip is still visible and accounted for) and any resolved imported bank transfer (via the same civilId/bankAccount identity resolution the grid itself already uses), so neither produces a false gap. The gap is computed **ignoring** any workflow-status filter, so a persisted `sal:status` filter (the audit's §8 foot-gun) can never suppress the warning that tells the operator someone is absent. `frontend/src/pages/Salaries.tsx` renders it as a named amber banner — a warning only; no row is fabricated, and nothing is auto-generated or auto-approved.
+
+**(2) RC-2 — Month-wide re-generation lock** (`payroll.service.ts`'s `generate()`) — the lock aborting a re-generate on any single non-DRAFT payslip anywhere in the period was month-wide, so the only recovery path for a returning employee (re-generate the month) required first un-approving every other payslip in that month — effectively unusable. The lock is now per-employee: each targeted employee is classified independently as CREATE (no row yet — this is how a returning ACTIVE employee reappears), UPDATE (existing DRAFT, unchanged recalculation semantics), or SKIP (APPROVED/PAID/other — never read, rewritten, or deleted). Duplicate protection is unchanged and structural (`@@unique([employeeId, month, year])` + `upsert`). A deliberate re-generate where every targeted row is locked still raises the original error rather than silently no-op-ing. `generate()`'s response gains additive `created`/`updated`/`skippedLocked` fields; the Salaries generate toast now reports a skipped-locked count instead of staying silent about a partial run.
+
+**Verified against `CURRENT_DB`** (`backend/data/manar.db`, read-only): the new predicate detects employee 77 as missing in both affected periods, and a `generate(7, 2026)` run would create exactly his row while skipping all 23 currently-approved payslips — confirmed via raw read-only SQL replay of the new eligibility predicate, with no data written.
+
+**Regression proof:** the Ahmed regression test (`payroll.generate.incremental.test.ts` — "F/J. Ahmed regression") was confirmed to **fail** against the prior month-wide lock via a temporary revert (3 tests failed, including this one, with the original month-wide error), then the revert was removed and the suite re-verified green.
+
+**Not changed:** Employee/Payroll Prisma schema, GL/accounting posting (payroll still posts no GL entry by existing design), NBK export format, historical payroll data, employee 77's database record, any other module's eligibility predicate (audited and confirmed to read from the same `payroll` table with no divergent duplicate logic).
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` and confirmed still present, unstaged, and unmodified in the working tree after the merge and push completed. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Database & Google Drive Runtime Safety Pack v1
 
 | Field | Value |
 |-------|-------|
