@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `d3a937b7` (merge of `feature/api-date-hardening-pack-v1`, hardening backend DATE-ONLY API fields to a canonical YYYY-MM-DD contract in place of z.coerce.date()) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Documentation Commit** | `b64e594` |
 | **Current Stable Tag** | `stable-api-date-hardening-pack-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 389 (window 2026-06-07 → 2026-07-31) |
