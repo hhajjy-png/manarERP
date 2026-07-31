@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `d7f8080a` (merge of `feature/backend-date-boundary-unification-v1`, unifying backend date-range filtering into one local-calendar contract) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Documentation Commit** | `4905ff0` |
 | **Current Stable Tag** | `stable-backend-date-boundary-unification-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 386 (window 2026-06-07 → 2026-07-31) |
