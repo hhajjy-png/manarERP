@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `e645f303` (merge of `feature/administrative-forms-preview-ux-v1`, replacing the direct-print "طباعة" action on Administrative Forms cards with "فتح" (Open), routing into the existing preview architecture at an 80% initial zoom instead of an immediate print) |
-| **Current Documentation Commit** | `3b8c543` |
-| **Current Stable Tag** | `stable-administrative-forms-preview-ux-v1` |
+| **Current Merge Commit** | `873c3c0` (merge of `feature/project-wide-i18n-placeholder-integrity-v1`, a project-wide AST-based audit of i18n placeholder contracts fixing 10 confirmed caller/translation placeholder-name mismatches and adding a permanent regression guard) |
+| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Stable Tag** | `stable-project-wide-i18n-placeholder-integrity-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 392 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 393 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---

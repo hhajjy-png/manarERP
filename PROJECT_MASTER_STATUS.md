@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Administrative Forms Preview UX Pack v1), like the Bank Statement Import Server Date
-> Hardening Pack v1 pass and the ones before it, refreshed the "Current Production State" table
+> below. This pass (Project-Wide i18n Placeholder Integrity Pack v1), like the Administrative Forms Preview UX
+> Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `e645f303` — merge of `feature/administrative-forms-preview-ux-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-administrative-forms-preview-ux-v1` (merge commit `e645f303`) | High |
-| **Previous stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (`60c63a23`) | High |
+| **Current HEAD** | `873c3c0` — merge of `feature/project-wide-i18n-placeholder-integrity-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (merge commit `873c3c0`) | High |
+| **Previous stable tag** | `stable-administrative-forms-preview-ux-v1` (`e645f303`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,40 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-administrative-forms-preview-ux-v1` (`e645f303`, 2026-07-31)
+### Latest Release — `stable-project-wide-i18n-placeholder-integrity-v1` (`873c3c0`, 2026-07-31)
+
+Project-wide AST-based audit of every `t()`/`translate()` call site in the frontend
+against the AR/EN `lib/i18n.ts` dictionaries, proving each call supplies every
+placeholder its translation requires. Fixes 10 confirmed caller/translation
+placeholder-name mismatches and adds a permanent regression guard. Frontend-only,
+no backend/schema changes.
+
+- **Root cause:** `t()` interpolates `{name}` by exact name match against the
+  supplied `vars` object with no validation — a caller passing the wrong
+  variable name leaves the real placeholder unresolved, leaking literal text
+  (`{code}`, `{n}`, `{v}`) into the UI silently.
+- **Audit:** TypeScript AST parse (not regex) of `DICT` + all 5,854 production
+  `t()`/`translate()` calls across 479 files. 5,554 statically resolvable;
+  298 dynamic-key and 2 unresolved-vars calls classified/logged only. AR/EN
+  key sets identical (4,273 each), 0 placeholder-set parity mismatches.
+- **10 confirmed defects fixed:** 4 in `api/client.ts` (duplicate-invoice
+  errors, wanted `v` got `value`), 3 in `RecentActivityFeed.tsx` (relative
+  time, wanted `n` got `min`/`hr`/`day`), 3 in `Maintenance.tsx` (a11y labels,
+  wanted `code` got `equip` — resolved in favor of `code`, the translations
+  were correct).
+- **Permanent guard added:** `i18nPlaceholderIntegrity.ts`/`.test.ts` (32
+  tests) — AR/EN parity + static call-site placeholder coverage. Known,
+  stated limitation: the 298 dynamic-key call sites are not statically
+  contract-verified.
+- **Not changed:** the i18n runtime engine itself (`lib/i18n.ts`), any
+  translation wording, backend (confirmed no placeholder i18n surface),
+  Electron, Prisma/schema/migrations.
+- **Validation:** new guard 32/32 passing · focused affected suites 99/99
+  passing · frontend `tsc --noEmit` clean · 2 pre-existing baseline failures
+  (`formsRegistryTranslationAudit.test.ts`, `currencyHeaderCompleteness.test.ts`)
+  proven unrelated and deliberately deferred.
+
+### Previous Release — `stable-administrative-forms-preview-ux-v1` (`e645f303`, 2026-07-31)
 
 Replaces the direct-print "طباعة" action on Administrative Forms cards with "فتح"
 (Open), routing into the existing WYSIWYG preview architecture at an 80% initial

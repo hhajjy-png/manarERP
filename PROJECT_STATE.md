@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `e645f303` — release `stable-administrative-forms-preview-ux-v1` (replaces the direct-print "طباعة" action on Administrative Forms cards with "فتح" (Open), routing into the existing preview architecture at an 80% initial zoom instead of an immediate print) |
+| **Production HEAD** | `873c3c0` — release `stable-project-wide-i18n-placeholder-integrity-v1` (project-wide AST-based audit of i18n placeholder contracts; fixes 10 confirmed caller/translation placeholder-name mismatches and adds a permanent regression guard) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-administrative-forms-preview-ux-v1` (release date 2026-07-31) → merge `e645f303` |
-| **Previous stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (2026-07-31) → merge `60c63a23` |
-| **Total stable releases** | 392 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | 19/19 new focused frontend tests passing (`administrativeFormsOpenPreview.test.tsx`) · affected-suite sweep (15 files): 13 passing, 2 pre-existing failures unrelated to this pack (`formsRegistryTranslationAudit.test.ts`, `universalPrintPreviewCorrective.test.ts`) deferred, not caused by this change · frontend `tsc --noEmit` ✅ · scope confirmed: exactly 9 approved frontend files entered the release (2 new + 7 modified), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; backend, Prisma/schema/migrations, and Electron print implementation untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `e645f303` + tag `stable-administrative-forms-preview-ux-v1`) |
+| **Latest stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (release date 2026-07-31) → merge `873c3c0` |
+| **Previous stable tag** | `stable-administrative-forms-preview-ux-v1` (2026-07-31) → merge `e645f303` |
+| **Total stable releases** | 393 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | New permanent guard `i18nPlaceholderIntegrity.test.ts` — 32/32 passing · focused affected suites (`expensesPeriodCardLabels`, `formsTranslationKeyCompleteness`, `administrativeFormsEnglishTranslation`) — 99/99 passing · independent project-wide re-audit after fixes: AR/EN placeholder parity mismatches 0, missing-required-placeholder findings 0, unknown-key findings 0 · frontend `tsc --noEmit` ✅ · scope confirmed: exactly the 5 approved files entered the release (3 modified callers + 2 new test files), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · 2 pre-existing baseline failures (`formsRegistryTranslationAudit.test.ts`, `currencyHeaderCompleteness.test.ts`) proven unrelated (identical failures reproduced against pristine HEAD) and deliberately left untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `873c3c0` + tag `stable-project-wide-i18n-placeholder-integrity-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,42 @@ in a table cell.
 
 ---
 
-## Latest Release — Administrative Forms Preview UX Pack v1
+## Latest Release — Project-Wide i18n Placeholder Integrity Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Project-Wide i18n Placeholder Integrity Pack v1 (project-wide AST-based audit proving every `t()`/`translate()` call site supplies every placeholder its translation requires, and that AR/EN translations agree on the placeholder contract per key) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/project-wide-i18n-placeholder-integrity-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `4d60b3d0` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's audit → implementation → verification → user-approved-release flow |
+| **Feature commit** | `82ed45c` |
+| **Production merge commit** | `873c3c0` |
+| **Stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` → merge `873c3c0` (annotated) |
+| **Reviews** | Full architecture trace of the i18n engine (`lib/i18n.ts`'s `DICT` + `t()`/`useT()`) before any edit → project-wide AST audit (not regex) of all 479 production frontend source files → IMPLEMENTATION → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | New permanent guard `i18nPlaceholderIntegrity.test.ts` — 32/32 passing · focused affected suites — 99/99 passing · frontend `tsc --noEmit` ✅ |
+
+**Root cause:** `t(key, lang, vars?)` in `lib/i18n.ts` interpolates by replacing `{name}` for every key in the supplied `vars` object, but never validates that the supplied names match the placeholders the translation string actually contains. A caller passing the wrong variable name causes the real placeholder to silently survive interpolation and leak as literal text (`{code}`, `{n}`, `{v}`) into the rendered UI — with no error, warning, or test failure anywhere in the existing suite.
+
+**Audit method:** parsed `lib/i18n.ts`'s `DICT` object literal and every `t()`/`translate()` call site in `frontend/src` via the TypeScript AST (not regex, to correctly handle ES shorthand `{ from, to }`, multi-line calls, and both call signatures — `t(key, vars?)` and `t(key, lang, vars?)`). Of 5,854 calls found, 5,554 were statically resolvable to a literal key and a fully-known set of supplied variable names; 298 dynamic-key calls and 2 unresolved-vars calls were classified and logged, never treated as confirmed defects. AR and EN dictionaries were separately confirmed to hold the identical 4,273 keys with 0 placeholder-set mismatches between locales.
+
+**10 confirmed defects fixed** (caller supplied the wrong variable name; translation text itself was correct and unchanged in every case):
+- `api/client.ts` — 4 duplicate-invoice error detail lines: caller passed `value`, all 4 keys require `v`.
+- `components/dashboard/command/RecentActivityFeed.tsx` — 3 relative-time labels (`time.minutes_ago`/`hours_ago`/`days_ago`): caller passed `min`/`hr`/`day`, all 3 keys require `n`. This one was user-visible beyond a leaked brace — the Recent Activity timestamps showed no number in either language before the fix.
+- `pages/Maintenance.tsx` — 3 accessibility labels (`a11y.maint.record_details`/`fuel_details`/`breakdown_details`): caller passed `equip`, all 3 keys require `code`. Resolved in favor of `code` (not renaming the translations) because the value already being passed was the equipment code, and the sibling key `a11y.maint.spare_part_details` correctly uses `{name}` — proving `{code}` was the intended, correct contract all along.
+
+**Permanent guard added:** `frontend/src/__tests__/helpers/i18nPlaceholderIntegrity.ts` (reusable AST analyzer) + `frontend/src/__tests__/i18nPlaceholderIntegrity.test.ts` (32 tests, one architecture rather than per-key duplication). Asserts AR/EN placeholder-set parity and that every statically-resolvable call site supplies every placeholder its translation requires; reports (never fails on) extra unused caller variables; pins the Maintenance and `lbl.year_prefix` (a previously-released fix) contracts as explicit regression cases. **Known limitation, stated plainly, not hidden:** the 298 dynamic-key call sites (lookup-table/config-driven keys such as `t(STATUS_LABEL[r.status])`) are classified and logged but are **not** statically contract-verified by this guard — this is a deliberate boundary of static analysis, not an oversight.
+
+**Not changed:** the runtime i18n engine (`lib/i18n.ts` — `DICT`, `t()`, `useT()` are byte-identical to before this pack), all translation wording/text, backend (confirmed to have no placeholder-based i18n surface at all), Electron, Prisma/schema/migrations, Administrative Forms, the Document Expiry Excel button.
+
+**Deferred, not caused by this pack:** `formsRegistryTranslationAudit.test.ts` (10 failures) and `currencyHeaderCompleteness.test.ts` (2 failures) were already failing on `production` HEAD before this release — proven by reverting the 3 touched files to their pristine HEAD versions and reproducing identical failures, then restoring. Neither touches i18n placeholder interpolation; both predate and are unrelated to this pack.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched. The approved implementation existed as uncommitted working-tree changes directly on `production` at release time; it was moved onto the feature branch via `git checkout -b` (which carries uncommitted changes when there is no conflict with the target ref) rather than reimplemented — byte-identical content confirmed via empty `git diff` both immediately after the branch switch and again immediately after the commit.
+
+---
+
+## Previous Release — Administrative Forms Preview UX Pack v1
 
 | Field | Value |
 |-------|-------|
