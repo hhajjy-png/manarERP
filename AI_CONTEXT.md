@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `60c63a23` (merge of `feature/bank-statement-import-server-date-hardening-v1`, hardening the bank-statement-import server boundary so transaction dates are deterministic and validated before reaching business logic, reusing the released dateOnlySchema) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Documentation Commit** | `4f57c70` |
 | **Current Stable Tag** | `stable-bank-statement-import-server-date-hardening-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 391 (window 2026-06-07 → 2026-07-31) |
