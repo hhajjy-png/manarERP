@@ -5,6 +5,7 @@ import { api } from '../../api/client';
 import type { SkillResult } from '../types';
 import { computeQuality } from '../qualityEngine';
 import { formatCurrency } from '../../lib/format';
+import { formatDisplayDate } from '../../lib/date';
 
 const SKILL_ID    = 'contracts';
 const SKILL_TITLE = 'مهارة تحليل العقود';
@@ -280,7 +281,7 @@ export async function executeContractsSkill(prompt: string, intent: string): Pro
           titleAr: 'جدول انتهاء العقود',
           rows: expiring.slice(0, 15).map(c => ({
             labelAr: `${c.code} — ${c.customer?.name ?? c.asphaltPlant}`,
-            value: c.endDate ? new Date(c.endDate).toLocaleDateString('ar-KW') : '—',
+            value: formatDisplayDate(c.endDate),
             kind: 'date' as const,
           })),
         }] : [],

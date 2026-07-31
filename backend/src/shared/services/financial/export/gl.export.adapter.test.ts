@@ -38,7 +38,9 @@ describe('toGlStatementReportInput', () => {
 
   it('maps rows with formatted date and translated ref type', () => {
     const input = toGlStatementReportInput(makeGlStatementResponse());
-    expect(input.rows[0].date).toBe('2025-03-15');
+    // عمود التاريخ صيغة **عرض** DD/MM/YYYY — كان يعرض الصيغة القانونية السلكية
+    // (Date Display, Export & Import Consistency Pack v1).
+    expect(input.rows[0].date).toBe('15/03/2025');
     expect(input.rows[0].referenceType).toBe('يدوي'); // MANUAL → يدوي
   });
 

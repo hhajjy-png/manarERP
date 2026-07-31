@@ -5,16 +5,21 @@ import type { ReportColumn, ReportInput } from '../../shared/services/reportEngi
 import { BANK_CONFIGS } from './excelParser';
 import { formatCurrency } from '../../shared/utils/currency';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
+import { formatDisplayDate } from '../../shared/utils/dateDisplay';
 
 function monthAr(m: number): string {
   return ARABIC_MONTHS[Math.min(Math.max(m - 1, 0), 11)] ?? String(m);
 }
 
 
+/**
+ * كانت `toLocaleDateString('ar-KW')` تُخرج أرقامًا هندية شرقية (`٠٢/٠٨/٢٠٢٦`)
+ * وعلامات اتجاه مضمّنة — تخالف معيار الأرقام الغربية المعتمد في التطبيق.
+ * الدالة القانونية تُعيد `DD/MM/YYYY` بأرقام غربية، وتتعامل مع `YYYY-MM-DD`
+ * كنص خالص فلا تنزلق يومًا عبر المناطق الزمنية.
+ */
 function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return formatDisplayDate(iso);
 }
 
 function bankNameAr(templateName: string): string {

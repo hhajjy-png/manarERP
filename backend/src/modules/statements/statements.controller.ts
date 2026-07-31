@@ -3,6 +3,7 @@ import { roundMoney } from '@shared/utils/money';
 import { buildStatement } from '@shared/services/statement.service';
 import { buildExcel } from '@shared/services/reportEngine/excel.service';
 import { ok } from '@core/utils/response';
+import { formatDisplayDate } from '@shared/utils/dateDisplay';
 import { StatementQuerySchema, parseDate } from './statements.schema';
 
 /**
@@ -109,7 +110,7 @@ export const statementsController = {
       title: `كشف حساب العميل — ${result.entityName}`,
       columns: [...EXCEL_COLUMNS],
       rows: result.entries.map((e) => ({
-        date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date),
+        date: formatDisplayDate(e.date),
         reference: e.reference,
         referenceTypeAr: refTypeAr(e.referenceType, 'CUSTOMER'),
         description: e.description,
@@ -146,7 +147,7 @@ export const statementsController = {
       title: `كشف حساب المورد — ${result.entityName}`,
       columns: [...EXCEL_COLUMNS],
       rows: result.entries.map((e) => ({
-        date: e.date instanceof Date ? e.date.toISOString().slice(0, 10) : String(e.date),
+        date: formatDisplayDate(e.date),
         reference: e.reference,
         referenceTypeAr: refTypeAr(e.referenceType, 'SUPPLIER'),
         description: e.description,

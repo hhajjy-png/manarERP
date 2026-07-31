@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, errorMessage } from '../../api/client';
 import { useT } from '../../lib/i18n';
+import { formatDisplayDate } from '../../lib/date';
 import { Dialog, DialogSection, Button, ErrorBanner, StatusChip, EmptyState, SkeletonRows, type Tone } from '../explorer/ExplorerKit';
 import './GenerateHolidaysDialog.css';
 
@@ -187,7 +188,7 @@ export default function GenerateHolidaysDialog({ year, onClose, onApplied }: Pro
                 {plan.conflicts.map((c, i) => (
                   <div key={i} className="ghd-conflict-row">
                     <StatusChip tone={CATEGORY_META[c.category].tone} icon={CATEGORY_META[c.category].icon}>
-                      {c.date.slice(0, 10)}
+                      {formatDisplayDate(c.date)}
                     </StatusChip>
                     <span>{c.reason ?? `${c.candidateName ?? '—'} / ${c.existingName ?? '—'}`}</span>
                   </div>
@@ -214,7 +215,7 @@ export default function GenerateHolidaysDialog({ year, onClose, onApplied }: Pro
                   <tbody>
                     {plan.comparison.entries.map((entry, i) => (
                       <tr key={i}>
-                        <td>{entry.date.slice(0, 10)}</td>
+                        <td>{formatDisplayDate(entry.date)}</td>
                         <td>{entry.candidateName ?? entry.existingName ?? '—'}</td>
                         <td><StatusChip tone={CATEGORY_META[entry.category].tone} icon={CATEGORY_META[entry.category].icon}>{t(CATEGORY_META[entry.category].key)}</StatusChip></td>
                         <td>{entry.status ? t(STATUS_LABEL[entry.status]) : '—'}</td>

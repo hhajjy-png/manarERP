@@ -4,6 +4,7 @@ import { useUI } from '../stores/uiStore';
 import { useAuth } from '../stores/authStore';
 import { useSettings } from '../stores/settingsStore';
 import type { CurrencyLanguage } from '../lib/format';
+import { formatDisplayDate } from '../lib/date';
 import { useT, type Lang } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { BASE_NATIONALITY_EN, BASE_JOB_TITLE_EN, applyTranslationOverrides } from '../forms/shared/contractTranslations';
@@ -1245,7 +1246,7 @@ export default function Settings() {
                     const statusMeta = h.status ? HOLIDAY_STATUS_META[h.status] : undefined;
                     return (
                     <tr key={h.id}>
-                      <td>{h.date.slice(0, 10)}</td>
+                      <td>{formatDisplayDate(h.date)}</td>
                       <td>{h.name}</td>
                       <td>{statusMeta ? <StatusChip tone={statusMeta.tone} icon="verified">{t(statusMeta.labelKey)}</StatusChip> : '—'}</td>
                       {canManageHolidays && (

@@ -400,11 +400,14 @@ describe('collectionsSummary', () => {
     expectLocalRange(whereArg.date, '2026-01-01', '2026-06-30');
   });
 
-  it('subtitle includes date range when from/to provided', async () => {
+  // حدود الفترة تُعرض بصيغة DD/MM/YYYY — لا الصيغة القانونية السلكية
+  // (Date Display, Export & Import Consistency Pack v1).
+  it('subtitle includes date range when from/to provided, in display format', async () => {
     mockPrisma.payment.findMany.mockResolvedValue([]);
     const report = await reportsService.build('collections-summary', { from: '2026-01-01', to: '2026-03-31' });
-    expect(report.subtitle).toContain('2026-01-01');
-    expect(report.subtitle).toContain('2026-03-31');
+    expect(report.subtitle).toContain('01/01/2026');
+    expect(report.subtitle).toContain('31/03/2026');
+    expect(report.subtitle).not.toContain('2026-01-01');
   });
 
   it('maps payment method to Arabic label', async () => {

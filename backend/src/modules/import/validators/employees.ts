@@ -82,8 +82,30 @@ function str(row: Record<string, unknown>, key: string): string | undefined {
   return String(v).trim();
 }
 
-/** DD/MM/YYYY وISO والرقم التسلسلي — انظر `shared/utils/dateParse`. */
-const parseDate = (v: unknown): Date | undefined => parseImportDate(v) ?? undefined;
+/**
+ * تاريخ اختياري بآلية التحقق القائمة نفسها (عقود/مصروفات/فواتير): الفراغ يعني
+ * «غير مذكور» فيمرّ، أما قيمة **موجودة تفشل في التحليل** فتُنتج **خطأ صفّ**.
+ *
+ * كانت `parseImportDate(v) ?? undefined` تبتلع الفشل بصمت، فيُستورَد الصفّ
+ * «صالحًا» وقد سقط منه تاريخٌ كتبه المستخدم فعلًا — بلا أي إشعار. الصيغ المقبولة
+ * لم تتغيّر إطلاقًا (انظر `shared/utils/dateParse`)؛ المتغيّر الوحيد هو أن الفشل
+ * صار مرئيًا بدل أن يُهمَل.
+ */
+function optionalDate(
+  row: Record<string, unknown>,
+  key: string,
+  labelAr: string,
+  errors: string[],
+): Date | undefined {
+  const raw = row[key];
+  if (raw == null || raw === '') return undefined;
+  const d = parseImportDate(raw);
+  if (!d) {
+    errors.push(`${labelAr} (${key}) يجب أن يكون بصيغة YYYY-MM-DD`);
+    return undefined;
+  }
+  return d;
+}
 
 function parseNumber(v: unknown): number {
   if (v == null || v === '') return 0;
@@ -117,6 +139,15 @@ export function validateEmployeeRow(row: Record<string, unknown>): {
     ? (rawStatus as 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED')
     : 'ACTIVE';
 
+  // التواريخ تُحلَّل **قبل** بوّابة الأخطاء أدناه — دفعُها داخل `normalized` كان
+  // سيقع بعد البوّابة، فيعود الصفّ `valid: true, errors: []` رغم الخطأ.
+  const passportExpiry       = optionalDate(row_, 'passportExpiry',       'تاريخ انتهاء الجواز',       errors);
+  const residencyExpiry      = optionalDate(row_, 'residencyExpiry',      'تاريخ انتهاء الإقامة',      errors);
+  const licenseExpiry        = optionalDate(row_, 'licenseExpiry',        'تاريخ انتهاء رخصة القيادة', errors);
+  const vehicleLicenseExpiry = optionalDate(row_, 'vehicleLicenseExpiry', 'تاريخ انتهاء رخصة المركبة', errors);
+  const birthDate            = optionalDate(row_, 'birthDate',            'تاريخ الميلاد',             errors);
+  const hireDate             = optionalDate(row_, 'hireDate',             'تاريخ التعيين',             errors);
+
   if (errors.length > 0) return { valid: false, errors, normalized: null };
 
   return {
@@ -130,16 +161,16 @@ export function validateEmployeeRow(row: Record<string, unknown>): {
       jobTitle: str(row_, 'jobTitle'),
       nationality: str(row_, 'nationality'),
       passportNumber: str(row_, 'passportNumber'),
-      passportExpiry: parseDate(row_['passportExpiry']),
-      residencyExpiry: parseDate(row_['residencyExpiry']),
-      licenseExpiry: parseDate(row_['licenseExpiry']),
+      passportExpiry,
+      residencyExpiry,
+      licenseExpiry,
       vehiclePlate: str(row_, 'vehiclePlate'),
-      vehicleLicenseExpiry: parseDate(row_['vehicleLicenseExpiry']),
-      birthDate: parseDate(row_['birthDate']),
+      vehicleLicenseExpiry,
+      birthDate,
       company: str(row_, 'company'),
       department: str(row_, 'department'),
       salary: parseNumber(row_['salary']),
-      hireDate: parseDate(row_['hireDate']),
+      hireDate,
       phone: str(row_, 'phone'),
       email: rawEmail || undefined,
       address: str(row_, 'address'),

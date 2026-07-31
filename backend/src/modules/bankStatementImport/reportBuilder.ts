@@ -2,12 +2,17 @@ import { buildReportHtml } from '../../shared/services/reportEngine/html.service
 import { buildExcelWorkbook } from '../../shared/services/reportEngine/excel.service.js';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service.js';
 import type { ReconciliationReport, ReconciliationReportRow, ReconcileStatus } from './types.js';
+import { formatDisplayDate } from '../../shared/utils/dateDisplay.js';
 
 
+/**
+ * كانت `toLocaleDateString('ar-KW')` تُخرج أرقامًا هندية شرقية (`٠٢/٠٨/٢٠٢٦`)
+ * وعلامات اتجاه مضمّنة — تخالف معيار الأرقام الغربية المعتمد في التطبيق.
+ * الدالة القانونية تُعيد `DD/MM/YYYY` بأرقام غربية، وتتعامل مع `YYYY-MM-DD`
+ * كنص خالص فلا تنزلق يومًا عبر المناطق الزمنية.
+ */
 function fmtDate(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  return isNaN(d.getTime()) ? iso : d.toLocaleDateString('ar-KW', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  return formatDisplayDate(iso);
 }
 
 const STATUS_AR: Record<ReconcileStatus, string> = {
