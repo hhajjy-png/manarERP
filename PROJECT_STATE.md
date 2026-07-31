@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `589f7847` — release `stable-cheque-printing-reliability-pack-v1` (bundles Cheque Printing Data Integrity & Formatting Pack v1 + Cheque Printing Deterministic Geometry & Unified Pipeline Pack v1 + Cheque Printed Record Editing Fix v1) |
+| **Production HEAD** | `0223eaf3` — release `stable-cheques-reporting-excel-export-pack-v1` (adds the Cheques report + full-dataset Excel export, plus a shared report-engine totals-row pagination fix) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-cheque-printing-reliability-pack-v1` (release date 2026-07-30) → merge `589f7847` |
-| **Previous stable tag** | `stable-payroll-eligibility-reconciliation-pack-v1` (2026-07-30) → merge `29e592e1` |
-| **Total stable releases** | 383 (all merged onto `production`; window 2026-06-07 → 2026-07-30) |
-| **Latest validation** | backend `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge — identical) · frontend `tsc --noEmit` ✅ (same) · electron `tsc`/`electron:build` ✅ (same) · full backend vitest suite: 142 files / 2050 tests — 2050/2050 passing (includes 13 new in `cheques.printedEditing.test.ts`) · electron vitest suite: 12 files / 210 tests — 210/210 passing (includes 11 new in `printPageOptions.test.ts`) · full frontend vitest suite: 2509/2534 passing — 25 pre-existing, unrelated failures (identical set to the pre-release baseline; zero new regressions), including 133 new tests across 4 new cheque-print test files (`chequePrintDataIntegrity` 66, `chequePrintDeterministicGeometry` 38, `chequePrintEntryPoints` 7, `chequePrintedEditing` 8) plus 14 more in the new `cheques.printedEditing.test.ts` backend file · `npm run build:back` ✅ · `npm run build:front` ✅ · scope confirmed: exactly 34 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual/physical-print review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `589f7847` + tag `stable-cheque-printing-reliability-pack-v1`) |
+| **Latest stable tag** | `stable-cheques-reporting-excel-export-pack-v1` (release date 2026-07-31) → merge `0223eaf3` |
+| **Previous stable tag** | `stable-cheque-printing-reliability-pack-v1` (2026-07-30) → merge `589f7847` |
+| **Total stable releases** | 384 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | backend `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge — identical) · frontend `tsc --noEmit` ✅ (same) · full backend vitest suite: 144 files / 2102 tests — 2102/2102 passing (includes 29 new: 23 in `totalsRowPagination.test.ts`, 6 net-new/updated in `reportEngine.test.ts`, plus the 29-test `reports.cheques.test.ts`) · full frontend vitest suite: 2527/2552 passing — 25 pre-existing, unrelated failures (identical set to the pre-release baseline; zero new regressions), including the new 18-test `chequesExcelExport.test.tsx` · `npm run build:back` ✅ · `npm run build:front` ✅ · scope confirmed: exactly 14 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual/functional review — **completed & approved** (including the corrective PDF totals-pagination pass), release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `0223eaf3` + tag `stable-cheques-reporting-excel-export-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Cheque Printing Reliability Pack v1
+## Latest Release — Cheques Reporting & Excel Export Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Cheques Reporting & Excel Export Pack v1 (adds «تقرير الشيكات» to the Reports page + a full-filtered-dataset Excel export on the Cheques page) plus a corrective pass for the shared report engine's totals-row PDF pagination |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/cheques-reporting-excel-export-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `cd929e23` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — implementation + its corrective pass reviewed as one package across their own lifecycle instead of a separate checkpoint tag |
+| **Feature commit** | `7d31ab5e` |
+| **Production merge commit** | `0223eaf3` |
+| **Stable tag** | `stable-cheques-reporting-excel-export-pack-v1` → merge `0223eaf3` (annotated) |
+| **Reviews** | IMPLEMENTATION (Cheques Report + Excel export, single-source-of-truth filter unification) → CORRECTIVE PASS (shared report-engine totals-row PDF pagination — `<tfoot>` repeated the grand total on every printed page; fixed generically for all reports) · Product Owner manual visual/functional review — **completed & approved** (implementation and corrective pass both), release explicitly requested |
+| **Validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · backend vitest: 144 files / 2102 tests — 2102/2102 ✅ · frontend vitest: 2527/2552 passing, 25 pre-existing unrelated failures (identical set to baseline, zero new regressions) · `npm run build:back` ✅ · `npm run build:front` ✅ |
+
+**Scope — adds cheque reporting/export while keeping cheque data semantics identical across three surfaces, plus a general PDF pagination fix, 14 files:**
+
+**(1) Cheques Report** (`backend/src/modules/reports/reports.service.ts`'s new `cheques()`, registered in `frontend/src/pages/Reports.tsx`) — «تقرير الشيكات» joins the Reports page using the existing report engine (no new report/PDF/print pipeline). Columns mirror the Cheques table exactly — number, beneficiary, bank, amount, cheque date, status, payment-voucher number — with no UI-only or internal columns. **Single source of truth:** `buildChequeFilterWhere()` was extracted from `ChequesService.list()` and is now the one function both the Cheques screen and the report call, closing a real divergence risk the reports module's generic `dateWhere()` would otherwise have introduced (it builds its lower bound at UTC midnight; the cheques module always built it at local midnight — a boundary-dated cheque could have appeared on one surface and not the other). `chequeDate` is the sole date source (never `createdAt`/`updatedAt`/`printedAt`), rendered `DD/MM/YYYY` as a pre-formatted string rather than a typed Excel date cell, so Excel's own date-serial reinterpretation can never shift a day. Status labels reuse the Cheques screen's own DRAFT/PRINTED/CANCELLED wording via a new `translateChequeStatusAr` (kept separate from the invoice status map, whose feminine Arabic grammar reads wrong on a masculine «شيك»). The total is `SUM(amount)` over the full unpaginated filtered result set.
+
+**(2) Excel export on the Cheques page** — a new Excel button (`table_view` icon, secondary variant, Excel green) follows the exact pattern Expenses.tsx already established (Table/Excel Column Unification v1) — no new button design. `fetchAllRows()` walks every server page under the live filters (search/status/period/sort), so the file always contains the whole filtered dataset, never just the visible page. Same columns and `chequeDate`/status/amount semantics as the report; amount is exported as a raw calculable number with the dinar `numFmt`, never the `#…#` cheque-print form. `downloadTableExcel()` gained an optional trailing totals row (`TableExportTotals`) — additive, every existing caller unaffected.
+
+**(3) Corrective pass — shared report-engine totals-row pagination** (`backend/src/shared/services/reportEngine/table.template.ts` + `styles.template.ts`) — manual review of the Cheques report's PDF found the grand total could appear on every printed page instead of once. Root cause: the totals row was emitted inside `<tfoot>`, and the print stylesheet declares `tfoot { display: table-footer-group }` — Chromium repeats a table-footer-group at the bottom of **every** page in paged media. The row also had no `break-inside` guard of its own, so it could be sliced across a page boundary. Fixed **generically, for every report** (not cheques-specific — the same `<tfoot>` was shared by every `ReportInput` with a `totalsRow`): the totals row is now always the last `<tbody>` row, appearing exactly once, immediately after the final data row — therefore on whichever page that row lands on, the last page whether the report is one page or many — with an explicit `page-break-inside: avoid; break-inside: avoid` so it moves whole to the next page rather than splitting. Zero change to any total's value or formatting.
+
+**Not changed:** the Cheque Printing Reliability Pack's pipeline, print formatting, templates, calibration, or any printing-specific file; Prisma schema/migrations; Accounting/GL/Payroll; Google Drive sync.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` and confirmed still present, unstaged, and unmodified in the working tree after the merge and push completed. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Cheque Printing Reliability Pack v1
 
 | Field | Value |
 |-------|-------|
