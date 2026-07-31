@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `ed63d9fd` (merge of `feature/printed-cheque-edit-date-integrity-fix-v1`, fixing `chequeDate` blanking/silent-corruption when editing an existing cheque) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit — see `docs: fill in AI_CONTEXT.md's self-referencing documentation-commit hash`)* |
+| **Current Documentation Commit** | `c2dd7d3` |
 | **Current Stable Tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 385 (window 2026-06-07 → 2026-07-31) |
