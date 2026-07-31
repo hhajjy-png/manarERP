@@ -10,15 +10,18 @@ import { describe, it, expect, vi } from 'vitest';
 vi.mock('@config/database.js', () => ({ prisma: {} }));
 
 import { buildTimelineWhere, TIMELINE_ORDER_BY } from '../service.js';
+import { expectLocalRange, expectLocalStartOfDay } from '../../../core/utils/__tests__/localDayMatchers';
 
 describe('buildTimelineWhere', () => {
   it('filters by accountKey only when no options given', () => {
     expect(buildTimelineWhere('IBAN:KW1')).toEqual({ accountKey: 'IBAN:KW1' });
   });
 
-  it('adds a statementDate range for from/to', () => {
+  // الحدود مدى تقويمي محلي شامل الطرفين — لا لحظات UTC مثبَّتة. قبل حزمة توحيد
+  // حدود التاريخ كان `toDate` يُقفل عند منتصف الليل فيسقط اليوم الأخير بأكمله.
+  it('adds an inclusive local-calendar statementDate range for from/to', () => {
     const w = buildTimelineWhere('A', { fromDate: '2026-01-01', toDate: '2026-06-30' });
-    expect(w.statementDate).toEqual({ gte: new Date('2026-01-01'), lte: new Date('2026-06-30') });
+    expectLocalRange(w.statementDate, '2026-01-01', '2026-06-30');
   });
 
   it('maps each transaction type to the right column constraint', () => {
@@ -41,7 +44,7 @@ describe('buildTimelineWhere', () => {
     const w = buildTimelineWhere('A', {
       type: 'cheques', fromDate: '2026-01-01', minAmount: 100, search: 'x',
     });
-    expect(w.statementDate).toEqual({ gte: new Date('2026-01-01') });
+    expectLocalStartOfDay((w.statementDate as { gte?: Date })?.gte, '2026-01-01');
     expect(w.AND).toContainEqual({ OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }] });
     expect(w.AND).toContainEqual({ OR: [{ debit: { gte: 100 } }, { credit: { gte: 100 } }] });
     expect(w.AND).toContainEqual({ OR: [{ description: { contains: 'x' } }, { reference: { contains: 'x' } }] });
@@ -73,7 +76,7 @@ describe('buildTimelineWhere', () => {
       fromDate: '2026-01-01', type: 'deposits', maxAmount: 1000, search: 'x',
     });
     expect(w.accountKey).toBe('A');
-    expect(w.statementDate).toEqual({ gte: new Date('2026-01-01') });
+    expectLocalStartOfDay((w.statementDate as { gte?: Date })?.gte, '2026-01-01');
     expect(w.credit).toEqual({ gt: 0 });
     expect(w.AND).toHaveLength(2); // maxAmount + search
   });

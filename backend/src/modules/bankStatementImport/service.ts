@@ -1,6 +1,7 @@
 import { prisma } from '@config/database.js';
 import type { Prisma } from '@prisma/client';
 import { AppError } from '@core/errors/AppError.js';
+import { localDateRange } from '@core/utils/dateWindows.js';
 import { buildPreview } from './previewBuilder.js';
 import { normalizeRow, buildNormalizedText } from './normalizer.js';
 import { validateRows, detectFileDuplicates } from './validators.js';
@@ -382,11 +383,8 @@ export function buildTimelineWhere(
   const where: Prisma.BankStatementTransactionWhereInput = { accountKey };
   const and: Prisma.BankStatementTransactionWhereInput[] = [];
 
-  if (opts.fromDate || opts.toDate) {
-    where.statementDate = {};
-    if (opts.fromDate) where.statementDate.gte = new Date(opts.fromDate);
-    if (opts.toDate)   where.statementDate.lte = new Date(opts.toDate);
-  }
+  const dateRange = localDateRange(opts.fromDate, opts.toDate);
+  if (dateRange) where.statementDate = dateRange;
 
   switch (opts.type) {
     case 'deposits':    where.credit = { gt: 0 }; break;

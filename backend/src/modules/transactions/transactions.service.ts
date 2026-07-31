@@ -7,6 +7,7 @@ import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { glProfitAndLoss } from '../../shared/services/gl.reporting';
 import { resolvePeriod } from '../../core/utils/periodFilter';
+import { localDateRange } from '../../core/utils/dateWindows';
 
 /** عميل Prisma سواء الأساسي أو داخل معاملة ($transaction). */
 type Client = Prisma.TransactionClient | typeof prisma;
@@ -81,11 +82,8 @@ export class TransactionsService {
     const where: Prisma.TransactionWhereInput = {};
     if (query.type) where.type = query.type;
     if (query.account) where.account = { contains: query.account };
-    if (query.from || query.to) {
-      where.date = {};
-      if (query.from) where.date.gte = new Date(query.from);
-      if (query.to) where.date.lte = new Date(query.to);
-    }
+    const dateRange = localDateRange(query.from, query.to);
+    if (dateRange) where.date = dateRange;
     if (query.search) where.description = { contains: query.search };
 
     const [data, total] = await Promise.all([
@@ -98,11 +96,8 @@ export class TransactionsService {
   /** الأستاذ العام لحساب معيّن مع رصيد تراكمي. */
   async ledger(account: string, from?: string, to?: string) {
     const where: Prisma.TransactionWhereInput = { account };
-    if (from || to) {
-      where.date = {};
-      if (from) where.date.gte = new Date(from);
-      if (to) where.date.lte = new Date(to);
-    }
+    const dateRange = localDateRange(from, to);
+    if (dateRange) where.date = dateRange;
     const rows = await prisma.transaction.findMany({ where, orderBy: { date: 'asc' } });
     let balance = 0;
     const lines = rows.map((r) => {

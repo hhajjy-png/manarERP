@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
-import { endOfDay } from '../../core/utils/dateWindows';
+import { localDateRange } from '../../core/utils/dateWindows';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
@@ -61,11 +61,8 @@ export class ExpensesService {
     if (query.supplierId) where.supplierId = Number(query.supplierId);
     if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
     if (query.billingYear) where.billingYear = Number(query.billingYear);
-    if (query.from || query.to) {
-      where.date = {};
-      if (query.from) where.date.gte = new Date(query.from);
-      if (query.to) where.date.lte = endOfDay(new Date(query.to));
-    }
+    const dateRange = localDateRange(query.from, query.to);
+    if (dateRange) where.date = dateRange;
     if (query.search) {
       where.OR = [
         { description: { contains: query.search } },
@@ -501,11 +498,8 @@ export class ExpensesService {
     if (query.supplierId) where.supplierId = Number(query.supplierId);
     if (query.billingMonth) where.billingMonth = Number(query.billingMonth);
     if (query.billingYear) where.billingYear = Number(query.billingYear);
-    if (query.from || query.to) {
-      where.date = {};
-      if (query.from) (where.date as Record<string, Date>).gte = new Date(query.from);
-      if (query.to) (where.date as Record<string, Date>).lte = endOfDay(new Date(query.to));
-    }
+    const dateRange = localDateRange(query.from, query.to);
+    if (dateRange) where.date = dateRange;
 
     // تجميع في قاعدة البيانات بدل جلب كل صفوف المصروفات ثم reduce/تصنيف في الذاكرة.
     // الإجماليات عبر aggregate، والتصنيفات عبر groupBy — بلا اقتطاع مهما كبر التاريخ.

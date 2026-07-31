@@ -9,7 +9,7 @@ vi.mock('../../../config/database', () => ({
 
 import { prisma } from '../../../config/database';
 import { round3, bankAnalyticsService, resolveEmployeePayments } from '../salaries.bankAnalytics.service';
-import { endOfDay } from '../../../core/utils/dateWindows';
+import { startOfLocalDay, endOfLocalDay } from '../../../core/utils/dateWindows';
 
 describe('round3', () => {
   it('rounds to 3 decimal places', () => {
@@ -202,7 +202,7 @@ describe('bankAnalyticsService.getTransactions — Phase 2 filters', () => {
       expect.objectContaining({
         where: expect.objectContaining({
           AND: expect.arrayContaining([
-            { paymentDate: { gte: new Date('2025-01-01'), lte: endOfDay(new Date('2025-03-31')) } },
+            { paymentDate: { gte: startOfLocalDay('2025-01-01'), lte: endOfLocalDay('2025-03-31') } },
           ]),
         }),
       }),

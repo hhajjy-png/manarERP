@@ -38,7 +38,7 @@ import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { AppError } from '../../core/errors/AppError';
 import { resolvePeriod } from '../../core/utils/periodFilter';
-import { endOfDay } from '../../core/utils/dateWindows';
+import { localDateRange } from '../../core/utils/dateWindows';
 
 export interface AccountInput {
   code: string;
@@ -120,11 +120,8 @@ export class AccountingService {
     const where: Prisma.JournalEntryWhereInput = {};
     if (query.status) where.status = query.status;
     if (query.search) where.description = { contains: query.search };
-    if (query.from || query.to) {
-      where.date = {};
-      if (query.from) where.date.gte = new Date(query.from);
-      if (query.to) where.date.lte = endOfDay(new Date(query.to));
-    }
+    const dateRange = localDateRange(query.from, query.to);
+    if (dateRange) where.date = dateRange;
 
     const orderBy = buildOrderBy(query, JOURNAL_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.JournalEntryOrderByWithRelationInput[];
     const [data, total] = await Promise.all([
@@ -285,11 +282,8 @@ export class AccountingService {
     const pagination = getPagination(query);
     const where: Prisma.PaymentWhereInput = {};
     if (query.method) where.method = query.method;
-    if (query.from || query.to) {
-      where.date = {};
-      if (query.from) where.date.gte = new Date(query.from);
-      if (query.to) where.date.lte = endOfDay(new Date(query.to));
-    }
+    const dateRange = localDateRange(query.from, query.to);
+    if (dateRange) where.date = dateRange;
 
     const orderBy = buildOrderBy(query, PAYMENTS_SORTABLE, [{ date: 'desc' }], [{ id: 'desc' }]) as Prisma.PaymentOrderByWithRelationInput[];
     const [data, total] = await Promise.all([

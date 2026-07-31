@@ -19,7 +19,7 @@ vi.mock('../../../config/database', () => ({
 
 import { AccountingService } from '../accounting.service';
 import { prisma } from '../../../config/database';
-import { endOfDay } from '../../../core/utils/dateWindows';
+import { expectLocalRange, expectLocalEndOfDay } from '../../../core/utils/__tests__/localDayMatchers';
 
 const mockPrisma = prisma as unknown as {
   journalEntry: { findMany: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> };
@@ -40,20 +40,14 @@ describe('AccountingService.listJournalEntries — date boundary', () => {
     await service.listJournalEntries({ to: '2025-12-31' });
 
     const where = mockPrisma.journalEntry.findMany.mock.calls[0][0].where;
-    const lte = where.date.lte as Date;
-    expect(lte.getHours()).toBe(23);
-    expect(lte.getMinutes()).toBe(59);
-    expect(lte.getSeconds()).toBe(59);
-    expect(lte.getMilliseconds()).toBe(999);
-    expect(lte.getTime()).toBe(endOfDay(new Date('2025-12-31')).getTime());
+    expectLocalEndOfDay(where.date.lte, '2025-12-31');
   });
 
   it('keeps both gte and lte bounds when from and to are both given', async () => {
     await service.listJournalEntries({ from: '2025-01-01', to: '2025-12-31' });
 
     const where = mockPrisma.journalEntry.findMany.mock.calls[0][0].where;
-    expect(where.date.gte).toEqual(new Date('2025-01-01'));
-    expect(where.date.lte.getTime()).toBe(endOfDay(new Date('2025-12-31')).getTime());
+    expectLocalRange(where.date, '2025-01-01', '2025-12-31');
   });
 });
 

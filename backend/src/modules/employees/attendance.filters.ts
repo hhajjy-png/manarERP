@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { localDateRange } from '../../core/utils/dateWindows';
 
 export interface AttendanceFilters {
   employeeId?: string;
@@ -14,12 +15,8 @@ export function buildAttendanceWhere(filters: AttendanceFilters): Prisma.Attenda
   if (filters.employeeId) where.employeeId = Number(filters.employeeId);
   if (filters.status) where.status = filters.status;
 
-  if (filters.from || filters.to) {
-    where.date = {
-      ...(filters.from && { gte: new Date(filters.from) }),
-      ...(filters.to   && { lte: new Date(filters.to)   }),
-    };
-  }
+  const dateRange = localDateRange(filters.from, filters.to);
+  if (dateRange) where.date = dateRange;
 
   if (filters.search) {
     where.OR = [

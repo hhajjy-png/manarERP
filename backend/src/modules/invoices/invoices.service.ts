@@ -31,7 +31,7 @@ import { roundMoney } from '../../shared/utils/money';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseSalesPaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
-import { toLocalDateString, endOfDay } from '../../core/utils/dateWindows';
+import { toLocalDateString, localDateRange } from '../../core/utils/dateWindows';
 
 /**
  * يطبّق نطاق الفترة على تاريخ إصدار الفاتورة داخل شرط Prisma.
@@ -39,11 +39,8 @@ import { toLocalDateString, endOfDay } from '../../core/utils/dateWindows';
  * لا يفعل شيئًا عند غياب الحدّين (كل الفترات).
  */
 function applyIssueDateRange(where: Prisma.InvoiceWhereInput, from?: string, to?: string): void {
-  if (!from && !to) return;
-  const range: Prisma.DateTimeFilter = {};
-  if (from) range.gte = new Date(`${from.slice(0, 10)}T00:00:00`);
-  if (to) range.lte = endOfDay(new Date(`${to.slice(0, 10)}T00:00:00`));
-  where.issueDate = range;
+  const range = localDateRange(from, to);
+  if (range) where.issueDate = range;
 }
 
 /**

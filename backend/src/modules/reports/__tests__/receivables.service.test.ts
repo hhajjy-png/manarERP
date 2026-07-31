@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { expectLocalRange, expectLocalEndOfDay } from '../../../core/utils/__tests__/localDayMatchers';
 
 vi.mock('../../../config/database', () => ({
   prisma: {
@@ -176,10 +177,7 @@ describe('customerStatement', () => {
     await reportsService.build('customer-statement', { customerId: '1', from: '2026-01-01', to: '2026-06-30' });
 
     const invoiceWhereArg = mockPrisma.invoice.findMany.mock.calls[0][0].where;
-    const lte: Date = invoiceWhereArg.issueDate.lte;
-    expect(lte.getHours()).toBe(23);
-    expect(lte.getMinutes()).toBe(59);
-    expect(lte.getSeconds()).toBe(59);
+    expectLocalEndOfDay(invoiceWhereArg.issueDate.lte, '2026-06-30');
   });
 });
 
@@ -395,16 +393,11 @@ describe('collectionsSummary', () => {
     expect(report.rows).toHaveLength(2);
   });
 
-  it('date range applies endOfDay to `to` parameter', async () => {
+  it('date range covers the whole local calendar span, last day inclusive', async () => {
     mockPrisma.payment.findMany.mockResolvedValue([]);
     await reportsService.build('collections-summary', { from: '2026-01-01', to: '2026-06-30' });
     const whereArg = mockPrisma.payment.findMany.mock.calls[0][0].where;
-    // The `date` field should have gte and lte
-    expect(whereArg.date.gte).toEqual(new Date('2026-01-01'));
-    // lte should be end of day (23:59:59)
-    const lte: Date = whereArg.date.lte;
-    expect(lte.getHours()).toBe(23);
-    expect(lte.getMinutes()).toBe(59);
+    expectLocalRange(whereArg.date, '2026-01-01', '2026-06-30');
   });
 
   it('subtitle includes date range when from/to provided', async () => {
