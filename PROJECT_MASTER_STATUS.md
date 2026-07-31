@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Financial Period Custom Range State Fix v1), like the Financial Period Month Selector Pack v1
+> below. This pass (API Date Hardening Pack v1), like the Financial Period Custom Range State Fix v1
 > pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
 > from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `bfcae728` — merge of `feature/financial-period-custom-range-state-fix-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-financial-period-custom-range-state-fix-v1` (merge commit `bfcae728`) | High |
-| **Previous stable tag** | `stable-financial-period-month-selector-v1` (`867a4889`) | High |
+| **Current HEAD** | `d3a937b7` — merge of `feature/api-date-hardening-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-api-date-hardening-pack-v1` (merge commit `d3a937b7`) | High |
+| **Previous stable tag** | `stable-financial-period-custom-range-state-fix-v1` (`bfcae728`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,33 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-financial-period-custom-range-state-fix-v1` (`bfcae728`, 2026-07-31)
+### Latest Release — `stable-api-date-hardening-pack-v1` (`d3a937b7`, 2026-07-31)
+
+Hardens backend DATE-ONLY API fields to a canonical `YYYY-MM-DD` contract. `z.coerce.date()`
+passed raw input straight to `new Date(value)`: a bare `YYYY-MM-DD` string is unambiguous per
+ECMA-262, but `DD/MM/YYYY`, `MM/DD/YYYY`, or a 2-digit year fell into the JS engine's
+non-standard heuristic parser (V8 assumes US `MM/DD/YYYY`) — "2 August" could silently become
+"8 February", or resolve to a silent `Invalid Date`. Backend-only, no schema/frontend changes.
+
+- **Shared validator:** `backend/src/core/utils/dateOnly.ts` (`dateOnlySchema`) —
+  canonical-prefix regex match → pure-arithmetic real-calendar-date check (no `Date` rollover) →
+  `Date.UTC(y, m-1, d)`. One validator, reused everywhere; composes with `.optional()`/
+  `.nullable()`/`.refine()` like any Zod type.
+- **40 DATE-ONLY fields hardened** across 15 modules (cheques, invoices, equipment, employees,
+  employee-entitlements, holidays, payments, payroll, expenses, prices, maintenance, contracts,
+  transactions, accounting), preserving every field's exact required/optional/nullable contract.
+- **Compatibility-first:** every frontend caller for every field was traced before hardening and
+  confirmed to already send canonical `YYYY-MM-DD` or `new Date('YYYY-MM-DD').toISOString()` —
+  both accepted unchanged. No caller required a compatibility exception.
+- **Intentionally excluded:** `attendanceSchema`/`updateAttendanceSchema`'s `checkIn`/`checkOut`
+  carry a genuine `HH:MM` time-of-day, not a date-only value — left on `z.coerce.date()`.
+  Date-range filters (`periodQuerySchema`/`resolvePeriod`) are untouched.
+- **Validation:** backend `tsc --noEmit` clean · 74 focused test files / 913 tests passing,
+  0 failures, across all 16 touched modules + `core/utils` · new tests include a static guard
+  confirming zero remaining raw `z.coerce.date()` outside the documented `checkIn`/`checkOut`
+  exception. Frontend/electron untouched.
+
+### Previous Release — `stable-financial-period-custom-range-state-fix-v1` (`bfcae728`, 2026-07-31)
 
 Fixes `PeriodControl`'s custom-range fields (`customFrom`/`customTo`) going stale: they were seeded
 only in a `useState` initializer, which runs once at mount, while the control itself stays mounted

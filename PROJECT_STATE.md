@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `bfcae728` — release `stable-financial-period-custom-range-state-fix-v1` (PeriodControl's custom-range fields now re-seed from the active shared period on panel open, instead of only once at mount, so a stale range from an earlier period could no longer be silently committed by Apply) |
+| **Production HEAD** | `d3a937b7` — release `stable-api-date-hardening-pack-v1` (backend DATE-ONLY API fields hardened to a canonical `YYYY-MM-DD` contract via a single shared validator, replacing `z.coerce.date()`'s ambiguous-format risk) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-financial-period-custom-range-state-fix-v1` (release date 2026-07-31) → merge `bfcae728` |
-| **Previous stable tag** | `stable-financial-period-month-selector-v1` (2026-07-31) → merge `867a4889` |
-| **Total stable releases** | 388 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · `PeriodControlMonth.test.tsx` 27/27 passing (21 pre-existing + 6 new) · fix-reverted mutation check: 3 of the 6 new tests fail without the fix (stale range after a closed-panel period change, stale August-of-previous-year draft, stale draft surviving a close-without-Apply) · related suites unaffected: `financialPeriodSession` (16), `FinancialPeriodContext` (6), `financialPeriod` (25), `periodSingleSource` (6), all passing · `npm run build:front` not run (no new imports/types — the fix is 2 `setState` calls inside an existing handler) · backend/electron untouched (frontend-only fix; no re-verification needed) · scope confirmed: exactly 2 frontend files entered the release (`PeriodControl.tsx` + its test), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `bfcae728` + tag `stable-financial-period-custom-range-state-fix-v1`) |
+| **Latest stable tag** | `stable-api-date-hardening-pack-v1` (release date 2026-07-31) → merge `d3a937b7` |
+| **Previous stable tag** | `stable-financial-period-custom-range-state-fix-v1` (2026-07-31) → merge `bfcae728` |
+| **Total stable releases** | 389 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · 74 focused test files / 913 tests passing across all 16 touched modules + `core/utils` (0 failures) — including new `dateOnly.test.ts` (15), `cheques.dateHardening.test.ts` (9), and `dateHardeningCrossModule.test.ts` (14, includes a static guard confirming zero remaining raw `z.coerce.date()` outside the documented `checkIn`/`checkOut` exception) · `npm run build:back` not run (not materially needed — pure schema/validator changes, no build-affecting structural change) · frontend/electron untouched (backend-only pack; no re-verification needed) · scope confirmed: exactly 20 backend files entered the release (16 modified schema/controller/service files + 4 new test/helper files), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `d3a937b7` + tag `stable-api-date-hardening-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Financial Period Custom Range State Fix v1
+## Latest Release — API Date Hardening Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | API Date Hardening Pack v1 (hardens backend DATE-ONLY API fields to a canonical `YYYY-MM-DD` contract, replacing `z.coerce.date()` — which called `new Date(value)` and let ambiguous slash-formatted strings fall into the JS engine's non-standard heuristic date parser) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/api-date-hardening-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `badfcf98` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit audit → implementation → verification → user-approved-release flow |
+| **Feature commit** | `1c2eb79` |
+| **Production merge commit** | `d3a937b7` |
+| **Stable tag** | `stable-api-date-hardening-pack-v1` → merge `d3a937b7` (annotated) |
+| **Reviews** | Full backend audit of every `z.coerce.date()`/`z.date()` occurrence (16 files, 40 fields) classified against DATE-ONLY / DATE-RANGE / TRUE-TIMESTAMP / internal / import-parser buckets, plus a traced frontend-caller compatibility check per field, before any schema was touched → IMPLEMENTATION → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | backend `tsc --noEmit` ✅ · 74 focused test files / 913 tests passing (0 failures) · `npm run build:back` not run (not materially needed) · frontend/electron untouched (backend-only pack) |
+
+**Root cause:** `z.coerce.date()` passes the raw input straight to `new Date(value)`. A bare `YYYY-MM-DD` string is unambiguous per ECMA-262 (always parsed as UTC midnight), but any other shape — `DD/MM/YYYY`, `MM/DD/YYYY`, a 2-digit year — falls into the JS engine's implementation-defined heuristic parser (V8 assumes US `MM/DD/YYYY`), so "2 August" could silently become "8 February", or resolve to a silent `Invalid Date`. This was the exact mechanism behind the Printed Cheque Edit Date Integrity Fix that preceded this pack.
+
+**Fix:** one shared validator, `backend/src/core/utils/dateOnly.ts` (`dateOnlySchema`) — canonical-prefix regex match (`/^(\d{4})-(\d{2})-(\d{2})/`, mirroring the existing `dateWindows.ts` `DATE_ONLY_PREFIX` precedent) → pure-arithmetic real-calendar-date check (leap year + days-in-month, no `Date` rollover) → `Date.UTC(y, m-1, d)` construction. Replaced `z.coerce.date()` with it on every confirmed DATE-ONLY business field across cheques, invoices, equipment, employees, employee-entitlements, holidays, payments, payroll, expenses, prices, maintenance, contracts, transactions and accounting (40 fields, preserving every field's exact `.optional()`/`.nullable()` contract). Every frontend caller for every field was traced first and confirmed to already send canonical `YYYY-MM-DD` or `new Date('YYYY-MM-DD').toISOString()` — both accepted unchanged; no caller required a compatibility exception.
+
+**Not changed:** `attendanceSchema`/`updateAttendanceSchema`'s `checkIn`/`checkOut` — genuine `HH:MM` time-of-day, not date-only, left on `z.coerce.date()` intentionally. Date-range filters (`periodQuerySchema`/`resolvePeriod`, Backend Date-Boundary Unification Pack v1) are untouched. Cheque printing/templates/geometry, CSV import date handling, Excel/date-display helpers, DD/MM/YYYY UI, `FinancialPeriod`/Month Selector, Prisma schema/migrations, and any DB data are all untouched.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Financial Period Custom Range State Fix v1
 
 | Field | Value |
 |-------|-------|

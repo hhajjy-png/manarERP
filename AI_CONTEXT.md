@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `bfcae728` (merge of `feature/financial-period-custom-range-state-fix-v1`, fixing PeriodControl's custom-range fields going stale across shared-period changes while the panel stays mounted) |
-| **Current Documentation Commit** | `e342140` |
-| **Current Stable Tag** | `stable-financial-period-custom-range-state-fix-v1` |
+| **Current Merge Commit** | `d3a937b7` (merge of `feature/api-date-hardening-pack-v1`, hardening backend DATE-ONLY API fields to a canonical YYYY-MM-DD contract in place of z.coerce.date()) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Stable Tag** | `stable-api-date-hardening-pack-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 388 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 389 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,28 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **API Date Hardening Pack v1** (2026-07-31, `stable-api-date-hardening-pack-v1`) —
+  backend-only, no schema/frontend changes. Hardens DATE-ONLY API fields to a canonical
+  `YYYY-MM-DD` contract. **Root cause:** `z.coerce.date()` passed raw input straight to
+  `new Date(value)` — a bare `YYYY-MM-DD` string is unambiguous per ECMA-262, but
+  `DD/MM/YYYY`/`MM/DD/YYYY`/a 2-digit year fell into the JS engine's non-standard heuristic
+  parser (V8 assumes US `MM/DD/YYYY`), so "2 August" could silently become "8 February" or
+  resolve to a silent `Invalid Date` — the same mechanism behind the preceding Printed Cheque
+  Edit Date Integrity Fix. **Fix:** one shared validator, `core/utils/dateOnly.ts`
+  (`dateOnlySchema`) — canonical-prefix regex match → pure-arithmetic real-calendar-date check
+  (no `Date` rollover) → `Date.UTC` construction — applied to 40 DATE-ONLY fields across cheques,
+  invoices, equipment, employees, employee-entitlements, holidays, payments, payroll, expenses,
+  prices, maintenance, contracts, transactions and accounting, preserving every field's exact
+  required/optional/nullable contract. Every frontend caller was traced first and confirmed
+  already canonical; no compatibility exception needed. **Intentionally excluded:** attendance
+  `checkIn`/`checkOut` (genuine time-of-day, not date-only) and date-range filters (already
+  governed by the Backend Date-Boundary Unification Pack v1). Feature commit `1c2eb79`, merge
+  `d3a937b7`. Validation: backend `tsc --noEmit` ✅ · 74 test files / 913 tests passing, 0
+  failures, across all 16 touched modules + `core/utils` · a static guard confirms no hardened
+  schema still uses raw `z.coerce.date()` outside the documented exception · `npm run build:back`
+  not run (not materially needed). Product Owner manual review: approved, release explicitly
+  requested.
 
 - **Financial Period Custom Range State Fix v1** (2026-07-31,
   `stable-financial-period-custom-range-state-fix-v1`) — frontend-only, no schema/backend changes.
