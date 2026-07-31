@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `867a4889` (merge of `feature/financial-period-month-selector-v1`, replacing the shared PeriodControl's "سنة محددة" year-button section with "شهر محدد" month buttons + a year stepper) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Documentation Commit** | `0d8d058` |
 | **Current Stable Tag** | `stable-financial-period-month-selector-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 387 (window 2026-06-07 → 2026-07-31) |
