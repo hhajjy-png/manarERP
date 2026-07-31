@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `d3a937b7` (merge of `feature/api-date-hardening-pack-v1`, hardening backend DATE-ONLY API fields to a canonical YYYY-MM-DD contract in place of z.coerce.date()) |
-| **Current Documentation Commit** | `b64e594` |
-| **Current Stable Tag** | `stable-api-date-hardening-pack-v1` |
+| **Current Merge Commit** | `174883aa` (merge of `feature/project-wide-date-display-export-import-consistency-v1`, standardizing user-facing calendar-date rendering to DD/MM/YYYY across Excel/PDF exports and frontend displays, fixing an import date-drop, and closing a live MM/DD misread in the payroll bank import parser) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Stable Tag** | `stable-project-wide-date-display-export-import-consistency-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 389 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 390 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,34 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Project-Wide Date Display, Export & Import Consistency Pack v1** (2026-07-31,
+  `stable-project-wide-date-display-export-import-consistency-v1`) — frontend + backend,
+  no schema changes. Standardizes user-facing calendar-date rendering to `DD/MM/YYYY` across
+  Excel/PDF report exports and frontend displays; the canonical internal/API `YYYY-MM-DD`
+  contract, timestamps, and machine-readable filename dates are unchanged. **Root cause
+  (display/export):** the canonical `formatDisplayDate` helpers already existed but several
+  sites bypassed them — raw `toISOString().slice(0,10)` (leaking the wire format to a
+  user-facing cell/subtitle, and in one case reading the UTC day instead of local, shifting a
+  stored midnight date backward in Kuwait's UTC+3) and `toLocaleDateString('ar-KW')`
+  (Arabic-Indic digits + RTL marks). `excelStyle.ts`'s `DATE_FORMAT` was literally
+  `'yyyy-mm-dd'`, applied to every real Excel date cell. **Root cause (import):** the
+  employees/equipment import validators silently dropped an unparseable date and imported the
+  row as valid with the date missing, while sibling validators already raised a row error for
+  the identical condition. **Corrective pass (payroll bank import):** `parseDateValue` was
+  bare `new Date(String(v))` — a proven MM/DD misread (the backend twin parses the identical
+  column from the identical bank templates and was already fixed against this exact literal),
+  a UTC-vs-local day shift able to misfile a payroll batch's month, and no Excel-serial
+  support; now delegates to the existing `parseFlexibleDate`, hardened with an explicit ISO
+  branch and impossible-date rejection. **Explicitly deferred (logged only):** generic
+  importer's ambiguous MM/DD compatibility gap, bank-statement server-side date trust, the
+  inert backend `payrollBankImport/excelParser.ts` follow-up, `printI18n` dead code, legacy
+  salaries bank import. Feature commit `4b5dda7`, merge `174883aa`. Validation: backend
+  `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · new/extended tests (dateDisplayConsistency
+  17, importDateValidation 11, date.test.ts +10, payrollBankImportParser +12,
+  mutation-tested) all passing · affected backend suites 36 files/754 tests passing ·
+  affected frontend suites passing. Product Owner manual review: approved, release
+  explicitly requested.
 
 - **API Date Hardening Pack v1** (2026-07-31, `stable-api-date-hardening-pack-v1`) —
   backend-only, no schema/frontend changes. Hardens DATE-ONLY API fields to a canonical

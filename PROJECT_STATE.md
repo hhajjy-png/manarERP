@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `d3a937b7` — release `stable-api-date-hardening-pack-v1` (backend DATE-ONLY API fields hardened to a canonical `YYYY-MM-DD` contract via a single shared validator, replacing `z.coerce.date()`'s ambiguous-format risk) |
+| **Production HEAD** | `174883aa` — release `stable-project-wide-date-display-export-import-consistency-v1` (standardizes user-facing calendar-date rendering to `DD/MM/YYYY` across Excel/PDF exports and frontend displays; fixes a silent date-drop in the employees/equipment import validators; closes a live MM/DD misread + UTC day-shift in the payroll bank import parser) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-api-date-hardening-pack-v1` (release date 2026-07-31) → merge `d3a937b7` |
-| **Previous stable tag** | `stable-financial-period-custom-range-state-fix-v1` (2026-07-31) → merge `bfcae728` |
-| **Total stable releases** | 389 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · 74 focused test files / 913 tests passing across all 16 touched modules + `core/utils` (0 failures) — including new `dateOnly.test.ts` (15), `cheques.dateHardening.test.ts` (9), and `dateHardeningCrossModule.test.ts` (14, includes a static guard confirming zero remaining raw `z.coerce.date()` outside the documented `checkIn`/`checkOut` exception) · `npm run build:back` not run (not materially needed — pure schema/validator changes, no build-affecting structural change) · frontend/electron untouched (backend-only pack; no re-verification needed) · scope confirmed: exactly 20 backend files entered the release (16 modified schema/controller/service files + 4 new test/helper files), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `d3a937b7` + tag `stable-api-date-hardening-pack-v1`) |
+| **Latest stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (release date 2026-07-31) → merge `174883aa` |
+| **Previous stable tag** | `stable-api-date-hardening-pack-v1` (2026-07-31) → merge `d3a937b7` |
+| **Total stable releases** | 390 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · new `dateDisplayConsistency.test.ts` (17), `importDateValidation.test.ts` (11), extended `date.test.ts` (+10) all passing · corrective-pass `payrollBankImportParser.test.ts` 20/20 passing (12 new, mutation-tested: reverting the fix fails 7 of them) · affected backend suites (reportEngine/financial/import/reports/statements/expirations/both bank-import modules) 36 files/754 tests passing · affected frontend suites (lib, chequesExcelExport, printTemplates, payroll-bank ×3) all passing · scope confirmed: exactly 26 files entered the release (2 backend prod + 11 backend prod continued + 5 backend test updates + 6 frontend + 2 new backend tests, incl. the corrective-pass `payrollBankImportParser.ts`/its test), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `174883aa` + tag `stable-project-wide-date-display-export-import-consistency-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — API Date Hardening Pack v1
+## Latest Release — Project-Wide Date Display, Export & Import Consistency Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Project-Wide Date Display, Export & Import Consistency Pack v1 (standardizes user-facing calendar-date rendering to `DD/MM/YYYY` across Excel/PDF report exports and frontend displays, fixes a silent date-drop in the employees/equipment import validators; corrective pass closed a live MM/DD misread + UTC day-shift in the payroll bank import parser) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/project-wide-date-display-export-import-consistency-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `64cdaf21` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit audit → implementation → corrective pass → verification → user-approved-release flow |
+| **Feature commit** | `4b5dda7` |
+| **Production merge commit** | `174883aa` |
+| **Stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` → merge `174883aa` (annotated) |
+| **Reviews** | Full project-wide audit of date formatting/export/import sites classified A–F (display / export / import / internal-API / timestamp / filename) before any edit; a corrective pass added after the audit surfaced one unresolved live ambiguity (payroll bank import) → IMPLEMENTATION → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · new/extended tests (dateDisplayConsistency 17, importDateValidation 11, date.test.ts +10, payrollBankImportParser +12) all passing · affected backend suites 36 files/754 tests passing · affected frontend suites passing · corrective-pass fix mutation-tested (reverting fails 7 of 12 new payroll-bank tests) |
+
+**Root cause (display/export):** the canonical `formatDisplayDate`/`dateDisplay.ts` helpers already existed and were correctly used almost everywhere, but several sites bypassed them — raw `toISOString().slice(0,10)` (leaking the internal `YYYY-MM-DD` wire format to a user-facing cell or subtitle, and in `summary.utils.formatDate`'s case also reading the **UTC** day, shifting a locally-stored midnight date backward a day in Kuwait's UTC+3), and `toLocaleDateString('ar-KW')` (Arabic-Indic digits + embedded RTL marks, violating the project's Western-digit standard). `excelStyle.ts`'s `DATE_FORMAT` was literally `'yyyy-mm-dd'`, applied to every real Excel date cell and every `type:'date'` column.
+
+**Root cause (import):** the employees/equipment import validators parsed dates via `parseImportDate(v) ?? undefined`, silently dropping an unparseable date and importing the row as **valid** with the date missing — while the sibling contracts/expenses/invoices validators already raised a row-level error for the identical condition.
+
+**Root cause (corrective pass — payroll bank import):** `payrollBankImportParser.ts`'s `parseDateValue` was bare `new Date(String(v))`, carrying an MM/DD misread (proven day-first contract: the backend twin `excelParser.ts` parses the identical `paymentDate` column from the identical bank templates and was already fixed against this exact literal), a UTC-vs-local day shift on Excel date cells capable of misfiling an entire payroll batch into the wrong month, and no Excel-serial support.
+
+**Fix:** routed every confirmed display/export site through the existing canonical helpers (`formatDisplayDate` backend/frontend, `dateAr` in `reports.service.ts`); changed `DATE_FORMAT` to `'dd/mm/yyyy'` (real date cells keep their type — sorting/calculation preserved); gave employees/equipment the same row-error mechanism their siblings already have; made `parseDateValue` delegate to `parseFlexibleDate`, which gained an explicit ISO branch and a calendar round-trip (`utcCalendarDate`) that rejects impossible dates instead of silently rolling them over.
+
+**Not changed:** `dateOnlySchema`/API Date Hardening contract, Backend Date-Boundary semantics, `FinancialPeriod`/Month Selector, `DateInput`'s `YYYY-MM-DD` value contract, `ExpirationRecord.expiryDate` (frontend sorts on it — only its Excel export mapping changed), timestamps (`createdAt`/`updatedAt`, attendance `checkIn`/`checkOut`), filename dates, Prisma schema/migrations, DB data. Generic importer's ambiguous MM/DD compatibility gap, bank-statement server-side date trust, the inert backend `payrollBankImport/excelParser.ts` follow-up, `printI18n` dead code, and legacy salaries bank import were all explicitly identified and left deferred (logged, not fixed) per instruction.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — API Date Hardening Pack v1
 
 | Field | Value |
 |-------|-------|

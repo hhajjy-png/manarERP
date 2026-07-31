@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (API Date Hardening Pack v1), like the Financial Period Custom Range State Fix v1
-> pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
+> below. This pass (Project-Wide Date Display, Export & Import Consistency Pack v1), like the API Date Hardening
+> Pack v1 pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
 > from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `d3a937b7` — merge of `feature/api-date-hardening-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-api-date-hardening-pack-v1` (merge commit `d3a937b7`) | High |
-| **Previous stable tag** | `stable-financial-period-custom-range-state-fix-v1` (`bfcae728`) | High |
+| **Current HEAD** | `174883aa` — merge of `feature/project-wide-date-display-export-import-consistency-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (merge commit `174883aa`) | High |
+| **Previous stable tag** | `stable-api-date-hardening-pack-v1` (`d3a937b7`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,40 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-api-date-hardening-pack-v1` (`d3a937b7`, 2026-07-31)
+### Latest Release — `stable-project-wide-date-display-export-import-consistency-v1` (`174883aa`, 2026-07-31)
+
+Standardizes user-facing calendar-date rendering to `DD/MM/YYYY` across Excel/PDF report
+exports and frontend displays. The canonical internal/API `YYYY-MM-DD` contract, timestamps,
+and machine-readable filename dates are unchanged — this pack is display/export-only.
+
+- **Excel/report fix:** `excelStyle.ts`'s `DATE_FORMAT` (`'yyyy-mm-dd'` → `'dd/mm/yyyy'`) —
+  real Excel date cells keep their type, so sorting/calculation is preserved; only the visible
+  format changed. Several export sites bypassed the existing canonical `formatDisplayDate`
+  helper entirely — raw `toISOString().slice(0,10)` (leaking the wire format to a user-facing
+  cell/subtitle; in `summary.utils.formatDate`'s case also reading the **UTC** day, shifting a
+  locally-stored midnight date backward in Kuwait's UTC+3) and `toLocaleDateString('ar-KW')`
+  (Arabic-Indic digits + embedded RTL marks). All now route through the existing helpers.
+- **Import validation fix:** the employees/equipment import validators parsed dates via
+  `parseImportDate(v) ?? undefined`, silently dropping an unparseable date and importing the
+  row as valid with the date missing, while the sibling contracts/expenses/invoices validators
+  already raised a row error for the identical condition. Now consistent.
+- **Corrective pass — payroll bank import:** `payrollBankImportParser.ts`'s `parseDateValue`
+  was bare `new Date(String(v))`, carrying a proven MM/DD misread (the backend twin
+  `excelParser.ts` parses the identical column from the identical bank templates and was
+  already fixed against this exact literal), a UTC-vs-local day shift able to misfile an entire
+  payroll batch into the wrong month, and no Excel-serial support. Now delegates to the
+  existing `parseFlexibleDate`, which gained an explicit ISO branch and a calendar round-trip
+  rejecting impossible dates.
+- **Explicitly deferred (logged, not fixed):** generic importer's ambiguous MM/DD
+  compatibility gap, bank-statement server-side date trust, the inert backend
+  `payrollBankImport/excelParser.ts` follow-up, `printI18n` dead code, legacy salaries bank
+  import.
+- **Validation:** backend `tsc --noEmit` clean · frontend `tsc --noEmit` clean · new/extended
+  tests (`dateDisplayConsistency` 17, `importDateValidation` 11, `date.test.ts` +10,
+  `payrollBankImportParser` +12, mutation-tested) all passing · affected backend suites 36
+  files/754 tests passing · affected frontend suites passing.
+
+### Previous Release — `stable-api-date-hardening-pack-v1` (`d3a937b7`, 2026-07-31)
 
 Hardens backend DATE-ONLY API fields to a canonical `YYYY-MM-DD` contract. `z.coerce.date()`
 passed raw input straight to `new Date(value)`: a bare `YYYY-MM-DD` string is unambiguous per
