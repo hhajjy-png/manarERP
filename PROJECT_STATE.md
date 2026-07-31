@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `60c63a23` — release `stable-bank-statement-import-server-date-hardening-v1` (hardens the bank-statement-import server boundary so transaction dates are deterministic and validated before reaching business logic, reusing the released `dateOnlySchema`) |
+| **Production HEAD** | `e645f303` — release `stable-administrative-forms-preview-ux-v1` (replaces the direct-print "طباعة" action on Administrative Forms cards with "فتح" (Open), routing into the existing preview architecture at an 80% initial zoom instead of an immediate print) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (release date 2026-07-31) → merge `60c63a23` |
-| **Previous stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (2026-07-31) → merge `174883aa` |
-| **Total stable releases** | 391 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · `bankStatementImport` module suite 5 files/226 tests passing (211 pre-existing unchanged + 15 new) · mutation-tested: reverting the schema hardening fails exactly the 8 tests designed to catch it · frontend untouched (no frontend production code changed; no frontend `tsc` needed) · scope confirmed: exactly 2 backend files entered the release (`schema.ts` + its test), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; Generic Importer and Payroll Bank Import untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `60c63a23` + tag `stable-bank-statement-import-server-date-hardening-v1`) |
+| **Latest stable tag** | `stable-administrative-forms-preview-ux-v1` (release date 2026-07-31) → merge `e645f303` |
+| **Previous stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (2026-07-31) → merge `60c63a23` |
+| **Total stable releases** | 392 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | 19/19 new focused frontend tests passing (`administrativeFormsOpenPreview.test.tsx`) · affected-suite sweep (15 files): 13 passing, 2 pre-existing failures unrelated to this pack (`formsRegistryTranslationAudit.test.ts`, `universalPrintPreviewCorrective.test.ts`) deferred, not caused by this change · frontend `tsc --noEmit` ✅ · scope confirmed: exactly 9 approved frontend files entered the release (2 new + 7 modified), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; backend, Prisma/schema/migrations, and Electron print implementation untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `e645f303` + tag `stable-administrative-forms-preview-ux-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Bank Statement Import Server Date Hardening Pack v1
+## Latest Release — Administrative Forms Preview UX Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Administrative Forms Preview UX Pack v1 (replaces the direct-print "طباعة" action on Administrative Forms cards with "فتح" (Open), which routes into the existing WYSIWYG preview architecture at an 80% initial zoom instead of triggering an immediate OS print dialog) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/administrative-forms-preview-ux-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `822bb702` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit architecture-trace → implementation → verification → user-approved-release flow |
+| **Feature commit** | `ada2d56` |
+| **Production merge commit** | `e645f303` |
+| **Stable tag** | `stable-administrative-forms-preview-ux-v1` → merge `e645f303` (annotated) |
+| **Reviews** | Full architecture trace (Forms.tsx card registry → FormLayout auto-print effect → PrintWorkspace zoom state) proving the exact existing preview/print pipeline before any edit → IMPLEMENTATION → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | 19/19 new focused frontend tests passing · affected-suite sweep (15 files): 13 passing, 2 pre-existing failures unrelated to this pack deferred (see below) · frontend `tsc --noEmit` ✅ |
+
+**Root cause of the direct-print behavior:** `FormLayout`'s auto-print `useEffect` fired `waitForPrintReady()` → `printCurrentView()` (the OS print dialog) as soon as `ready === true`. Navigating from an Administrative Forms card into a form page — not the card itself — was what triggered the immediate print, for the 8 of 14 registry forms that pass `ready` to `FormLayout`.
+
+**Fix:** added a URL-only intent marker (`?open=preview`, `forms/shared/formOpenIntent.ts`) set exclusively by navigation originating from the Administrative Forms page (`Forms.tsx`'s card action, renamed `handleOpen`). `FormLayout` skips its auto-print effect when the marker is present. `PrintWorkspace` gained an additive, opt-in `initialZoom` prop that seeds the preview's starting zoom (80% via the marker) with no fit-mode override, one-shot only — user zoom actions own the value afterwards, and every fresh preview session (new form, or reopening the same one) starts at 80% again. 12 of the 14 registry forms render through `PrintWorkspace` and get the 80% initial zoom.
+
+**Intentional exceptions — not unfinished work:** `employment-contract` and `receipt-voucher` use their own existing dedicated screens and do **not** render `PrintWorkspace`. For both: "فتح" behavior is correct (no automatic printing occurs, matching every other form), but no artificial 80% zoom or `PrintWorkspace` wrapper was introduced — that would require restructuring their dedicated screens, an architecture change out of this pack's scope.
+
+**Not changed:** print pipeline (`doPrint`, `printCurrentView`, `submitPrintJob`, `webContents.print`), `@page` geometry, margins, paper size, PDF export, `WysiwygPreviewPocDialog` (the separate flag-gated "معاينة دقيقة" preview, unaffected), any non-Administrative-Forms caller of the same routes (e.g. the Cheques → payment-voucher flow, which carries no intent marker and keeps its previous auto-print/fit-to-page behavior), backend, Prisma/schema/migrations, Electron print implementation.
+
+**Deferred, not caused by this pack:** `formsRegistryTranslationAudit.test.ts` and `universalPrintPreviewCorrective.test.ts` were already failing on `production` HEAD before this release (unrelated assertions on `Invoices.tsx` toolbar text and a `t()`-vs-`translate()` call-style expectation); repo-wide `npm run lint` is broken independent of this pack (ESLint 10 requires `eslint.config.js`, repo still has `.eslintrc.*`). None touched or repaired by this release.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Bank Statement Import Server Date Hardening Pack v1
 
 | Field | Value |
 |-------|-------|

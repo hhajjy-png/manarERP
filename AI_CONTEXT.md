@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `60c63a23` (merge of `feature/bank-statement-import-server-date-hardening-v1`, hardening the bank-statement-import server boundary so transaction dates are deterministic and validated before reaching business logic, reusing the released dateOnlySchema) |
-| **Current Documentation Commit** | `4f57c70` |
-| **Current Stable Tag** | `stable-bank-statement-import-server-date-hardening-v1` |
+| **Current Merge Commit** | `e645f303` (merge of `feature/administrative-forms-preview-ux-v1`, replacing the direct-print "طباعة" action on Administrative Forms cards with "فتح" (Open), routing into the existing preview architecture at an 80% initial zoom instead of an immediate print) |
+| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Stable Tag** | `stable-administrative-forms-preview-ux-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 391 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 392 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,35 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Administrative Forms Preview UX Pack v1** (2026-07-31,
+  `stable-administrative-forms-preview-ux-v1`) — frontend-only, no backend/schema changes.
+  Replaces the direct-print "طباعة" action on Administrative Forms cards with "فتح" (Open),
+  which routes into the existing WYSIWYG preview architecture (`PrintWorkspace`) instead of
+  triggering an immediate OS print dialog. **Root cause:** `FormLayout`'s auto-print
+  `useEffect` fired `printCurrentView()` as soon as `ready === true` — navigating from a card
+  into the form page (not the click itself) triggered the print, for the 8 of 14 registry
+  forms that pass `ready` to `FormLayout`. **Fix:** a URL-only intent marker
+  (`?open=preview`, `forms/shared/formOpenIntent.ts`) set exclusively by navigation from the
+  Administrative Forms page; `FormLayout` skips auto-print when present. `PrintWorkspace`
+  gained an additive, opt-in `initialZoom` prop that seeds (never locks) the preview's
+  starting zoom at 80% via the marker — every fresh preview session (new form, or reopening
+  the same one) starts at 80% again, but user zoom actions own the value from the first
+  interaction on. 12 of the 14 registry forms render through `PrintWorkspace` and get the 80%
+  initial zoom. **Intentional exceptions:** `employment-contract` and `receipt-voucher` use
+  their own dedicated screens (no `PrintWorkspace`) — "فتح" is correct on both (no
+  auto-print), but no 80% zoom applies since there is no shared preview surface to seed; this
+  is an architecture-preserving exception, not unfinished work. **Not changed:** print
+  pipeline (`doPrint`, `printCurrentView`, `submitPrintJob`, `webContents.print`), `@page`
+  geometry, margins, paper size, PDF export, the separate flag-gated "معاينة دقيقة" WYSIWYG
+  POC dialog, any non-Administrative-Forms caller of the same routes (e.g. Cheques →
+  payment-voucher, which carries no marker and keeps its previous auto-print/fit-to-page
+  behavior), backend, Prisma/schema/migrations, Electron print implementation. Feature commit
+  `ada2d56`, merge `e645f303`. Validation: 19/19 new focused frontend tests passing ·
+  affected-suite sweep (15 files) 13 passing, 2 pre-existing failures unrelated to this pack
+  deferred (`formsRegistryTranslationAudit.test.ts`, `universalPrintPreviewCorrective.test.ts`)
+  · frontend `tsc --noEmit` ✅. Product Owner manual review: approved, release explicitly
+  requested.
 
 - **Bank Statement Import Server Date Hardening Pack v1** (2026-07-31,
   `stable-bank-statement-import-server-date-hardening-v1`) — backend-only, no frontend/schema

@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Bank Statement Import Server Date Hardening Pack v1), like the Project-Wide Date Display,
-> Export & Import Consistency Pack v1 pass and the ones before it, refreshed the "Current Production State" table
+> below. This pass (Administrative Forms Preview UX Pack v1), like the Bank Statement Import Server Date
+> Hardening Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `60c63a23` — merge of `feature/bank-statement-import-server-date-hardening-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (merge commit `60c63a23`) | High |
-| **Previous stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (`174883aa`) | High |
+| **Current HEAD** | `e645f303` — merge of `feature/administrative-forms-preview-ux-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-administrative-forms-preview-ux-v1` (merge commit `e645f303`) | High |
+| **Previous stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (`60c63a23`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,35 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-bank-statement-import-server-date-hardening-v1` (`60c63a23`, 2026-07-31)
+### Latest Release — `stable-administrative-forms-preview-ux-v1` (`e645f303`, 2026-07-31)
+
+Replaces the direct-print "طباعة" action on Administrative Forms cards with "فتح"
+(Open), routing into the existing WYSIWYG preview architecture at an 80% initial
+zoom instead of triggering an immediate OS print dialog. Frontend-only, no
+backend/schema changes.
+
+- **Root cause:** `FormLayout`'s auto-print `useEffect` fired as soon as
+  `ready === true` — navigating from a card into the form page (not the card
+  click itself) triggered the immediate print, for the 8 of 14 registry forms
+  that pass `ready` to `FormLayout`.
+- **Fix:** a URL-only intent marker (`?open=preview`) set exclusively by
+  navigation from the Administrative Forms page. `FormLayout` skips auto-print
+  when it is present; `PrintWorkspace` gained an additive, opt-in `initialZoom`
+  prop (80% via the marker) that seeds — but does not lock — the preview's
+  starting zoom. 12 of the 14 registry forms render through `PrintWorkspace` and
+  get the 80% initial zoom.
+- **Intentional exceptions:** `employment-contract` and `receipt-voucher` use
+  their own dedicated screens (no `PrintWorkspace`) — "فتح" is correct on both
+  (no auto-print), but no 80% zoom applies since there is no shared preview
+  surface to seed.
+- **Not changed:** print pipeline, `@page` geometry, margins, PDF export, the
+  separate "معاينة دقيقة" WYSIWYG POC dialog, any non-Administrative-Forms
+  caller of the same routes (e.g. Cheques → payment-voucher).
+- **Validation:** 19/19 new focused frontend tests passing · affected-suite
+  sweep (15 files): 13 passing, 2 pre-existing failures unrelated to this pack
+  deferred · frontend `tsc --noEmit` clean.
+
+### Previous Release — `stable-bank-statement-import-server-date-hardening-v1` (`60c63a23`, 2026-07-31)
 
 Hardens the bank-statement-import server boundary so transaction dates are deterministic and
 validated before reaching business logic — closing a risk explicitly deferred by the preceding
