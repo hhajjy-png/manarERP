@@ -11,7 +11,7 @@
  * المشترك — لا إلى حالة محلية داخل الصفحة.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, act, within } from '@testing-library/react';
+import { render, screen, act, within, fireEvent } from '@testing-library/react';
 import PeriodControl from '../PeriodControl';
 import { FinancialPeriodProvider, useFinancialPeriod } from '../../../context/FinancialPeriodContext';
 
@@ -22,9 +22,15 @@ const AR_MONTHS = [
 
 const CUR_YEAR = new Date().getFullYear();
 
-/** يعرض الفترة المشتركة بجانب العنصر — يثبت أن الاختيار وصل إلى السياق نفسه. */
+/**
+ * يعرض الفترة المشتركة بجانب العنصر — يثبت أن الاختيار وصل إلى السياق نفسه.
+ *
+ * الزر `ext-set-all` **خارج** اللوحة عمدًا: هو الطريقة الوحيدة لتغيير الفترة
+ * المشتركة بينما اللوحة مفتوحة (كل أدوات اللوحة تُغلقها عند التطبيق)، فيُثبت أن
+ * مسوّدة النطاق المخصص لا تُدهَس بتحديث حالة مشتركة غير ذي صلة.
+ */
 function PeriodProbe() {
-  const { period } = useFinancialPeriod();
+  const { period, setPreset } = useFinancialPeriod();
   return (
     <>
       <span data-testid="p-preset">{period.preset}</span>
@@ -32,6 +38,7 @@ function PeriodProbe() {
       <span data-testid="p-to">{period.toDate ?? '—'}</span>
       <span data-testid="p-month">{period.selectedMonth ?? '—'}</span>
       <span data-testid="p-year">{period.selectedYear ?? '—'}</span>
+      <button type="button" data-testid="ext-set-all" onClick={() => setPreset('all')} />
     </>
   );
 }
@@ -56,6 +63,25 @@ const clickText = (root: HTMLElement, text: string) => {
 };
 
 const read = (id: string) => screen.getByTestId(id).textContent;
+
+/** حقلا النطاق المخصص بالترتيب [من، إلى] — الحقلان الوحيدان من نوع textbox داخل اللوحة. */
+const customFields = (panel: HTMLElement) =>
+  within(panel).getAllByRole('textbox') as HTMLInputElement[];
+
+/** يكتب تاريخًا بصيغة العرض DD/MM/YYYY ثم يُنهي التحرير — `DateInput` يلتزم عند blur. */
+const typeDate = (field: HTMLInputElement, display: string) => {
+  fireEvent.change(field, { target: { value: display } });
+  fireEvent.blur(field);
+};
+
+/** `YYYY-MM-DD` → `DD/MM/YYYY`: ما يعرضه الحقل مقابل القيمة القانونية التي يحملها. */
+const asDisplay = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
+
+/** تاريخ اليوم محليًا — نهاية نطاق «السنة حتى اليوم» الافتراضي. */
+const TODAY_ISO = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
 
 beforeEach(() => {
   sessionStorage.clear();
@@ -233,5 +259,103 @@ describe('بقية اللوحة لم تتأثر', () => {
     const panel = openPanel();
     act(() => { within(panel).getByRole('button', { name: 'تطبيق' }).click(); });
     expect(read('p-preset')).toBe('custom');
+  });
+});
+
+/**
+ * Financial Period Custom Range State Fix v1.
+ *
+ * حقلا «نطاق مخصص» كانا يُبذران في `useState` وحده — أي مرة واحدة عند تركيب
+ * العنصر. والعنصر يبقى مركّبًا بينما تتغيّر الفترة المشتركة من حوله، فيحمل
+ * الحقلان حدود فترةٍ قديمة و«تطبيق» يلتزم بها بدل الفترة النشطة.
+ *
+ * البذر صار عند **الفتح**، لا بمزامنة مستمرة: مسوّدة المستخدم تبقى ملكه ما دامت
+ * اللوحة مفتوحة، وتُعاد من الفترة المُلتزَم بها عند كل فتح جديد.
+ */
+describe('النطاق المخصص — بذر المسوّدة عند الفتح', () => {
+  /** سهم «السنة السابقة» داخل رأس قسم الأشهر (يشترك في الاسم مع زر الإعداد المسبق). */
+  const stepBack = (panel: HTMLElement) => {
+    const btns = within(panel).getAllByRole('button', { name: 'السنة السابقة' });
+    return btns[btns.length - 1];
+  };
+
+  it('الفتح يبذر الحقلين من الفترة المشتركة الحالية (الافتراضي: السنة حتى اليوم)', () => {
+    const panel = openPanel();
+    const [from, to] = customFields(panel);
+    expect(from.value).toBe(asDisplay(`${CUR_YEAR}-01-01`));
+    expect(to.value).toBe(asDisplay(TODAY_ISO));
+  });
+
+  it('تغيّر الفترة واللوحة مغلقة → الفتح التالي يستخدم النطاق الجديد', () => {
+    let panel = openPanel();
+    clickText(panel, 'مارس');            // يُطبَّق ويُغلق اللوحة
+
+    panel = openPanel();
+    const [from, to] = customFields(panel);
+    expect(from.value).toBe(asDisplay(`${CUR_YEAR}-03-01`));
+    expect(to.value).toBe(asDisplay(`${CUR_YEAR}-03-31`));
+  });
+
+  it('أغسطس السنة السابقة → المسوّدة هي حدّاه بالضبط، ويلتزم بها «تطبيق» بصيغة YYYY-MM-DD', () => {
+    // نفس المثال المُبلَّغ (أغسطس 2025 وقت الإبلاغ) بصياغة مستقلة عن ساعة الجهاز.
+    const y = CUR_YEAR - 1;
+    let panel = openPanel();
+    act(() => { stepBack(panel).click(); });
+    clickText(panel, 'أغسطس');
+
+    panel = openPanel();
+    const [from, to] = customFields(panel);
+    expect(from.value).toBe(asDisplay(`${y}-08-01`));
+    expect(to.value).toBe(asDisplay(`${y}-08-31`));
+
+    // «تطبيق» بلا تحرير يلتزم بالقيم القانونية نفسها — لا انزلاق يوم ولا تحويل صيغة.
+    act(() => { within(panel).getByRole('button', { name: 'تطبيق' }).click(); });
+    expect(read('p-preset')).toBe('custom');
+    expect([read('p-from'), read('p-to')]).toEqual([`${y}-08-01`, `${y}-08-31`]);
+  });
+
+  it('تحرير المستخدم لا يُدهَس بإعادة رسم ولا بتغيّر الفترة المشتركة واللوحة مفتوحة', () => {
+    const panel = openPanel();
+    const [from, to] = customFields(panel);
+    typeDate(from, asDisplay(`${CUR_YEAR}-02-10`));
+    typeDate(to, asDisplay(`${CUR_YEAR}-02-20`));
+
+    // إعادة رسم محلية (متصفّح السنة) — اللوحة تبقى مفتوحة.
+    act(() => { stepBack(panel).click(); });
+    expect([from.value, to.value])
+      .toEqual([asDisplay(`${CUR_YEAR}-02-10`), asDisplay(`${CUR_YEAR}-02-20`)]);
+
+    // وتغيّر الفترة المشتركة من خارج اللوحة — المسوّدة تبقى ملك المستخدم.
+    act(() => { screen.getByTestId('ext-set-all').click(); });
+    expect(read('p-preset')).toBe('all');
+    expect([from.value, to.value])
+      .toEqual([asDisplay(`${CUR_YEAR}-02-10`), asDisplay(`${CUR_YEAR}-02-20`)]);
+  });
+
+  it('«تطبيق» يلتزم بالنطاق المحرَّر بالضبط', () => {
+    const panel = openPanel();
+    const [from, to] = customFields(panel);
+    typeDate(from, asDisplay(`${CUR_YEAR}-04-05`));
+    typeDate(to, asDisplay(`${CUR_YEAR}-06-15`));
+
+    act(() => { within(panel).getByRole('button', { name: 'تطبيق' }).click(); });
+    expect(read('p-preset')).toBe('custom');
+    expect([read('p-from'), read('p-to')])
+      .toEqual([`${CUR_YEAR}-04-05`, `${CUR_YEAR}-06-15`]);
+  });
+
+  it('الإغلاق دون «تطبيق» → إعادة الفتح تُعيد المسوّدة إلى الفترة المُلتزَم بها', () => {
+    let panel = openPanel();
+    typeDate(customFields(panel)[0], asDisplay(`${CUR_YEAR}-02-10`));
+
+    // إغلاق بزر الملخّص نفسه — لا تطبيق.
+    act(() => { screen.getByRole('button', { name: 'اختيار الفترة المالية' }).click(); });
+    expect(screen.queryByRole('dialog', { name: 'الفترة المالية' })).toBeNull();
+
+    panel = openPanel();
+    const [from, to] = customFields(panel);
+    expect(from.value).toBe(asDisplay(`${CUR_YEAR}-01-01`));   // الفترة لم تتغيّر: السنة حتى اليوم
+    expect(to.value).toBe(asDisplay(TODAY_ISO));
+    expect(read('p-preset')).toBe('year-to-date');
   });
 });
