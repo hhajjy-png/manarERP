@@ -2,15 +2,15 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Project-Wide Date Display, Export & Import Consistency Pack v1), like the API Date Hardening
-> Pack v1 pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
-> from `git`) —
+> below. This pass (Bank Statement Import Server Date Hardening Pack v1), like the Project-Wide Date Display,
+> Export & Import Consistency Pack v1 pass and the ones before it, refreshed the "Current Production State" table
+> only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
 > this pass — treat their specifics as of those dates, not current-day. This pass only repoints the table below
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `174883aa` — merge of `feature/project-wide-date-display-export-import-consistency-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (merge commit `174883aa`) | High |
-| **Previous stable tag** | `stable-api-date-hardening-pack-v1` (`d3a937b7`) | High |
+| **Current HEAD** | `60c63a23` — merge of `feature/bank-statement-import-server-date-hardening-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (merge commit `60c63a23`) | High |
+| **Previous stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (`174883aa`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,34 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-project-wide-date-display-export-import-consistency-v1` (`174883aa`, 2026-07-31)
+### Latest Release — `stable-bank-statement-import-server-date-hardening-v1` (`60c63a23`, 2026-07-31)
+
+Hardens the bank-statement-import server boundary so transaction dates are deterministic and
+validated before reaching business logic — closing a risk explicitly deferred by the preceding
+Project-Wide Date Display, Export & Import Consistency Pack v1 audit. Backend-only, no
+frontend/schema changes.
+
+- **Traced first:** the trusted frontend parser (`bankStatementParser.ts` `parseDateStr`)
+  already normalizes every legitimate bank-file date shape (Excel serial, ISO, `DD/MM/YYYY`,
+  `DD-MM-YYYY`, verbose month) into canonical `YYYY-MM-DD` (or `null`) before the request is
+  built and sent verbatim — proving the client → server contract was already canonical, so no
+  frontend change was required.
+- **Root cause:** the backend schema accepted `statementDate`/`postingDate`/`fromDate`/`toDate`
+  as `z.string().max(32).nullable()` — any string — which later reached bare `new Date(str)` at
+  4 live sites: `service.ts` persistence insert and `fromDate`/`toDate` derivation,
+  `validators.ts`'s `checkDate`, and `dedupDetector.ts`'s `fetchSnapshot`.
+- **Fix:** reused the released `dateOnlySchema` (API Date Hardening Pack v1) composed with an
+  extra `.transform()` back to a canonical string (`bankStatementDateOnly`), preserving the
+  `YYYY-MM-DD`-string contract every downstream consumer in this module depends on. Once the
+  schema guarantees the string is unambiguous, all 4 downstream `new Date(str)` calls become
+  safe by construction — none needed to be touched.
+- **Not changed:** bank source-file formats, historical imported records, the dead/test-only
+  `parser.ts` mirror, Generic Importer, Payroll Bank Import, Prisma schema/migrations.
+- **Validation:** backend `tsc --noEmit` clean · `bankStatementImport` module suite 5 files/226
+  tests passing (211 pre-existing + 15 new) · mutation-tested: reverting the fix fails exactly
+  the 8 tests designed to catch it.
+
+### Previous Release — `stable-project-wide-date-display-export-import-consistency-v1` (`174883aa`, 2026-07-31)
 
 Standardizes user-facing calendar-date rendering to `DD/MM/YYYY` across Excel/PDF report
 exports and frontend displays. The canonical internal/API `YYYY-MM-DD` contract, timestamps,

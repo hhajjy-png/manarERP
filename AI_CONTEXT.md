@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `174883aa` (merge of `feature/project-wide-date-display-export-import-consistency-v1`, standardizing user-facing calendar-date rendering to DD/MM/YYYY across Excel/PDF exports and frontend displays, fixing an import date-drop, and closing a live MM/DD misread in the payroll bank import parser) |
-| **Current Documentation Commit** | `ec5ff53` |
-| **Current Stable Tag** | `stable-project-wide-date-display-export-import-consistency-v1` |
+| **Current Merge Commit** | `60c63a23` (merge of `feature/bank-statement-import-server-date-hardening-v1`, hardening the bank-statement-import server boundary so transaction dates are deterministic and validated before reaching business logic, reusing the released dateOnlySchema) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Stable Tag** | `stable-bank-statement-import-server-date-hardening-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 390 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 391 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,33 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Bank Statement Import Server Date Hardening Pack v1** (2026-07-31,
+  `stable-bank-statement-import-server-date-hardening-v1`) — backend-only, no frontend/schema
+  changes. Hardens the bank-statement-import server boundary so transaction dates are
+  deterministic and validated before reaching business logic, closing a risk explicitly
+  deferred by the preceding Project-Wide Date Display, Export & Import Consistency Pack v1
+  audit. **Traced first:** the trusted frontend parser (`bankStatementParser.ts`
+  `parseDateStr`) already normalizes every legitimate bank-file date shape (Excel serial, ISO,
+  `DD/MM/YYYY`, `DD-MM-YYYY`, verbose month) into canonical `YYYY-MM-DD` (or `null`) before the
+  request is built and sent verbatim — proving the client → server contract was already
+  canonical, so **no frontend change was required or made**. **Root cause:** the backend
+  schema accepted `statementDate`/`postingDate`/`fromDate`/`toDate` as
+  `z.string().max(32).nullable()` — any string at all — which later reached bare
+  `new Date(str)` at 4 live sites (`service.ts` persistence insert and `fromDate`/`toDate`
+  derivation, `validators.ts`'s `checkDate`, `dedupDetector.ts`'s `fetchSnapshot`). **Fix:**
+  reused the released `dateOnlySchema` (API Date Hardening Pack v1) — no competing validator —
+  composed with an extra `.transform()` back to a canonical string (`bankStatementDateOnly`),
+  since every downstream consumer in this module treats these dates as `YYYY-MM-DD` strings,
+  not `Date` objects. Once the schema guarantees the string is unambiguous, all 4 downstream
+  `new Date(str)` calls become safe by construction — none needed to be touched. **Not
+  changed:** bank source-file date formats, historical imported records, the dead/test-only
+  `parser.ts` mirror, AHLI_UNITED/UNKNOWN `dateFormats` findings, Generic Importer, Payroll
+  Bank Import, Prisma schema/migrations. Feature commit `c47c3a7`, merge `60c63a23`.
+  Validation: backend `tsc --noEmit` ✅ · `bankStatementImport` module suite 5 files/226 tests
+  passing (211 pre-existing + 15 new) · mutation-tested: reverting the fix fails exactly the 8
+  tests designed to catch it. Product Owner manual review: approved, release explicitly
+  requested.
 
 - **Project-Wide Date Display, Export & Import Consistency Pack v1** (2026-07-31,
   `stable-project-wide-date-display-export-import-consistency-v1`) — frontend + backend,

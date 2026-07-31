@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `174883aa` — release `stable-project-wide-date-display-export-import-consistency-v1` (standardizes user-facing calendar-date rendering to `DD/MM/YYYY` across Excel/PDF exports and frontend displays; fixes a silent date-drop in the employees/equipment import validators; closes a live MM/DD misread + UTC day-shift in the payroll bank import parser) |
+| **Production HEAD** | `60c63a23` — release `stable-bank-statement-import-server-date-hardening-v1` (hardens the bank-statement-import server boundary so transaction dates are deterministic and validated before reaching business logic, reusing the released `dateOnlySchema`) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (release date 2026-07-31) → merge `174883aa` |
-| **Previous stable tag** | `stable-api-date-hardening-pack-v1` (2026-07-31) → merge `d3a937b7` |
-| **Total stable releases** | 390 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · new `dateDisplayConsistency.test.ts` (17), `importDateValidation.test.ts` (11), extended `date.test.ts` (+10) all passing · corrective-pass `payrollBankImportParser.test.ts` 20/20 passing (12 new, mutation-tested: reverting the fix fails 7 of them) · affected backend suites (reportEngine/financial/import/reports/statements/expirations/both bank-import modules) 36 files/754 tests passing · affected frontend suites (lib, chequesExcelExport, printTemplates, payroll-bank ×3) all passing · scope confirmed: exactly 26 files entered the release (2 backend prod + 11 backend prod continued + 5 backend test updates + 6 frontend + 2 new backend tests, incl. the corrective-pass `payrollBankImportParser.ts`/its test), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `174883aa` + tag `stable-project-wide-date-display-export-import-consistency-v1`) |
+| **Latest stable tag** | `stable-bank-statement-import-server-date-hardening-v1` (release date 2026-07-31) → merge `60c63a23` |
+| **Previous stable tag** | `stable-project-wide-date-display-export-import-consistency-v1` (2026-07-31) → merge `174883aa` |
+| **Total stable releases** | 391 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · `bankStatementImport` module suite 5 files/226 tests passing (211 pre-existing unchanged + 15 new) · mutation-tested: reverting the schema hardening fails exactly the 8 tests designed to catch it · frontend untouched (no frontend production code changed; no frontend `tsc` needed) · scope confirmed: exactly 2 backend files entered the release (`schema.ts` + its test), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; Generic Importer and Payroll Bank Import untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `60c63a23` + tag `stable-bank-statement-import-server-date-hardening-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Project-Wide Date Display, Export & Import Consistency Pack v1
+## Latest Release — Bank Statement Import Server Date Hardening Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Bank Statement Import Server Date Hardening Pack v1 (hardens the bank-statement-import server boundary so transaction dates are deterministic and validated before reaching business logic, closing a deferred risk from the Project-Wide Date Display, Export & Import Consistency Pack v1 audit) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/bank-statement-import-server-date-hardening-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `bf6e10b2` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit trace → implementation → verification → user-approved-release flow |
+| **Feature commit** | `c47c3a7` |
+| **Production merge commit** | `60c63a23` |
+| **Stable tag** | `stable-bank-statement-import-server-date-hardening-v1` → merge `60c63a23` (annotated) |
+| **Reviews** | Full runtime-path trace (uploaded file → frontend parser → request payload → schema → service → persistence) proving the exact client → server contract before any edit, confirming 4 live bare `new Date(str)` call sites sharing one unvalidated schema field → IMPLEMENTATION → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | backend `tsc --noEmit` ✅ · `bankStatementImport` module suite 5 files/226 tests passing (211 pre-existing + 15 new) · mutation-tested: reverting the fix fails exactly the 8 tests designed to catch it · frontend untouched, no frontend `tsc` needed |
+
+**Root cause:** `StatementTransactionSchema.statementDate`/`.postingDate` (and the request-level `fromDate`/`toDate`) were validated as `z.string().max(32).nullable()` — any string at all — and later reached bare `new Date(str)` at 4 sites: `service.ts` persistence insert and `fromDate`/`toDate` derivation, `validators.ts`'s `checkDate`, and `dedupDetector.ts`'s `fetchSnapshot` (via `classifyRows`, reachable from both preview and execute). A crafted request, future caller, or parser regression could let V8's non-standard `MM/DD/YYYY` heuristic silently misread a date. Traced first: the trusted frontend parser (`bankStatementParser.ts` `parseDateStr`) already normalizes every legitimate bank-file date shape into canonical `YYYY-MM-DD` (or `null`) before the request is built — proving the client → server contract was already canonical, so no frontend change was needed.
+
+**Fix:** reused the released `dateOnlySchema` (API Date Hardening Pack v1) — no competing validator — composed with one extra `.transform()` back to a canonical string (`bankStatementDateOnly` in `schema.ts`), since every downstream consumer in this module (`previewBuilder.ts`, `dedupDetector.ts`, `fingerprint.ts`, `matcher.ts`, `reconciliationEngine.ts`) treats these dates as `YYYY-MM-DD` strings, not `Date` objects. Applied to `StatementTransactionSchema.statementDate`/`.postingDate` and to `PreviewRequestSchema`/`ExecuteImportSchema`'s `fromDate`/`toDate`. Once the schema guarantees the string is unambiguous, all 4 downstream `new Date(str)` calls become safe by construction — none of those 4 call sites needed to be touched.
+
+**Not changed:** frontend (none touched — client already canonical), bank source-file date formats, historical imported records, the dead/test-only `parser.ts` mirror, AHLI_UNITED/UNKNOWN `dateFormats` findings, Generic Importer, Payroll Bank Import, Prisma schema/migrations, DB data.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Project-Wide Date Display, Export & Import Consistency Pack v1
 
 | Field | Value |
 |-------|-------|
