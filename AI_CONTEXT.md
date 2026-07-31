@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `d7f8080a` (merge of `feature/backend-date-boundary-unification-v1`, unifying backend date-range filtering into one local-calendar contract) |
-| **Current Documentation Commit** | `4905ff0` |
-| **Current Stable Tag** | `stable-backend-date-boundary-unification-v1` |
+| **Current Merge Commit** | `867a4889` (merge of `feature/financial-period-month-selector-v1`, replacing the shared PeriodControl's "سنة محددة" year-button section with "شهر محدد" month buttons + a year stepper) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Stable Tag** | `stable-financial-period-month-selector-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 386 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 387 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,38 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Financial Period Month Selector Pack v1** (2026-07-31,
+  `stable-financial-period-month-selector-v1`) — frontend-only, no schema/backend changes. Replaces
+  the shared `PeriodControl`'s "سنة محددة" (specific year) section with "شهر محدد" (specific month) —
+  12 month buttons producing a complete calendar-month range — plus a compact year stepper in the
+  section header. The stepper exists because removing the year buttons would otherwise have removed
+  the only one-click path to a historical year (2020–2026), which the brief explicitly forbade
+  solving by silently pinning month selection to the system's current year; user chose the stepper
+  over a read-only year label or keeping both sections. It seeds from the active period's year on
+  each panel open and is clamped to `[2020, currentYear]` — the same reach the old year buttons had.
+  **Model:** new `preset:'month'` + `selectedMonth` (0-based) in `lib/financialPeriod.ts`; bounds
+  derive from the existing `firstOfMonth`/`lastOfMonth` helpers (no hardcoded month lengths — Feb
+  leap-year and Dec year-boundary correctness come from the calendar itself), emitted as local
+  `YYYY-MM-DD` strings, no UTC conversion. **Context:** `setMonth(year, month)` added to
+  `FinancialPeriodContext`, routed through the same `apply()` path as every other setter — no new
+  state, no per-page month state; `'year'`/`setYear` deliberately kept so a session saved before this
+  pack still restores. **UI:** month grid replaces the year-button grid, applies immediately and
+  closes the panel (matching the buttons it replaces); presets, custom range, Apply, and the CSS
+  design language unchanged. **Corrective pass** (found during manual visual review): the Expenses
+  page's "year" summary card rendered the literal string `سنة {y}` — an i18n placeholder/variable-
+  name mismatch in `lbl.year_prefix` (`{y}` in the string vs. `{ year: … }` passed at the call site),
+  predating this pack and unrelated to it. Fixed in both languages. Confirmed the card intentionally
+  reflects an absolute current-year window the backend computes with the period filter stripped —
+  not the active month selection — so the fix changes only the literal placeholder, not what the
+  card reports. A scripted scan of every `t(key, {vars})` call site against its string's placeholders
+  found one more instance of the same defect class (`a11y.maint.*_details` in `Maintenance.tsx`, an
+  `aria-label`, not visible UI) — logged only, out of scope. Feature commit `45efbb5`, merge
+  `867a4889`. Validation: frontend `tsc --noEmit` ✅ · 6 affected period-related test files/85 tests
+  passing · full frontend suite matches the documented baseline (25 pre-existing failures, unchanged
+  set; +36 new tests, all passing) · `npm run build:front` ✅ · new tests mutation-tested (reverting
+  the corrective placeholder fix fails 9/11 new assertions). Product Owner manual visual review:
+  approved, release explicitly requested.
 
 - **Backend Date-Boundary Unification Pack v1** (2026-07-31,
   `stable-backend-date-boundary-unification-v1`) — backend-only, no UI/schema changes. Root cause: every

@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Backend Date-Boundary Unification Pack v1), like the Payroll Eligibility Reconciliation Pack v1
+> below. This pass (Financial Period Month Selector Pack v1), like the Backend Date-Boundary Unification Pack v1
 > pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
 > from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `d7f8080a` — merge of `feature/backend-date-boundary-unification-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-backend-date-boundary-unification-v1` (merge commit `d7f8080a`) | High |
-| **Previous stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (`ed63d9fd`) | High |
+| **Current HEAD** | `867a4889` — merge of `feature/financial-period-month-selector-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-financial-period-month-selector-v1` (merge commit `867a4889`) | High |
+| **Previous stable tag** | `stable-backend-date-boundary-unification-v1` (`d7f8080a`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,38 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-backend-date-boundary-unification-v1` (`d7f8080a`, 2026-07-31)
+### Latest Release — `stable-financial-period-month-selector-v1` (`867a4889`, 2026-07-31)
+
+Replaces the shared `PeriodControl`'s "سنة محددة" (specific year) section with "شهر محدد" (specific
+month) — 12 month buttons producing a complete calendar-month range — plus a compact year stepper
+in the section header. The stepper exists because removing the year buttons would otherwise have
+removed the only one-click path to a historical year (2020–2026); it seeds from the active period's
+year on each panel open and is clamped to the same `[2020, currentYear]` range the old buttons
+covered. Frontend-only, no schema/backend changes.
+
+- **Model:** new `preset:'month'` + `selectedMonth` (0-based) in `lib/financialPeriod.ts`. Bounds
+  derive from the existing `firstOfMonth`/`lastOfMonth` helpers — no hardcoded month lengths;
+  February/leap-year and December-year-boundary correctness come from the calendar itself. All
+  bounds are local `YYYY-MM-DD` strings, no UTC conversion.
+- **Context:** `setMonth(year, month)` added to `FinancialPeriodContext`, routed through the same
+  `apply()` path as every other setter — no new state, no per-page month state. `'year'`/`setYear`
+  deliberately kept (not removed) so a session saved before this pack still restores correctly.
+- **UI:** month grid replaces the year-button grid; selecting a month applies immediately and closes
+  the panel, matching the interaction model of the buttons it replaces. Presets, custom range,
+  Apply, and the existing CSS design language are unchanged.
+- **Corrective pass** (found during manual visual review): the Expenses page's "year" summary card
+  rendered the literal string `سنة {y}` — a pre-existing i18n placeholder/variable-name mismatch in
+  `lbl.year_prefix` (`{y}` in the string vs. `{ year: … }` passed at the call site), unrelated to the
+  Month Selector. Fixed in both languages (2 lines). Confirmed the card intentionally reflects an
+  absolute current-year window computed by the backend with the period filter stripped — not the
+  active month selection — so no behavior change beyond the literal-placeholder fix.
+- **Validation:** frontend `tsc --noEmit` clean · 6 affected period-related test files / 85 tests
+  passing · full frontend suite matches the documented pre-existing baseline (25 failures, unchanged
+  set; +36 new tests, all passing) · `npm run build:front` clean · new tests mutation-tested
+  (reverting the corrective placeholder fix fails 9 of 11 new assertions). Backend/electron
+  untouched.
+
+### Previous Release — `stable-backend-date-boundary-unification-v1` (`d7f8080a`, 2026-07-31)
 
 Unifies backend date-range filtering semantics — the interpretation of a user-selected `from`/`to`
 into `{gte, lte}` Prisma boundaries — into one canonical local-calendar contract. Previously each

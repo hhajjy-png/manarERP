@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `d7f8080a` — release `stable-backend-date-boundary-unification-v1` (unifies backend date-range filtering into one local-calendar contract; fixes silent record loss at range edges across Expenses/Reports/Accounting/Transactions/Audit/Financial/Bank-Import/Attendance) |
+| **Production HEAD** | `867a4889` — release `stable-financial-period-month-selector-v1` (replaces the shared PeriodControl's "سنة محددة" year-button section with "شهر محدد" — 12 month buttons + a compact year stepper; new `preset:'month'` in the shared FinancialPeriod model) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-backend-date-boundary-unification-v1` (release date 2026-07-31) → merge `d7f8080a` |
-| **Previous stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (2026-07-31) → merge `ed63d9fd` |
-| **Total stable releases** | 386 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | backend `tsc --noEmit` ✅ · backend vitest: 149 files / 2155 tests passing (baseline before this pack: 144 files / 2102 tests, zero pre-existing failures — every failure seen mid-implementation was caused by this pack's own edits and was resolved, not carried over) · new cross-module parity suite mutation-tested (reverting the generic `dateWhere()` to its pre-pack UTC form fails 4 of 5 new parity assertions, confirming the guards bind to real behavior) · `npm run build:back` ✅ · frontend untouched (backend-only pack; no frontend re-verification needed) · scope confirmed: exactly 27 backend files entered the release (13 production modules + `core/utils/dateWindows.ts`/`periodFilter.ts` + 12 test files, 6 of them new), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `d7f8080a` + tag `stable-backend-date-boundary-unification-v1`) |
+| **Latest stable tag** | `stable-financial-period-month-selector-v1` (release date 2026-07-31) → merge `867a4889` |
+| **Previous stable tag** | `stable-backend-date-boundary-unification-v1` (2026-07-31) → merge `d7f8080a` |
+| **Total stable releases** | 387 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · all 6 affected period-related test files passing (85/85 tests) · full frontend vitest suite matches the documented pre-existing baseline (25 failures, identical unchanged set; +36 new tests, all passing) · `npm run build:front` ✅ · new month-boundary tests mutation-tested (reverting the corrective `lbl.year_prefix` placeholder fix fails 9 of 11 new assertions) · backend/electron untouched (frontend-only pack; no re-verification needed) · scope confirmed: exactly 9 frontend files entered the release (7 production/lib files + 2 new test files), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `867a4889` + tag `stable-financial-period-month-selector-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Backend Date-Boundary Unification Pack v1
+## Latest Release — Financial Period Month Selector Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Financial Period Month Selector Pack v1 (replaces the shared `PeriodControl`'s "سنة محددة" specific-year section with "شهر محدد" — 12 month buttons producing a complete calendar-month range, plus a compact year stepper preserving one-click historical-year reach) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/financial-period-month-selector-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `162fceb0` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit implementation → corrective pass → verification → user-approved-release flow |
+| **Feature commit** | `45efbb5` |
+| **Production merge commit** | `867a4889` |
+| **Stable tag** | `stable-financial-period-month-selector-v1` → merge `867a4889` (annotated) |
+| **Reviews** | Architecture inspection (confirmed `FinancialPeriodContext`/`PeriodControl`/session persistence unchanged since the prior audit) → user decision on year-source conflict (year stepper, not a silent current-year fallback) and Apply model (immediate, matching the buttons replaced) → IMPLEMENTATION → Product Owner manual visual review — found a defect, addressed in a CORRECTIVE PASS (below) → re-review — **completed & approved**, release explicitly requested |
+| **Validation** | frontend `tsc --noEmit` ✅ · 6 affected period-related test files / 85 tests passing · full frontend suite matches documented baseline (25 pre-existing failures, unchanged set; +36 new tests, all passing) · `npm run build:front` ✅ · backend/electron untouched (frontend-only pack) |
+
+**Architecture decision — year source:** removing "سنة محددة" would also have removed the only one-click path to a historical year (2020–2026), and the brief explicitly forbade silently pinning month selection to the system's current year. Presented the conflict to the user with three options (year stepper in the section header / read-only year label / keep both sections); user selected the **year stepper**. It seeds from the active period's year on each panel open (explicit selection → active range's end year → today), is clamped to `[2020, currentYear]` — the same reach the old year buttons had — and is re-seeded only on open (not on every re-render), so arrow-navigation within one open session isn't overwritten.
+
+**Month semantics:** `preset:'month'` (`selectedMonth`, 0-based) added to the `FinancialPeriod` model. Bounds derive from the existing `firstOfMonth`/`lastOfMonth` helpers ("day zero of the next month") — no hardcoded month lengths; February resolves to 28 or 29 by the calendar itself, December stays inside its own year (month 12 normalizes to January of `y+1` then steps back one day). All bounds emitted as local `YYYY-MM-DD` strings via the existing `formatFileDate` — no UTC conversion. Selecting a month applies immediately and closes the panel, matching the interaction model of the buttons it replaces (and every other preset) — Apply continues to govern only the custom-range fields, unchanged.
+
+**Shared state:** `setMonth(year, month)` added to `FinancialPeriodContext` alongside the existing `setYear`/`setPreset`/`setCustomRange`, going through the identical `apply()` → `computePeriod` → `setPeriod` → `writeStoredPeriod` path — no new state, no per-page month state. `'year'`/`setYear` deliberately kept intact (not removed) so a session saved before this pack still restores correctly instead of silently dropping to the current year. `sessionStorage` semantics, corruption fallback, and the 8 existing consumers (Dashboard, Invoices, Expenses, Cheques, Reports, Accounting, FinancialCenter, ExecutiveDecisionCenter) are unchanged.
+
+**CORRECTIVE PASS (found during manual visual review):** the Expenses page's "year" summary card rendered the literal string `سنة {y}`. Root cause traced to `lbl.year_prefix`'s i18n string (`'سنة {y}'`) not matching the variable name the call site passed (`{ year: … }`) — a pre-existing defect unrelated to the Month Selector or the shared period state. Fixed the placeholder to `{year}` in both languages (2 lines). Confirmed via backend trace that this card intentionally reflects an absolute current-year window (`stats.periods.currentYear`, computed with the period filter stripped by existing backend design) rather than the newly-added month selection — so the fix is scoped to the literal-placeholder bug only, no behavior change to what the card reports. A parallel scan of every `t(key, {vars})` call site against its string's placeholders found one more instance of the same defect class (`a11y.maint.*_details` in `Maintenance.tsx`, an `aria-label` not visible UI) — logged only, different feature, out of scope per instruction.
+
+**Not changed:** any backend file, `dateWindows`/`periodFilter` boundary logic (Backend Date-Boundary Unification Pack v1, released immediately prior), `DateInput`, Reports/Excel/API date handling, Prisma schema/migrations, cheque printing, payroll, Google Drive sync, PeriodControl's visual design language (colors, spacing, radii, shadows, dialog dimensions), presets, custom range, or the Apply button's governing logic.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Backend Date-Boundary Unification Pack v1
 
 | Field | Value |
 |-------|-------|
