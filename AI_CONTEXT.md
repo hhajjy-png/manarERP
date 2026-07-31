@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `bfcae728` (merge of `feature/financial-period-custom-range-state-fix-v1`, fixing PeriodControl's custom-range fields going stale across shared-period changes while the panel stays mounted) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Documentation Commit** | `e342140` |
 | **Current Stable Tag** | `stable-financial-period-custom-range-state-fix-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 388 (window 2026-06-07 → 2026-07-31) |
