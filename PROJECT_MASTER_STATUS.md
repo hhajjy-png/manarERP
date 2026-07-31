@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Financial Period Month Selector Pack v1), like the Backend Date-Boundary Unification Pack v1
+> below. This pass (Financial Period Custom Range State Fix v1), like the Financial Period Month Selector Pack v1
 > pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
 > from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `867a4889` — merge of `feature/financial-period-month-selector-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-financial-period-month-selector-v1` (merge commit `867a4889`) | High |
-| **Previous stable tag** | `stable-backend-date-boundary-unification-v1` (`d7f8080a`) | High |
+| **Current HEAD** | `bfcae728` — merge of `feature/financial-period-custom-range-state-fix-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-financial-period-custom-range-state-fix-v1` (merge commit `bfcae728`) | High |
+| **Previous stable tag** | `stable-financial-period-month-selector-v1` (`867a4889`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,31 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-financial-period-month-selector-v1` (`867a4889`, 2026-07-31)
+### Latest Release — `stable-financial-period-custom-range-state-fix-v1` (`bfcae728`, 2026-07-31)
+
+Fixes `PeriodControl`'s custom-range fields (`customFrom`/`customTo`) going stale: they were seeded
+only in a `useState` initializer, which runs once at mount, while the control itself stays mounted
+for the life of a page as the shared `FinancialPeriod` changes underneath it (presets, month
+selector, reset). Opening "نطاق مخصص" could show a range left over from an earlier period, and
+Apply would silently commit it instead of the currently active one. Frontend-only, no
+schema/backend changes.
+
+- **Fix:** re-seed `customFrom`/`customTo` from `period.fromDate`/`period.toDate` at the same point
+  `monthYear` was already being re-seeded — inside `toggleOpen`, only on the transition into `open`.
+  No new state, no new hook, no `useEffect`. The existing "re-seed on open only" contract is
+  preserved: an in-progress edit stays stable for the life of one open session.
+- **Verification of no over-correction:** a regression test forces both a local re-render (year
+  stepper click) and an external period change from outside the panel while it stays open — the
+  draft survives both. This guards against a naive `useEffect`-on-`period` fix, which would pass the
+  simpler stale-state tests but fail this one by overwriting the user's in-progress edit.
+- **Validation:** frontend `tsc --noEmit` clean · `PeriodControlMonth.test.tsx` 27/27 passing (21
+  pre-existing + 6 new) · reverting the fix fails 3 of the 6 new tests (proves they exercise the
+  actual stale-state paths, not just the guard-against-over-correction ones) · related suites
+  (`financialPeriodSession`, `FinancialPeriodContext`, `financialPeriod`, `periodSingleSource` — 53
+  tests) unaffected · `npm run build:front` not run (no new imports/types). Backend/electron
+  untouched.
+
+### Previous Release — `stable-financial-period-month-selector-v1` (`867a4889`, 2026-07-31)
 
 Replaces the shared `PeriodControl`'s "سنة محددة" (specific year) section with "شهر محدد" (specific
 month) — 12 month buttons producing a complete calendar-month range — plus a compact year stepper

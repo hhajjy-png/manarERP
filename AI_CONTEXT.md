@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `867a4889` (merge of `feature/financial-period-month-selector-v1`, replacing the shared PeriodControl's "سنة محددة" year-button section with "شهر محدد" month buttons + a year stepper) |
-| **Current Documentation Commit** | `0d8d058` |
-| **Current Stable Tag** | `stable-financial-period-month-selector-v1` |
+| **Current Merge Commit** | `bfcae728` (merge of `feature/financial-period-custom-range-state-fix-v1`, fixing PeriodControl's custom-range fields going stale across shared-period changes while the panel stays mounted) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Stable Tag** | `stable-financial-period-custom-range-state-fix-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 387 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 388 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,25 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Financial Period Custom Range State Fix v1** (2026-07-31,
+  `stable-financial-period-custom-range-state-fix-v1`) — frontend-only, no schema/backend changes.
+  Fixes `PeriodControl`'s custom-range fields (`customFrom`/`customTo`) going stale: they were seeded
+  only in a `useState` initializer, which runs once at mount, while the control stays mounted for a
+  page's whole lifetime as the shared `FinancialPeriod` changes underneath it via presets, the month
+  selector, or reset. Opening "نطاق مخصص" could show a range left over from an earlier period, with
+  Apply silently committing it instead of the currently active one. **Fix:** re-seed
+  `customFrom`/`customTo` from `period.fromDate`/`period.toDate` at the same point `monthYear` was
+  already being re-seeded — inside `toggleOpen`, only on the transition into `open`; no new state, no
+  new hook, no `useEffect`. Preserves the existing "re-seed on open only" contract, so an in-progress
+  edit stays stable for the life of one open session. **Verification:** a regression test forces both
+  a local re-render (year stepper) and an external period change from outside the panel while it
+  stays open — the draft survives both, which a naive `useEffect`-on-`period` fix would not. Feature
+  commit `4e4f6ee`, merge `bfcae728`. Validation: frontend `tsc --noEmit` ✅ ·
+  `PeriodControlMonth.test.tsx` 27/27 passing (21 pre-existing + 6 new) · reverting the fix fails 3 of
+  the 6 new tests · related suites (`financialPeriodSession`, `FinancialPeriodContext`,
+  `financialPeriod`, `periodSingleSource` — 53 tests) unaffected · `npm run build:front` not run (no
+  new imports/types). Product Owner manual visual review: approved, release explicitly requested.
 
 - **Financial Period Month Selector Pack v1** (2026-07-31,
   `stable-financial-period-month-selector-v1`) — frontend-only, no schema/backend changes. Replaces

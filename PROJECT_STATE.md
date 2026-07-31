@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `867a4889` — release `stable-financial-period-month-selector-v1` (replaces the shared PeriodControl's "سنة محددة" year-button section with "شهر محدد" — 12 month buttons + a compact year stepper; new `preset:'month'` in the shared FinancialPeriod model) |
+| **Production HEAD** | `bfcae728` — release `stable-financial-period-custom-range-state-fix-v1` (PeriodControl's custom-range fields now re-seed from the active shared period on panel open, instead of only once at mount, so a stale range from an earlier period could no longer be silently committed by Apply) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-financial-period-month-selector-v1` (release date 2026-07-31) → merge `867a4889` |
-| **Previous stable tag** | `stable-backend-date-boundary-unification-v1` (2026-07-31) → merge `d7f8080a` |
-| **Total stable releases** | 387 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · all 6 affected period-related test files passing (85/85 tests) · full frontend vitest suite matches the documented pre-existing baseline (25 failures, identical unchanged set; +36 new tests, all passing) · `npm run build:front` ✅ · new month-boundary tests mutation-tested (reverting the corrective `lbl.year_prefix` placeholder fix fails 9 of 11 new assertions) · backend/electron untouched (frontend-only pack; no re-verification needed) · scope confirmed: exactly 9 frontend files entered the release (7 production/lib files + 2 new test files), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `867a4889` + tag `stable-financial-period-month-selector-v1`) |
+| **Latest stable tag** | `stable-financial-period-custom-range-state-fix-v1` (release date 2026-07-31) → merge `bfcae728` |
+| **Previous stable tag** | `stable-financial-period-month-selector-v1` (2026-07-31) → merge `867a4889` |
+| **Total stable releases** | 388 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · `PeriodControlMonth.test.tsx` 27/27 passing (21 pre-existing + 6 new) · fix-reverted mutation check: 3 of the 6 new tests fail without the fix (stale range after a closed-panel period change, stale August-of-previous-year draft, stale draft surviving a close-without-Apply) · related suites unaffected: `financialPeriodSession` (16), `FinancialPeriodContext` (6), `financialPeriod` (25), `periodSingleSource` (6), all passing · `npm run build:front` not run (no new imports/types — the fix is 2 `setState` calls inside an existing handler) · backend/electron untouched (frontend-only fix; no re-verification needed) · scope confirmed: exactly 2 frontend files entered the release (`PeriodControl.tsx` + its test), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `bfcae728` + tag `stable-financial-period-custom-range-state-fix-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Financial Period Month Selector Pack v1
+## Latest Release — Financial Period Custom Range State Fix v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Financial Period Custom Range State Fix v1 (fixes `PeriodControl`'s custom-range fields going stale: they were seeded only in a `useState` initializer at mount and never re-seeded while the control stayed mounted across shared-period changes) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/financial-period-custom-range-state-fix-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `677fd18b` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit investigation → implementation → verification → user-approved-release flow |
+| **Feature commit** | `4e4f6ee` |
+| **Production merge commit** | `bfcae728` |
+| **Stable tag** | `stable-financial-period-custom-range-state-fix-v1` → merge `bfcae728` (annotated) |
+| **Reviews** | Traced the stale-state path in `PeriodControl`/`FinancialPeriodContext` before touching code (proved the `useState`-initializer-only seed, no `useEffect` re-sync) → IMPLEMENTATION → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | frontend `tsc --noEmit` ✅ · `PeriodControlMonth.test.tsx` 27/27 passing (21 pre-existing + 6 new) · mutation-tested: reverting the fix fails 3 of the 6 new tests · related suites (`financialPeriodSession`, `FinancialPeriodContext`, `financialPeriod`, `periodSingleSource` — 53 tests) unaffected · `npm run build:front` not run (not materially needed — no new imports/types) · backend/electron untouched (frontend-only fix) |
+
+**Root cause:** `customFrom`/`customTo` were seeded with `useState(period.fromDate ?? '')` / `useState(period.toDate ?? '')` — initializers that run exactly once, at mount. `PeriodControl` is mounted at the top of long-lived pages (Dashboard, Invoices, Expenses, Accounting, Cheques, Reports, FinancialCenter, ExecutiveDecisionCenter) and stays mounted while the shared `FinancialPeriod` changes underneath it via presets, the month selector, or reset — none of which remount the component. `toggleOpen` already re-seeded `monthYear` on panel open; the custom-range fields were the one piece of local draft state left out of that re-seed, so they could silently hold a stale range from an earlier period and have it committed by Apply instead of the currently active one.
+
+**Fix:** re-seed `customFrom`/`customTo` from `period.fromDate`/`period.toDate` at the exact point `monthYear` is already re-seeded — inside `toggleOpen`, only on the transition into `open`. No new state, no new hook, no `useEffect`. This preserves the existing "re-seed on open only" contract: an in-progress edit stays stable for the lifetime of one open session (verified by a test that forces both a local re-render via the year stepper and an external period change from outside the panel while it stays open — the draft survives both, which a naive continuous-sync fix would not), and each new open reflects whatever period was last actually committed.
+
+**Not changed:** Month Selector behavior (buttons, year stepper, `preset:'month'`, historical years, immediate apply-and-close), any preset, backend date-boundary logic, Reports/Excel/API date handling, Prisma schema/migrations, Google Drive sync, or any other page/module.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Financial Period Month Selector Pack v1
 
 | Field | Value |
 |-------|-------|
