@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { transactionsService } from './transactions.service';
 import { ENUMS } from '../../config/constants';
 import { ok, created } from '../../core/utils/response';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 const manualSchema = z.object({
   description: z.string().min(1, 'الوصف مطلوب'),
@@ -10,7 +11,7 @@ const manualSchema = z.object({
   account: z.string().min(1, 'الحساب مطلوب'),
   debit: z.coerce.number().nonnegative().default(0),
   credit: z.coerce.number().nonnegative().default(0),
-  date: z.coerce.date().optional(),
+  date: dateOnlySchema.optional(),
 });
 
 export const transactionsController = {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 export const createContractSchema = z.object({
   body: z.object({
@@ -7,8 +8,8 @@ export const createContractSchema = z.object({
     asphaltPlant: z.string().min(1, 'اسم مصنع الأسفلت مطلوب'),
     location: z.string().optional(),
     monthlyTransportValue: z.coerce.number().nonnegative('قيمة النقل الشهري يجب ألا تكون سالبة').default(0),
-    startDate: z.coerce.date().optional(),
-    endDate: z.coerce.date().optional(),
+    startDate: dateOnlySchema.optional(),
+    endDate: dateOnlySchema.optional(),
     status: z.enum(ENUMS.contractStatus).default('ACTIVE'),
     unitName: z.string().optional(),
     price: z.coerce.number().nonnegative('السعر يجب ألا يكون سالباً').optional(),

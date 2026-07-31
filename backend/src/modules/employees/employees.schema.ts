@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 export const createEmployeeSchema = z.object({
   body: z.object({
@@ -10,16 +11,16 @@ export const createEmployeeSchema = z.object({
     jobTitle: z.string().optional(), // المهنة
     nationality: z.string().optional(), // الجنسية
     passportNumber: z.string().optional(), // رقم جواز السفر
-    passportExpiry: z.coerce.date().optional(), // انتهاء الجواز
-    residencyExpiry: z.coerce.date().optional(), // انتهاء الإقامة
-    licenseExpiry: z.coerce.date().optional(), // انتهاء رخصة القيادة
+    passportExpiry: dateOnlySchema.optional(), // انتهاء الجواز
+    residencyExpiry: dateOnlySchema.optional(), // انتهاء الإقامة
+    licenseExpiry: dateOnlySchema.optional(), // انتهاء رخصة القيادة
     vehiclePlate: z.string().optional(), // رقم لوحة المركبة
-    vehicleLicenseExpiry: z.coerce.date().optional(), // انتهاء رخصة المركبة
-    birthDate: z.coerce.date().optional(), // تاريخ الميلاد
+    vehicleLicenseExpiry: dateOnlySchema.optional(), // انتهاء رخصة المركبة
+    birthDate: dateOnlySchema.optional(), // تاريخ الميلاد
     company: z.string().optional(), // الشركة
     department: z.string().optional(),
     salary: z.coerce.number().nonnegative().default(0), // الراتب الشهري
-    hireDate: z.coerce.date().optional(),
+    hireDate: dateOnlySchema.optional(),
     phone: z.string().optional(),
     email: z.string().email('بريد غير صحيح').optional().or(z.literal('')),
     address: z.string().optional(), // العنوان
@@ -38,7 +39,9 @@ export const updateEmployeeSchema = z.object({
 export const attendanceSchema = z.object({
   body: z.object({
     employeeId: z.coerce.number().int().positive(),
-    date: z.coerce.date(),
+    date: dateOnlySchema,
+    // checkIn/checkOut يحملان وقتًا فعليًا (HH:MM مدموجًا مع تاريخ اليوم) — DATETIME
+    // حقيقي لا DATE-ONLY، فيبقيان على z.coerce.date() عمدًا (خارج نطاق هذا التشديد).
     checkIn: z.coerce.date().optional(),
     checkOut: z.coerce.date().optional(),
     status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'LEAVE']).default('PRESENT'),
@@ -50,14 +53,15 @@ export const leaveSchema = z.object({
   body: z.object({
     employeeId: z.coerce.number().int().positive(),
     type: z.enum(['ANNUAL', 'SICK', 'UNPAID', 'EMERGENCY']),
-    startDate: z.coerce.date(),
-    endDate: z.coerce.date(),
+    startDate: dateOnlySchema,
+    endDate: dateOnlySchema,
     reason: z.string().optional(),
   }),
 });
 
 export const updateAttendanceSchema = z.object({
   body: z.object({
+    // انظر ملاحظة DATETIME أعلاه في attendanceSchema — نفس السبب.
     checkIn: z.coerce.date().optional(),
     checkOut: z.coerce.date().optional(),
     status: z.enum(['PRESENT', 'ABSENT', 'LATE', 'LEAVE']).optional(),
@@ -70,13 +74,13 @@ export const adjustmentSchema = z.object({
     employeeId: z.coerce.number().int().positive(),
     amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
     reason: z.string().optional(),
-    date: z.coerce.date().optional(),
+    date: dateOnlySchema.optional(),
   }),
 });
 
 export const createLeaveSettlementSchema = z.object({
   body: z.object({
-    settlementDate: z.coerce.date(),
+    settlementDate: dateOnlySchema,
     leaveDaysSettled: z.coerce.number().nonnegative('عدد الأيام لا يمكن أن يكون سالبًا'),
     settlementAmount: z.coerce.number().nonnegative('المبلغ لا يمكن أن يكون سالبًا'),
     paymentMethod: z.enum(ENUMS.leaveSettlementPaymentMethod),

@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 export const createHolidaySchema = z.object({
   body: z.object({
-    date: z.coerce.date(),
+    date: dateOnlySchema,
     name: z.string().min(1, 'اسم العطلة مطلوب'),
     notes: z.string().optional(),
   }),

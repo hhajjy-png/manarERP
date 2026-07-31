@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 /**
  * مخططات التحقق لنطاق مستحقات الموظف.
@@ -11,14 +12,14 @@ import { ENUMS } from '../../config/constants';
 /** تاريخ الاحتساب الاختياري — يسمح بكشف قابل لإعادة الإنتاج عند أي تاريخ. */
 export const entitlementStatementQuerySchema = z.object({
   query: z.object({
-    asOf: z.coerce.date({ invalid_type_error: 'تاريخ الاحتساب غير صالح' }).optional(),
+    asOf: dateOnlySchema.optional(),
   }),
 });
 
 export const recordEntitlementPaymentSchema = z.object({
   body: z.object({
     category: z.enum(ENUMS.entitlementLedgerType),
-    paymentDate: z.coerce.date({ invalid_type_error: 'تاريخ الدفعة غير صالح' }),
+    paymentDate: dateOnlySchema,
     amount: z.coerce.number().positive('مبلغ الدفعة يجب أن يكون أكبر من صفر'),
     paymentMethod: z.enum(ENUMS.leaveSettlementPaymentMethod),
     reference: z.string().optional(),
@@ -35,7 +36,7 @@ export const recordEntitlementPaymentSchema = z.object({
  */
 export const updateEntitlementPaymentSchema = z.object({
   body: z.object({
-    paymentDate: z.coerce.date({ invalid_type_error: 'تاريخ الدفعة غير صالح' }),
+    paymentDate: dateOnlySchema,
     amount: z.coerce.number().positive('مبلغ الدفعة يجب أن يكون أكبر من صفر'),
     paymentMethod: z.enum(ENUMS.leaveSettlementPaymentMethod),
     reference: z.string().optional(),

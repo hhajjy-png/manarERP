@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 const money = z.coerce.number().min(0);
 
@@ -24,7 +25,7 @@ export const payPayrollSchema = z.object({
     paymentMethod: z.enum(ENUMS.glPaymentMethod).default('BANK'),
     // تاريخ الصرف الفعلي. عند غيابه يُرحَّل القيد بآخر يوم من شهر الراتب —
     // لا بتاريخ اليوم — حتى يهبط راتب ديسمبر 2024 في ديسمبر 2024.
-    paymentDate: z.coerce.date().optional(),
+    paymentDate: dateOnlySchema.optional(),
     lateEntryReason: z.string().trim().max(500).optional(),
   }),
 });
@@ -34,8 +35,8 @@ export const recurringAllowanceSchema = z.object({
     employeeId: z.coerce.number().int().positive(),
     name: z.string().min(1),
     amount: money,
-    startsAt: z.coerce.date().optional(),
-    endsAt: z.coerce.date().optional(),
+    startsAt: dateOnlySchema.optional(),
+    endsAt: dateOnlySchema.optional(),
     notes: z.string().optional(),
   }),
 });
@@ -46,7 +47,7 @@ export const payrollAdvanceSchema = z.object({
   body: z.object({
     employeeId: z.coerce.number().int().positive(),
     amount: money,
-    date: z.coerce.date().optional(),
+    date: dateOnlySchema.optional(),
     notes: z.string().optional(),
   }),
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 export const createExpenseSchema = z.object({
   body: z.object({
@@ -7,7 +8,7 @@ export const createExpenseSchema = z.object({
     category: z.enum(ENUMS.expenseCategory),
     description: z.string().min(1, 'الوصف مطلوب'),
     amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
-    date: z.coerce.date().optional(),
+    date: dateOnlySchema.optional(),
     billingMonth: z.coerce.number().int().min(1).max(12).optional(),
     billingYear: z.coerce.number().int().min(2020).max(2100).optional(),
     notes: z.string().optional(),

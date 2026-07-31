@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 export const createChequeSchema = z.object({
   body: z.object({
@@ -7,9 +8,8 @@ export const createChequeSchema = z.object({
       .trim()
       .min(3, 'رقم الشيك يجب أن يكون 3 أحرف على الأقل')
       .regex(/^\S+$/, 'رقم الشيك لا يجب أن يحتوي على مسافات'),
-    chequeDate: z.coerce
-      .date()
-      .refine((d) => d.getFullYear() >= 2020 && d.getFullYear() <= 2035, {
+    chequeDate: dateOnlySchema
+      .refine((d) => d.getUTCFullYear() >= 2020 && d.getUTCFullYear() <= 2035, {
         message: 'تاريخ الشيك غير صالح',
       }),
     beneficiaryName: z.string().min(1, 'اسم المستفيد مطلوب'),
@@ -29,9 +29,8 @@ export const updateChequeSchema = z.object({
       .min(3, 'رقم الشيك يجب أن يكون 3 أحرف على الأقل')
       .regex(/^\S+$/, 'رقم الشيك لا يجب أن يحتوي على مسافات')
       .optional(),
-    chequeDate: z.coerce
-      .date()
-      .refine((d) => d.getFullYear() >= 2020 && d.getFullYear() <= 2035, {
+    chequeDate: dateOnlySchema
+      .refine((d) => d.getUTCFullYear() >= 2020 && d.getUTCFullYear() <= 2035, {
         message: 'تاريخ الشيك غير صالح',
       })
       .optional(),
