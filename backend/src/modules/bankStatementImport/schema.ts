@@ -1,12 +1,43 @@
 import { z } from 'zod';
+import { dateOnlySchema } from '../../core/utils/dateOnly.js';
+
+/**
+ * Bank Statement Import Server Date Hardening Pack v1.
+ *
+ * The trusted client parser (`frontend/src/utils/bankStatementParser.ts`
+ * `parseDateStr`) already normalizes every legitimate bank-file date shape
+ * (Excel serial, ISO, `DD/MM/YYYY`, `DD-MM-YYYY`, verbose month) into canonical
+ * `YYYY-MM-DD` — or `null` when a cell cannot be parsed — before this request
+ * body is ever built. So the **proven client → server contract** for
+ * `statementDate`/`postingDate`/`fromDate`/`toDate` is canonical `YYYY-MM-DD`
+ * (never the bank's raw source format), which was previously accepted here as
+ * only `z.string().max(32)` — any string at all — and later reached bare
+ * `new Date(str)` in `service.ts` (persistence), `dedupDetector.ts` (dedup
+ * date-range lookups) and `validators.ts` (`checkDate`). A crafted request, a
+ * future caller, or a parser regression could all have let V8's non-standard
+ * `MM/DD/YYYY` heuristic silently misread a date.
+ *
+ * Reuses the released `dateOnlySchema` (API Date Hardening Pack v1) — no
+ * competing validator — composed with one extra `.transform()` back to a
+ * canonical string, because every downstream consumer in this module
+ * (`previewBuilder.ts`, `dedupDetector.ts`, `fingerprint.ts`, `matcher.ts`,
+ * `reconciliationEngine.ts`) treats these dates as `YYYY-MM-DD` strings for
+ * sorting, substring comparison and dedup-key building, not `Date` objects —
+ * `service.ts` alone converts to `Date`, at the single existing insert
+ * boundary. Once this schema rejects anything but a real, unambiguous
+ * calendar date, every one of those downstream `new Date(str)` calls becomes
+ * safe by construction — an unambiguous canonical string is spec-guaranteed
+ * (ECMA-262) to parse as UTC midnight, with no engine guessing involved.
+ */
+const bankStatementDateOnly = dateOnlySchema.transform((d) => d.toISOString().substring(0, 10));
 
 // ── StatementTransaction (from frontend parser) ────────────────────────────────
 
 const StatementTransactionSchema = z.object({
   transactionId:  z.string().max(128).nullable(),
   bankName:       z.string().min(1).max(64),
-  statementDate:  z.string().max(32).nullable(),
-  postingDate:    z.string().max(32).nullable(),
+  statementDate:  bankStatementDateOnly.nullable(),
+  postingDate:    bankStatementDateOnly.nullable(),
   description:    z.string().max(500),
   reference:      z.string().max(128).nullable(),
   debit:          z.number().nonnegative(),
@@ -24,8 +55,8 @@ const StatementTransactionSchema = z.object({
 export const PreviewRequestSchema = z.object({
   bankName:  z.string().min(1).max(64),
   fileName:  z.string().min(1).max(256),
-  fromDate:  z.string().max(32).optional(),
-  toDate:    z.string().max(32).optional(),
+  fromDate:  bankStatementDateOnly.optional(),
+  toDate:    bankStatementDateOnly.optional(),
   rows:      z.array(StatementTransactionSchema).min(1).max(10000),
 });
 export type PreviewRequest = z.infer<typeof PreviewRequestSchema>;
@@ -35,8 +66,8 @@ export type PreviewRequest = z.infer<typeof PreviewRequestSchema>;
 export const ExecuteImportSchema = z.object({
   bankName:  z.string().min(1).max(64),
   fileName:  z.string().min(1).max(256),
-  fromDate:  z.string().max(32).optional(),
-  toDate:    z.string().max(32).optional(),
+  fromDate:  bankStatementDateOnly.optional(),
+  toDate:    bankStatementDateOnly.optional(),
   rows:      z.array(StatementTransactionSchema).min(1).max(10000),
 });
 export type ExecuteImportRequest = z.infer<typeof ExecuteImportSchema>;

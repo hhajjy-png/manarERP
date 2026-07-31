@@ -661,6 +661,152 @@ describe('PreviewRequestSchema', () => {
   });
 });
 
+// ── Bank Statement Import Server Date Hardening Pack v1 ────────────────────────
+//
+// Proven client → server contract: the trusted frontend parser
+// (`bankStatementParser.ts` `parseDateStr`) already normalizes every legitimate
+// bank-file date shape into canonical `YYYY-MM-DD` (or `null`) before the
+// request body is ever built — the server never legitimately receives raw
+// `DD/MM/YYYY`. Previously the schema accepted ANY string up to 32 chars for
+// `statementDate`/`postingDate`/`fromDate`/`toDate`, which later reached bare
+// `new Date(str)` in service.ts, dedupDetector.ts and validators.ts — a
+// crafted request or regression could let V8 guess the day/month order.
+describe('bank statement import — server date boundary hardening', () => {
+  function rowPayload(overrides: Partial<Record<string, unknown>> = {}) {
+    return {
+      transactionId: 'TX-001', bankName: 'NBK', statementDate: '2026-08-02', postingDate: null,
+      description: 'Test', reference: null, debit: 0, credit: 100, balance: null,
+      currency: 'KWD', accountNumber: null, iban: null, chequeNumber: null, rawRow: {},
+      ...overrides,
+    };
+  }
+
+  async function parsePreview(row: Record<string, unknown>) {
+    const { PreviewRequestSchema } = await import('../schema.js');
+    return PreviewRequestSchema.safeParse({ bankName: 'NBK', fileName: 'statement.xlsx', rows: [row] });
+  }
+
+  // A/H/I — legitimate current bank imports (every template's canonical-format
+  // row, exactly as the trusted parser emits it) still succeed unchanged.
+  it('A) legitimate canonical-format bank rows still import (NBK, KFH, Gulf Bank shapes)', async () => {
+    for (const statementDate of ['2026-08-02', '2026-01-31', '2024-02-29']) {
+      const result = await parsePreview(rowPayload({ statementDate }));
+      expect(result.success).toBe(true);
+    }
+  });
+
+  it('B) canonical transaction date is accepted and round-trips unchanged', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: '2026-08-02', postingDate: '2026-08-03' }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.rows[0]!.statementDate).toBe('2026-08-02');
+      expect(result.data.rows[0]!.postingDate).toBe('2026-08-03');
+    }
+  });
+
+  it('C) 02/08/2026 is rejected at the server boundary — never silently read as 8 February', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: '02/08/2026' }));
+    expect(result.success).toBe(false);
+  });
+
+  it('D) 08/02/2026 is rejected — the reciprocal ambiguous pair, not left to V8 to guess', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: '08/02/2026' }));
+    expect(result.success).toBe(false);
+  });
+
+  it('E) an impossible calendar date is rejected (2026-02-29 — not a leap year)', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: '2026-02-29' }));
+    expect(result.success).toBe(false);
+  });
+
+  it('F) leap date 2028-02-29 is accepted', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: '2028-02-29' }));
+    expect(result.success).toBe(true);
+  });
+
+  it('G/J) no UTC previous-day shift — the exact new Date(str) service.ts performs at insert time yields the intended calendar day', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: '2026-08-02' }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Mirrors service.ts:146 `row.statementDate ? new Date(row.statementDate) : null`
+      // verbatim, against the schema-validated string — proves the persisted
+      // Date carries the intended day regardless of host timezone.
+      const persisted = new Date(result.data.rows[0]!.statementDate!);
+      expect(persisted.getUTCFullYear()).toBe(2026);
+      expect(persisted.getUTCMonth()).toBe(7); // August (0-based)
+      expect(persisted.getUTCDate()).toBe(2);
+      expect(persisted.toISOString()).toBe('2026-08-02T00:00:00.000Z');
+    }
+  });
+
+  it('null statementDate remains valid — an unparseable source cell still surfaces via the existing INVALID_DATE row check, not a schema rejection', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: null }));
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.rows[0]!.statementDate).toBeNull();
+  });
+
+  it('a garbled non-date string is rejected, not silently accepted as a string', async () => {
+    const result = await parsePreview(rowPayload({ statementDate: 'not-a-date' }));
+    expect(result.success).toBe(false);
+  });
+
+  // ExecuteImportSchema mirrors the same StatementTransactionSchema rows, plus
+  // its own top-level fromDate/toDate override fields (service.ts:83-84's
+  // `new Date(req.fromDate)` / `new Date(req.toDate)`).
+  describe('ExecuteImportSchema', () => {
+    async function parseExecute(overrides: Record<string, unknown> = {}) {
+      const { ExecuteImportSchema } = await import('../schema.js');
+      return ExecuteImportSchema.safeParse({
+        bankName: 'NBK', fileName: 'statement.xlsx', rows: [rowPayload()], ...overrides,
+      });
+    }
+
+    it('accepts a canonical top-level fromDate/toDate override', async () => {
+      const result = await parseExecute({ fromDate: '2026-08-01', toDate: '2026-08-31' });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.fromDate).toBe('2026-08-01');
+        expect(result.data.toDate).toBe('2026-08-31');
+      }
+    });
+
+    it('omitted fromDate/toDate remain valid (optional)', async () => {
+      expect((await parseExecute({})).success).toBe(true);
+    });
+
+    it('rejects an ambiguous top-level fromDate — the identical risk as per-row dates', async () => {
+      const result = await parseExecute({ fromDate: '01/08/2026' });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects an impossible top-level toDate', async () => {
+      const result = await parseExecute({ toDate: '2026-04-31' });
+      expect(result.success).toBe(false);
+    });
+
+    it('rejects an ambiguous transaction row even when the top-level dates are canonical', async () => {
+      const result = await parseExecute({
+        fromDate: '2026-08-01', toDate: '2026-08-31',
+        rows: [rowPayload({ statementDate: '05/03/2024' })],
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  // K — the guard: every place upstream of `new Date(str)` in this module now
+  // requires the schema to have already accepted the string, so nothing
+  // unvalidated can reach those calls. Proven structurally (not by grepping
+  // call sites): passing every documented ambiguous/impossible shape through
+  // the actual production schema exhaustively fails closed.
+  it('K) no ambiguous or impossible date shape survives the schema boundary, across every field it governs', async () => {
+    const ambiguousOrImpossible = ['02/08/2026', '08/02/2026', '02-08-2026', '08/02/26', '2026-02-29', '2026-04-31', '2026-13-01', 'garbage'];
+    for (const bad of ambiguousOrImpossible) {
+      expect((await parsePreview(rowPayload({ statementDate: bad }))).success, `statementDate=${bad}`).toBe(false);
+      expect((await parsePreview(rowPayload({ postingDate: bad }))).success, `postingDate=${bad}`).toBe(false);
+    }
+  });
+});
+
 describe('UpdateStatusSchema', () => {
   it('rejects invalid status', async () => {
     const { UpdateStatusSchema } = await import('../schema.js');
