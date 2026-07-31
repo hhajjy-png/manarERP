@@ -47,6 +47,56 @@ const DEFAULT_GEOMETRY: CalibrationGeometryInput = {
   offsetYMm: 40,
 };
 
+/** The filter inputs shared by the cheques list, the cheques report and the Excel export. */
+export interface ChequeFilterQuery {
+  status?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+}
+
+/**
+ * THE single source of truth for "which cheques match these filters"
+ * (Cheques Reporting & Excel Export Pack v1).
+ *
+ * Extracted verbatim from `list()` so the cheques screen, the Cheques report and
+ * the Excel export cannot drift apart. Previously the report layer would have had
+ * to re-derive this, and its generic `dateWhere()` helper builds the lower bound
+ * as `new Date('YYYY-MM-DD')` — **UTC** midnight — while this builds
+ * `new Date('YYYY-MM-DDT00:00:00')` — **local** midnight. Those differ by the UTC
+ * offset, so a boundary-dated cheque could legitimately appear on one surface and
+ * not the other. One builder, one interpretation, no divergence.
+ *
+ * Semantics (unchanged from the original `list()` code):
+ *   • the period always applies to `chequeDate` — the date the user typed on the
+ *     cheque — never `createdAt`/`updatedAt`/`printedAt`;
+ *   • `to` is inclusive to the end of that local day (`endOfDay`);
+ *   • `search` matches beneficiary name, cheque number or bank name;
+ *   • `status` is the raw DRAFT/PRINTED/CANCELLED value.
+ */
+export function buildChequeFilterWhere(query: ChequeFilterQuery): Prisma.ChequeWhereInput {
+  const where: Prisma.ChequeWhereInput = {};
+
+  if (query.status) where.status = query.status;
+  if (query.from || query.to) {
+    where.chequeDate = {};
+    if (query.from) where.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
+    if (query.to) where.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
+  }
+  if (query.search) {
+    where.OR = [
+      { beneficiaryName: { contains: query.search } },
+      { chequeNumber: { contains: query.search } },
+      { bankName: { contains: query.search } },
+    ];
+  }
+
+  return where;
+}
+
+/** Default row order for the cheques list — reused by the report so both agree. */
+export const CHEQUES_REPORT_ORDER = CHEQUES_DEFAULT_ORDER;
+
 export class ChequesService {
   /** إحصاء الشيكات — يتبع نفس نطاق الفترة (chequeDate) الذي تتبعه القائمة.
    *  printedTotal: إجمالي مبلغ كل الشيكات PRINTED ضمن نفس نطاق الفترة، محسوبًا على
@@ -71,21 +121,7 @@ export class ChequesService {
 
   async list(query: PaginationQuery & { status?: string; from?: string; to?: string }) {
     const pagination = getPagination(query);
-    const where: Prisma.ChequeWhereInput = {};
-
-    if (query.status) where.status = query.status;
-    if (query.from || query.to) {
-      where.chequeDate = {};
-      if (query.from) where.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
-      if (query.to) where.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
-    }
-    if (query.search) {
-      where.OR = [
-        { beneficiaryName: { contains: query.search } },
-        { chequeNumber: { contains: query.search } },
-        { bankName: { contains: query.search } },
-      ];
-    }
+    const where = buildChequeFilterWhere(query);
 
     const orderBy = buildOrderBy(query, CHEQUES_SORTABLE, CHEQUES_DEFAULT_ORDER, [{ id: 'desc' }]) as Prisma.ChequeOrderByWithRelationInput[];
     const [data, total] = await Promise.all([

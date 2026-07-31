@@ -286,13 +286,21 @@ describe('buildTable', () => {
     expect(buildTable(cols, rows)).toContain('قيمة');
   });
 
-  it('includes tfoot when totals row provided', () => {
-    expect(buildTable(cols, rows, { col: 'إجمالي' })).toContain('<tfoot>');
-    expect(buildTable(cols, rows, { col: 'إجمالي' })).toContain('إجمالي');
+  // Totals-row pagination fix: the totals row is no longer emitted in a <tfoot>.
+  // Chromium repeats a table-footer-group at the bottom of EVERY printed page, so
+  // a multi-page report showed its grand total once per page. It is now the last
+  // <tbody> row — rendered exactly once, after the final data row.
+  it('renders the totals row as the last tbody row, never a repeating tfoot', () => {
+    const html = buildTable(cols, rows, { col: 'إجمالي' });
+    expect(html).toContain('إجمالي');
+    expect(html).toContain('<tr class="totals">');
+    expect(html).not.toContain('<tfoot>');
   });
 
-  it('omits tfoot when no totals row', () => {
-    expect(buildTable(cols, rows)).not.toContain('<tfoot>');
+  it('omits the totals row entirely when none is provided', () => {
+    const html = buildTable(cols, rows);
+    expect(html).not.toContain('<tfoot>');
+    expect(html).not.toContain('class="totals"');
   });
 
   it('applies zebra class on odd rows', () => {
