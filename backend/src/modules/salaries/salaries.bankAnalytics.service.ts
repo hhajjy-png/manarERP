@@ -1,6 +1,6 @@
 import { prisma } from '../../config/database';
 import { formatSourceMonth } from './salaries.dateHelpers';
-import { endOfDay } from '../../core/utils/dateWindows';
+import { localDateRange } from '../../core/utils/dateWindows';
 import { getPagination, buildPaginatedResult } from '../../core/utils/pagination';
 import { buildExcelWorkbook } from '../../shared/services/reportEngine/excel.service';
 import type { ReportInput } from '../../shared/services/reportEngine/excel.service';
@@ -133,12 +133,8 @@ function buildWhereClause(filters: AnalyticsFilters, extraCivilIds?: string[], e
     conditions.push({ sourceMonth: { endsWith: yearSuffix } });
   }
 
-  if (filters.dateFrom || filters.dateTo) {
-    const dateCond: Record<string, Date> = {};
-    if (filters.dateFrom) dateCond.gte = new Date(filters.dateFrom);
-    if (filters.dateTo) dateCond.lte = endOfDay(new Date(filters.dateTo));
-    conditions.push({ paymentDate: dateCond });
-  }
+  const dateCond = localDateRange(filters.dateFrom, filters.dateTo);
+  if (dateCond) conditions.push({ paymentDate: dateCond });
 
   if (filters.amountFrom !== undefined || filters.amountTo !== undefined) {
     const amtCond: Record<string, number> = {};

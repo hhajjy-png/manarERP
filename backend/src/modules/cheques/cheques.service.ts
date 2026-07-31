@@ -18,7 +18,7 @@ const CHEQUES_SORTABLE: SortWhitelist = {
   paymentVoucherNumber: { field: 'paymentVoucherNumber', nullable: true },
 };
 const CHEQUES_DEFAULT_ORDER = [{ createdAt: 'desc' as const }];
-import { endOfDay } from '../../core/utils/dateWindows';
+import { localDateRange } from '../../core/utils/dateWindows';
 import {
   CreateChequeInput,
   UpdateChequeInput,
@@ -60,17 +60,16 @@ export interface ChequeFilterQuery {
  * (Cheques Reporting & Excel Export Pack v1).
  *
  * Extracted verbatim from `list()` so the cheques screen, the Cheques report and
- * the Excel export cannot drift apart. Previously the report layer would have had
- * to re-derive this, and its generic `dateWhere()` helper builds the lower bound
- * as `new Date('YYYY-MM-DD')` — **UTC** midnight — while this builds
- * `new Date('YYYY-MM-DDT00:00:00')` — **local** midnight. Those differ by the UTC
- * offset, so a boundary-dated cheque could legitimately appear on one surface and
- * not the other. One builder, one interpretation, no divergence.
+ * the Excel export cannot drift apart. The date window itself now comes from the
+ * project-wide `localDateRange()` (Backend Date-Boundary Unification Pack v1), so
+ * this builder and the reports layer's generic `dateWhere()` resolve an identical
+ * instant for an identical `from`/`to` — the divergence this comment used to warn
+ * about (UTC vs local midnight) no longer exists anywhere in the backend.
  *
  * Semantics (unchanged from the original `list()` code):
  *   • the period always applies to `chequeDate` — the date the user typed on the
  *     cheque — never `createdAt`/`updatedAt`/`printedAt`;
- *   • `to` is inclusive to the end of that local day (`endOfDay`);
+ *   • `to` is inclusive to the end of that local day (23:59:59.999);
  *   • `search` matches beneficiary name, cheque number or bank name;
  *   • `status` is the raw DRAFT/PRINTED/CANCELLED value.
  */
@@ -78,11 +77,8 @@ export function buildChequeFilterWhere(query: ChequeFilterQuery): Prisma.ChequeW
   const where: Prisma.ChequeWhereInput = {};
 
   if (query.status) where.status = query.status;
-  if (query.from || query.to) {
-    where.chequeDate = {};
-    if (query.from) where.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
-    if (query.to) where.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
-  }
+  const dateRange = localDateRange(query.from, query.to);
+  if (dateRange) where.chequeDate = dateRange;
   if (query.search) {
     where.OR = [
       { beneficiaryName: { contains: query.search } },
@@ -104,11 +100,8 @@ export class ChequesService {
    *  حاليًا في الواجهة (Cheque Management Visual Polish Pack v1 — Hero Metric). */
   async stats(query: { from?: string; to?: string } = {}) {
     const dateWhere: Prisma.ChequeWhereInput = {};
-    if (query.from || query.to) {
-      dateWhere.chequeDate = {};
-      if (query.from) dateWhere.chequeDate.gte = new Date(`${query.from.slice(0, 10)}T00:00:00`);
-      if (query.to) dateWhere.chequeDate.lte = endOfDay(new Date(`${query.to.slice(0, 10)}T00:00:00`));
-    }
+    const dateRange = localDateRange(query.from, query.to);
+    if (dateRange) dateWhere.chequeDate = dateRange;
     const [total, draft, printed, cancelled, printedAgg] = await Promise.all([
       prisma.cheque.count({ where: dateWhere }),
       prisma.cheque.count({ where: { ...dateWhere, status: 'DRAFT' } }),

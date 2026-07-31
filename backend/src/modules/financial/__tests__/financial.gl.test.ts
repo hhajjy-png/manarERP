@@ -17,7 +17,8 @@ vi.mock('../../accounting/accounting.service', () => ({
 import { FinancialService } from '../financial.service';
 import { prisma }           from '../../../config/database';
 import { AccountingService } from '../../accounting/accounting.service';
-import { endOfDay }          from '../../../core/utils/dateWindows';
+import { endOfLocalDay }     from '../../../core/utils/dateWindows';
+import { expectLocalRange }  from '../../../core/utils/__tests__/localDayMatchers';
 
 type MockPrisma = {
   account:          { findUniqueOrThrow: ReturnType<typeof vi.fn>; findMany: ReturnType<typeof vi.fn> };
@@ -94,7 +95,7 @@ describe('FinancialService.getGlStatement', () => {
     await service.getGlStatement(1, { fromDate: '2025-01-01', toDate: '2025-12-31' });
 
     const linesWhere = mockPrisma.journalEntryLine.findMany.mock.calls[0][0].where.journalEntry.date;
-    expect(linesWhere).toEqual({ gte: new Date('2025-01-01'), lte: endOfDay(new Date('2025-12-31')) });
+    expectLocalRange(linesWhere, '2025-01-01', '2025-12-31');
   });
 
   // Regression (Date Boundary Consistency Pack v1): `toDate` must resolve to
@@ -186,7 +187,12 @@ describe('FinancialService.getGlReport', () => {
 
     // Call 0 = opening (lt fromDate); call 1 = period movement (gte..lte).
     const periodWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[1][0].where.journalEntry.date;
-    expect(periodWhere).toEqual({ gte: new Date('2025-01-01'), lte: endOfDay(new Date('2025-12-31')) });
+    expectLocalRange(periodWhere, '2025-01-01', '2025-12-31');
+
+    // نقطة القطع واحدة: الرصيد الافتتاحي ينتهي حصرًا عند نفس لحظة بداية الفترة،
+    // فلا قيد يُحسب مرتين ولا قيد يسقط في الشقّ بين الاستعلامين.
+    const openingWhere = mockPrisma.journalEntryLine.groupBy.mock.calls[0][0].where.journalEntry.date;
+    expect(openingWhere.lt.getTime()).toBe(periodWhere.gte.getTime());
   });
 
   // Date Boundary Consistency Pack v1: toDate must resolve to the very end of
@@ -373,7 +379,7 @@ describe('Date boundary consistency across financial reports', () => {
   });
 
   it('GL Statement, GL Report, and Trial Balance all resolve the same toDate to an identical instant', async () => {
-    const expected = endOfDay(new Date(SAME_DAY)).getTime();
+    const expected = endOfLocalDay(SAME_DAY)!.getTime();
 
     // GL Statement
     mockPrisma.account.findUniqueOrThrow.mockResolvedValue(makeAccount());

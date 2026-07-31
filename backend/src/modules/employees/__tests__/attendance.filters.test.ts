@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildAttendanceWhere, aggregateAttendanceStats } from '../attendance.filters';
+import { expectLocalStartOfDay, expectLocalEndOfDay } from '../../../core/utils/__tests__/localDayMatchers';
 
 // ── buildAttendanceWhere ──────────────────────────────────────────────────────
 
@@ -28,16 +29,14 @@ describe('buildAttendanceWhere', () => {
     expect(where.status).toBeUndefined();
   });
 
-  it('sets date.gte when from is provided', () => {
+  it('sets date.gte to the local START of `from`', () => {
     const where = buildAttendanceWhere({ from: '2026-01-01' });
-    expect((where.date as { gte?: Date })?.gte).toBeInstanceOf(Date);
-    expect((where.date as { gte?: Date })?.gte?.toISOString()).toContain('2026-01-01');
+    expectLocalStartOfDay((where.date as { gte?: Date })?.gte, '2026-01-01');
   });
 
-  it('sets date.lte when to is provided', () => {
+  it('sets date.lte to the local END of `to` (the last day stays included)', () => {
     const where = buildAttendanceWhere({ to: '2026-12-31' });
-    expect((where.date as { lte?: Date })?.lte).toBeInstanceOf(Date);
-    expect((where.date as { lte?: Date })?.lte?.toISOString()).toContain('2026-12-31');
+    expectLocalEndOfDay((where.date as { lte?: Date })?.lte, '2026-12-31');
   });
 
   it('sets both date bounds when from and to are provided', () => {

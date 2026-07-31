@@ -8,7 +8,7 @@ import type { DrillDownRef }           from '@shared/services/financial/drilldow
 import { normalizeMoney, calculateRunningBalances, calculateClosingBalance, sumDebitCredit } from '@shared/services/financial/balance.utils';
 import { sanitizeFilters }             from '@shared/services/financial/summary.utils';
 import { calculateAgingBuckets, toAgingEntries, DEFAULT_AGING_BUCKETS } from '@shared/services/financial/aging.utils';
-import { endOfDay } from '@core/utils/dateWindows';
+import { endOfDay, startOfLocalDay, endOfLocalDay, localDateRange } from '@core/utils/dateWindows';
 import { sortRowsInMemory, RowValueGetter } from '@core/utils/sort';
 
 // القائمة البيضاء لفرز تقرير الأستاذ العام (أعمدة الحساب الاسمية فقط —
@@ -55,8 +55,8 @@ export class FinancialService {
       entityType: entityType.toUpperCase() as 'CUSTOMER' | 'SUPPLIER',
       entityId,
       filters: {
-        fromDate:      filters.fromDate  ? new Date(filters.fromDate)  : undefined,
-        toDate:        filters.toDate    ? endOfDay(new Date(filters.toDate)) : undefined,
+        fromDate:      startOfLocalDay(filters.fromDate),
+        toDate:        endOfLocalDay(filters.toDate),
         search:        filters.search,
         referenceType: filters.referenceType as 'INVOICE' | 'PAYMENT' | 'EXPENSE' | undefined,
         status:        filters.status,
@@ -129,7 +129,7 @@ export class FinancialService {
     customerType?: string;
     hideZero?:    boolean;
   }): Promise<FinancialResponse<ArAgingRow>> {
-    const asOfDate = endOfDay(filters.asOfDate ? new Date(filters.asOfDate) : new Date());
+    const asOfDate = endOfLocalDay(filters.asOfDate) ?? endOfDay(new Date());
 
     const customers = await prisma.customer.findMany({
       where: {
@@ -220,7 +220,7 @@ export class FinancialService {
     search?:   string;
     hideZero?: boolean;
   }): Promise<FinancialResponse<ApAgingRow>> {
-    const asOfDate = endOfDay(filters.asOfDate ? new Date(filters.asOfDate) : new Date());
+    const asOfDate = endOfLocalDay(filters.asOfDate) ?? endOfDay(new Date());
 
     const suppliers = await prisma.supplier.findMany({
       where: {
@@ -307,6 +307,9 @@ export class FinancialService {
     accountId: number,
     filters: { fromDate?: string; toDate?: string; search?: string; status?: string; page?: number; pageSize?: number }
   ): Promise<FinancialResponse<GlStatementRow>> {
+    // مدى تقويمي محلي واحد يُحسب مرة ويُعاد استخدامه في استعلامَي الرصيد الافتتاحي
+    // وحركة الفترة — فلا ينحرف حدّ عن الآخر.
+    const periodRange = localDateRange(filters.fromDate, filters.toDate);
 
     const account = await prisma.account.findUniqueOrThrow({
       where:   { id: accountId },
@@ -318,7 +321,7 @@ export class FinancialService {
         accountId,
         journalEntry: {
           status: 'POSTED',
-          ...(filters.fromDate && { date: { lt: new Date(filters.fromDate) } }),
+          ...(periodRange?.gte && { date: { lt: periodRange.gte } }),
         },
       },
       _sum: { debit: true, credit: true },
@@ -334,12 +337,7 @@ export class FinancialService {
           status: filters.status ? filters.status : { not: 'CANCELLED' },
           // Single `date` key so both bounds survive — two separate `date` spreads
           // collide and the lower `gte` bound is lost (see getGlReport note).
-          ...((filters.fromDate || filters.toDate) && {
-            date: {
-              ...(filters.fromDate && { gte: new Date(filters.fromDate) }),
-              ...(filters.toDate   && { lte: endOfDay(new Date(filters.toDate)) }),
-            },
-          }),
+          ...(periodRange && { date: periodRange }),
           ...(filters.search && {
             OR: [
               { entryNumber: { contains: filters.search } },
@@ -431,6 +429,7 @@ export class FinancialService {
   }): Promise<GlReportResponse> {
     const page     = filters.page     ?? 1;
     const pageSize = filters.pageSize ?? 20;
+    const periodRange = localDateRange(filters.fromDate, filters.toDate);
 
     const allAccounts = await prisma.account.findMany({
       where:   { isActive: true, ...(filters.accountType && { type: filters.accountType }) },
@@ -454,7 +453,7 @@ export class FinancialService {
           accountId:    { in: paginatedIds },
           journalEntry: {
             status: 'POSTED',
-            ...(filters.fromDate && { date: { lt: new Date(filters.fromDate) } }),
+            ...(periodRange?.gte && { date: { lt: periodRange.gte } }),
           },
         },
         _sum: { debit: true, credit: true },
@@ -468,12 +467,7 @@ export class FinancialService {
             // Both bounds must live under a SINGLE `date` key. Two separate
             // `...{ date: {...} }` spreads collide — the later one overwrites the
             // former — silently dropping `gte` and summing all history ≤ toDate.
-            ...((filters.fromDate || filters.toDate) && {
-              date: {
-                ...(filters.fromDate && { gte: new Date(filters.fromDate) }),
-                ...(filters.toDate   && { lte: endOfDay(new Date(filters.toDate)) }),
-              },
-            }),
+            ...(periodRange && { date: periodRange }),
           },
         },
         _sum: { debit: true, credit: true },
@@ -591,15 +585,21 @@ export class FinancialService {
     // Period mode
     if (!fromDate || !toDate) throw new Error('fromDate and toDate are required for period mode');
 
+    // نقطة القطع الواحدة: الرصيد الافتتاحي = كل ما قبل بداية الفترة حصرًا (`lt`)،
+    // وحركة الفترة تبدأ من نفس اللحظة بالضبط (`gte`). لحظتان مختلفتان تعنيان
+    // ازدواج قيود أو سقوطها في الشقّ بينهما — فميزان مراجعة لا يتوازن.
+    const periodStart = startOfLocalDay(fromDate);
+    const periodEnd   = endOfLocalDay(toDate);
+
     const [openingGrouped, periodGrouped, allAccounts] = await Promise.all([
       prisma.journalEntryLine.groupBy({
         by:    ['accountId'],
-        where: { journalEntry: { status: 'POSTED', date: { lt: new Date(fromDate) } } },
+        where: { journalEntry: { status: 'POSTED', date: { lt: periodStart } } },
         _sum:  { debit: true, credit: true },
       }),
       prisma.journalEntryLine.groupBy({
         by:    ['accountId'],
-        where: { journalEntry: { status: 'POSTED', date: { gte: new Date(fromDate), lte: endOfDay(new Date(toDate)) } } },
+        where: { journalEntry: { status: 'POSTED', date: { gte: periodStart, lte: periodEnd } } },
         _sum:  { debit: true, credit: true },
       }),
       prisma.account.findMany({

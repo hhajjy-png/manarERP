@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { endOfDay } from './dateWindows';
+import { startOfLocalDay, endOfLocalDay } from './dateWindows';
 
 /**
  * فلتر الفترة المالية على مستوى الـ backend.
@@ -27,15 +27,10 @@ export interface PeriodFilter {
   hasRange: boolean;
 }
 
-function parseLocal(dateStr?: string): Date | undefined {
-  if (!dateStr) return undefined;
-  const d = new Date(`${dateStr.slice(0, 10)}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? undefined : d;
-}
-
 export function resolvePeriod(q: PeriodQuery | undefined): PeriodFilter {
-  const from = parseLocal(q?.fromDate);
-  const to = q?.toDate ? endOfDay(new Date(`${q.toDate.slice(0, 10)}T00:00:00`)) : undefined;
+  // حدود التقويم المحلي تُبنى من مكوّنات صريحة في `dateWindows` — لا تفسير ISO.
+  const from = startOfLocalDay(q?.fromDate);
+  const to = endOfLocalDay(q?.toDate);
   if (!from && !to) return { hasRange: false };
   const flow: { gte?: Date; lte?: Date } = {};
   if (from) flow.gte = from;

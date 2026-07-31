@@ -1,4 +1,5 @@
 import { prisma } from '@config/database.js';
+import { localDateRange } from '@core/utils/dateWindows.js';
 import type { ReconcileStatus, ReconciliationTransaction, ReconciliationWorkspace } from './types.js';
 
 // ── Status transition rules ────────────────────────────────────────────────────
@@ -49,8 +50,8 @@ function buildWhereClause(f: WorkspaceFilter) {
     ];
   }
 
-  if (f.fromDate) where.statementDate = { ...where.statementDate, gte: new Date(f.fromDate) };
-  if (f.toDate)   where.statementDate = { ...where.statementDate, lte: new Date(f.toDate) };
+  const dateRange = localDateRange(f.fromDate, f.toDate);
+  if (dateRange) where.statementDate = { ...where.statementDate, ...dateRange };
 
   if (f.minAmount != null || f.maxAmount != null) {
     // Filter by max of debit/credit

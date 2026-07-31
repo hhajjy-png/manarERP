@@ -78,3 +78,85 @@ export function toLocalDateString(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+// ─── حدود اليوم المحلي من نص `YYYY-MM-DD` ─────────────────────────────────────
+//
+// العقد الوحيد لفلترة المدى الزمني في كل الـ backend.
+//
+// لماذا لا `new Date('2026-08-01')`؟ لأن المواصفة تُلزم تفسير النص **المجرَّد من
+// الوقت** كمنتصف ليل **UTC**، لا محليًا. النتيجة عيبان متكاملان:
+//
+//   • الحدّ الأدنى (`gte`): في الكويت (UTC+03:00) يصبح 03:00 صباحًا محليًا، فتختفي
+//     كل حركة سُجِّلت بين 00:00 و03:00 من أول يوم في المدى.
+//   • الحدّ الأعلى (`lte`): حتى مع `endOfDay`، النتيجة صحيحة صدفةً في الإزاحات
+//     الموجبة فقط. في نيويورك (UTC-04:00) يصبح `new Date('2026-08-31')` مساءَ
+//     **30** أغسطس محليًا، فيقفل `endOfDay` على اليوم الخطأ ويسقط 31 أغسطس كاملًا.
+//
+// لذلك تُبنى الحدود هنا من **مكوّنات التقويم المحلي صراحةً** (`new Date(y, m, d, …)`)
+// فلا يبقى أي اعتماد على تفسير المحرّك لنص ISO. النتيجة صحيحة في أي منطقة زمنية.
+
+/** يقبل `YYYY-MM-DD` أو أي نص ISO يبدأ به (يُتجاهل ما بعد اليوم). */
+const DATE_ONLY_PREFIX = /^(\d{4})-(\d{2})-(\d{2})/;
+
+/**
+ * يبني تاريخًا محليًا من مكوّنات ويرفض ما ليس تاريخًا تقويميًا حقيقيًا.
+ * `new Date(2026, 1, 31)` يتدحرج بصمت إلى 3 مارس — نكشفه بمقارنة المكوّنات.
+ */
+function buildLocal(
+  y: number, m: number, d: number,
+  h: number, min: number, s: number, ms: number,
+): Date | undefined {
+  if (m < 1 || m > 12 || d < 1 || d > 31) return undefined;
+  const dt = new Date(y, m - 1, d, h, min, s, ms);
+  if (Number.isNaN(dt.getTime())) return undefined;
+  if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return undefined;
+  return dt;
+}
+
+/**
+ * `'2026-08-01'` → **أول لحظة** في 1 أغسطس 2026 بالتوقيت المحلي (00:00:00.000).
+ *
+ * أي نص لا يبدأ بـ`YYYY-MM-DD` صالح (فارغ/مشوَّه/تاريخ غير موجود) يُعيد `undefined`
+ * فيُعامَل كحدّ غائب — وهو نفس تسامح `resolvePeriod` السابق مع `Invalid Date`،
+ * ويبقى الفشل «مدى أوسع» لا «استعلام ينهار».
+ */
+export function startOfLocalDay(dateStr?: string | null): Date | undefined {
+  if (!dateStr) return undefined;
+  const m = DATE_ONLY_PREFIX.exec(String(dateStr).trim());
+  if (!m) return undefined;
+  return buildLocal(Number(m[1]), Number(m[2]), Number(m[3]), 0, 0, 0, 0);
+}
+
+/**
+ * `'2026-08-31'` → **آخر لحظة** في 31 أغسطس 2026 بالتوقيت المحلي (23:59:59.999).
+ * الطرف شامل دائمًا: سجلّ عند 23:59:59.999 يقع داخل المدى.
+ */
+export function endOfLocalDay(dateStr?: string | null): Date | undefined {
+  if (!dateStr) return undefined;
+  const m = DATE_ONLY_PREFIX.exec(String(dateStr).trim());
+  if (!m) return undefined;
+  return buildLocal(Number(m[1]), Number(m[2]), Number(m[3]), 23, 59, 59, 999);
+}
+
+/** فلتر Prisma لمدى تقويمي محلي شامل الطرفين، أو `undefined` عند غياب الحدّين. */
+export interface LocalDateRange {
+  gte?: Date;
+  lte?: Date;
+}
+
+/**
+ * `from`/`to` بصيغة `YYYY-MM-DD` → فلتر `{ gte, lte }` على المدى التقويمي المحلي
+ * الكامل، شامل اليوم الأخير.
+ *
+ * يدعم الحدّ الواحد (`from` فقط أو `to` فقط) كما كانت كل النقاط تفعل.
+ * غياب الحدّين معًا → `undefined` فيبقى الاستعلام بلا قيد زمني (كل الفترات).
+ */
+export function localDateRange(from?: string | null, to?: string | null): LocalDateRange | undefined {
+  const gte = startOfLocalDay(from);
+  const lte = endOfLocalDay(to);
+  if (!gte && !lte) return undefined;
+  const range: LocalDateRange = {};
+  if (gte) range.gte = gte;
+  if (lte) range.lte = lte;
+  return range;
+}
