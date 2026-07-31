@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `174883aa` (merge of `feature/project-wide-date-display-export-import-consistency-v1`, standardizing user-facing calendar-date rendering to DD/MM/YYYY across Excel/PDF exports and frontend displays, fixing an import date-drop, and closing a live MM/DD misread in the payroll bank import parser) |
-| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Documentation Commit** | `ec5ff53` |
 | **Current Stable Tag** | `stable-project-wide-date-display-export-import-consistency-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 390 (window 2026-06-07 → 2026-07-31) |
