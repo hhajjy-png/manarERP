@@ -50,9 +50,12 @@ describe('toAgingReportInput — AR', () => {
     expect(input.title).toBe('أعمار ذمم العملاء (مديونيات)');
   });
 
-  it('includes asOfDate in subtitle', () => {
+  // العنوان الفرعي صيغة **عرض** (DD/MM/YYYY) لا الصيغة القانونية السلكية
+  // — Date Display, Export & Import Consistency Pack v1.
+  it('includes asOfDate in subtitle, in display format', () => {
     const input = toAgingReportInput(makeArResponse([makeArRow()]), 'ar');
-    expect(input.subtitle).toContain('2025-06-01');
+    expect(input.subtitle).toContain('01/06/2025');
+    expect(input.subtitle).not.toContain('2025-06-01');
   });
 
   it('maps customerCode and customerName to code/name', () => {

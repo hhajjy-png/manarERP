@@ -310,7 +310,7 @@ export class ReportsService {
         make: e.manufacturer ?? '',
         makeYear: e.manufactureYear ?? '',
         color: e.color ?? '',
-        expiry: e.registrationExpiry ? new Date(e.registrationExpiry).toLocaleDateString('ar') : '',
+        expiry: dateAr(e.registrationExpiry),
         status: e.status === 'WORKING' ? 'تعمل' : 'لا تعمل',
       })),
     };
@@ -341,10 +341,10 @@ export class ReportsService {
         civil: e.civilId ?? '',
         job: e.jobTitle ?? '',
         nat: e.nationality ?? '',
-        residency: e.residencyExpiry ? new Date(e.residencyExpiry).toLocaleDateString('ar') : '',
-        passport: e.passportExpiry ? new Date(e.passportExpiry).toLocaleDateString('ar') : '',
+        residency: dateAr(e.residencyExpiry),
+        passport: dateAr(e.passportExpiry),
         salary: num(e.salary),
-        hireDate: e.hireDate ? new Date(e.hireDate).toISOString().slice(0, 10) : '',
+        hireDate: dateAr(e.hireDate),
         status: e.status,
       })),
     };
@@ -887,7 +887,7 @@ export class ReportsService {
     return {
       title: 'ملخص التحصيلات',
       subtitle: q.from || q.to
-        ? `الفترة: ${q.from ?? '—'} إلى ${q.to ?? '—'} — إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`
+        ? `الفترة: ${q.from ? formatDisplayDate(q.from) : '—'} إلى ${q.to ? formatDisplayDate(q.to) : '—'} — إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`
         : `إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`,
       columns: [
         { header: 'التاريخ', key: 'date', width: 14 },

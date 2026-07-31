@@ -229,13 +229,37 @@ function parseMonthColumn(value: unknown): { month: number; year: number } | nul
   return month && year <= 2100 ? { month, year } : null;
 }
 
+/**
+ * Payment Date for the P1/P2 monthly-sheet layouts.
+ *
+ * Delegates to {@link parseFlexibleDate} — the SAME column (`payment date` /
+ * `date` / `value date`), from the SAME `BANK_CONFIGS` bank templates, differing
+ * only in which sheet layout the row came from. Two different readings of one
+ * bank column would be incoherent, so there is one parser.
+ *
+ * It used to be `new Date(String(v))`, which had three live defects:
+ *
+ *  1. **MM/DD misread.** `'05/03/2024'` was read by V8's non-standard heuristic
+ *     as 3 May instead of 5 March. The backend twin (`payrollBankImport/
+ *     excelParser.ts`) was already corrected away from this exact pattern,
+ *     citing this exact literal; this was the one site the fix missed.
+ *  2. **Timezone day shift.** XLSX `cellDates:true` builds date cells with the
+ *     LOCAL `Date` constructor, so a bare `toISOString()` rolled a
+ *     month-boundary date (the 1st, on the UTC+3 Kuwait deployment) into the
+ *     previous month — and the payroll month is derived from this value.
+ *  3. **No Excel-serial support.** A General-formatted date cell arrives as a
+ *     number and was stringified into the raw-text fallback.
+ *
+ * The unparseable-text fallback is preserved deliberately: the raw string is
+ * kept so it still surfaces in the import preview and raises the validator's
+ * existing warning — matching the backend twin's documented behaviour. A
+ * non-string that cannot be parsed still yields `null`, exactly as before.
+ */
 function parseDateValue(v: unknown): string | null {
   if (!v) return null;
-  if (v instanceof Date) return isNaN(v.getTime()) ? null : v.toISOString();
-  const s = String(v).trim();
-  if (!s) return null;
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? s : d.toISOString();
+  const iso = parseFlexibleDate(v);
+  if (iso) return iso;
+  return typeof v === 'string' && v.trim() ? v.trim() : null;
 }
 
 /**
@@ -246,6 +270,20 @@ function parseDateValue(v: unknown): string | null {
  * row falls to a blocking "invalid payroll month/year" validation rather than
  * silently importing with a wrong period).
  */
+/**
+ * Builds UTC midnight from explicit calendar components, rejecting any date the
+ * calendar does not contain. `Date.UTC(2024, 1, 31)` silently rolls over to
+ * 2 March — the component round-trip catches that and yields `null` instead, so
+ * an impossible cell can never import as a plausible-looking wrong day.
+ */
+function utcCalendarDate(y: number, mo: number, d: number): string | null {
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  if (isNaN(dt.getTime())) return null;
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+  return dt.toISOString();
+}
+
 export function parseFlexibleDate(v: unknown): string | null {
   if (v == null || v === '') return null;
   if (v instanceof Date) {
@@ -265,14 +303,22 @@ export function parseFlexibleDate(v: unknown): string | null {
   }
   const s = String(v).trim();
   if (!s) return null;
-  // Day-first DD/MM/YYYY or DD-MM-YYYY (Kuwaiti bank convention).
+  // Canonical ISO `YYYY-MM-DD` — matched explicitly rather than left to the
+  // engine, and validated against the real calendar.
+  const isoM = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoM) return utcCalendarDate(+isoM[1], +isoM[2], +isoM[3]);
+  // Day-first DD/MM/YYYY or DD-MM-YYYY (Kuwaiti bank convention — proven for
+  // this column by the backend twin `payrollBankImport/excelParser.ts`, which
+  // routes it through the day-first `parseImportDate`).
+  //
+  // Once this ambiguous shape matches we NEVER fall through to `new Date(s)`:
+  // doing so would hand `'31/02/2024'` straight to the MM/DD heuristic this
+  // branch exists to prevent. An impossible date is `null`, not a guess.
   const m = s.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (m) {
-    const d = +m[1], mo = +m[2], y = +m[3];
-    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
-      return new Date(Date.UTC(y, mo - 1, d)).toISOString();
-    }
-  }
+  if (m) return utcCalendarDate(+m[3], +m[2], +m[1]);
+  // Remaining shapes are UNAMBIGUOUS by construction — the `d/d/yyyy` form was
+  // already consumed above, so what reaches here (e.g. `'29 May 2026'`) names
+  // its month explicitly and carries no day/month ordering risk.
   const dd = new Date(s);
   return isNaN(dd.getTime()) ? null : dd.toISOString();
 }

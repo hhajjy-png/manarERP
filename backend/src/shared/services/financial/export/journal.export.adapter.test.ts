@@ -61,9 +61,11 @@ describe('toJournalBookReportInput', () => {
     expect(line1.credit).toBe('');
   });
 
-  it('subtitle includes date range', () => {
+  // حدود الفترة تُعرض بصيغة DD/MM/YYYY — لا الصيغة القانونية السلكية.
+  it('subtitle includes date range, in display format', () => {
     const input = toJournalBookReportInput(makeJournalResponse());
-    expect(input.subtitle).toContain('2025-01-01');
-    expect(input.subtitle).toContain('2025-06-30');
+    expect(input.subtitle).toContain('01/01/2025');
+    expect(input.subtitle).toContain('30/06/2025');
+    expect(input.subtitle).not.toContain('2025-01-01');
   });
 });

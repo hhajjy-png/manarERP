@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { useUI } from '../stores/uiStore';
 import { t } from '../lib/i18n';
+import { formatDisplayDate } from '../lib/date';
 
 /** معلومات نسخة قاعدة بيانات واحدة (محلية أو سحابية) — لعرضها في حوار حلّ التعارض. */
 interface DatabaseVersionInfo {
@@ -258,8 +259,10 @@ export function errorMessage(err: unknown): string {
     const lines = [t('error.duplicate_invoice.number_used', lang, { value: details.value ?? '' })];
     if (rec?.partyName) lines.push(t('error.duplicate_invoice.party', lang, { value: rec.partyName }));
     if (rec?.issueDate) {
-      const d = new Date(rec.issueDate as string);
-      if (!isNaN(d.getTime())) lines.push(t('error.duplicate_invoice.date', lang, { value: d.toLocaleDateString('ar-KW') }));
+      // كانت `toLocaleDateString('ar-KW')` تُخرج أرقامًا هندية شرقية بلا تبطين
+      // بأصفار (`٢/٨/٢٠٢٦`) — تخالف معيار DD/MM/YYYY بأرقام غربية.
+      const shown = formatDisplayDate(rec.issueDate);
+      if (shown !== '—') lines.push(t('error.duplicate_invoice.date', lang, { value: shown }));
     }
     if (rec?.status) {
       const statusKey = STATUS_LABEL_KEYS[rec.status as string];

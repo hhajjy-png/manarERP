@@ -5,7 +5,7 @@ import { useT } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
 import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
-import { formatDate } from '../lib/date';
+import { formatDate, formatDisplayDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
 import { money, MoneyText, MoneyCell } from '../config/modules';
@@ -377,7 +377,7 @@ export default function Prices() {
           <DrawerSection title={t('sec.pricing')}>
             <DrawerField label={t('col.prices.unit')} value={viewing.contractUnit} />
             <DrawerField label={t('col.prices.unit_price')} value={<MoneyText value={viewing.unitPrice} />} />
-            {viewing.validUntil && <DrawerField label={t('field.valid_until')} value={<span className="prx-valid">{String(viewing.validUntil).slice(0, 10)}</span>} />}
+            {viewing.validUntil && <DrawerField label={t('field.valid_until')} value={<span className="prx-valid">{formatDisplayDate(viewing.validUntil)}</span>} />}
           </DrawerSection>
         </Drawer>
       )}
@@ -509,7 +509,7 @@ function AgreementMiniTable({ rows, t }: { rows: AgreementRow[]; t: (key: string
               <td>{<MoneyCell value={r.unitPrice} />}</td>
               <td className="prx-center"><span className={`prx-usage-badge${r.usageCount > 0 ? ' active' : ''}`}>{r.usageCount}</span></td>
               <td>{r.totalAmount > 0 ? <MoneyCell value={r.totalAmount} /> : '—'}</td>
-              <td>{r.validUntil ? <span className="prx-valid">{String(r.validUntil).slice(0, 10)}</span> : '—'}</td>
+              <td>{r.validUntil ? <span className="prx-valid">{formatDisplayDate(r.validUntil)}</span> : '—'}</td>
             </tr>
           ))}
         </tbody>

@@ -56,9 +56,11 @@ describe('toTrialBalanceReportInput — as-of mode', () => {
     expect(input.rows[1].balanceType).toBe('دائن');
   });
 
-  it('subtitle contains asOfDate', () => {
+  // «حتى تاريخ» صيغة **عرض** DD/MM/YYYY لا الصيغة القانونية السلكية.
+  it('subtitle contains asOfDate, in display format', () => {
     const input = toTrialBalanceReportInput(makeAsOfResponse());
-    expect(input.subtitle).toContain('2025-06-30');
+    expect(input.subtitle).toContain('30/06/2025');
+    expect(input.subtitle).not.toContain('2025-06-30');
   });
 });
 

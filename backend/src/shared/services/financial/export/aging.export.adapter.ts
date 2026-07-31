@@ -1,5 +1,6 @@
 import type { ReportInput } from '../../reportEngine/excel.service';
 import type { FinancialResponse, ArAgingRow, ApAgingRow } from '../financial.types';
+import { formatDisplayDate } from '../../../utils/dateDisplay';
 
 export const AGING_COLUMNS: ReportInput['columns'] = [
   { header: 'الكود',      key: 'code',     width: 14 },
@@ -22,7 +23,7 @@ export function toAgingReportInput(
 
   return {
     title,
-    subtitle: asOfDate ? `حتى تاريخ ${asOfDate}` : undefined,
+    subtitle: asOfDate ? `حتى تاريخ ${formatDisplayDate(asOfDate)}` : undefined,
     columns:  [...AGING_COLUMNS],
     rows: response.rows.map(r => {
       const isAr = 'customerId' in r;

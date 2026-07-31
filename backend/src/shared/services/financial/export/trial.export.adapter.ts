@@ -1,6 +1,7 @@
 import type { FinancialResponse, TrialBalanceAsOfRow, TrialBalancePeriodRow } from '../financial.types';
 import { buildSubtitle } from '../summary.utils';
 import type { ReportInput } from '../../reportEngine/excel.service';
+import { formatDisplayDate } from '../../../utils/dateDisplay';
 
 export function toTrialBalanceReportInput(
   response: FinancialResponse<TrialBalanceAsOfRow | TrialBalancePeriodRow>
@@ -13,7 +14,7 @@ export function toTrialBalanceReportInput(
   if (mode === 'as-of') {
     return {
       title:    'ميزان المراجعة',
-      subtitle: asOfDate ? `حتى تاريخ ${asOfDate}` : 'كل الفترات',
+      subtitle: asOfDate ? `حتى تاريخ ${formatDisplayDate(asOfDate)}` : 'كل الفترات',
       columns: [
         { header: 'الكود',        key: 'accountCode',  width: 14 },
         { header: 'اسم الحساب',   key: 'accountName',  width: 28 },

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatFileDate, todayDateOnly, toLocalDateOnly } from '../date';
+import { formatFileDate, todayDateOnly, toLocalDateOnly, formatDisplayDate, formatDate, formatDateTime } from '../date';
 
 describe('formatFileDate', () => {
   it('formats a Date as local YYYY-MM-DD', () => {
@@ -57,5 +57,61 @@ describe('todayDateOnly / toLocalDateOnly — local business-date defaults (no U
 
   it('invalid Date → empty string', () => {
     expect(toLocalDateOnly(new Date('not-a-date'))).toBe('');
+  });
+});
+
+/**
+ * Project-Wide Date Display, Export & Import Consistency Pack v1 — الطرف الأمامي.
+ *
+ * الفصل الذي تحرسه هذه المجموعة: `DD/MM/YYYY` صيغة **عرض** للمستخدم، بينما
+ * `YYYY-MM-DD` صيغة **قانونية** داخلية (قيمة DateInput، حمولة الـAPI، مفاتيح
+ * الفرز). المواضع التي كانت تعرض الصيغة القانونية خامًا (`.slice(0, 10)`) أو
+ * تمرّ عبر `toLocaleDateString` (أرقام هندية شرقية + ترتيب تابع للّغة) صارت
+ * كلّها تمرّ من هنا.
+ */
+describe('formatDisplayDate — عقد العرض DD/MM/YYYY', () => {
+  it('A) 2026-08-02 → 02/08/2026', () => {
+    expect(formatDisplayDate('2026-08-02')).toBe('02/08/2026');
+  });
+
+  it('B) 2026-02-08 → 08/02/2026', () => {
+    expect(formatDisplayDate('2026-02-08')).toBe('08/02/2026');
+  });
+
+  it('C) 2025-03-31 → 31/03/2025', () => {
+    expect(formatDisplayDate('2025-03-31')).toBe('31/03/2025');
+  });
+
+  it('D) يوم كبيس 2028-02-29 → 29/02/2028', () => {
+    expect(formatDisplayDate('2028-02-29')).toBe('29/02/2028');
+  });
+
+  it('E) لا انقلاب شهر/يوم بين الزوج المتقابل', () => {
+    expect([formatDisplayDate('2026-08-02'), formatDisplayDate('2026-02-08')])
+      .toEqual(['02/08/2026', '08/02/2026']);
+  });
+
+  it('F) نص التاريخ-فقط لا يمرّ عبر Date — لا انزلاق يوم عبر المناطق الزمنية', () => {
+    for (const iso of ['2026-01-01', '2026-12-31', '2026-06-15']) {
+      const [y, m, d] = iso.split('-');
+      expect(formatDisplayDate(iso)).toBe(`${d}/${m}/${y}`);
+    }
+  });
+
+  it('أرقام غربية فقط — لا أرقام هندية شرقية ولا علامات اتجاه (عيب toLocaleDateString)', () => {
+    const out = formatDisplayDate('2026-08-02');
+    expect(out).toMatch(/^[0-9/]+$/);
+    expect(out).not.toMatch(/[٠-٩]/);
+    expect(out).not.toMatch(/[‎‏]/);
+  });
+
+  it('الفارغ → — ، وطابع زمني حقيقي يُنسَّق من مكوّناته المحلية', () => {
+    expect(formatDisplayDate(null)).toBe('—');
+    expect(formatDisplayDate('')).toBe('—');
+    expect(formatDate(new Date(2026, 7, 2))).toBe('02/08/2026');
+  });
+
+  it('O) الطابع الزمني الحقيقي يحتفظ بوقته — لا يُقصّ إلى تاريخ', () => {
+    expect(formatDateTime(new Date(2026, 7, 2, 14, 35))).toBe('02/08/2026 14:35');
   });
 });

@@ -2,6 +2,7 @@ import { prisma } from '@config/database';
 import type { ExpirationFilters } from './expirations.schema';
 import { buildExcel } from '@shared/services/reportEngine/excel.service';
 import type { ReportColumn } from '@shared/services/reportEngine/excel.service';
+import { formatDisplayDate } from '@shared/utils/dateDisplay';
 
 export type DocCategory =
   | 'EMPLOYEE_RESIDENCY'
@@ -166,7 +167,10 @@ export class ExpirationsService {
         category:      r.category,
         entityName:    r.entityName,
         entityCode:    r.entityCode,
-        expiryDate:    r.expiryDate,
+        // `ExpirationRecord.expiryDate` يبقى `YYYY-MM-DD` قانونيًا — الواجهة تفرز
+        // عليه معجميًا (SortableHeader على `expiryDate`)، والفرز على `DD/MM/YYYY`
+        // كان سيصبح خاطئًا. التحويل إلى صيغة العرض يحدث هنا، عند التصدير وحده.
+        expiryDate:    formatDisplayDate(r.expiryDate),
         daysRemaining: r.daysRemaining,
         urgency:       r.urgency,
       })),

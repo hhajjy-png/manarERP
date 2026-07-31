@@ -29,8 +29,30 @@ function str(row: Record<string, unknown>, key: string): string | undefined {
   return String(v).trim();
 }
 
-/** DD/MM/YYYY وISO والرقم التسلسلي — انظر `shared/utils/dateParse`. */
-const parseDate = (v: unknown): Date | undefined => parseImportDate(v) ?? undefined;
+/**
+ * تاريخ اختياري بآلية التحقق القائمة نفسها (عقود/مصروفات/فواتير): الفراغ يعني
+ * «غير مذكور» فيمرّ، أما قيمة **موجودة تفشل في التحليل** فتُنتج **خطأ صفّ**.
+ *
+ * كانت `parseImportDate(v) ?? undefined` تبتلع الفشل بصمت، فيُستورَد الصفّ
+ * «صالحًا» وقد سقط منه تاريخٌ كتبه المستخدم فعلًا — بلا أي إشعار. الصيغ المقبولة
+ * لم تتغيّر إطلاقًا (انظر `shared/utils/dateParse`)؛ المتغيّر الوحيد هو أن الفشل
+ * صار مرئيًا بدل أن يُهمَل.
+ */
+function optionalDate(
+  row: Record<string, unknown>,
+  key: string,
+  labelAr: string,
+  errors: string[],
+): Date | undefined {
+  const raw = row[key];
+  if (raw == null || raw === '') return undefined;
+  const d = parseImportDate(raw);
+  if (!d) {
+    errors.push(`${labelAr} (${key}) يجب أن يكون بصيغة YYYY-MM-DD`);
+    return undefined;
+  }
+  return d;
+}
 
 function parseNumber(v: unknown): number {
   if (v == null || v === '') return 0;
@@ -62,6 +84,11 @@ export function validateEquipmentRow(row: Record<string, unknown>): {
     ? (rawStatus as 'WORKING' | 'NOT_WORKING')
     : 'WORKING';
 
+  // التواريخ تُحلَّل **قبل** بوّابة الأخطاء أدناه — دفعُها داخل `normalized` كان
+  // سيقع بعد البوّابة، فيعود الصفّ `valid: true, errors: []` رغم الخطأ.
+  const registrationExpiry = optionalDate(row, 'registrationExpiry', 'تاريخ انتهاء دفتر المركبة', errors);
+  const purchaseDate       = optionalDate(row, 'purchaseDate',       'تاريخ الشراء',              errors);
+
   if (errors.length > 0) return { valid: false, errors, normalized: null };
 
   return {
@@ -76,7 +103,7 @@ export function validateEquipmentRow(row: Record<string, unknown>): {
       // أعمدة اختيارية: ملفّ استيراد قديم لا يحملها ⇒ undefined كما لو لم تُذكر.
       chassisNumber: str(row, 'chassisNumber'),
       color: str(row, 'color'),
-      registrationExpiry: parseDate(row['registrationExpiry']),
+      registrationExpiry,
       status,
       name: str(row, 'name'),
       manufacturer: str(row, 'manufacturer'),
@@ -85,7 +112,7 @@ export function validateEquipmentRow(row: Record<string, unknown>): {
       serialNumber: str(row, 'serialNumber'),
       currentLocation: str(row, 'currentLocation'),
       operatingHours: parseNumber(row['operatingHours']),
-      purchaseDate: parseDate(row['purchaseDate']),
+      purchaseDate,
       purchaseCost: row['purchaseCost'] != null && row['purchaseCost'] !== '' ? parseNumber(row['purchaseCost']) : undefined,
       notes: str(row, 'notes'),
     },

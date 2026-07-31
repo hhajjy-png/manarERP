@@ -166,3 +166,101 @@ describe('payrollBankImportParser — Transaction Details report (new format)', 
     expect(rows.every((r) => r.transactionId && r.transactionId.length > 0)).toBe(true);
   });
 });
+
+/**
+ * Date Display, Export & Import Consistency Pack v1 — corrective pass.
+ *
+ * `parseDateValue` (the P1/P2 monthly-sheet Payment Date parser) was
+ * `new Date(String(v))`. The intended contract for this column is **day-first**,
+ * proven in-repo three times over, not inferred from locale:
+ *
+ *   1. `backend/payrollBankImport/excelParser.ts` — the twin that parses the
+ *      SAME column from the SAME `BANK_CONFIGS` templates — was already fixed
+ *      away from `new Date(string)`, its comment naming `"05/03/2024"` and the
+ *      American MM/DD misreading verbatim, routing it through the day-first
+ *      `parseImportDate`.
+ *   2. `parseFlexibleDate` — same file, same column, P3 layout — is day-first
+ *      and already covered by the month-boundary test above.
+ *   3. `shared/utils/dateParse.ts` `parseImportDate` — day-first, documented,
+ *      separately tested.
+ *
+ * So `05/03/2024` on this column means **5 March 2024**.
+ */
+describe('payroll bank Payment Date — proven day-first contract (P1/P2 layouts)', () => {
+  /** One NBK monthly sheet whose single row carries `paymentDate` verbatim. */
+  const monthlyRowWithDate = (paymentDate: unknown) => {
+    const wb = makeWorkbook([{
+      name: 'mar-2025',
+      aoa: [NBK_HEADER, ['TXN-D', '111', 'Ahmed', '100.000', 'KWD', paymentDate, 'PROCESSED', '299010112345']],
+    }]);
+    return parseWorkbook(wb).rows[0];
+  };
+
+  it('05/03/2024 is 5 March — the documented day-first reading, not 3 May', () => {
+    expect(monthlyRowWithDate('05/03/2024').paymentDate).toBe('2024-03-05T00:00:00.000Z');
+  });
+
+  it('the reciprocal 03/05/2024 is 3 May — the two do not collapse onto each other', () => {
+    expect(monthlyRowWithDate('03/05/2024').paymentDate).toBe('2024-05-03T00:00:00.000Z');
+  });
+
+  it('canonical ISO input is accepted unchanged', () => {
+    expect(monthlyRowWithDate('2024-03-05').paymentDate).toBe('2024-03-05T00:00:00.000Z');
+  });
+
+  it('DD-MM-YYYY (dash variant of the same bank convention) is also day-first', () => {
+    expect(monthlyRowWithDate('05-03-2024').paymentDate).toBe('2024-03-05T00:00:00.000Z');
+  });
+
+  it('an Excel-native date cell keeps its calendar day — no timezone roll-back', () => {
+    // cellDates:true yields a LOCAL-midnight Date; the old bare toISOString()
+    // rolled the 1st into the previous month on the UTC+3 Kuwait deployment,
+    // and the payroll month is derived from this very value.
+    const row = monthlyRowWithDate(new Date(2026, 6, 1, 0, 0, 0));
+    expect(row.paymentDate).toBe('2026-07-01T00:00:00.000Z');
+    expect(monthYearFromIso(row.paymentDate)).toEqual({ month: 7, year: 2026 });
+  });
+
+  it('an impossible date is rejected, never rolled over to a plausible wrong day', () => {
+    // Date.UTC(2024, 1, 31) would silently become 2 March.
+    expect(parseFlexibleDate('31/02/2024')).toBeNull();
+    expect(parseFlexibleDate('2024-04-31')).toBeNull();
+    expect(parseFlexibleDate('2024-13-01')).toBeNull();
+    // ...and once the ambiguous d/d/yyyy shape matched, there is no fall-through
+    // to `new Date(s)` that could re-guess it as MM/DD.
+    expect(monthlyRowWithDate('31/02/2024').paymentDate).toBe('31/02/2024');
+  });
+
+  it('Excel serial numbers are supported (were stringified into the raw fallback)', () => {
+    // 45356 = 2024-03-05 in the Excel 1900 calendar.
+    expect(parseFlexibleDate(45356)).toBe('2024-03-05T00:00:00.000Z');
+  });
+
+  it('leap day 29/02/2028 is accepted; 29/02/2026 is not', () => {
+    expect(parseFlexibleDate('29/02/2028')).toBe('2028-02-29T00:00:00.000Z');
+    expect(parseFlexibleDate('29/02/2026')).toBeNull();
+  });
+
+  it('unparseable TEXT still falls back to the raw string (preview + validator warning)', () => {
+    // Preserved deliberately — the backend twin documents the same behaviour.
+    expect(monthlyRowWithDate('not a date').paymentDate).toBe('not a date');
+  });
+
+  it('an empty cell still yields null, exactly as before', () => {
+    expect(monthlyRowWithDate('').paymentDate).toBeNull();
+  });
+
+  it('an invalid Date cell yields null — the raw-string fallback is text-only', () => {
+    // Asserted on the parser directly: `XLSX.write` cannot serialise an Invalid
+    // Date into a real .xlsx, so no uploaded file can carry one either.
+    expect(parseFlexibleDate(new Date('nonsense'))).toBeNull();
+  });
+
+  it('no bare new Date(userString) heuristic remains on the ambiguous d/d/yyyy path', () => {
+    // Every two-part-numeric ordering resolves through the explicit day-first
+    // branch: a month >12 in the SECOND position is impossible and rejected,
+    // rather than being re-read as MM/DD by the engine.
+    expect(parseFlexibleDate('05/13/2024')).toBeNull();
+    expect(parseFlexibleDate('13/05/2024')).toBe('2024-05-13T00:00:00.000Z');
+  });
+});
