@@ -57,10 +57,19 @@ export default function PeriodControl({ hideLabelPrefix = false }: PeriodControl
   const [monthYear, setMonthYear] = useState(() => clampYear(periodYear, maxYear));
 
   // إعادة البذر عند **الفتح** فقط — لا `useEffect` على الفترة: فتح اللوحة يعرض
-  // سنة الفترة النشطة، بينما التنقّل بالسهمين داخل جلسة فتح واحدة يبقى كما تركه
-  // المستخدم بدل أن يُدهَس عند كل إعادة رسم.
+  // سنة الفترة النشطة وحدودها، بينما التنقّل بالسهمين أو تحرير الحقول داخل جلسة
+  // فتح واحدة يبقى كما تركه المستخدم بدل أن يُدهَس عند كل إعادة رسم.
+  //
+  // حقلا النطاق المخصص كانا يُبذران في `useState` وحده — أي مرة واحدة عند تركيب
+  // العنصر. والعنصر يبقى مركّبًا بينما تتغيّر الفترة المشتركة من حوله (preset،
+  // شهر، إعادة تعيين)، فتبقى الحقول على قيم فترةٍ قديمة و«تطبيق» يلتزم بها.
+  // البذر عند الفتح يربطهما بالفترة **المُلتزَم بها حاليًا** بلا مزامنة مستمرة.
   const toggleOpen = () => {
-    if (!open) setMonthYear(clampYear(periodYear, maxYear));
+    if (!open) {
+      setMonthYear(clampYear(periodYear, maxYear));
+      setCustomFrom(period.fromDate ?? '');
+      setCustomTo(period.toDate ?? '');
+    }
     setOpen((v) => !v);
   };
 
