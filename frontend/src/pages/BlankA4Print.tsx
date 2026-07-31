@@ -11,6 +11,7 @@ import {
   UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
 } from '../printing';
 import { PrintWorkspace } from '../components/print-workspace';
+import { useFormPreviewInitialZoom } from '../forms/shared/formOpenIntent';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import A4Ruler, { A4_RULER_THICKNESS } from '../forms/shared/A4Ruler';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
@@ -77,6 +78,11 @@ export default function BlankA4Print() {
   const navigate = useNavigate();
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const title = t('page.blankA4.title');
+
+  // هذه الشاشة الوحيدة من سجل النماذج الإدارية التي تستخدم `PrintWorkspace`
+  // مباشرة (بلا `FormLayout`) — فتقرأ نفس نيّة الفتح من نفس المصدر: عبر «فتح»
+  // تفتح على 80% مثل بقية النماذج، وبلا العلامة تبقى «ملاءمة الصفحة» كما كانت.
+  const previewInitialZoom = useFormPreviewInitialZoom();
 
   const branding = useCompanyBranding();
   const selection = useBrandingSelection(branding);
@@ -231,6 +237,7 @@ export default function BlankA4Print() {
         lang={lang}
         toolbar={toolbar}
         sidebar={sidebar}
+        initialZoom={previewInitialZoom}
         documentName={title}
         paperLabel={lang === 'en' ? 'Blank A4' : 'A4 فارغة'}
         paperSize="A4"

@@ -8,6 +8,7 @@ import {
   PRINT_CENTER_FOUNDATION_V1,
 } from '../../printing';
 import { useNavigate } from 'react-router-dom';
+import { useFormOpenIntent, useFormPreviewInitialZoom } from './formOpenIntent';
 import { ProfileId, PRINT_PROFILES } from './printProfiles';
 import { loadCopies, saveCopies } from './usePrintProfileMemory';
 import { SECTION_HEADER_BG } from './formStyles';
@@ -274,6 +275,15 @@ export default function FormLayout({
   const navigate = useNavigate();
 
   /**
+   * فُتح هذا النموذج عبر زر «فتح» في صفحة النماذج الإدارية (علامة في الرابط —
+   * انظر `formOpenIntent.ts`). حينها: لا طباعة تلقائية، والمعاينة تفتح على 80%.
+   * أي مسار آخر يصل لنفس الشاشة (مسار الشيكات، رابط عميق مباشر) لا يحمل العلامة،
+   * فيبقى سلوكه كما كان حرفًا بحرف.
+   */
+  const openedForPreview = useFormOpenIntent();
+  const previewInitialZoom = useFormPreviewInitialZoom();
+
+  /**
    * The company's signature/stamp choice for this document. The hooks run
    * unconditionally (rules of hooks) — only the picker and the images are gated on
    * `approvalBranding`, so an opted-out form renders exactly what it rendered before.
@@ -510,9 +520,14 @@ export default function FormLayout({
    * frame — with a bounded fallback, exactly as PayrollPayslip already does.
    *
    * This fires ONE dialog. It does not loop, and it is independent of `copies`.
+   *
+   * **«فتح» (`openedForPreview`) يُلغي هذه الطباعة التلقائية وحدها.** لا يمسّ
+   * `doPrint` ولا زر الطباعة ولا خيارات الطابعة ولا الهوامش: النموذج يُعرض في
+   * مساحة العمل، ويطبع المستخدم من نفس الزر ونفس المسار متى شاء. أما المسارات
+   * التي لا تحمل العلامة فتطبع تلقائيًا كما كانت تمامًا.
    */
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || openedForPreview) return;
     let canceled = false;
     void waitForPrintReady().then(() => {
       if (canceled) return;
@@ -529,7 +544,7 @@ export default function FormLayout({
     return () => {
       canceled = true;
     };
-  }, [ready]);
+  }, [ready, openedForPreview]);
 
   const paperLabel = lang === 'en' ? activeProfile.labelEn : activeProfile.labelAr;
 
@@ -631,6 +646,9 @@ export default function FormLayout({
       lang={lang}
       toolbar={toolbar}
       sidebar={sidebar}
+      // 80% حين فُتح النموذج عبر «فتح»، و`undefined` (سلوك «ملاءمة الصفحة» السابق
+      // بلا أي تغيير) في كل مسار آخر. تكبير شاشة بحت — لا يمسّ الطباعة ولا PDF.
+      initialZoom={previewInitialZoom}
       documentName={title || formNumber}
       paperLabel={paperLabel}
       paperSize={activeProfile.page.size}

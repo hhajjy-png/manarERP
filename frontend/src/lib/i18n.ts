@@ -1449,6 +1449,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.forms.select_employee_ph': '— اختر موظفًا —',
     'page.forms.employee_required': 'يجب اختيار موظف أولاً',
     'page.forms.print_mode': 'وضع الطباعة',
+    // زر البطاقة في صفحة النماذج الإدارية: يفتح المعاينة، لا يطبع.
+    'page.forms.open_btn': 'فتح',
+    // يبقى كما هو: زر الطباعة **الحقيقي** داخل شاشة عرض السعر يستخدم هذا المفتاح.
     'page.forms.print_btn': 'طباعة',
     'page.warning.title': 'إنذار موظف',
     'page.warning.save_draft_title': 'حفظ مسودة',
@@ -5842,6 +5845,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.forms.select_employee_ph': '— Select Employee —',
     'page.forms.employee_required': 'Please select an employee first',
     'page.forms.print_mode': 'Print Mode',
+    'page.forms.open_btn': 'Open',
     'page.forms.print_btn': 'Print',
     'page.warning.title': 'Employee Warning Notice',
     'page.warning.save_draft_title': 'Save Draft',

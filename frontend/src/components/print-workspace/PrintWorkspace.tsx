@@ -18,6 +18,22 @@ interface Props {
   sidebarTitle?: string;
   /** Whether the sidebar starts collapsed (default: expanded). */
   sidebarCollapsed?: boolean;
+  /**
+   * **Additive, opt-in.** The zoom this preview OPENS at, as a fraction (e.g. `0.8`
+   * for 80%). Omitted (every caller before this pack) ⇒ nothing changes at all: the
+   * preview still opens in "Fit to Page" mode exactly as before.
+   *
+   * INITIAL ONLY — it seeds the first render of the zoom state and is never
+   * re-applied. The user's −/+, Fit width/page, Reset (100%) and Ctrl/⌘+wheel
+   * actions own the zoom from then on, and nothing here resets them while the
+   * preview stays open. Because the state lives in this component, a fresh mount
+   * (opening another document, or reopening the same one) starts from it again.
+   *
+   * Screen-only, like all zoom here: it is a CSS `transform: scale()` on the
+   * preview wrapper. It never reaches `@page`, margins, paper size, the print
+   * pipeline or the PDF export.
+   */
+  initialZoom?: number;
 
   // ── Metadata for the status bar / footer (existing state only) ──
   documentName?: string;
@@ -101,6 +117,7 @@ export default function PrintWorkspace({
   sidebar,
   sidebarTitle,
   sidebarCollapsed = false,
+  initialZoom,
   documentName,
   paperLabel,
   paperSize,
@@ -110,12 +127,17 @@ export default function PrintWorkspace({
   const [collapsed, setCollapsed] = useState(sidebarCollapsed);
 
   // Screen-only zoom state (owned here so the footer / More menu can share it).
-  // Initial view is "Fit to Page" (session-only; every fresh mount — i.e. opening
-  // another template — resets to fit-to-page). Not persisted anywhere. The user
-  // can still zoom with +/−, Ctrl/⌘+wheel, Fit width/page, and Reset (100%); the
-  // placeholder scale below is overwritten by the fit computation before paint.
-  const [scale, setScale] = useState(1);
-  const [fitMode, setFitMode] = useState<FitMode>('page');
+  // Default initial view is "Fit to Page" (session-only; every fresh mount — i.e.
+  // opening another template — resets to fit-to-page). Not persisted anywhere. The
+  // user can still zoom with +/−, Ctrl/⌘+wheel, Fit width/page, and Reset (100%);
+  // the placeholder scale below is overwritten by the fit computation before paint.
+  //
+  // With `initialZoom` (opt-in — administrative forms opened via «فتح») the preview
+  // opens at that exact scale instead, with NO fit mode: the fit computation is what
+  // would otherwise overwrite it on the first layout pass. Both are seeds only —
+  // every zoom control below still owns the value from the first user action on.
+  const [scale, setScale] = useState(() => (initialZoom == null ? 1 : clampScale(initialZoom)));
+  const [fitMode, setFitMode] = useState<FitMode>(initialZoom == null ? 'page' : null);
   const [pageCount, setPageCount] = useState(1);
 
   const onScale = useCallback((n: number) => setScale(n), []);

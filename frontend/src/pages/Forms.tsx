@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { ProfileId, PRINT_PROFILES, SELECTABLE_PROFILE_IDS, DEFAULT_PROFILE_ID } from '../forms/shared/printProfiles';
 import { FORM_CARDS, type FormCard, type FormCategory } from '../forms/shared/formsRegistry';
+import { withFormOpenIntent } from '../forms/shared/formOpenIntent';
 import PrintLogPanel from '../components/PrintLogPanel';
 import { t as translate, useT } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
@@ -79,14 +80,19 @@ export default function Forms() {
     setPrintModes((prev) => ({ ...prev, [key]: mode }));
   }
 
-  // مقبض الطباعة نفسه الذي يستدعيه زر «طباعة» في كل بطاقة — مُلفوف بـ useCallback
-  // فقط لإتاحة إعادة استخدامه بأمان من تأثير الإطلاق التلقائي أدناه (Employee Smart
-  // Forms Hub) بلا أي منطق مُكرَّر ولا استدعاء مباشر لأي حالة داخلية. `replace`
-  // يُستخدَم **فقط** من التأثير التلقائي أدناه — النقر اليدوي على بطاقة يبقى
-  // navigate() عاديًا (push) كما كان، فالرجوع من الطباعة اليدوية يعيد إلى مركز
-  // النماذج بلا أي تغيير في السلوك القائم.
-  const handlePrint = useCallback((card: FormCard, opts?: { replace?: boolean }) => {
-    const go = (path: string) => navigate(path, opts?.replace ? { replace: true } : undefined);
+  // مقبض «فتح» نفسه الذي يستدعيه زر البطاقة — مُلفوف بـ useCallback فقط لإتاحة
+  // إعادة استخدامه بأمان من تأثير الإطلاق التلقائي أدناه (Employee Smart Forms Hub)
+  // بلا أي منطق مُكرَّر ولا استدعاء مباشر لأي حالة داخلية. `replace` يُستخدَم
+  // **فقط** من التأثير التلقائي أدناه — النقر اليدوي على بطاقة يبقى navigate()
+  // عاديًا (push) كما كان، فالرجوع من المعاينة يعيد إلى مركز النماذج بلا أي تغيير
+  // في السلوك القائم.
+  //
+  // ما تغيّر هنا حرفيًا: كل مسار يمرّ عبر `withFormOpenIntent` فيحمل علامة «فُتح
+  // للعرض». المسارات نفسها (والـ printMode) كما كانت — العلامة وحدها أُضيفت، وهي
+  // ما يجعل شاشة النموذج تفتح معاينتها على 80% بلا طباعة تلقائية.
+  const handleOpen = useCallback((card: FormCard, opts?: { replace?: boolean }) => {
+    const go = (path: string) =>
+      navigate(withFormOpenIntent(path), opts?.replace ? { replace: true } : undefined);
     if (card.requiresEmployee === false) {
       go(`/forms/${card.route}`);
       return;
@@ -106,7 +112,7 @@ export default function Forms() {
   // التحديد أعلاه فعليًا) — فإن كان معرّف الموظف غير صالح يبقى selectedId فارغًا
   // إلى الأبد فلا يُنفَّذ شيء (سلوك اليوم تمامًا، بلا أخطاء). وإن كان النموذج
   // المطلوب غير موجود في السجل، يبقى الموظف مُحدَّدًا فقط بلا أي تنقّل إضافي.
-  // ينادي **نفس** handlePrint الذي يستدعيه نقر المستخدم اليدوي على البطاقة — بلا
+  // ينادي **نفس** handleOpen الذي يستدعيه نقر المستخدم اليدوي على البطاقة — بلا
   // أي تكرار لمنطق الاختيار أو التنقّل.
   //
   // `replace: true` هنا تحديدًا (انحدار الرجوع — إصلاح): هذا الرابط
@@ -122,8 +128,8 @@ export default function Forms() {
     if (selectedId !== preselectEmployeeId) return;
     const card = FORM_CARDS.find((c) => c.key === preselectFormId);
     if (!card) return;
-    handlePrint(card, { replace: true });
-  }, [preselectFormId, preselectEmployeeId, selectedId, handlePrint]);
+    handleOpen(card, { replace: true });
+  }, [preselectFormId, preselectEmployeeId, selectedId, handleOpen]);
 
   const filteredCards = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -237,8 +243,11 @@ export default function Forms() {
                   </div>
                 )}
 
-                <Button variant="primary" icon="print" block onClick={() => handlePrint(card)} disabled={disabled}>
-                  {t('page.forms.print_btn')}
+                {/* «فتح»: يفتح معاينة النموذج القائمة (مساحة عمل الطباعة) بدل إطلاق
+                    الطباعة فورًا. الطباعة تبقى متاحة من داخل المعاينة بزرّها ومسارها
+                    نفسيهما — لم يُحذف زر ولا تغيّر مسار طباعة. */}
+                <Button variant="primary" icon="preview" block onClick={() => handleOpen(card)} disabled={disabled}>
+                  {t('page.forms.open_btn')}
                 </Button>
               </div>
             );
