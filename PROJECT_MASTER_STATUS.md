@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-30 (previously 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-07-31 (previously 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Payroll Eligibility Reconciliation Pack v1), like the Database & Google Drive Runtime Safety
-> Pack v1 pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
+> below. This pass (Backend Date-Boundary Unification Pack v1), like the Payroll Eligibility Reconciliation Pack v1
+> pass and the ones before it, refreshed the "Current Production State" table only (re-derived directly
 > from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `ed63d9fd` — merge of `feature/printed-cheque-edit-date-integrity-fix-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (merge commit `ed63d9fd`) | High |
-| **Previous stable tag** | `stable-cheques-reporting-excel-export-pack-v1` (`0223eaf3`) | High |
+| **Current HEAD** | `d7f8080a` — merge of `feature/backend-date-boundary-unification-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-backend-date-boundary-unification-v1` (merge commit `d7f8080a`) | High |
+| **Previous stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (`ed63d9fd`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,38 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-window-lifecycle-foundation-v1` (`e3bf6d4`, 2026-07-24)
+### Latest Release — `stable-backend-date-boundary-unification-v1` (`d7f8080a`, 2026-07-31)
+
+Unifies backend date-range filtering semantics — the interpretation of a user-selected `from`/`to`
+into `{gte, lte}` Prisma boundaries — into one canonical local-calendar contract. Previously each
+module parsed the same PeriodControl-selected range independently: some via `new Date('YYYY-MM-DD')`
+(UTC midnight, dropping the first 3 hours of the range in Kuwait's UTC+3), some via `endOfDay(new
+Date(...))` (correct only by accident, on non-negative UTC offsets), and Transactions/Audit with no
+`endOfDay` at all (truncating the entire final day). No database, schema, or frontend changes.
+
+- **Canonical contract:** new `startOfLocalDay()` / `endOfLocalDay()` / `localDateRange()` in
+  `backend/src/core/utils/dateWindows.ts`, built from explicit local calendar components — never
+  dependent on the engine's UTC interpretation of a date-only ISO string. `resolvePeriod()`
+  (`core/utils/periodFilter.ts`) now delegates to it.
+- **13 modules unified:** Expenses, Reports (generic `dateWhere` + 4 further sites), Accounting,
+  Transactions, Audit log, Financial (7 sites, including a previously-unnoticed second bug where the
+  GL trial-balance opening-cutoff and period-start were derived independently and could double-count
+  or drop journal lines at the boundary), Salaries bank analytics, Employee attendance, Bank statement
+  import/reconciliation. Cheques/Invoices routed through the same helper to remove duplicate private
+  builders — no behavior change.
+- **Explicitly deferred:** `z.coerce.date()` API-boundary hardening, Excel `DATE_FORMAT` display
+  cleanup, display-helper consolidation, and the "شهر محدد" Month Selector — all logged for future
+  packs, none touched here.
+- **Validation:** backend `tsc --noEmit` clean · backend vitest 149 files / 2155 tests passing
+  (baseline 144/2102, zero pre-existing failures) · `npm run build:back` clean · new cross-module
+  parity guards mutation-tested (reverting the fix fails 4 of 5 new assertions) · full suite verified
+  under this host's actual zone (Asia/Kuwait); a genuine negative-UTC-offset process run could not be
+  executed on this Windows host (no WSL/Docker, `TZ` env var ignored by Node here) — compensated by
+  making every new assertion compare local calendar components rather than absolute UTC instants, plus
+  one test that explicitly asserts the pre-pack pattern diverges from the correct contract on any
+  negative-offset host. Frontend untouched.
+
+### Previous Release — `stable-window-lifecycle-foundation-v1` (`e3bf6d4`, 2026-07-24)
 
 Fixes a real production startup failure: the app would appear to launch, briefly show the Cloud Sync
 Progress dialog, then exit cleanly (code 0) with the main window never opening. Root cause — Electron's

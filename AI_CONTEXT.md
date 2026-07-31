@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `ed63d9fd` (merge of `feature/printed-cheque-edit-date-integrity-fix-v1`, fixing `chequeDate` blanking/silent-corruption when editing an existing cheque) |
-| **Current Documentation Commit** | `c2dd7d3` |
-| **Current Stable Tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` |
+| **Current Merge Commit** | `d7f8080a` (merge of `feature/backend-date-boundary-unification-v1`, unifying backend date-range filtering into one local-calendar contract) |
+| **Current Documentation Commit** | *(filled in by follow-up commit — see maintenance policy below)* |
+| **Current Stable Tag** | `stable-backend-date-boundary-unification-v1` |
 | **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 385 (window 2026-06-07 → 2026-07-31) |
+| **Total Stable Releases** | 386 (window 2026-06-07 → 2026-07-31) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,35 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Backend Date-Boundary Unification Pack v1** (2026-07-31,
+  `stable-backend-date-boundary-unification-v1`) — backend-only, no UI/schema changes. Root cause: every
+  backend module parsed a user-selected `from`/`to` date-range independently, with three incompatible
+  conventions coexisting — `new Date('YYYY-MM-DD')` (UTC midnight, dropping the first 3 hours of the
+  range in Kuwait's UTC+3), `endOfDay(new Date(...))` (correct only by accident, on a non-negative UTC
+  offset), and a bare `new Date(to)` with **no** `endOfDay` at all (Transactions ledger/list, Audit log —
+  truncating the entire final day). The same PeriodControl-selected range could return different rows
+  depending on which endpoint answered it. Fixed with one canonical contract —
+  `startOfLocalDay()`/`endOfLocalDay()`/`localDateRange()` in `core/utils/dateWindows.ts`, built from
+  explicit local calendar components, never dependent on UTC-interpretation of a date-only ISO string —
+  and routed every divergent site through it: Expenses, Reports (generic `dateWhere` + 4 sites),
+  Accounting, Transactions, Audit, Financial (7 sites, including a previously-unnoticed second bug where
+  the GL trial-balance opening-cutoff and period-start were derived independently and could double-count
+  or drop journal lines at the boundary), Salaries bank analytics, Employee attendance, Bank statement
+  import/reconciliation; Cheques/Invoices routed through the same helper to remove duplicate private
+  builders (no behavior change). This is a continuation of the 2026-07-18 Date Boundary Consistency Pack
+  v1 (which fixed the `endOfDay`-missing case for financial reports) — this pack closes the remaining
+  UTC-vs-local `gte` divergence and the modules that pack didn't reach (Transactions, Audit, Attendance,
+  Bank Import). Explicitly deferred (logged, not fixed): `z.coerce.date()` API-boundary hardening, Excel
+  `DATE_FORMAT` display cleanup, display-helper consolidation, the "شهر محدد" Month Selector UI change.
+  Feature commit `5b87728`, merge `d7f8080a`. Validation: backend `tsc --noEmit` ✅ · backend vitest 149
+  files/2155 tests (baseline 144/2102, zero pre-existing failures) · `npm run build:back` ✅ · new
+  cross-module parity guards mutation-tested (reverting the fix fails 4/5 new assertions). TZ note: full
+  suite verified under this host's actual zone (Asia/Kuwait); a genuine negative-UTC-offset run could not
+  be executed (Node ignores `TZ` on this Windows host, no WSL/Docker available) — compensated by writing
+  every new assertion against local calendar components rather than absolute UTC instants, plus one test
+  that explicitly asserts the pre-pack pattern diverges from the correct contract on any negative-offset
+  host. Product Owner manual review: approved, release explicitly requested.
 
 - **Payroll Eligibility Reconciliation Pack v1** (2026-07-30,
   `stable-payroll-eligibility-reconciliation-pack-v1`) — closes two confirmed root causes from the

@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `ed63d9fd` — release `stable-printed-cheque-edit-date-integrity-fix-v1` (fixes `chequeDate` corruption/blanking when editing an existing cheque) |
+| **Production HEAD** | `d7f8080a` — release `stable-backend-date-boundary-unification-v1` (unifies backend date-range filtering into one local-calendar contract; fixes silent record loss at range edges across Expenses/Reports/Accounting/Transactions/Audit/Financial/Bank-Import/Attendance) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (release date 2026-07-31) → merge `ed63d9fd` |
-| **Previous stable tag** | `stable-cheques-reporting-excel-export-pack-v1` (2026-07-31) → merge `0223eaf3` |
-| **Total stable releases** | 385 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | frontend `tsc --noEmit` ✅ · new suite `chequeEditDateIntegrity.test.tsx` 13/13 ✅ (root cause proven via temporary revert: 8/13 fail against the reverted buggy code, exactly the "load, leave date alone, save" paths; the other 5 correctly unaffected) · full frontend vitest suite: 2540/2565 passing — 25 pre-existing, unrelated failures (identical set to the pre-release baseline; zero new regressions) · `npm run build:front` ✅ · backend untouched (root cause traced entirely to frontend form-seeding; no backend re-verification needed) · scope confirmed: exactly 2 files entered the release (`frontend/src/pages/Cheques.tsx`, `frontend/src/__tests__/chequeEditDateIntegrity.test.tsx`), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `ed63d9fd` + tag `stable-printed-cheque-edit-date-integrity-fix-v1`) |
+| **Latest stable tag** | `stable-backend-date-boundary-unification-v1` (release date 2026-07-31) → merge `d7f8080a` |
+| **Previous stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (2026-07-31) → merge `ed63d9fd` |
+| **Total stable releases** | 386 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | backend `tsc --noEmit` ✅ · backend vitest: 149 files / 2155 tests passing (baseline before this pack: 144 files / 2102 tests, zero pre-existing failures — every failure seen mid-implementation was caused by this pack's own edits and was resolved, not carried over) · new cross-module parity suite mutation-tested (reverting the generic `dateWhere()` to its pre-pack UTC form fails 4 of 5 new parity assertions, confirming the guards bind to real behavior) · `npm run build:back` ✅ · frontend untouched (backend-only pack; no frontend re-verification needed) · scope confirmed: exactly 27 backend files entered the release (13 production modules + `core/utils/dateWindows.ts`/`periodFilter.ts` + 12 test files, 6 of them new), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `d7f8080a` + tag `stable-backend-date-boundary-unification-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,35 @@ in a table cell.
 
 ---
 
-## Latest Release — Printed Cheque Edit Data & Date Integrity Fix v1
+## Latest Release — Backend Date-Boundary Unification Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Backend Date-Boundary Unification Pack v1 (unifies date-range filtering semantics — the interpretation of a user-selected `from`/`to` into `{gte, lte}` — into one canonical local-calendar contract shared across the backend) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/backend-date-boundary-unification-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `a39e14a5` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's explicit implementation → verification → user-approved-release flow |
+| **Feature commit** | `5b87728` |
+| **Production merge commit** | `d7f8080a` |
+| **Stable tag** | `stable-backend-date-boundary-unification-v1` → merge `d7f8080a` (annotated) |
+| **Reviews** | Exhaustive backend sweep (classified all 29 date-range boundary occurrences as user-facing range / true-instant / import-semantics / unclear before touching any of them) → IMPLEMENTATION → regression proof via mutation testing (reverting the fix makes the new parity guards fail) → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | backend `tsc --noEmit` ✅ · 149 test files / 2155 tests passing (baseline 144/2102, zero pre-existing failures) · `npm run build:back` ✅ · frontend untouched (backend-only pack) |
+
+**Root cause:** every backend module parsed a user-selected `from`/`to` date-only range independently. Three incompatible conventions coexisted: `new Date('YYYY-MM-DD')` (UTC midnight — in Kuwait, UTC+3, this starts the range at 03:00 local, silently dropping the first 3 hours of day one), `endOfDay(new Date('YYYY-MM-DD'))` (correct only by accident — right on a non-negative UTC offset, wrong on a negative one), and a bare `new Date(to)` with no `endOfDay` at all (Transactions ledger/list, Audit log — truncating the entire final day at 03:00 local). The same PeriodControl-selected range could therefore return different rows depending on which endpoint answered it.
+
+**Fix:** one canonical contract in `backend/src/core/utils/dateWindows.ts` — `startOfLocalDay()` / `endOfLocalDay()` / `localDateRange()` — built from explicit local calendar components (`new Date(y, m-1, d, …)`), so the result never depends on the engine's interpretation of a date-only ISO string as UTC. `resolvePeriod()` (`core/utils/periodFilter.ts`) now delegates to it, and every divergent site was routed through the same helper: Expenses (list/stats), Reports (generic `dateWhere` + profit-loss + receivables-aging + customer-balances), Accounting (journal/payments), Transactions (list/ledger), Audit log, Financial (statement/AR aging/AP aging/GL statement/GL report/trial balance — including making the opening-balance cutoff share one exact instant with the period query, a previously-unnoticed second bug that would have caused double-counted or dropped journal lines even after fixing only the `lte` half), Salaries bank analytics, Employee attendance, and Bank statement import/reconciliation filters. Cheques and Invoices were already correct; routed through the shared helper only to remove duplicate private builders — no behavior change (confirmed via their existing behavior-based tests, unmodified and still passing).
+
+**Explicitly out of scope for this pack (per instruction) — logged for a future pack, not fixed:** `z.coerce.date()` API-boundary date hardening (~45 business-date schema fields, including `chequeDate`, remain silently invertible on ambiguous DD/MM input via a non-backend caller); Excel `DATE_FORMAT = 'yyyy-mm-dd'` and the forced-override on raw `Date` values; the four divergent ISO→display formatting helpers; remaining `toLocaleDateString('ar')`/`toLocaleDateString('ar-KW')` sites; the "سنة محددة" → "شهر محدد" Month Selector UI change; frontend, Prisma schema/migrations, and every other module untouched by the sweep.
+
+**Timezone verification:** full backend suite green under this host's actual zone (Asia/Kuwait, UTC+03:00). A genuine negative-offset process run (e.g. `TZ=America/New_York`) could not be executed — Node ignores `TZ` on this Windows host, and no WSL/Docker Linux runtime is available. Compensated structurally: every new/updated assertion compares local calendar components only (never an absolute UTC instant — the flaw in the prior pack's tests, which asserted `getHours() === 23` without checking the day), and one test computes the host's own UTC offset and asserts that the legacy `endOfDay(new Date(s))` pattern matches the correct contract only when that offset is non-negative — a check that actively fails on a negative-offset host if the old pattern is ever reintroduced. Recommended follow-up: run `npm test` in `backend/` on a Linux CI runner or a negative-offset-zoned machine to close this gap empirically.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Printed Cheque Edit Data & Date Integrity Fix v1
 
 | Field | Value |
 |-------|-------|
