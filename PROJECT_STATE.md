@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `0223eaf3` — release `stable-cheques-reporting-excel-export-pack-v1` (adds the Cheques report + full-dataset Excel export, plus a shared report-engine totals-row pagination fix) |
+| **Production HEAD** | `ed63d9fd` — release `stable-printed-cheque-edit-date-integrity-fix-v1` (fixes `chequeDate` corruption/blanking when editing an existing cheque) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-cheques-reporting-excel-export-pack-v1` (release date 2026-07-31) → merge `0223eaf3` |
-| **Previous stable tag** | `stable-cheque-printing-reliability-pack-v1` (2026-07-30) → merge `589f7847` |
-| **Total stable releases** | 384 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | backend `tsc --noEmit` ✅ (feature branch + re-verified on `production` immediately after merge — identical) · frontend `tsc --noEmit` ✅ (same) · full backend vitest suite: 144 files / 2102 tests — 2102/2102 passing (includes 29 new: 23 in `totalsRowPagination.test.ts`, 6 net-new/updated in `reportEngine.test.ts`, plus the 29-test `reports.cheques.test.ts`) · full frontend vitest suite: 2527/2552 passing — 25 pre-existing, unrelated failures (identical set to the pre-release baseline; zero new regressions), including the new 18-test `chequesExcelExport.test.tsx` · `npm run build:back` ✅ · `npm run build:front` ✅ · scope confirmed: exactly 14 files entered the release (listed below), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual visual/functional review — **completed & approved** (including the corrective PDF totals-pagination pass), release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `0223eaf3` + tag `stable-cheques-reporting-excel-export-pack-v1`) |
+| **Latest stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` (release date 2026-07-31) → merge `ed63d9fd` |
+| **Previous stable tag** | `stable-cheques-reporting-excel-export-pack-v1` (2026-07-31) → merge `0223eaf3` |
+| **Total stable releases** | 385 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
+| **Latest validation** | frontend `tsc --noEmit` ✅ · new suite `chequeEditDateIntegrity.test.tsx` 13/13 ✅ (root cause proven via temporary revert: 8/13 fail against the reverted buggy code, exactly the "load, leave date alone, save" paths; the other 5 correctly unaffected) · full frontend vitest suite: 2540/2565 passing — 25 pre-existing, unrelated failures (identical set to the pre-release baseline; zero new regressions) · `npm run build:front` ✅ · backend untouched (root cause traced entirely to frontend form-seeding; no backend re-verification needed) · scope confirmed: exactly 2 files entered the release (`frontend/src/pages/Cheques.tsx`, `frontend/src/__tests__/chequeEditDateIntegrity.test.tsx`), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths (`electron/__tests__/`, `electron/resources/`, `electron/services/googleDriveClientConfig.pure.ts` + its test) surgically excluded and confirmed untouched after merge; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `ed63d9fd` + tag `stable-printed-cheque-edit-date-integrity-fix-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,39 @@ in a table cell.
 
 ---
 
-## Latest Release — Cheques Reporting & Excel Export Pack v1
+## Latest Release — Printed Cheque Edit Data & Date Integrity Fix v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Printed Cheque Edit Data & Date Integrity Fix v1 (fixes `chequeDate` blanking/silent-corruption when opening an existing cheque — including a PRINTED one — for editing) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-07-31 |
+| **Feature branch** | `feature/printed-cheque-edit-date-integrity-fix-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `5bd908d0` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — a focused, self-contained fix reviewed across its own root-cause → implementation → verification lifecycle instead of a separate checkpoint tag |
+| **Feature commit** | `99168145` |
+| **Production merge commit** | `ed63d9fd` |
+| **Stable tag** | `stable-printed-cheque-edit-date-integrity-fix-v1` → merge `ed63d9fd` (annotated) |
+| **Reviews** | ROOT CAUSE INVESTIGATION (traced DB → API → form → `DateInput` → save payload → backend coercion → DB → reprint end to end) → IMPLEMENTATION → regression proof via temporary revert (8/13 new tests fail against the reverted buggy code, exactly the affected paths) · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | frontend `tsc --noEmit` ✅ · new suite `chequeEditDateIntegrity.test.tsx` 13/13 ✅ · full frontend vitest suite: 2540/2565 passing, 25 pre-existing unrelated failures (identical set to baseline, zero new regressions) · `npm run build:front` ✅ · backend untouched (the defect never reached it as anything other than an already-malformed input) |
+
+**Scope — closes one root cause with two symptoms, 2 files:**
+
+`loadChequeIntoForm()` (`frontend/src/pages/Cheques.tsx`) seeded `form.chequeDate` with a DD/MM/YYYY **display** string (`formatDisplayDate`/the file's local `fmtDate`), while `DateInput` and `handleSave`'s save payload both require the canonical `'YYYY-MM-DD'` ISO contract defined in `lib/dateInput.ts`. Two symptoms followed from that one mismatch: (1) `DateInput`'s internal `isoToDisplay(value)` returns `''` for anything not already ISO, so the date field rendered **blank** every time an existing cheque's edit form opened; (2) if the user left the (apparently blank) date field alone, `handleSave` forwarded the raw DD/MM/YYYY string to the API unconverted, and the backend's `z.coerce.date()` parsed the non-ISO slash-separated string via V8's ambiguous MM/DD/YYYY heuristic — silently rewriting, e.g., `02/08/2026` (2 August) to 8 February, on nothing more than an amount-only edit. `31/03/2025` (day > 12) instead produced an outright Invalid Date, failing the save.
+
+**Fix:** `loadChequeIntoForm` now seeds `form.chequeDate` with `normalizeDateOnly(cheque.chequeDate)` — the project's existing pure-string ISO extractor, already used elsewhere for exactly this contract; no `Date` is built on the value path, so no timezone-driven day shift either. The now-dead `fmtDate` helper (its only caller was the bug) and the now-unused `formatDisplayDate` import were removed.
+
+**Root cause proven, not assumed:** verified via a temporary revert of the fix — 8 of the 13 new regression tests failed against the reverted (buggy) code, precisely the "load an existing cheque, leave the date alone, save" paths; the other 5 (explicit user date-typing via `DateInput`'s own correct `onChange`, cheque creation, read-only viewing) were correctly unaffected, matching the root-cause analysis exactly.
+
+**Not changed:** any backend file (the defect never reached the backend as anything other than an already-malformed input — `z.coerce.date()` behaves correctly given the proper ISO input every other date-bearing form in the app already sends it), the Cheque Printing Reliability Pack's pipeline/templates/calibration, the just-released Cheques Reporting & Excel Export Pack, any new business restriction on editing a printed cheque, Prisma schema/migrations, Accounting/GL/Payroll, Google Drive sync.
+
+**Logged, not fixed (deferred to a future Project-Wide Date Format Consistency Audit):** the backend accepts ambiguous date strings with no format validation at the API boundary (`z.coerce.date()` alone); `lib/date.ts`'s `formatDisplayDate` uses a stricter exact-match ISO regex than `lib/dateInput.ts`'s prefix-matching helpers; `Cheques.tsx` had two parallel chequeDate-to-display implementations before this fix removed one.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` and confirmed still present, unstaged, and unmodified in the working tree after the merge and push completed. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Cheques Reporting & Excel Export Pack v1
 
 | Field | Value |
 |-------|-------|
