@@ -21,7 +21,7 @@ import {
 } from '../FinancialPeriodContext';
 
 function Probe() {
-  const { period, setPreset, setYear, setCustomRange, resetToCurrentYear } = useFinancialPeriod();
+  const { period, setPreset, setYear, setMonth, setCustomRange, resetToCurrentYear } = useFinancialPeriod();
   return (
     <>
       <span data-testid="preset">{period.preset}</span>
@@ -29,7 +29,11 @@ function Probe() {
       <span data-testid="to">{period.toDate ?? '—'}</span>
       <span data-testid="all">{String(period.isAllPeriods)}</span>
       <span data-testid="hist">{String(period.isHistorical)}</span>
+      <span data-testid="month">{period.selectedMonth ?? '—'}</span>
+      <span data-testid="year">{period.selectedYear ?? '—'}</span>
       <button data-testid="y2025" onClick={() => setYear(2025)}>y</button>
+      <button data-testid="aug2025" onClick={() => setMonth(2025, 7)}>m8</button>
+      <button data-testid="jan2026" onClick={() => setMonth(2026, 0)}>m1</button>
       <button data-testid="prev-year" onClick={() => setPreset('previous-year')}>p</button>
       <button data-testid="cur-month" onClick={() => setPreset('current-month')}>m</button>
       <button data-testid="all-periods" onClick={() => setPreset('all')}>a</button>
@@ -158,5 +162,70 @@ describe('الفترة المالية — البقاء داخل الجلسة', (
       expect(read('preset')).toBe('year-to-date');
       act(() => { view.unmount(); });
     }
+  });
+});
+
+describe('شهر محدد — نفس دلالات الحفظ بلا تغيير', () => {
+  it('اختيار شهر يُخزَّن كمُدخَل (preset + سنة + شهر) لا كنطاق مُجمَّد', () => {
+    mount();
+    act(() => { screen.getByTestId('aug2025').click(); });
+    const raw = JSON.parse(sessionStorage.getItem(PERIOD_SESSION_KEY) ?? '{}');
+    expect(raw).toEqual({ preset: 'month', selectedYear: 2025, selectedMonth: 7 });
+  });
+
+  it('الشهر المختار ينجو من إعادة التحميل داخل نفس الجلسة', () => {
+    let view = mount();
+    act(() => { screen.getByTestId('aug2025').click(); });
+    expect([read('from'), read('to')]).toEqual(['2025-08-01', '2025-08-31']);
+
+    view = reload(view);
+    expect(read('preset')).toBe('month');
+    expect([read('from'), read('to')]).toEqual(['2025-08-01', '2025-08-31']);
+    expect(read('hist')).toBe('true');
+  });
+
+  it('يناير (الشهر 0) ينجو من الرحلة عبر sessionStorage — لا يسقط كقيمة كاذبة', () => {
+    let view = mount();
+    act(() => { screen.getByTestId('jan2026').click(); });
+    expect(read('month')).toBe('0');
+
+    view = reload(view);
+    expect(read('preset')).toBe('month');
+    expect(read('month')).toBe('0');
+    expect([read('from'), read('to')]).toEqual(['2026-01-01', '2026-01-31']);
+  });
+
+  it('جلسة تطبيق جديدة لا تُثبِّت شهرًا تاريخيًا', () => {
+    let view = mount();
+    act(() => { screen.getByTestId('aug2025').click(); });
+
+    sessionStorage.clear();          // ← إغلاق التطبيق وفتحه من جديد
+    view = reload(view);
+
+    expect(read('preset')).toBe('year-to-date');
+  });
+
+  it('مُدخَل شهر مشوَّه يعود بأمان إلى الافتراضي', () => {
+    const bad = [
+      '{"preset":"month"}',                                  // بلا سنة ولا شهر
+      '{"preset":"month","selectedYear":2026}',              // بلا شهر
+      '{"preset":"month","selectedMonth":7}',                // بلا سنة
+      '{"preset":"month","selectedYear":2026,"selectedMonth":12}',  // خارج المدى
+      '{"preset":"month","selectedYear":2026,"selectedMonth":-1}',  // خارج المدى
+      '{"preset":"month","selectedYear":1999,"selectedMonth":0}',   // سنة خارج المدى
+    ];
+    for (const raw of bad) {
+      sessionStorage.setItem(PERIOD_SESSION_KEY, raw);
+      const view = mount();
+      expect(read('preset')).toBe('year-to-date');
+      act(() => { view.unmount(); });
+    }
+  });
+
+  it('جلسة قديمة بـ preset=year ما تزال تُستعاد رغم زوال أزرارها', () => {
+    sessionStorage.setItem(PERIOD_SESSION_KEY, JSON.stringify({ preset: 'year', selectedYear: 2024 }));
+    mount();
+    expect(read('preset')).toBe('year');
+    expect([read('from'), read('to')]).toEqual(['2024-01-01', '2024-12-31']);
   });
 });

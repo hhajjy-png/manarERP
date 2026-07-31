@@ -32,8 +32,14 @@ interface PeriodContextValue {
   period: FinancialPeriod;
   /** يضبط preset جاهزًا (سنة حالية/سابقة، شهر…، أو all). */
   setPreset: (preset: FinancialPeriodPreset) => void;
-  /** يختار سنة محددة (preset='year'). */
+  /**
+   * يختار سنة محددة (preset='year'). لم يعد لقسم «سنة محددة» أزرار في
+   * `PeriodControl` بعد أن حلّ «شهر محدد» محلّه، لكن الدالة تبقى جزءًا من
+   * العقد: الحالة `year` ما تزال قابلة للاستعادة من جلسة محفوظة سابقًا.
+   */
   setYear: (year: number) => void;
+  /** يختار شهرًا تقويميًا كاملًا (preset='month'). `month` مُفهرَس من الصفر (0 = يناير). */
+  setMonth: (year: number, month: number) => void;
   /** يضبط نطاقًا مخصصًا (preset='custom'). */
   setCustomRange: (fromDate: string, toDate: string) => void;
   /** يعيد إلى الافتراضي الآمن: السنة الحالية حتى اليوم. */
@@ -49,14 +55,20 @@ export const PERIOD_SESSION_KEY = 'manar.financialPeriod';
 interface StoredPeriodInput {
   preset: FinancialPeriodPreset;
   selectedYear?: number;
+  selectedMonth?: number;
   fromDate?: string;
   toDate?: string;
 }
 
+// `'year'` يبقى صالحًا رغم زوال أزراره من الواجهة: جلسة فُتحت قبل حزمة «شهر
+// محدد» قد تحمله، وإسقاطها إلى الافتراضي كان سيعيد المستخدم صامتًا إلى السنة
+// الحالية بعد إعادة تحميل النافذة — نفس العيب الذي وُجد `sessionStorage` لمنعه.
 const VALID_PRESETS: readonly FinancialPeriodPreset[] = [
   'current-year', 'previous-year', 'current-month', 'previous-month',
-  'year-to-date', 'year', 'custom', 'all',
+  'year-to-date', 'year', 'month', 'custom', 'all',
 ];
+
+const isValidYear = (y: unknown): boolean => Number.isInteger(y) && (y as number) >= 2000 && (y as number) <= 2100;
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -73,13 +85,17 @@ function readStoredPeriod(): FinancialPeriod | null {
     const input = JSON.parse(raw) as Partial<StoredPeriodInput> | null;
     if (!input || !input.preset || !VALID_PRESETS.includes(input.preset)) return null;
     if (input.preset === 'custom' && !(ISO_DATE.test(input.fromDate ?? '') && ISO_DATE.test(input.toDate ?? ''))) return null;
-    if (input.preset === 'year') {
-      const y = input.selectedYear;
-      if (!Number.isInteger(y) || (y as number) < 2000 || (y as number) > 2100) return null;
+    if (input.preset === 'year' && !isValidYear(input.selectedYear)) return null;
+    if (input.preset === 'month') {
+      // الشهر مُفهرَس من الصفر: 0..11. القيمة 0 (يناير) صالحة — الفحص على المدى لا على الصدق.
+      const m = input.selectedMonth;
+      if (!isValidYear(input.selectedYear)) return null;
+      if (!Number.isInteger(m) || (m as number) < 0 || (m as number) > 11) return null;
     }
     return computePeriod({
       preset: input.preset,
       selectedYear: input.selectedYear,
+      selectedMonth: input.selectedMonth,
       fromDate: input.fromDate,
       toDate: input.toDate,
     });
@@ -110,6 +126,10 @@ export function FinancialPeriodProvider({ children }: { children: ReactNode }) {
     apply({ preset: 'year', selectedYear: year });
   }, [apply]);
 
+  const setMonth = useCallback((year: number, month: number) => {
+    apply({ preset: 'month', selectedYear: year, selectedMonth: month });
+  }, [apply]);
+
   const setCustomRange = useCallback((fromDate: string, toDate: string) => {
     apply({ preset: 'custom', fromDate, toDate });
   }, [apply]);
@@ -120,8 +140,8 @@ export function FinancialPeriodProvider({ children }: { children: ReactNode }) {
   }, [apply]);
 
   const value = useMemo<PeriodContextValue>(
-    () => ({ period, setPreset, setYear, setCustomRange, resetToCurrentYear }),
-    [period, setPreset, setYear, setCustomRange, resetToCurrentYear],
+    () => ({ period, setPreset, setYear, setMonth, setCustomRange, resetToCurrentYear }),
+    [period, setPreset, setYear, setMonth, setCustomRange, resetToCurrentYear],
   );
 
   return <FinancialPeriodContext.Provider value={value}>{children}</FinancialPeriodContext.Provider>;

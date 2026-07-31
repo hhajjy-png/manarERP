@@ -75,15 +75,65 @@
   margin-top: 4px;
 }
 
-.period-control__presets,
-.period-control__years {
+/* عنوان قسم يحمل تحكّمًا على طرفه الآخر (شهر محدد + متصفّح السنة). */
+.period-control__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.period-control__section-head .period-control__section-title { margin-top: 0; }
+
+.period-control__year-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.period-control__year-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: all .18s;
+}
+.period-control__year-step:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.period-control__year-step:disabled { opacity: .35; cursor: not-allowed; }
+.period-control__year-step .material-symbols-outlined { font-size: 18px; }
+/* جذر التطبيق ‎<html dir="rtl">‎: chevron_right هو «رجوع». الإنجليزية تقلب الاتجاه. */
+html[dir="ltr"] .period-control__year-step .material-symbols-outlined { transform: scaleX(-1); }
+
+.period-control__year-value {
+  min-width: 44px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.period-control__presets {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
+/* شبكة 3×4 ثابتة: الأشهر الاثنا عشر بعرض واحد، وتنساب يمين→يسار تلقائيًا تحت RTL. */
+.period-control__months {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
 .period-control__preset,
-.period-control__year {
+.period-control__month {
   padding: 6px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -92,12 +142,13 @@
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
+  text-align: center;
   transition: all .18s;
 }
 .period-control__preset:hover,
-.period-control__year:hover { border-color: var(--accent); color: var(--accent); }
+.period-control__month:hover { border-color: var(--accent); color: var(--accent); }
 .period-control__preset.is-active,
-.period-control__year.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.period-control__month.is-active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 .period-control__preset--all.is-active { background: var(--red); border-color: var(--red); }
 

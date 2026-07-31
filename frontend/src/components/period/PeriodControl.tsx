@@ -23,12 +23,14 @@ const PRESETS: { key: FinancialPeriodPreset; labelKey: string }[] = [
   { key: 'all',            labelKey: 'fc.period.all' },
 ];
 
-/** خيارات السنة: من السنة الحالية رجوعًا إلى 2020. */
-function yearOptions(): number[] {
-  const cur = new Date().getFullYear();
-  const years: number[] = [];
-  for (let y = cur; y >= 2020; y--) years.push(y);
-  return years;
+/** أقدم سنة قابلة للاختيار — نفس حدّ قائمة السنوات التي حلّت أزرار الأشهر محلّها. */
+const MIN_YEAR = 2020;
+
+/** الأشهر مُفهرَسة من الصفر (0 = يناير) — نفس عقد `Date.getMonth()` و`selectedMonth`. */
+const MONTH_INDEXES = Array.from({ length: 12 }, (_, i) => i);
+
+function clampYear(year: number, maxYear: number): number {
+  return Math.min(Math.max(year, MIN_YEAR), maxYear);
 }
 
 interface PeriodControlProps {
@@ -38,10 +40,29 @@ interface PeriodControlProps {
 
 export default function PeriodControl({ hideLabelPrefix = false }: PeriodControlProps) {
   const { t } = useT();
-  const { period, setPreset, setYear, setCustomRange, resetToCurrentYear } = useFinancialPeriod();
+  const { period, setPreset, setMonth, setCustomRange, resetToCurrentYear } = useFinancialPeriod();
   const [open, setOpen] = useState(false);
   const [customFrom, setCustomFrom] = useState(period.fromDate ?? '');
   const [customTo, setCustomTo] = useState(period.toDate ?? '');
+
+  // ── سنة أزرار الأشهر ────────────────────────────────────────────────────────
+  // أزرار الأشهر تحتاج سنةً تعمل عليها، والفترة النشطة هي مصدرها الطبيعي: سنة
+  // مختارة صراحةً إن وُجدت، وإلا سنة نهاية النطاق المعروض (فـ«السنة السابقة»
+  // تفتح على 2025 لا 2026)، وإلا السنة الحالية. السهمان يغطّيان ما لا تصله
+  // الفترة النشطة — فتبقى أشهر السنوات التاريخية (أغسطس 2024 مثلًا) قابلة
+  // للوصول بعد زوال أزرار «سنة محددة».
+  const maxYear = new Date().getFullYear();
+  const periodYear = period.selectedYear
+    ?? (period.toDate ? Number(period.toDate.slice(0, 4)) : maxYear);
+  const [monthYear, setMonthYear] = useState(() => clampYear(periodYear, maxYear));
+
+  // إعادة البذر عند **الفتح** فقط — لا `useEffect` على الفترة: فتح اللوحة يعرض
+  // سنة الفترة النشطة، بينما التنقّل بالسهمين داخل جلسة فتح واحدة يبقى كما تركه
+  // المستخدم بدل أن يُدهَس عند كل إعادة رسم.
+  const toggleOpen = () => {
+    if (!open) setMonthYear(clampYear(periodYear, maxYear));
+    setOpen((v) => !v);
+  };
 
   const applyCustom = () => {
     if (customFrom && customTo && customFrom <= customTo) {
@@ -61,7 +82,7 @@ export default function PeriodControl({ hideLabelPrefix = false }: PeriodControl
       <button
         type="button"
         className="period-control__summary"
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggleOpen}
         aria-expanded={open}
         aria-label={t('fc.period.select_aria')}
       >
@@ -94,16 +115,45 @@ export default function PeriodControl({ hideLabelPrefix = false }: PeriodControl
               ))}
             </div>
 
-            <div className="period-control__section-title">{t('fc.period.section_year')}</div>
-            <div className="period-control__years">
-              {yearOptions().map((y) => (
+            <div className="period-control__section-head">
+              <span className="period-control__section-title">{t('fc.period.section_month')}</span>
+              <span className="period-control__year-nav">
                 <button
-                  key={y}
                   type="button"
-                  className={`period-control__year ${period.preset === 'year' && period.selectedYear === y ? 'is-active' : ''}`}
-                  onClick={() => { setYear(y); setOpen(false); }}
+                  className="period-control__year-step"
+                  onClick={() => setMonthYear((y) => Math.max(MIN_YEAR, y - 1))}
+                  disabled={monthYear <= MIN_YEAR}
+                  aria-label={t('fc.period.prev_year')}
+                  title={t('fc.period.prev_year')}
                 >
-                  {y}
+                  <span className="material-symbols-outlined" aria-hidden>chevron_right</span>
+                </button>
+                <span className="period-control__year-value">{monthYear}</span>
+                <button
+                  type="button"
+                  className="period-control__year-step"
+                  onClick={() => setMonthYear((y) => Math.min(maxYear, y + 1))}
+                  disabled={monthYear >= maxYear}
+                  aria-label={t('fc.period.next_year')}
+                  title={t('fc.period.next_year')}
+                >
+                  <span className="material-symbols-outlined" aria-hidden>chevron_left</span>
+                </button>
+              </span>
+            </div>
+            <div className="period-control__months">
+              {MONTH_INDEXES.map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  className={`period-control__month ${
+                    period.preset === 'month' && period.selectedYear === monthYear && period.selectedMonth === m
+                      ? 'is-active'
+                      : ''
+                  }`}
+                  onClick={() => { setMonth(monthYear, m); setOpen(false); }}
+                >
+                  {t(`fc.period.month_${m + 1}`)}
                 </button>
               ))}
             </div>

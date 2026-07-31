@@ -1,4 +1,4 @@
-import { formatFileDate } from './date';
+import { formatFileDate, ARABIC_MONTHS } from './date';
 
 /**
  * نموذج الفترة المالية — طبقة خفيفة في الواجهة فقط. لا Prisma ولا Migration.
@@ -15,7 +15,14 @@ export type FinancialPeriodPreset =
   | 'current-month'
   | 'previous-month'
   | 'year-to-date'
-  | 'year'      // سنة محددة (selectedYear)
+  /**
+   * سنة محددة (selectedYear). لم يعد له أزرار في `PeriodControl` بعد أن حلّ
+   * «شهر محدد» محلّ قسم «سنة محددة»، لكنه **يبقى في النموذج عمدًا**: جلسات
+   * سابقة محفوظة في `sessionStorage` قد تحمله، ويجب أن تُستعاد كما هي بدل أن
+   * تسقط صامتةً إلى الافتراضي. الحساب أدناه لم يُمسّ.
+   */
+  | 'year'
+  | 'month'     // شهر محدد (selectedYear + selectedMonth)
   | 'custom'    // نطاق مخصص (fromDate/toDate)
   | 'all';      // كل الفترات — لا حدود
 
@@ -27,8 +34,10 @@ export interface FinancialPeriod {
   toDate?: string;
   /** تاريخ مرجعي للتقارير اللحظية (Trial Balance/Aging) = نهاية النطاق. غائب لـ 'all'. */
   asOfDate?: string;
-  /** السنة المختارة عند preset='year'. */
+  /** السنة المختارة عند preset='year' أو preset='month'. */
   selectedYear?: number;
+  /** الشهر المختار عند preset='month' — **مُفهرَس من الصفر** (0 = يناير، 11 = ديسمبر). */
+  selectedMonth?: number;
   /** وسم عربي جاهز للعرض. */
   label: string;
   /** هل الفترة تخصّ سنة سابقة بالكامل؟ (لتلوين تحذيري خفيف). */
@@ -68,7 +77,7 @@ export function displayDate(iso?: string): string {
 
 // ─── بناء الفترة ─────────────────────────────────────────────────────────────
 
-const PRESET_LABELS: Record<Exclude<FinancialPeriodPreset, 'year' | 'custom' | 'all'>, string> = {
+const PRESET_LABELS: Record<Exclude<FinancialPeriodPreset, 'year' | 'month' | 'custom' | 'all'>, string> = {
   'current-year':   'السنة الحالية',
   'previous-year':  'السنة السابقة',
   'current-month':  'الشهر الحالي',
@@ -76,9 +85,15 @@ const PRESET_LABELS: Record<Exclude<FinancialPeriodPreset, 'year' | 'custom' | '
   'year-to-date':   'السنة حتى اليوم',
 };
 
-function buildLabel(preset: FinancialPeriodPreset, from?: string, to?: string, year?: number): string {
+function buildLabel(
+  preset: FinancialPeriodPreset, from?: string, to?: string, year?: number, month?: number,
+): string {
   if (preset === 'all') return 'كل الفترات';
   if (preset === 'year' && year) return `السنة المالية: ${year}`;
+  // `month` قد يساوي 0 (يناير) — الفحص على `undefined` صراحةً، لا على الصدق.
+  if (preset === 'month' && year && month !== undefined) {
+    return `الشهر المالي: ${ARABIC_MONTHS[month]} ${year}`;
+  }
   if (from && to) {
     // فترة داخل سنة واحدة تُختصر؛ غير ذلك تُعرض بالكامل.
     return `الفترة المعروضة: ${displayDate(from)} – ${displayDate(to)}`;
@@ -87,7 +102,7 @@ function buildLabel(preset: FinancialPeriodPreset, from?: string, to?: string, y
 }
 
 /** Reuses the same i18n keys as `PeriodControl.tsx`'s PRESETS list — the Arabic text is identical. */
-const PRESET_LABEL_KEYS: Record<Exclude<FinancialPeriodPreset, 'year' | 'custom' | 'all'>, string> = {
+const PRESET_LABEL_KEYS: Record<Exclude<FinancialPeriodPreset, 'year' | 'month' | 'custom' | 'all'>, string> = {
   'current-year':   'fc.period.current_year',
   'previous-year':  'fc.period.previous_year',
   'current-month':  'fc.period.current_month',
@@ -103,7 +118,7 @@ const PRESET_LABEL_KEYS: Record<Exclude<FinancialPeriodPreset, 'year' | 'custom'
  * of reading `.label` directly.
  */
 export function buildLocalizedPeriodLabel(
-  period: Pick<FinancialPeriod, 'preset' | 'fromDate' | 'toDate' | 'selectedYear'>,
+  period: Pick<FinancialPeriod, 'preset' | 'fromDate' | 'toDate' | 'selectedYear' | 'selectedMonth'>,
   t: (key: string, vars?: Record<string, string | number>) => string,
   /** When true, the range case returns the bare "{from} – {to}" without a "Period:" prefix — for embedding inline in a sentence (e.g. "No expenses in {period}."), mirroring the Arabic original's `.replace('الفترة المعروضة: ', 'الفترة ')` shortening. */
   short = false,
@@ -111,6 +126,13 @@ export function buildLocalizedPeriodLabel(
   if (period.preset === 'all') return t('fc.period.all');
   if (period.preset === 'year' && period.selectedYear) {
     return t('fc.period.label_year', { year: period.selectedYear });
+  }
+  // `selectedMonth` قد يساوي 0 (يناير) — الفحص على `undefined` صراحةً.
+  if (period.preset === 'month' && period.selectedYear && period.selectedMonth !== undefined) {
+    return t('fc.period.label_month', {
+      month: t(`fc.period.month_${period.selectedMonth + 1}`),
+      year: period.selectedYear,
+    });
   }
   if (period.fromDate && period.toDate) {
     const from = displayDate(period.fromDate), to = displayDate(period.toDate);
@@ -130,6 +152,7 @@ export function computePeriod(
   input: {
     preset: FinancialPeriodPreset;
     selectedYear?: number;
+    selectedMonth?: number;
     fromDate?: string;
     toDate?: string;
   },
@@ -141,6 +164,7 @@ export function computePeriod(
   let from: string | undefined;
   let to: string | undefined;
   let selectedYear: number | undefined;
+  let selectedMonth: number | undefined;
 
   switch (input.preset) {
     case 'current-year':
@@ -174,6 +198,18 @@ export function computePeriod(
       to = toLocalDateString(lastOfMonth(y, 11));
       break;
     }
+    case 'month': {
+      // شهر تقويمي كامل. `lastOfMonth` = «اليوم صفر من الشهر التالي»، فالطول
+      // يأتي من التقويم نفسه: فبراير 28 أو 29 حسب الكبس، وديسمبر يبقى داخل
+      // سنته (الشهر 12 يُطبَّع إلى يناير التالي ثم يتراجع يومًا). لا أطوال مثبّتة.
+      const y = input.selectedYear ?? curYear;
+      const m = input.selectedMonth ?? curMonth;
+      selectedYear = y;
+      selectedMonth = m;
+      from = toLocalDateString(firstOfMonth(y, m));
+      to = toLocalDateString(lastOfMonth(y, m));
+      break;
+    }
     case 'custom':
       from = input.fromDate;
       to = input.toDate;
@@ -196,7 +232,8 @@ export function computePeriod(
     toDate: to,
     asOfDate,
     selectedYear,
-    label: buildLabel(input.preset, from, to, selectedYear),
+    selectedMonth,
+    label: buildLabel(input.preset, from, to, selectedYear, selectedMonth),
     isHistorical,
     isAllPeriods,
   };
