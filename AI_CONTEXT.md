@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `0223eaf3` (merge of `feature/cheques-reporting-excel-export-pack-v1`, adding the Cheques report + full-dataset Excel export and a shared report-engine totals-row PDF pagination fix) |
-| **Current Documentation Commit** | *(filled in by the follow-up commit — see `docs: fill in AI_CONTEXT.md's self-referencing documentation-commit hash`)* |
+| **Current Documentation Commit** | `ce58bb4` |
 | **Current Stable Tag** | `stable-cheques-reporting-excel-export-pack-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 384 (window 2026-06-07 → 2026-07-31) |
