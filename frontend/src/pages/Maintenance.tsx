@@ -362,7 +362,7 @@ function RecordsTab() {
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.record_details', { equip: r.equipment?.code ?? r.equipmentId })}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.record_details', { code: r.equipment?.code ?? r.equipmentId })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span>{r.equipment?.name ? <span style={{ color: 'var(--xpl-muted)', fontSize: 12, marginInlineStart: 6 }}>{r.equipment.name}</span> : null}</td>
                   <td>{maintTypeLabel(t, r.type)}</td>
                   <td><span className="mntx-desc">{r.description}</span></td>
@@ -519,7 +519,7 @@ function FuelTab() {
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.fuel_details', { equip: r.equipment?.code ?? r.equipmentId })}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.fuel_details', { code: r.equipment?.code ?? r.equipmentId })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td>{r.liters.toLocaleString()} L</td>
                   <td>{<MoneyCell value={r.cost} />}</td>
@@ -662,7 +662,7 @@ function BreakdownsTab() {
             </tr></thead>
             <tbody>
               {sorted.map((r) => (
-                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.breakdown_details', { equip: r.equipment?.code ?? r.equipmentId })}>
+                <tr key={r.id} {...clickRow(() => setViewing(r))} aria-label={t('a11y.maint.breakdown_details', { code: r.equipment?.code ?? r.equipmentId })}>
                   <td><span className="mntx-code">{r.equipment?.code ?? r.equipmentId}</span></td>
                   <td><span className="mntx-desc">{r.description}</span></td>
                   <td>{smchip(severity, r.severity, t)}</td>
