@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `873c3c0` (merge of `feature/project-wide-i18n-placeholder-integrity-v1`, a project-wide AST-based audit of i18n placeholder contracts fixing 10 confirmed caller/translation placeholder-name mismatches and adding a permanent regression guard) |
-| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Documentation Commit** | `50fc707` |
 | **Current Stable Tag** | `stable-project-wide-i18n-placeholder-integrity-v1` |
 | **Current Release Date** | 2026-07-31 |
 | **Total Stable Releases** | 393 (window 2026-06-07 → 2026-07-31) |
