@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 export const createEquipmentSchema = z.object({
   body: z.object({
@@ -10,7 +11,7 @@ export const createEquipmentSchema = z.object({
     plateNumber: z.string().optional(), // رقم اللوحة
     chassisNumber: z.string().optional(), // رقم القاعدة
     color: z.string().optional(), // اللون
-    registrationExpiry: z.coerce.date().optional(), // تاريخ انتهاء دفتر المركبة
+    registrationExpiry: dateOnlySchema.optional(), // تاريخ انتهاء دفتر المركبة
     status: z.enum(ENUMS.equipmentStatus).default('WORKING'), // WORKING | NOT_WORKING
     name: z.string().optional(),
     manufacturer: z.string().optional(),
@@ -19,7 +20,7 @@ export const createEquipmentSchema = z.object({
     serialNumber: z.string().optional(),
     currentLocation: z.string().optional(),
     operatingHours: z.coerce.number().nonnegative().default(0),
-    purchaseDate: z.coerce.date().optional(),
+    purchaseDate: dateOnlySchema.optional(),
     purchaseCost: z.coerce.number().nonnegative().optional(),
     notes: z.string().optional(),
   }),

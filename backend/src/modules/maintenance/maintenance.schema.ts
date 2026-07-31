@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 const maintenanceStatus = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'] as const;
 
@@ -10,8 +11,8 @@ export const createMaintenanceSchema = z.object({
     description: z.string().min(1, 'الوصف مطلوب'),
     cost: z.coerce.number().nonnegative().default(0),
     performedBy: z.string().optional(),
-    date: z.coerce.date(),
-    nextDueDate: z.coerce.date().optional(),
+    date: dateOnlySchema,
+    nextDueDate: dateOnlySchema.optional(),
     status: z.enum(maintenanceStatus).default('COMPLETED'),
   }),
 });
@@ -22,8 +23,8 @@ export const updateMaintenanceSchema = z.object({
     description: z.string().min(1).optional(),
     cost: z.coerce.number().nonnegative().optional(),
     performedBy: z.string().optional(),
-    date: z.coerce.date().optional(),
-    nextDueDate: z.coerce.date().nullable().optional(),
+    date: dateOnlySchema.optional(),
+    nextDueDate: dateOnlySchema.nullable().optional(),
     status: z.enum(maintenanceStatus).optional(),
   }),
 });
@@ -34,7 +35,7 @@ export const createFuelSchema = z.object({
     liters: z.coerce.number().positive('عدد اللترات يجب أن يكون موجبًا'),
     cost: z.coerce.number().nonnegative().default(0),
     odometer: z.coerce.number().nonnegative().optional(),
-    date: z.coerce.date().optional(),
+    date: dateOnlySchema.optional(),
     notes: z.string().optional(),
   }),
 });
@@ -53,7 +54,7 @@ export const createSparePartSchema = z.object({
     partName: z.string().min(1, 'اسم القطعة مطلوب'),
     quantity: z.coerce.number().int().positive().default(1),
     unitCost: z.coerce.number().nonnegative().default(0),
-    date: z.coerce.date().optional(),
+    date: dateOnlySchema.optional(),
   }),
 });
 

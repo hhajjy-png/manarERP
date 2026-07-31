@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { accountingService } from './accounting.service';
 import { ok, created } from '../../core/utils/response';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 const accountSchema = z.object({
   code: z.string().min(1, 'رمز الحساب مطلوب'),
@@ -22,7 +23,7 @@ const journalLineSchema = z.object({
 });
 
 const journalEntrySchema = z.object({
-  date: z.coerce.date().optional(),
+  date: dateOnlySchema.optional(),
   description: z.string().min(1, 'البيان مطلوب'),
   referenceType: z.string().optional(),
   referenceId: z.number().int().positive().optional(),
@@ -31,7 +32,7 @@ const journalEntrySchema = z.object({
 });
 
 const reverseJournalSchema = z.object({
-  reversalDate: z.coerce.date().optional(),
+  reversalDate: dateOnlySchema.optional(),
   reason: z.string().trim().max(500).optional(),
 });
 

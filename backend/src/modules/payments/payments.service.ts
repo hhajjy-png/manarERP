@@ -49,7 +49,7 @@ export const paymentsService = {
     if (!payment) throw AppError.notFound('الدفعة غير موجودة');
 
     const oldDate = payment.date;
-    const newDate = input.date; // Zod z.coerce.date() يرفض القيم الفارغة/غير الصالحة (Invalid Date/NaN).
+    const newDate = input.date; // Zod dateOnlySchema يرفض القيم الفارغة/الغامضة/غير الموجودة تقويميًا قبل الوصول هنا.
     // تنظيف السبب الاختياري: تشذيب المسافات وتخزين NULL بدل السلسلة الفارغة (السلسلة الفارغة falsy).
     const reason = input.reason?.trim() || null;
 

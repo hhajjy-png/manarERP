@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
 import { endOfDay } from '../../core/utils/dateWindows';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 // فاتورة مستقبلية التاريخ ممنوعة: تاريخ الإصدار لا يتجاوز نهاية اليوم المحلي الحالي.
 // دالة واحدة يشترك فيها create/update حتى لا تنحرف رسالة أو حدّ الفحص بين المسارين.
@@ -32,9 +33,9 @@ export const createInvoiceSchema = z.object({
       customerId: z.coerce.number().int().positive().optional(),
       supplierId: z.coerce.number().int().positive().optional(),
       contractId: z.coerce.number().int().positive().optional(),
-      issueDate: z.coerce.date().optional(),
-      dueDate: z.coerce.date().optional(),
-      deliveryDate: z.coerce.date().optional().nullable(),
+      issueDate: dateOnlySchema.optional(),
+      dueDate: dateOnlySchema.optional(),
+      deliveryDate: dateOnlySchema.optional().nullable(),
       billingMonth: z.coerce.number().int().min(1).max(12).optional(),
       billingYear: z.coerce.number().int().min(2020).max(2099).optional(),
       taxRate: z.coerce.number().min(0).max(100).default(0),
@@ -72,9 +73,9 @@ export const updateInvoiceSchema = z.object({
     supplierId: z.coerce.number().int().positive().nullable().optional(),
     contractId: z.coerce.number().int().positive().nullable().optional(),
     invoiceType: z.string().min(1).optional(),
-    issueDate: z.coerce.date().optional(),
-    dueDate: z.coerce.date().optional(),
-    deliveryDate: z.coerce.date().optional().nullable(),
+    issueDate: dateOnlySchema.optional(),
+    dueDate: dateOnlySchema.optional(),
+    deliveryDate: dateOnlySchema.optional().nullable(),
     billingMonth: z.coerce.number().int().min(1).max(12).optional(),
     billingYear: z.coerce.number().int().min(2020).max(2099).optional(),
     taxRate: z.coerce.number().min(0).max(100).optional(),
@@ -92,7 +93,7 @@ export const addPaymentSchema = z.object({
   body: z.object({
     amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
     method: z.enum(ENUMS.paymentMethod).default('CASH'),
-    date: z.coerce.date().optional(), // تاريخ التحصيل — official collection date; falls back to now() when omitted
+    date: dateOnlySchema.optional(), // تاريخ التحصيل — official collection date; falls back to now() when omitted
     reference: z.string().optional(),
     notes: z.string().optional(),
     lateEntryReason: z.string().trim().max(500).optional(),

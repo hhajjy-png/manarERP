@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ENUMS } from '../../config/constants';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 /**
  * مخططات التحقق لمسار التصفية النهائية.
@@ -12,7 +13,7 @@ import { ENUMS } from '../../config/constants';
 /** إنشاء/تعديل مسودة التصفية — لا مبالغ، لا مكوّنات، لا بنود يدوية. */
 export const upsertFinalSettlementSchema = z.object({
   body: z.object({
-    lastWorkingDay: z.coerce.date({ invalid_type_error: 'تاريخ آخر يوم عمل غير صالح' }),
+    lastWorkingDay: dateOnlySchema,
     terminationReason: z.enum(ENUMS.terminationReason),
   }),
 });
@@ -20,7 +21,7 @@ export const upsertFinalSettlementSchema = z.object({
 /** تسجيل دفعة على تصفية معتمدة — نفس نمط دفعات المستحقات القائم. */
 export const recordSettlementPaymentSchema = z.object({
   body: z.object({
-    paymentDate: z.coerce.date({ invalid_type_error: 'تاريخ الدفعة غير صالح' }),
+    paymentDate: dateOnlySchema,
     amount: z.coerce.number().positive('مبلغ الدفعة يجب أن يكون أكبر من صفر'),
     paymentMethod: z.enum(ENUMS.leaveSettlementPaymentMethod),
     reference: z.string().optional(),

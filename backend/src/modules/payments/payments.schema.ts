@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { dateOnlySchema } from '../../core/utils/dateOnly';
 
 /**
  * تصحيح تاريخ التحصيل الرسمي (Payment.date) لدفعة محصّلة تاريخيًا — إجراء إداري بحت.
@@ -10,11 +11,9 @@ export const correctCollectionDateSchema = z.object({
     paymentId: z.coerce.number().int().positive(),
   }),
   body: z.object({
-    // تاريخ التحصيل الجديد — يُرفض الفارغ/غير الصالح عبر coerce.date() (Invalid Date → خطأ تحقق).
-    date: z.coerce.date({
-      invalid_type_error: 'تاريخ التحصيل غير صالح',
-      required_error: 'تاريخ التحصيل مطلوب',
-    }),
+    // تاريخ التحصيل الجديد — DATE-ONLY قانوني (YYYY-MM-DD) فقط؛ يُرفض أي شكل غامض
+    // أو غير موجود تقويميًا عبر dateOnlySchema (API Date Hardening Pack v1).
+    date: dateOnlySchema,
     // سبب التصحيح (اختياري) — يُسجَّل ضمن سجل التدقيق للحفاظ على الأثر الكامل.
     reason: z.string().trim().max(500, 'السبب طويل جدًا (500 حرف كحد أقصى)').optional(),
   }),
