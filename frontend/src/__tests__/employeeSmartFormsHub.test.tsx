@@ -156,15 +156,15 @@ describe('مركز النماذج — مقبض تحديد الموظف موحّ�
     expect(directCalls).toBe(1);
   });
 
-  it('الإطلاق التلقائي للنموذج يستدعي نفس handlePrint الذي يستدعيه النقر اليدوي', () => {
-    expect(formsCode).toContain('const handlePrint = useCallback((card: FormCard, opts?: { replace?: boolean }) => {');
-    // النقر اليدوي يستدعي handlePrint بلا opts ⇒ push عادي، بلا تغيير في السلوك.
-    expect(formsCode).toContain('onClick={() => handlePrint(card)}');
+  it('الإطلاق التلقائي للنموذج يستدعي نفس handleOpen الذي يستدعيه النقر اليدوي', () => {
+    expect(formsCode).toContain('const handleOpen = useCallback((card: FormCard, opts?: { replace?: boolean }) => {');
+    // النقر اليدوي يستدعي handleOpen بلا opts ⇒ push عادي، بلا تغيير في السلوك.
+    expect(formsCode).toContain('onClick={() => handleOpen(card)}');
     // الإطلاق التلقائي وحده يمرّر replace:true (إصلاح انحدار الرجوع).
-    expect(formsCode).toContain('handlePrint(card, { replace: true });');
+    expect(formsCode).toContain('handleOpen(card, { replace: true });');
     // نداءان فقط لهذا المقبض في كل الملف: النقر اليدوي، والإطلاق التلقائي.
-    const handlePrintCalls = (formsCode.match(/handlePrint\(card/g) ?? []).length;
-    expect(handlePrintCalls).toBe(2);
+    const handleOpenCalls = (formsCode.match(/handleOpen\(card/g) ?? []).length;
+    expect(handleOpenCalls).toBe(2);
   });
 });
 
@@ -312,7 +312,7 @@ describe('انحدار الرجوع — الدرج ← نماذج الموظف �
       const select = screen.getByLabelText('اختر الموظف (مشترك لجميع النماذج) *') as HTMLSelectElement;
       expect(select.value).toBe('5');
     });
-    fireEvent.click(screen.getAllByRole('button', { name: 'طباعة' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'فتح' })[0]);
     await waitFor(() => expect(screen.getByTestId('probe')).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: 'رجوع ›' }));
@@ -378,7 +378,7 @@ describe('مركز النماذج — قائمة قوالب الطباعة مش�
     const select = document.getElementById('mode-leave-request') as HTMLSelectElement;
     fireEvent.change(select, { target: { value: 'ready-paper' } });
     const card = select.closest('.fmx-card') as HTMLElement;
-    fireEvent.click(within(card).getByRole('button', { name: 'طباعة' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'فتح' }));
     await waitFor(() => {
       expect(screen.getByTestId('probe')).toHaveTextContent('/forms/leave-request/5?printMode=ready-paper');
     });

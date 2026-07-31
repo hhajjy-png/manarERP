@@ -82,6 +82,29 @@ describe('PrintWorkspace shell', () => {
     expect(screen.getByRole('button', { name: 'ملاءمة الصفحة' })).toHaveAttribute('aria-pressed', 'true');
   });
 
+  // Administrative Forms Preview UX Pack v1 — additive `initialZoom` seed.
+  it('opens at `initialZoom` when one is supplied, with no fit mode to overwrite it', () => {
+    render(
+      <PrintWorkspace toolbar={<span />} initialZoom={0.8}>
+        <div className="form-page">body</div>
+      </PrintWorkspace>,
+    );
+    expect(screen.getByTestId('pw-scaler').style.transform).toBe('scale(0.8)');
+    expect(screen.getByRole('button', { name: 'ملاءمة الصفحة' })).toHaveAttribute('aria-pressed', 'false');
+    // It is a SEED, not a lock: every zoom control still owns the value afterwards.
+    fireEvent.click(screen.getByRole('button', { name: 'تكبير' }));
+    expect(screen.getByTestId('pw-scaler').style.transform).toBe('scale(0.9)');
+  });
+
+  it('`initialZoom` is clamped to the same bounds as every other zoom action', () => {
+    render(
+      <PrintWorkspace toolbar={<span />} initialZoom={9}>
+        <div className="form-page">body</div>
+      </PrintWorkspace>,
+    );
+    expect(screen.getByTestId('pw-scaler').style.transform).toBe('scale(2)');
+  });
+
   it('zoom buttons change only the preview transform, not the document, and clear fit mode', () => {
     render(
       <PrintWorkspace toolbar={<span />}>
