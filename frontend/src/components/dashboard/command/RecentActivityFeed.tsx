@@ -35,11 +35,11 @@ function relativeTime(t: TFn, iso: string): string {
   const diffSec = Math.max(0, Math.floor((Date.now() - then) / 1000));
   if (diffSec < 60) return t('time.now');
   const min = Math.floor(diffSec / 60);
-  if (min < 60) return t('time.minutes_ago', { min });
+  if (min < 60) return t('time.minutes_ago', { n: min });
   const hr = Math.floor(min / 60);
-  if (hr < 24) return t('time.hours_ago', { hr });
+  if (hr < 24) return t('time.hours_ago', { n: hr });
   const day = Math.floor(hr / 24);
-  if (day < 30) return t('time.days_ago', { day });
+  if (day < 30) return t('time.days_ago', { n: day });
   return formatDate(iso);
 }
 
