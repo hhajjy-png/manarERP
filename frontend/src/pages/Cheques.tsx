@@ -6,7 +6,8 @@ import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { amountToWordsKWD } from '../lib/tafqeet';
-import { formatDate, todayDateOnly, formatDisplayDate } from '../lib/date';
+import { formatDate, todayDateOnly } from '../lib/date';
+import { normalizeDateOnly } from '../lib/dateInput';
 import { formatNumber } from '../lib/format';
 import { PageMeta } from '../components/DataTable';
 import { useTableSort } from '../hooks/useTableSort';
@@ -136,14 +137,6 @@ const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
 function chequeChip(status: string, t: (k: string) => string) {
   const m = STATUS_META[status] ?? { key: status, tone: 'neutral' as Tone, icon: 'help' };
   return <StatusChip tone={m.tone} icon={m.icon}>{t(m.key)}</StatusChip>;
-}
-
-// تاريخ الشيك المطبوع. كان ISO («2026-01-31») — صيغة داخلية لا تُعرض للمستخدم.
-// صار DD/MM/YYYY عبر المُنسّق المشترك (string-safe: لا يُبنى Date على تاريخ فقط، فلا
-// انزياح يوم). **عدد المحارف نفسه (10)**، فلا يتغيّر عرض النصّ ولا تنزاح هندسة الشيك.
-function fmtDate(v: string | null | undefined): string {
-  if (!v) return '—';
-  return formatDisplayDate(v);
 }
 
 // الرمز من الإعداد (KWD / د.ك) لا من ثابت في الشيفرة؛ الأرقام غربية دائمًا.
@@ -384,7 +377,20 @@ export default function Cheques() {
   function loadChequeIntoForm(cheque: Cheque) {
     setForm({
       chequeNumber: cheque.chequeNumber,
-      chequeDate: fmtDate(cheque.chequeDate),
+      // Printed Cheque Edit Data & Date Integrity Fix v1 — `form.chequeDate` is the
+      // canonical 'YYYY-MM-DD' contract `DateInput` and `handleSave`'s payload both
+      // require (see lib/dateInput.ts). It used to be seeded with a DD/MM/YYYY DISPLAY
+      // string (via the shared display formatter), meant for read-only rendering. Fed
+      // into `DateInput` as `value`, that string doesn't match the ISO shape `DateInput`
+      // expects, so the visible field rendered blank on every open. Worse: if the user
+      // never touched the
+      // date, `handleSave` forwarded that DD/MM/YYYY string to the API completely
+      // unconverted, and the backend's `z.coerce.date()` parses a non-ISO slash-separated
+      // string as the browser/Node's ambiguous MM/DD/YYYY — silently rewriting, e.g.,
+      // 02/08/2026 (2 August) to 8 February on nothing more than an amount-only edit.
+      // `normalizeDateOnly` is the project's existing pure-string ISO extractor (no
+      // `Date` construction on the value path, so no timezone-driven day shift either).
+      chequeDate: normalizeDateOnly(cheque.chequeDate),
       beneficiaryName: cheque.beneficiaryName,
       amount: String(cheque.amount),
       currency: cheque.currency,
