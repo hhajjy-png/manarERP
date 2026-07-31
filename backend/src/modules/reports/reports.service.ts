@@ -4,7 +4,10 @@ import { AppError } from '../../core/errors/AppError';
 import { ReportInput } from '../../shared/services/reportEngine/excel.service';
 import { formatCurrency } from '../../shared/utils/currency';
 import { formatDateRange, formatDisplayDate } from '../../shared/utils/dateDisplay';
-import { translateInvoiceStatusAr } from '../../shared/utils/arabicLabels';
+import { translateInvoiceStatusAr, translateChequeStatusAr } from '../../shared/utils/arabicLabels';
+// Reused from the cheques module so the report can never diverge from the screen —
+// see the `cheques()` report below for why this is imported rather than re-derived.
+import { buildChequeFilterWhere, CHEQUES_REPORT_ORDER } from '../cheques/cheques.service';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, endOfDay } from '../../core/utils/dateWindows';
@@ -86,6 +89,8 @@ export class ReportsService {
         return this.customerBalances(query);
       case 'collections-summary':
         return this.collectionsSummary(query);
+      case 'cheques':
+        return this.cheques(query);
       default:
         throw AppError.badRequest('نوع تقرير غير معروف');
     }
@@ -899,6 +904,77 @@ export class ReportsService {
         amount: num(p.amount),
       })),
       totalsRow: { customerName: 'الإجمالي', amount: total },
+    };
+  }
+
+  /**
+   * تقرير الشيكات — Cheques Reporting & Excel Export Pack v1.
+   *
+   * SINGLE SOURCE OF TRUTH. The row set is selected by `buildChequeFilterWhere()`,
+   * the very function the Cheques screen's own list endpoint uses, so for one
+   * filter state the report, the screen and the Excel export always contain the
+   * same cheques. Nothing about the filter is re-derived here — in particular the
+   * generic `dateWhere()` helper above is deliberately NOT used, because it builds
+   * its lower bound at UTC midnight while the cheques module builds it at local
+   * midnight, and that difference alone could include or exclude a boundary-dated
+   * cheque on one surface but not the other.
+   *
+   * Row order reuses the cheques module's own default order for the same reason.
+   *
+   * Columns mirror the business-visible columns of the Cheques table, in the same
+   * order: cheque number, beneficiary, bank, amount, cheque date, status, payment
+   * voucher number. UI-only columns (selection checkbox, chevron) and internal
+   * fields (id, createdAt, updatedAt, printedAt) are deliberately excluded.
+   *
+   * DATE: `chequeDate` — the date the user entered on the cheque — rendered as a
+   * pre-formatted `DD/MM/YYYY` string via the shared `formatDisplayDate`. It is a
+   * string rather than a `type: 'date'` column on purpose: an Excel date cell is
+   * written as a serial number and re-interpreted by Excel's own timezone rules,
+   * which is exactly where a one-day shift can appear. A formatted string carries
+   * the same characters to HTML, PDF, print and Excel alike, so `02/08/2026`
+   * always means 2 August 2026 and can never invert to 8 February.
+   *
+   * TOTAL: `SUM(amount)` over every matching cheque, not a page — `findMany` here
+   * is unpaginated, so the total covers the whole filtered dataset.
+   */
+  private async cheques(q: ReportQuery): Promise<ReportInput> {
+    const where = buildChequeFilterWhere({
+      status: q.status,
+      from: q.from,
+      to: q.to,
+      search: q.search,
+    });
+
+    const rows = await prisma.cheque.findMany({
+      where,
+      orderBy: CHEQUES_REPORT_ORDER as Prisma.ChequeOrderByWithRelationInput[],
+    });
+
+    const total = round3(rows.reduce((s, c) => s + num(c.amount), 0));
+    const periodLabel = q.from || q.to ? `${formatDateRange(q.from, q.to)} — ` : '';
+
+    return {
+      title: 'تقرير الشيكات',
+      subtitle: `${periodLabel}عدد الشيكات: ${rows.length} — إجمالي مبالغ الشيكات: ${formatCurrency(total)}`,
+      columns: [
+        { header: 'رقم الشيك', key: 'chequeNumber', width: 18 },
+        { header: 'المستفيد', key: 'beneficiaryName', width: 34 },
+        { header: 'البنك', key: 'bankName', width: 24 },
+        { header: 'المبلغ', key: 'amount', width: 18, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'تاريخ الشيك', key: 'chequeDate', width: 16 },
+        { header: 'الحالة', key: 'status', width: 14 },
+        { header: 'رقم سند الصرف', key: 'paymentVoucherNumber', width: 18 },
+      ],
+      rows: rows.map((c) => ({
+        chequeNumber: c.chequeNumber,
+        beneficiaryName: c.beneficiaryName,
+        bankName: c.bankName,
+        amount: num(c.amount),
+        chequeDate: dateAr(c.chequeDate),
+        status: translateChequeStatusAr(c.status),
+        paymentVoucherNumber: c.paymentVoucherNumber ?? '',
+      })),
+      totalsRow: { bankName: 'إجمالي مبالغ الشيكات', amount: total },
     };
   }
 }

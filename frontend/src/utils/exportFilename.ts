@@ -30,6 +30,7 @@ export const ReportName = {
   Report: 'Report',
   Expenses: 'Expenses',
   InvoicesList: 'InvoicesList', // list/table export, distinct from single-invoice `Invoice`
+  Cheques: 'Cheques',
   MonthlyReport: 'MonthlyReport',
   PriceAgreements: 'PriceAgreements',
   // Generic data-module (ResourcePage) list exports:

@@ -25,6 +25,8 @@ import {
 } from '../modules/chequePrint';
 import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
+import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
+import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import gulfBankImg from '../assets/cheakv1.png';
 import {
   DEFAULT_TEMPLATE,
@@ -262,6 +264,7 @@ export default function Cheques() {
   // so the initial 'classic' provider + built-in calibration can never be used as
   // an accidental production fallback.
   const [printConfigState, setPrintConfigState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [makeDefault, setMakeDefault] = useState(false);
   const [allTemplates, setAllTemplates] = useState<Record<string, ChequeTemplate>>({});
   const [busy, setBusy] = useState(false);
@@ -967,6 +970,74 @@ export default function Cheques() {
   const STATUS_CHIPS: [string, string][] = [['', t('opt.all')], ['DRAFT', t('cheque.status.draft')], ['PRINTED', t('cheque.status.printed')], ['CANCELLED', t('cheque.status.cancelled')]];
   const hasFilters = !!(historySearch || historyStatus);
 
+  // ── Excel export (Cheques Reporting & Excel Export Pack v1) ─────────────────
+  //
+  // The exported columns are the business-visible columns of the table below, in
+  // the same order and with the same meaning: cheque number, beneficiary, bank,
+  // amount, cheque date, status, payment-voucher number. UI-only columns (the
+  // selection checkbox and the chevron) and internal fields (id, createdAt,
+  // updatedAt, printedAt) are deliberately not exported.
+  //
+  // Values reuse the very helpers the cells use — `bankLabel`, `formatDate`,
+  // `t(STATUS_META[...].key)` — so a label can never drift between screen and file.
+  // The amount is exported as a RAW NUMBER (`money: true`), matching the project's
+  // Excel contract: the cell keeps the `#,##0.000` dinar format and stays
+  // calculable, never a pre-rendered string, and never the `#…#` cheque-print form.
+  // The cheque DATE is `chequeDate` — the date the user entered — rendered through
+  // the shared `formatDate` as `DD/MM/YYYY`, so `02/08/2026` is 2 August 2026 with
+  // no timezone drift and no day/month inversion.
+  const chequeExportColumns = [
+    { header: t('col.cheque.number'), value: (r: Cheque) => r.chequeNumber ?? '' },
+    { header: t('col.cheque.beneficiary'), value: (r: Cheque) => r.beneficiaryName ?? '' },
+    { header: t('col.cheque.bank'), value: (r: Cheque) => bankLabel(r.bankName, t) },
+    { header: t('col.cheque.amount'), value: (r: Cheque) => Number(r.amount ?? 0), money: true },
+    { header: t('col.cheque.date'), value: (r: Cheque) => formatDate(r.chequeDate) },
+    { header: t('col.cheque.status'), value: (r: Cheque) => t((STATUS_META[r.status] ?? { key: r.status }).key) },
+    { header: t('col.cheque.pv_number'), value: (r: Cheque) => r.paymentVoucherNumber ?? '' },
+  ];
+
+  /**
+   * Exports EVERY cheque matching the current filters — not the visible page.
+   *
+   * `fetchAllRows` walks `/cheques` page by page with the exact same parameters
+   * the table itself sends (period → `from`/`to` on `chequeDate`, search, status,
+   * sort), so if the filters match 53 cheques spread over three pages the file
+   * contains all 53. The total appended at the end is therefore the total of the
+   * whole filtered dataset, and matches the Cheques report's total for the same
+   * filters — both sum `amount` over the same server-side selection.
+   */
+  async function exportExcel() {
+    setExportingExcel(true);
+    try {
+      const { from, to } = periodToReportParams(period);
+      const allRows = await fetchAllRows<Cheque>('/cheques', {
+        search: historySearch || undefined,
+        status: historyStatus || undefined,
+        from,
+        to,
+        ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
+      });
+      const total = allRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+      downloadTableExcel(
+        allRows,
+        chequeExportColumns,
+        generateExportFileName({
+          reportName: ReportName.Cheques,
+          period: { from: from || undefined, to: to || undefined, allPeriods: !from && !to },
+          extension: 'xlsx',
+        }),
+        'Sheet1',
+        {
+          labelColumnHeader: t('col.cheque.bank'),
+          label: t('cheques.export.total'),
+          valueColumnHeader: t('col.cheque.amount'),
+          value: total,
+        },
+      );
+    } catch (e) { setFormError(errorMessage(e)); }
+    finally { setExportingExcel(false); }
+  }
+
   function openNew() { resetForm(); setEditorOpen(true); }
   function openEditor(cheque: Cheque) { loadChequeIntoForm(cheque); setViewing(null); setEditorOpen(true); }
   function selectForPreview(cheque: Cheque) { loadChequeIntoForm(cheque); setViewing(null); }
@@ -1151,6 +1222,12 @@ export default function Cheques() {
         <div className="xpl-toolbar-row">
           <SearchBox value={historySearch} onChange={(v) => { setHistorySearch(v); setPage(1); }} placeholder={t('action.search_placeholder')} ariaLabel={t('action.search_placeholder')} />
           {hasFilters && <button type="button" className="xpl-clear-link" onClick={() => { setHistorySearch(''); setHistoryStatus(''); sort.reset(); setPage(1); }}>{t('action.reset_filters')}</button>}
+          {/* Same Excel affordance the other list screens use (see Expenses.tsx):
+              same Button component, `table_view` icon, secondary variant, busy
+              state and the project's Excel green — no new button design. */}
+          {hasPermission('reports.export') && (
+            <Button variant="secondary" icon="table_view" busy={exportingExcel} onClick={exportExcel} style={exportingExcel ? undefined : { color: '#217346', marginInlineStart: 'auto' }}>Excel</Button>
+          )}
         </div>
         <div className="xpl-toolbar-row">
           {STATUS_CHIPS.map(([v, l]) => <FilterChip key={v} active={historyStatus === v} onClick={() => { setHistoryStatus(v); setPage(1); }}>{l}</FilterChip>)}

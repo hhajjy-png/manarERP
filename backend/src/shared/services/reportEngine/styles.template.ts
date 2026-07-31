@@ -281,6 +281,18 @@ export function buildStyles(
       page-break-inside: avoid;
     }
 
+    /* The totals row must never be sliced by a page break: if it does not fit in
+       the space left on the page, the WHOLE row moves to the next page. The
+       tbody-tr rule above already carries this, but the totals row is styled and
+       asserted separately, so it states the guarantee explicitly rather than
+       inheriting it by accident. Both the legacy page-break-inside and the modern
+       break-inside are emitted — Chromium honours either, and the pair keeps the
+       rule working if the print pipeline's engine ever changes. */
+    tr.totals {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
     tr.totals td {
       padding: 7px 8px;
       text-align: right;

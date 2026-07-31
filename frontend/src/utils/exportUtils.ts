@@ -45,7 +45,29 @@ export interface TableExportColumn<T> {
 
 const MONEY_NUMFMT = '#,##0.000';
 
-function buildExportSheet<T>(rows: T[], columns: TableExportColumn<T>[]): XLSX.WorkSheet {
+/**
+ * Optional totals row appended after the data rows, keyed by column header
+ * (Cheques Reporting & Excel Export Pack v1).
+ *
+ * A label cell carries the caption (e.g. «إجمالي مبالغ الشيكات»); a numeric cell
+ * carries a raw number that inherits the column's own money format, so the total
+ * stays a real, calculable Excel value rather than pre-rendered text — the same
+ * contract the data cells already follow.
+ */
+export interface TableExportTotals {
+  /** Header of the column the caption is written into. */
+  labelColumnHeader: string;
+  label: string;
+  /** Header of the column the summed value is written into. */
+  valueColumnHeader: string;
+  value: number;
+}
+
+function buildExportSheet<T>(
+  rows: T[],
+  columns: TableExportColumn<T>[],
+  totals?: TableExportTotals,
+): XLSX.WorkSheet {
   const header = columns.map((c) => c.header);
   const body = rows.map((row) =>
     columns.map((c) => {
@@ -53,10 +75,19 @@ function buildExportSheet<T>(rows: T[], columns: TableExportColumn<T>[]): XLSX.W
       return c.money ? Number(v ?? 0) : (v ?? '');
     }),
   );
-  const ws = XLSX.utils.aoa_to_sheet([header, ...body]);
+  const totalsRow = totals
+    ? columns.map((c) => {
+      if (c.header === totals.labelColumnHeader) return totals.label;
+      if (c.header === totals.valueColumnHeader) return totals.value;
+      return '';
+    })
+    : null;
+  const ws = XLSX.utils.aoa_to_sheet(totalsRow ? [header, ...body, totalsRow] : [header, ...body]);
   columns.forEach((c, ci) => {
     if (!c.money) return;
-    for (let r = 0; r < rows.length; r += 1) {
+    // Data rows plus the totals row when present — the total is a money cell too.
+    const lastRow = totalsRow ? rows.length + 1 : rows.length;
+    for (let r = 0; r < lastRow; r += 1) {
       const ref = XLSX.utils.encode_cell({ r: r + 1, c: ci });
       const cell = ws[ref];
       if (cell) cell.z = MONEY_NUMFMT;
@@ -75,9 +106,11 @@ export function downloadTableExcel<T>(
   columns: TableExportColumn<T>[],
   filename: string,
   sheetName = 'Sheet1',
+  /** Optional totals row appended after the data. Omitted → byte-identical to before. */
+  totals?: TableExportTotals,
 ): void {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildExportSheet(rows, columns), sheetName);
+  XLSX.utils.book_append_sheet(wb, buildExportSheet(rows, columns, totals), sheetName);
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
   const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   downloadBlob(blob, filename);

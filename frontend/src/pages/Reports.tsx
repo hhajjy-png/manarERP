@@ -79,6 +79,17 @@ const REPORT_TYPES: ReportType[] = [
     statusType: 'needs-filter',
   },
   {
+    // Cheques Reporting & Excel Export Pack v1 — the period filter applies to the
+    // cheque's own `chequeDate`, and the statuses are the cheque module's real
+    // DRAFT/PRINTED/CANCELLED values with the same Arabic labels the Cheques screen
+    // uses, so a filter chosen here means exactly what it means over there.
+    key: 'cheques', label: 'report.type.cheques', icon: '🧾', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
+    filters: ['date', 'status'],
+    statuses: [['DRAFT', 'cheque.status.draft'], ['PRINTED', 'cheque.status.printed'], ['CANCELLED', 'cheque.status.cancelled']],
+    descKey: 'report.desc.cheques',
+    statusType: 'ready',
+  },
+  {
     key: 'profit-loss', label: 'report.type.profit_loss', icon: '📈', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
     filters: ['date'],
     descKey: 'report.desc.profit_loss',
