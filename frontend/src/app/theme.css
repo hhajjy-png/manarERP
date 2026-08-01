@@ -154,7 +154,25 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .inv-stat-chip.clickable { cursor: pointer; font-family: inherit; text-align: start; }
 .inv-stat-chip.clickable:hover { filter: brightness(0.92); }
 
-.btn { background: var(--accent); color: #fff; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 700; font-size: 14.5px; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(59,130,246,.25); }
+/* ── Legacy button contract ──────────────────────────────────────────────────
+   `border: 1px solid transparent` (not `none`) is the **height baseline**: the
+   variants below add their own 1px border (`.secondary`, `.ghost`), so with a
+   borderless base every bordered variant rendered 2px taller than the primary /
+   danger button standing next to it. That delta showed up wherever the row
+   isn't a stretch container — most visibly in every table action cell
+   (`.td-actions`, plain inline flow: Edit `.secondary` vs Delete `.danger`),
+   where the unequal borders also shifted the inline-flex baselines so the
+   buttons sat at different vertical offsets. A transparent baseline border
+   makes every variant exactly the same box. This is the same contract
+   `.xpl-btn` already uses (explorer-kit.css) — the legacy skin just never
+   adopted it.
+
+   `justify-content: center` is a no-op for the content-sized default (a
+   content-width flex line is already centred), and only takes effect once a
+   button is given an explicit width — where the text previously sat
+   flush-start. Login.tsx patched exactly that inline; the rule makes the
+   workaround unnecessary instead of waiting for the next occurrence. */
+.btn { background: var(--accent); color: #fff; border: 1px solid transparent; padding: 12px 20px; border-radius: 12px; font-weight: 700; font-size: 14.5px; font-family: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: var(--transition); box-shadow: 0 4px 12px rgba(59,130,246,.25); }
 .btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-2px); }
 .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 .btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
@@ -166,6 +184,23 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .btn.danger:hover:not(:disabled) { filter: brightness(1.12); transform: translateY(-2px); }
 .btn.danger:focus-visible { outline-color: var(--red); }
 .btn.sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+
+/* Icon size inside legacy buttons — the other half of the height baseline.
+   `material-symbols/outlined.css` ships `.material-symbols-outlined` at
+   `font-size: 24px; line-height: 1`, so an icon child is the tallest box in the
+   button and an icon button rendered ~5px taller than the text-only button
+   beside it (e.g. ErrorBoundary's Retry + Back pair, RootErrorBoundary,
+   BankSalaryAnalytics, EmploymentContract). Two surfaces had already patched
+   this locally at 17px — `.settings-center .btn` and `.ctm-toolbar .btn` — which
+   is the tell that it wanted to be a base rule. 18px matches `.xpl-btn`'s
+   established icon size; 16px keeps the `.sm` icon proportional to its 12px
+   text and holds `.btn.sm` at the same height with or without an icon.
+   Both local overrides still win — they are more specific (`.settings-center`
+   also uses `!important`), and their stylesheets are injected after this one
+   since they are imported from lazily-loaded components rather than main.tsx —
+   so their deliberately denser scales are preserved untouched. */
+.btn .material-symbols-outlined { font-size: 18px; }
+.btn.sm .material-symbols-outlined { font-size: 16px; }
 
 .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; margin-bottom: 28px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); transition: var(--transition); }
