@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `ab0128a4` (merge of `feature/visual-consistency-micro-polish-pack-v1`, three isolated visual-polish fixes: Payroll alert-card overflow, Bank Account Explorer badge width, Employee Financial Tab bank account number unmasked) |
-| **Current Documentation Commit** | `dfd7c28f` |
-| **Current Stable Tag** | `stable-visual-consistency-micro-polish-pack-v1` |
+| **Current Merge Commit** | `a84475f6` (merge of `feature/project-wide-ui-visual-polish-pack-v1`, a project-wide visual consistency pass — two structural root causes: no baseline border reserved on `.btn`/`.xpl-chip` so bordered variants rendered 2px larger than borderless siblings, and Material Symbols icons never sized at button level so icon buttons rendered ~6px taller than text buttons; CSS only, 4 files, no `.tsx`/`.ts` changes) |
+| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Stable Tag** | `stable-project-wide-ui-visual-polish-pack-v1` |
 | **Current Release Date** | 2026-08-01 |
-| **Total Stable Releases** | 395 (window 2026-06-07 → 2026-08-01) |
+| **Total Stable Releases** | 396 (window 2026-06-07 → 2026-08-01) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---

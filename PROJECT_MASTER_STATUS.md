@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Visual Consistency Micro Polish Pack v1), like the Dark Mode Color Consistency
+> below. This pass (Project-Wide UI Visual Polish Pack v1), like the Visual Consistency Micro Polish
 > Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `ab0128a4` — merge of `feature/visual-consistency-micro-polish-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (merge commit `ab0128a4`) | High |
-| **Previous stable tag** | `stable-dark-mode-color-consistency-pack-v1` (`9b3c437b`) | High |
+| **Current HEAD** | `a84475f6` — merge of `feature/project-wide-ui-visual-polish-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (merge commit `a84475f6`) | High |
+| **Previous stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (`ab0128a4`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,54 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-visual-consistency-micro-polish-pack-v1` (`ab0128a4`, 2026-08-01)
+### Latest Release — `stable-project-wide-ui-visual-polish-pack-v1` (`a84475f6`, 2026-08-01)
+
+Project-wide visual consistency pass across button, chip, input and toolbar
+geometry. CSS only — 4 files, 79 insertions / 6 deletions, no `.tsx`/`.ts`
+changes, no backend/schema changes.
+
+Two structural root causes accounted for nearly every provable inconsistency,
+and the explorer kit (`.xpl-btn`) had already solved both — the legacy skin
+never adopted them:
+
+- **A — no baseline border reserved.** `.btn` declared `border: none` while
+  `.secondary`/`.ghost` add `border: 1px solid`, so bordered variants rendered
+  2px taller and wider than the `.btn`/`.danger` beside them. Flex *stretch*
+  containers masked it; plain inline flow did not — worst case `.td-actions`,
+  where the unequal borders also shifted the inline-flex baselines, offsetting
+  Edit vs Delete on every row of every generic CRUD table. Same defect in
+  `.xpl-chip` (of six tones only `--neutral` draws a border). Fixed by
+  reserving `border: 1px solid transparent` on both bases.
+- **B — Material Symbols icons never sized at button level.** The vendored
+  `material-symbols/outlined.css` ships the icon class at `font-size: 24px;
+  line-height: 1`, making the icon the tallest box in a button, so icon
+  buttons rendered ~6px taller than text buttons. The repo already held 163
+  rules re-declaring that size across 228 icon selectors, including two local
+  patches on `.btn` itself — the duplication was the diagnosis. Normalized at
+  the base (18px `.btn`, 16px `.btn.sm`, 18px `.export-btn`); both local
+  overrides still win on specificity and injection order, so their denser
+  scales are preserved.
+
+- **Financial Center:** shared `min-height: 36px` for the Load button, view
+  toggles and export buttons, which were each sized only by their own padding
+  and font metrics and never landed on one value.
+- **Bank Account Explorer:** filter bar normalized to values already
+  established in the same file and the kit — 38px → 40px on the action row
+  (matching `.bae-search-wrap` and `.bae-clear-filters-inline`), `.bae-icon-btn`
+  squared to 40×40, `.bae-date-input` radius 8px → 10px. This page is the
+  source the kit was extracted from, so its local `.bae-*` classes were never
+  retro-fitted to the standard they produced.
+- **Known partial coverage (accepted at review):** `.bae-reset-btn` is dead
+  CSS so that edit is inert; `.bae-amount-input` follows its 38px sibling, not
+  the 40px standard; `.bae-search-wrap` keeps its 8px radius.
+- **Not changed:** colors, dark/light mode, design tokens, typography,
+  business logic, routing, state, component architecture, print system,
+  reports, PDF generation, backend, Electron, Prisma/schema/migrations.
+- **Validation:** frontend `tsc --noEmit` clean (feature branch and
+  post-merge) · `npm run build` succeeds both passes · `vitest` 8/26 failures
+  confirmed pre-existing by stash-and-rerun against the clean baseline.
+
+### Previous Release — `stable-visual-consistency-micro-polish-pack-v1` (`ab0128a4`, 2026-08-01)
 
 Three previously approved, isolated visual-polish fixes across Payroll, Bank
 Account Explorer, and the Employees drawer. Frontend-only, no backend/schema

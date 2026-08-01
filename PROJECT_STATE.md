@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `ab0128a4` — release `stable-visual-consistency-micro-polish-pack-v1` (three isolated visual-polish fixes: Payroll missing-employees alert wrapping, Bank Account Explorer transaction-type badge width, Employee Financial Tab bank account number unmasked) |
+| **Production HEAD** | `a84475f6` — release `stable-project-wide-ui-visual-polish-pack-v1` (project-wide visual consistency pass — two structural root causes: no baseline border reserved on `.btn`/`.xpl-chip`, and Material Symbols icons never sized at button level; CSS only) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (release date 2026-08-01) → merge `ab0128a4` |
-| **Previous stable tag** | `stable-dark-mode-color-consistency-pack-v1` (2026-08-01) → merge `9b3c437b` |
-| **Total stable releases** | 395 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
-| **Latest validation** | Frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · `npm run build` ✅ (both passes; only the pre-existing >500kB chunk-size warning, unrelated) · scope confirmed: exactly the 3 approved files entered the release (`Salaries.tsx`, `BankAccountExplorer.css`, `EmployeeFinancialTab.tsx`), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded (staged file-by-file, not `git add -A`) and confirmed untouched after merge; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `ab0128a4` + tag `stable-visual-consistency-micro-polish-pack-v1`) |
+| **Latest stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (release date 2026-08-01) → merge `a84475f6` |
+| **Previous stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (2026-08-01) → merge `ab0128a4` |
+| **Total stable releases** | 396 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
+| **Latest validation** | Frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · `npm run build` ✅ (both passes; only the pre-existing >500kB chunk-size warning, unrelated) · `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** by stashing the changes and re-running to an identical 8/26 on the clean baseline; no test regressed · scope confirmed: exactly the 4 approved CSS files entered the release (`app/theme.css`, `components/explorer/explorer-kit.css`, `styles/financial.css`, `pages/BankAccountExplorer.css`), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded (staged file-by-file, not `git add -A`) and confirmed untouched after merge; no `.tsx`/`.ts` file changed; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `a84475f6` + tag `stable-project-wide-ui-visual-polish-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,43 @@ in a table cell.
 
 ---
 
-## Latest Release — Visual Consistency Micro Polish Pack v1
+## Latest Release — Project-Wide UI Visual Polish Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Project-Wide UI Visual Polish Pack v1 (project-wide visual consistency pass — button/chip/input/toolbar geometry only; CSS only, 4 files) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-01 |
+| **Feature branch** | `feature/project-wide-ui-visual-polish-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `b7d4da3e` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's audit → implementation → Product-Owner-approved-release flow |
+| **Feature commit** | `3bf9e5ab` |
+| **Production merge commit** | `a84475f6` |
+| **Stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` → merge `a84475f6` (annotated) |
+| **Reviews** | Cascade-level audit measuring the actual rendered geometry of each control family (not proposed blind) → IMPLEMENTATION (4 scoped CSS diffs) → Product Owner clarification round on the Bank Account Explorer values (confirmed 40px/10px are pre-existing standards, not newly chosen) → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge) · `npm run build` ✅ (both passes) · `vitest run` 8/26 failures confirmed pre-existing by stash-and-rerun against the clean baseline |
+
+**Root cause A — no baseline border reserved.** `.btn` declared `border: none` while its `.secondary` and `.ghost` variants add `border: 1px solid`, so every bordered variant rendered **2px taller and wider** than the `.btn`/`.danger` standing beside it. Flex *stretch* containers (`.modal-foot`, `.toolbar`) masked this; plain inline flow did not — the worst case being `.td-actions`, where the unequal borders also shifted the inline-flex **baselines**, so Edit (`secondary`) and Delete (`danger`) sat at different vertical offsets on **every row of every generic CRUD table**. The identical defect existed in `.xpl-chip`: of its six tones only `--neutral` draws a border, so a neutral chip was 2px larger than the tone chips beside it in an `.xpl-exec-chips` row. Fixed by reserving `border: 1px solid transparent` on both bases — the contract `.xpl-btn` (explorer-kit.css) already used and the legacy skin never adopted.
+
+**Root cause B — Material Symbols icons never sized at button level.** The vendored `material-symbols/outlined.css` ships `.material-symbols-outlined` at `font-size: 24px; line-height: 1`, making the icon the tallest box inside a button, so **any icon button rendered ~6px taller than the text-only button next to it**. The repo already contained **163 separate CSS rules re-declaring that font-size across 228 icon selectors**, including two independent local patches on `.btn` itself (`.settings-center .btn` and `.ctm-toolbar .btn`, both 17px) — that duplication was the diagnosis. Normalized at the base: 18px for `.btn`, 16px for `.btn.sm`, 18px for `.export-btn`. Both local overrides still win (more specific; `.settings-center` also uses `!important`; and their stylesheets are injected after `theme.css` because they load from lazily-imported components), so their deliberately denser scales are preserved untouched.
+
+**Files (4, CSS only):**
+- **`app/theme.css`** — `.btn` takes the transparent baseline border plus `justify-content: center` (inert at content width; only bites on an explicitly sized button, which `Login.tsx` had already patched inline). Icon sizes normalized for `.btn` / `.btn.sm`.
+- **`components/explorer/explorer-kit.css`** — `.xpl-chip` gains the same transparent baseline border, bringing it in line with `.xpl-id-chip`, which already declared its border on the base.
+- **`styles/financial.css`** — `.export-btn` had only ever set icon *color*, so its icons kept the 24px default and made each export button the tallest control on `.fc-action-bar`; normalized to 18px, the size this file already used in `.fc-load-card-btn`. Added a shared `min-height: 36px` for the Load button, view toggles and export buttons, which were each sized purely by their own padding and font metrics (0.9rem vs 0.85rem, bordered vs borderless) and never landed on one value.
+- **`pages/BankAccountExplorer.css`** — filter-bar normalization to values **already established** in this same file and in the explorer kit: `.bae-export-btn`/`.bae-reset-btn` 38px → 40px to match `.bae-search-wrap` and `.bae-clear-filters-inline` (both already 40px on the row they share); `.bae-icon-btn` squared to 40×40 like `.xpl-btn--icon`; `.bae-amount-input` given the 38px height of its sibling `.bae-date-input`; `.bae-date-input` radius 8px → 10px, the value used by `.xpl-input`, `.field input`, `.toolbar input` and by its own sibling. This page is the source the explorer kit was *extracted from* (see explorer-kit.css header), so its local `.bae-*` classes never got retro-fitted to the standard they produced.
+
+**Known partial coverage — reported and accepted at review:** `.bae-reset-btn` is dead CSS (no `.tsx` usage), so that edit is inert; `.bae-amount-input` follows its 38px sibling rather than the 40px standard, leaving the page with a deliberate two-tier scale (40px action row / 38px filter-group panel); and `.bae-search-wrap` keeps its 8px radius, so the date input now matches its sibling and the project standard but not the search field above it.
+
+**Deferred, not fixed** — each would change rendered color or exceed this pack's scope: undefined `.btn-secondary` on 10 buttons (`BankSalaryAnalytics` ×4, `BankStatementImport` ×6) rendering as primary blue, and undefined `.btn-primary` in `AttachmentsPanel` rendering as an unstyled native button; 35 unsized native checkboxes (only `.invx-check` sizes them); the remaining un-normalized icon sites; `.xpl-drawer`'s physical `right`/`border-left` instead of logical properties.
+
+**Not changed:** colors, dark/light mode, design tokens, typography (no font-family/size/weight/line-height on any text — the only `font-size` changes are on the icon-font glyph box, which is geometry); business logic; routing; state; component architecture; print system; reports; PDF generation; backend; Electron; Prisma/schema/migrations. **No `.tsx`/`.ts` file was modified at all.**
+
+**Scope discipline:** the working tree at release time again contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Visual Consistency Micro Polish Pack v1
 
 | Field | Value |
 |-------|-------|
