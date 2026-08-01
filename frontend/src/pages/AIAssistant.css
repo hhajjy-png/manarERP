@@ -54,6 +54,7 @@
   border: 1px solid rgba(13, 148, 136, 0.22);
   margin-inline-start: 5px;
 }
+html[data-theme="dark"] .ai-kpi-badge--enriched { color: var(--teal); }
 
 /* ─── Dev: Router decision panel — visible in DEV builds only ───────────────── */
 .ai-dev-router-panel {

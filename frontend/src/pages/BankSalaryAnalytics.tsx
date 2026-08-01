@@ -1119,8 +1119,8 @@ export default function BankSalaryAnalytics() {
                   <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                       <Tooltip content={<ChartTooltip />} />
                       <Bar dataKey="totalAmount" name={t('bank.salary_analytics.series_total_amount')} fill="#3b82f6" radius={[4,4,0,0]} />
                     </BarChart>
@@ -1135,8 +1135,8 @@ export default function BankSalaryAnalytics() {
                   <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months.filter((m) => m.employeeCount != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                       <Tooltip
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
@@ -1162,8 +1162,8 @@ export default function BankSalaryAnalytics() {
                     <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={varianceData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                        <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} />
+                        <XAxis dataKey="sourceMonth" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                         <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="variance" name={t('bank.salary_analytics.difference')} radius={[4,4,0,0]}>
                           {varianceData.map((d, i) => (
@@ -1184,8 +1184,8 @@ export default function BankSalaryAnalytics() {
                     <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={analytics.topEmployees.slice(0, 5)} layout="vertical" margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                        <XAxis type="number" tick={{ fontSize: 10 }} />
-                        <YAxis type="category" dataKey="beneficiaryName" tick={{ fontSize: 10 }} width={80} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                        <YAxis type="category" dataKey="beneficiaryName" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={80} />
                         <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="totalAmount" name={t('msg.total')} fill="#8b5cf6" radius={[0,4,4,0]} />
                       </BarChart>
@@ -1201,8 +1201,8 @@ export default function BankSalaryAnalytics() {
                   <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                     <BarChart data={analytics.months.filter((m) => m.highest != null && m.avg != null)} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
+                      <XAxis dataKey="sourceMonth" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                       <Tooltip
                         content={({ active, payload, label }) => {
                           if (!active || !payload?.length) return null;
@@ -1231,8 +1231,8 @@ export default function BankSalaryAnalytics() {
                     <ResponsiveContainer width="100%" height="100%" initialDimension={CHART_INITIAL_DIMENSION}>
                       <BarChart data={cumulativeData} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                        <XAxis dataKey="sourceMonth" tick={{ fontSize: 10 }} />
-                        <YAxis tick={{ fontSize: 10 }} />
+                        <XAxis dataKey="sourceMonth" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
                         <Tooltip content={<ChartTooltip />} />
                         <Bar dataKey="cumulative" name={t('bank.salary_analytics.chart_cumulative_total')} fill="#14b8a6" radius={[4,4,0,0]} />
                       </BarChart>

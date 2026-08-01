@@ -13,17 +13,17 @@ interface StatusKeyConfig {
 }
 
 const DEFAULT_STATUS_MAP: Record<string, StatusKeyConfig> = {
-  DRAFT:     { key: 'status.draft',           color: '#6b7280', bg: '#f3f4f6' },
-  PENDING:   { key: 'badge.status.pending',   color: '#d97706', bg: '#fffbeb' },
-  SUBMITTED: { key: 'badge.status.submitted', color: '#2563eb', bg: '#eff6ff' },
-  APPROVED:  { key: 'status.approved',        color: '#16a34a', bg: '#f0fdf4' },
-  REJECTED:  { key: 'status.rejected',        color: '#dc2626', bg: '#fef2f2' },
-  CANCELLED: { key: 'exp.status.cancelled',   color: '#6b7280', bg: '#f3f4f6' },
-  REVERSED:  { key: 'badge.status.reversed',  color: '#dc2626', bg: '#fef2f2' },
-  PAID:      { key: 'status.paid',            color: '#0891b2', bg: '#ecfeff' },
-  UNPAID:    { key: 'badge.status.unpaid',    color: '#d97706', bg: '#fffbeb' },
-  PARTIAL:   { key: 'badge.status.partial',   color: '#7c3aed', bg: '#f5f3ff' },
-  OVERDUE:   { key: 'badge.status.overdue',   color: '#dc2626', bg: '#fef2f2' },
+  DRAFT:     { key: 'status.draft',           color: 'var(--text-muted)', bg: 'var(--surface-2)' },
+  PENDING:   { key: 'badge.status.pending',   color: 'var(--amber)', bg: 'var(--amber-light)' },
+  SUBMITTED: { key: 'badge.status.submitted', color: 'var(--blue)', bg: 'var(--blue-light)' },
+  APPROVED:  { key: 'status.approved',        color: 'var(--green)', bg: 'var(--green-light)' },
+  REJECTED:  { key: 'status.rejected',        color: 'var(--red)', bg: 'var(--red-light)' },
+  CANCELLED: { key: 'exp.status.cancelled',   color: 'var(--text-muted)', bg: 'var(--surface-2)' },
+  REVERSED:  { key: 'badge.status.reversed',  color: 'var(--red)', bg: 'var(--red-light)' },
+  PAID:      { key: 'status.paid',            color: 'var(--teal)', bg: 'var(--teal-light)' },
+  UNPAID:    { key: 'badge.status.unpaid',    color: 'var(--amber)', bg: 'var(--amber-light)' },
+  PARTIAL:   { key: 'badge.status.partial',   color: 'var(--violet)', bg: 'var(--violet-light)' },
+  OVERDUE:   { key: 'badge.status.overdue',   color: 'var(--red)', bg: 'var(--red-light)' },
 };
 
 interface Props {
@@ -36,12 +36,12 @@ export default function ApprovalBadge({ status, statusMap }: Props) {
 
   let cfg: StatusConfig;
   if (statusMap) {
-    cfg = statusMap[status] ?? { label: status, color: '#6b7280', bg: '#f3f4f6' };
+    cfg = statusMap[status] ?? { label: status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
   } else {
     const keyed = DEFAULT_STATUS_MAP[status];
     cfg = keyed
       ? { label: t(keyed.key), color: keyed.color, bg: keyed.bg }
-      : { label: status, color: '#6b7280', bg: '#f3f4f6' };
+      : { label: status, color: 'var(--text-muted)', bg: 'var(--surface-2)' };
   }
 
   return (
@@ -54,7 +54,7 @@ export default function ApprovalBadge({ status, statusMap }: Props) {
         fontWeight: 600,
         color: cfg.color,
         background: cfg.bg,
-        border: `1px solid ${cfg.color}22`,
+        border: `1px solid color-mix(in srgb, ${cfg.color} 13%, transparent)`,
         whiteSpace: 'nowrap',
       }}
     >

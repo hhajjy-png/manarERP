@@ -253,6 +253,16 @@
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* Dark-mode hover fix: the vendor's `hover:bg-accent` resolves to shadcn's own
+   neutral `--sh-accent` token (a plain gray), not this popover's app-navy
+   surface — so the hovered cell reads as a foreign gray patch inside the
+   navy panel instead of a subtle lighten of it. Override with the app's own
+   hover tint, unlayered so it wins over the vendor utility without
+   `!important` (same mechanism as the other unlayered fixes in this file). */
+html[data-theme="dark"] .mnr-cal-pop td button:not([data-selected-single='true']):hover {
+  background: var(--surface-hover);
+}
+
 /* Focus: dashed brand ring (mockup "Focus" state), consistent with the app's
    accent-driven focus affordance elsewhere. */
 .mnr-cal-pop td button:focus-visible {

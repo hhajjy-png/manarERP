@@ -389,7 +389,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
 
       {/* Collisions */}
       {hasCollisions && (
-        <div style={{ marginBottom: v.missingEmployees.length > 0 ? 14 : 0, fontSize: 12, color: '#92400e' }}>
+        <div style={{ marginBottom: v.missingEmployees.length > 0 ? 14 : 0, fontSize: 12, color: 'var(--amber)' }}>
           {t('bank.payroll_import.collisions.intro')}
           {collisions.civilId.length > 0 && t('bank.payroll_import.collisions.civil_id', { count: collisions.civilId.length })}
           {collisions.bankAccount.length > 0 && t('bank.payroll_import.collisions.bank_account', { count: collisions.bankAccount.length })}
@@ -400,7 +400,7 @@ function AssistantPanel({ assistant }: { assistant: NonNullable<PreviewSummary['
       {/* Missing expected employees */}
       {v.missingEmployees.length > 0 && (
         <div style={{ fontSize: 13 }}>
-          <p style={{ margin: '0 0 4px', fontWeight: 700, color: '#b45309' }}>
+          <p style={{ margin: '0 0 4px', fontWeight: 700, color: 'var(--amber)' }}>
             {t('bank.payroll_import.missing_employees.title', { count: v.missingEmployees.length.toLocaleString('ar') })}
           </p>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

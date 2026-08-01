@@ -45,6 +45,9 @@
   --db-green: var(--green);
   --db-amber: var(--amber);
   --db-red: var(--red);
+  --db-danger: var(--db-red);
+  --db-accent: var(--db-blue);
+  --db-hover: var(--surface-hover);
   --db-text: #f9fafb;
   --db-muted: #9ca3af;
   --db-border: rgba(255, 255, 255, 0.08);

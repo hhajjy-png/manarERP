@@ -219,6 +219,8 @@
   font-weight: 600;
   color: #92400e;
 }
+html[data-theme="dark"] .recon-warnings-title,
+html[data-theme="dark"] .recon-warning-tag { color: var(--amber); }
 
 /* ── Filter toggle + panel ────────────────────────────────────────────────── */
 
@@ -808,6 +810,14 @@
 .recon-cat.ATM_FEE         { background: #ffedd5; color: #c2410c; }
 .recon-cat.CHEQUEBOOK_FEE  { background: var(--surface-2); color: var(--text-muted); }
 .recon-cat.OTHER_FEE       { background: var(--surface-2); color: var(--text-muted); }
+html[data-theme="dark"] .recon-cat.BANK_TRANSFER   { background: var(--green-light); color: var(--green); }
+html[data-theme="dark"] .recon-cat.CHEQUE_PAYMENT  { background: var(--blue-light);  color: var(--blue-bright); }
+html[data-theme="dark"] .recon-cat.CASH_WITHDRAWAL { background: var(--amber-light); color: var(--amber); }
+html[data-theme="dark"] .recon-cat.TRANSFER_FEE    { background: var(--violet-light); color: var(--violet); }
+html[data-theme="dark"] .recon-cat.MONTHLY_FEE     { background: var(--violet-light); color: var(--violet); }
+html[data-theme="dark"] .recon-cat.INTEREST        { background: var(--blue-light);  color: var(--blue-bright); }
+html[data-theme="dark"] .recon-cat.CHARGE          { background: var(--red-light);   color: var(--red-bright); }
+html[data-theme="dark"] .recon-cat.ATM_FEE         { background: var(--amber-light); color: var(--amber); }
 
 /* ── Summary bar ─────────────────────────────────────────────────────────── */
 
@@ -973,6 +983,7 @@
   color: #78350f;
   font-weight: 800;
 }
+html[data-theme="dark"] .recon-warning-tag.recon-warning-tag-active { color: var(--amber-bright); }
 
 /* ── Export dropdown (Package X) ─────────────────────────────────────────── */
 
@@ -1172,3 +1183,5 @@
 .recon-tl-status.ignored   { background: var(--surface-2);    color: var(--text-muted); }
 .recon-tl-status.duplicate { background: var(--red-light);    color: var(--red);    }
 .recon-tl-status.review    { background: #dbeafe;             color: #1d4ed8;       }
+html[data-theme="dark"] .recon-tl-status.unmatched { color: var(--amber); }
+html[data-theme="dark"] .recon-tl-status.review    { background: var(--blue-light); color: var(--blue-bright); }

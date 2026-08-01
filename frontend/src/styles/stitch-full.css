@@ -145,7 +145,6 @@ html[dir="ltr"] .stitch-full-theme .sidebar .nav a:not(.active):hover {
 .stitch-full-theme .db-page {
   --db-bg: var(--bg);
   --db-card: var(--surface);
-  --db-inner: rgba(0, 0, 0, 0.03);
   --db-text: var(--text);
   --db-muted: var(--text-muted);
   --db-border: var(--border);
@@ -158,8 +157,14 @@ html[dir="ltr"] .stitch-full-theme .sidebar .nav a:not(.active):hover {
 /* Darker semantic tones — LIGHT THEME ONLY (html without data-theme="dark").
    Keeps amber/green/red/blue text AA-readable on the light card surfaces while
    the dark theme retains its bright base tones. Scoped to the dashboard only.
-   Covers both the --db-* tokens and the base --amber/--green/--red/--accent tokens. */
+   Covers both the --db-* tokens and the base --amber/--green/--red/--accent tokens.
+   --db-inner (the inner-panel wash) lives here too, not in the unconditional
+   block above: it must stay the light-mode-appropriate near-black tint only
+   when the sidebar theme is actually light — dashboard.css's own dark base
+   already sets the correct near-white wash for dark mode, and leaving this
+   declaration unconditional was overriding it in both themes. */
 html:not([data-theme="dark"]) .stitch-full-theme .db-page {
+  --db-inner: rgba(0, 0, 0, 0.03);
   --db-red: #dc2626;
   --db-amber: #b45309;
   --db-green: #047857;
@@ -396,7 +401,7 @@ html[data-theme="dark"] .stitch-full-theme .sidebar .nav a.active {
 }
 
 html[data-theme="dark"] .stitch-full-theme .sidebar .nav .group {
-  color: #64748b !important;
+  color: var(--text-muted) !important;
 }
 
 html[data-theme="dark"] .stitch-full-theme .sidebar .nav::-webkit-scrollbar-thumb {

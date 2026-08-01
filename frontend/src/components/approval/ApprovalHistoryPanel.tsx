@@ -43,19 +43,19 @@ export default function ApprovalHistoryPanel({
   return (
     <div style={{ padding: '16px 0' }}>
       {title && (
-        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#374151', marginBottom: 12 }}>
+        <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text)', marginBottom: 12 }}>
           {title}
         </div>
       )}
 
       {loading && (
-        <div style={{ color: '#9ca3af', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>
+        <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', padding: '12px 0' }}>
           جارٍ التحميل…
         </div>
       )}
 
       {!loading && error && (
-        <div style={{ color: '#dc2626', fontSize: '0.85rem' }}>{error}</div>
+        <div style={{ color: 'var(--red)', fontSize: '0.85rem' }}>{error}</div>
       )}
 
       {!loading && !error && <ApprovalTimeline history={history} />}

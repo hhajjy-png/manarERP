@@ -28,18 +28,46 @@
      التسمية المنفصلة تُبقي المتغيّرين مستقلَّين تمامًا.
      (`--app-font-ui` لا يحتاج ذلك — Tailwind لا يعرّف هذا الاسم إطلاقًا.) */
   --app-font-mono: "IBM Plex Mono", monospace;
+
+  /* Dark Mode Color Consistency Pack v1 — token aliases. These variable
+     names were already referenced across the app (components/pages) but
+     never declared, so `var(--name)` silently fell through to a per-call
+     literal fallback (or nothing) instead of following the active theme.
+     Declaring them here as aliases to the app's existing tokens makes every
+     call site theme-reactive without touching the component that reads it. */
+  --muted: var(--text-muted);
+  --surface2: var(--surface-2); --bg-alt: var(--surface-2); --bg-subtle: var(--surface-2);
+  --bg-card: var(--surface); --bg-header: var(--surface-2);
+  --text-primary: var(--text); --text-secondary: var(--text-muted);
+  --color-brand: var(--accent);
+  --success: var(--green); --warning: var(--amber); --danger: var(--red); --color-danger: var(--red);
+  --yellow-light: var(--amber-light); --amber-bg: var(--amber-light);
+  --violet: #7c3aed; --violet-light: rgba(124, 58, 237, .10); --teal: #0f766e; --teal-light: #ecfeff;
 }
 html[data-theme="dark"] {
+  color-scheme: dark;
   --primary: #020617; --primary-hover: #0f172a; --accent: #3b82f6; --accent-light: #1e3a8a;
   --bg: #0f172a; --surface: #1e293b; --surface-2: #334155; --surface-hover: rgba(255, 255, 255, 0.07);
-  --text: #f8fafc; --text-muted: #94a3b8; --border: #334155;
+  --text: #f8fafc; --text-muted: #a3b3c7; --border: #334155;
   --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3); --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4);
   --green-light: rgba(16,185,129,.15); --red-light: rgba(239,68,68,.15);
   --amber-light: rgba(245,158,11,.15); --blue-light: rgba(59,130,246,.15);
+  --violet: #a78bfa; --violet-light: rgba(167, 139, 250, .15); --teal: #2dd4bf; --teal-light: rgba(45, 212, 191, .15);
+
+  /* Dark Mode Design Token Consolidation v1 — these four "-bright" tokens
+     centralize a value that Dark Mode Color Consistency Pack v1 had left
+     scattered as repeated literals across several files (used as brightened
+     text on translucent tint backgrounds — --green/--red/--amber/--blue
+     themselves aren't repointed here, same as before). Dark-mode-only by
+     definition, so declared only in this root; every consuming rule is
+     already scoped under html[data-theme="dark"]. Values unchanged — this is
+     an architecture-only pass, not a recolor. */
+  --blue-bright: #60a5fa; --red-bright: #f87171; --green-bright: #34d399; --amber-bright: #fde68a;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: var(--app-font-ui); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; transition: background .3s, color .3s; }
 a { color: inherit; text-decoration: none; }
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 
 /* عرض القائمة الجانبية — **مصدر واحد** تقرأه القائمة والمحتوى معًا، فلا تعويضات
    يدوية موزّعة على الصفحات. يقلبه `html[data-sidebar]` (انظر sidebar-collapse.css). */
@@ -53,7 +81,7 @@ a { color: inherit; text-decoration: none; }
 .brand-logo { width: 100%; max-width: 190px; height: auto; max-height: 90px; object-fit: contain; display: block; }
 .nav { padding: 16px 12px; overflow-y: auto; flex: 1; }
 .nav::-webkit-scrollbar { width: 5px; } .nav::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 10px; }
-.nav .group { font-size: 12px; color: #64748b; font-weight: 700; padding: 16px 12px 8px; }
+.nav .group { font-size: 12px; color: var(--text-muted); font-weight: 700; padding: 16px 12px 8px; }
 .nav a { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; color: #cbd5e1; font-size: 14.5px; font-weight: 600; cursor: pointer; transition: var(--transition); margin-bottom: 4px; }
 .nav a:hover { background: var(--primary-hover); color: #fff; transform: translateX(-4px); }
 .nav a.active { background: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 4px 12px rgba(59,130,246,.3); }
@@ -167,6 +195,7 @@ tbody tr:last-child td { border-bottom: none; }
 thead th.th-actions { position: sticky; inset-inline-end: 0; z-index: 2; }
 tbody tr:hover .td-actions { background: var(--surface-hover); }
 tbody tr:nth-child(even) .td-actions { background: var(--surface-2); }
+html[data-theme="dark"] tbody tr:hover .td-actions { background: var(--surface-2); }
 
 .pill { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
@@ -175,6 +204,9 @@ tbody tr:nth-child(even) .td-actions { background: var(--surface-2); }
 .pill.red { background: var(--red-light); color: var(--red); } .pill.red::before { background: var(--red); }
 .pill.blue { background: var(--blue-light); color: var(--blue); } .pill.blue::before { background: var(--blue); }
 .pill.gray { background: var(--surface-2); color: var(--text-muted); } .pill.gray::before { background: var(--text-muted); }
+html[data-theme="dark"] .pill.green { color: var(--green-bright); } html[data-theme="dark"] .pill.green::before { background: var(--green-bright); }
+html[data-theme="dark"] .pill.red   { color: var(--red-bright); } html[data-theme="dark"] .pill.red::before   { background: var(--red-bright); }
+html[data-theme="dark"] .pill.blue  { color: var(--blue-bright); } html[data-theme="dark"] .pill.blue::before  { background: var(--blue-bright); }
 
 .prog { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; min-width: 100px; }
 .prog > span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), #60a5fa); }
@@ -301,6 +333,7 @@ html[dir="ltr"] .nav a:hover {
 /* ── Button Ghost Variant ────────────────────────────────────────────── */
 .btn.ghost { background: transparent; color: var(--accent); border: 1px solid var(--accent); box-shadow: none; }
 .btn.ghost:hover { background: var(--accent-light); }
+html[data-theme="dark"] .btn.ghost:hover { color: #fff; }
 
 /* ── Toast Notifications ─────────────────────────────────────────────── */
 .toast-container { position: fixed; inset-block-end: 28px; inset-inline-end: 28px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }

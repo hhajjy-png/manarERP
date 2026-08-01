@@ -29,12 +29,12 @@ function formatBytes(bytes: number): string {
 function InlineError({ msg, onDismiss }: { msg: string; onDismiss: () => void }) {
   const { t } = useT();
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, padding: '8px 12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6, fontSize: 13, color: '#B91C1C' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginTop: 8, padding: '8px 12px', background: 'var(--red-light)', border: '1px solid var(--red)', borderRadius: 6, fontSize: 13, color: 'var(--red)' }}>
       <span style={{ flex: 1, lineHeight: 1.5, whiteSpace: 'pre-line' }}>{msg}</span>
       <button
         type="button"
         onClick={onDismiss}
-        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B91C1C', padding: '0 2px', fontSize: 16, lineHeight: 1, flexShrink: 0 }}
+        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--red)', padding: '0 2px', fontSize: 16, lineHeight: 1, flexShrink: 0 }}
         aria-label={t('action.close')}
       >
         ×
@@ -114,7 +114,7 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
 
   return (
     <div style={{ marginTop: 16 }}>
-      <strong style={{ fontSize: 13, color: '#374151' }}>{t('dlg.attachments.heading', { n: attachments.length })}</strong>
+      <strong style={{ fontSize: 13, color: 'var(--text)' }}>{t('dlg.attachments.heading', { n: attachments.length })}</strong>
 
       {!readOnly && (
         <>
@@ -144,13 +144,13 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
       {listError && <InlineError msg={listError} onDismiss={() => setListError(null)} />}
 
       {loading ? (
-        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>{t('msg.loading')}</div>
+        <div style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 13 }}>{t('msg.loading')}</div>
       ) : attachments.length === 0 ? (
-        <div style={{ marginTop: 10, color: '#9CA3AF', fontSize: 13 }}>{t('dlg.attachments.empty')}</div>
+        <div style={{ marginTop: 10, color: 'var(--text-muted)', fontSize: 13 }}>{t('dlg.attachments.empty')}</div>
       ) : (
         <table style={{ width: '100%', marginTop: 10, fontSize: 13, borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
+            <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
               <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('dlg.attachments.col_title')}</th>
               <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.backup.size')}</th>
               <th style={{ textAlign: 'right', padding: '6px 8px' }}>{t('col.date')}</th>
@@ -169,8 +169,8 @@ export default function AttachmentsPanel({ entityType, entityId, readOnly = fals
                     {att.title || att.originalName}
                   </button>
                 </td>
-                <td style={{ padding: '6px 8px', color: '#6B7280' }}>{formatBytes(att.fileSize)}</td>
-                <td style={{ padding: '6px 8px', color: '#6B7280' }}>
+                <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>{formatBytes(att.fileSize)}</td>
+                <td style={{ padding: '6px 8px', color: 'var(--text-muted)' }}>
                   {formatDate(att.uploadedAt)}
                 </td>
                 <td style={{ padding: '6px 8px' }}>

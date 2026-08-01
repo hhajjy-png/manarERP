@@ -209,12 +209,12 @@ function ExpenseBreakdownTab() {
             <XAxis
               type="number"
               tickFormatter={(v: number) => formatCompact(v)}
-              tick={{ fontSize: 11 }}
+              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
             />
             <YAxis type="category" dataKey="name" tick={<ExpenseCategoryTick />} width={150} />
             <Tooltip
               formatter={(value) => [money(Number(value ?? 0)), t('msg.total')]}
-              contentStyle={{ fontFamily: 'inherit', fontSize: 12 }}
+              contentStyle={{ fontFamily: 'inherit', fontSize: 12, background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text)' }}
             />
             <Bar dataKey="total" radius={[0, 4, 4, 0]}>
               {chartData.map((_entry, index) => (

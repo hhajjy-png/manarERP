@@ -400,6 +400,10 @@
 .dicx-warn-badge.sev-info    { background: rgba(59, 130, 246, 0.12); color: #1d4ed8; }
 .dicx-warn-badge.sev-warning { background: rgba(245, 158, 11, 0.15); color: #b45309; }
 .dicx-warn-badge.sev-danger  { background: rgba(239, 68, 68, 0.13);  color: #b91c1c; }
+html[data-theme="dark"] .dicx-warn-count { color: var(--amber); }
+html[data-theme="dark"] .dicx-warn-badge.sev-info    { color: var(--blue-bright); }
+html[data-theme="dark"] .dicx-warn-badge.sev-warning { color: var(--amber); }
+html[data-theme="dark"] .dicx-warn-badge.sev-danger  { color: var(--red-bright); }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Smart Import Assistant (Phase 2) — mapping review + analytics UI
@@ -439,6 +443,9 @@
 .dicx-conf--ok    { background: rgba(16, 185, 129, 0.14); color: #047857; }
 .dicx-conf--maybe { background: rgba(245, 158, 11, 0.16); color: #b45309; }
 .dicx-conf--no    { background: rgba(239, 68, 68, 0.13);  color: #b91c1c; }
+html[data-theme="dark"] .dicx-conf--ok    { color: var(--green); }
+html[data-theme="dark"] .dicx-conf--maybe { color: var(--amber); }
+html[data-theme="dark"] .dicx-conf--no    { color: var(--red-bright); }
 .dicx-map-actions { display: flex; gap: 10px; flex-wrap: wrap; padding: 14px 4px 2px; }
 
 /* Analytics panel */
