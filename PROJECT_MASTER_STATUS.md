@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Project-Wide UI Visual Polish Pack v1), like the Visual Consistency Micro Polish
-> Pack v1 pass and the ones before it, refreshed the "Current Production State" table
+> below. This pass (Visual Consistency Pack — Invoice List Date Columns v1), like the Project-Wide UI Visual
+> Polish Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `a84475f6` — merge of `feature/project-wide-ui-visual-polish-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (merge commit `a84475f6`) | High |
-| **Previous stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (`ab0128a4`) | High |
+| **Current HEAD** | `631b94c1` — merge of `feature/invoice-list-collection-date-column-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-invoice-list-collection-date-column-v1` (merge commit `631b94c1`) | High |
+| **Previous stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (`a84475f6`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,59 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-project-wide-ui-visual-polish-pack-v1` (`a84475f6`, 2026-08-01)
+### Latest Release — `stable-invoice-list-collection-date-column-v1` (`631b94c1`, 2026-08-01)
+
+Invoice list presentation pass. 3 files, 34 insertions / 4 deletions: one
+backend read-model extension, one page, one i18n pair.
+
+The invoice list's `التاريخ` column became `تاريخ الفاتورة` (via a new
+dedicated key, leaving the shared `col.date` untouched so no other module
+shifted), and a new `تاريخ التحصيل` column was added immediately after it,
+showing the invoice's most recent payment date — fully paid and partially paid
+invoices alike, `—` when there are no payments.
+
+A backend change was unavoidable and is the minimum that satisfies the
+requirement:
+
+- **The list read model had no payment data at all.** `InvoicesService.list()`
+  returned invoice scalars plus `customer.name`/`supplier.name`; the invoice
+  drawer had always lazily fetched `/invoices/:id` to get payments. The column
+  could not be rendered from what the list already returned.
+- **Extension shape.** The *existing* `payments` relation is loaded with
+  `orderBy: { date: 'desc' }, take: 1` inside the *already-issued* `findMany`,
+  then flattened to a scalar `lastPaymentDate` — one relation load per page,
+  the same shape as the existing `customer`/`supplier` includes. No extra
+  query, no per-row query, no full payment history per row. Nothing is
+  calculated: `Payment.date` is the system's existing official collection
+  date, already written by the payment and correction flows.
+- **The truncated array is deliberately not returned.** `Invoices.tsx` treats
+  the presence of a `payments` array as proof a row is fully detailed and
+  skips its drawer enrichment on that basis, so a one-element array would have
+  hidden every payment but the newest in the drawer.
+- **API contract: additive only.** `GET /invoices` rows gain one nullable
+  field. Nothing removed, renamed, or retyped; the endpoint's other consumer
+  (`CustomerHub.tsx`) is unaffected.
+
+The new column is **intentionally not sortable** — a limit, not an omission.
+Latest collection date is a `MAX()` over a to-many relation, which Prisma
+`orderBy` cannot express (only `_count`), and frontend-only sorting would sort
+just the visible 15 rows, which `core/utils/sort.ts` explicitly forbids. It
+follows the precedent of `الجهة` and `المتبقي`, both derived and both
+non-sortable by design.
+
+Excel export gains the same column automatically, because the visible table
+and the export are built from one column array by design (Table/Excel Column
+Unification v1); export logic itself was not touched. Invoice creation,
+payments, GL posting, status transitions, governance, filters, stats,
+`GET /invoices/:id`, and reports are unchanged. Electron and
+Prisma/schema/migrations untouched — no migration was required, since the
+feature reads an existing column through an existing relation.
+
+Validation: backend + frontend `tsc --noEmit` clean on the feature branch and
+post-merge; backend `vitest run` 2236/2236 across 154 files; the 26 frontend
+test failures confirmed pre-existing by stash-and-rerun on the clean baseline.
+
+### Previous Release — `stable-project-wide-ui-visual-polish-pack-v1` (`a84475f6`, 2026-08-01)
 
 Project-wide visual consistency pass across button, chip, input and toolbar
 geometry. CSS only — 4 files, 79 insertions / 6 deletions, no `.tsx`/`.ts`

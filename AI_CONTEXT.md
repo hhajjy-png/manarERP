@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `a84475f6` (merge of `feature/project-wide-ui-visual-polish-pack-v1`, a project-wide visual consistency pass — two structural root causes: no baseline border reserved on `.btn`/`.xpl-chip` so bordered variants rendered 2px larger than borderless siblings, and Material Symbols icons never sized at button level so icon buttons rendered ~6px taller than text buttons; CSS only, 4 files, no `.tsx`/`.ts` changes) |
-| **Current Documentation Commit** | `f2c536f1` |
-| **Current Stable Tag** | `stable-project-wide-ui-visual-polish-pack-v1` |
+| **Current Merge Commit** | `631b94c1` (merge of `feature/invoice-list-collection-date-column-v1`, an invoice-list presentation pass — `التاريخ` renamed to `تاريخ الفاتورة` via a new dedicated key, plus a new `تاريخ التحصيل` column showing the invoice's most recent payment date, `—` when unpaid; 3 files, the only backend change being an additive `lastPaymentDate` on the list read model, loaded as `take: 1` on the existing payments relation inside the already-issued `findMany`; no schema or migration) |
+| **Current Documentation Commit** | `PENDING` |
+| **Current Stable Tag** | `stable-invoice-list-collection-date-column-v1` |
 | **Current Release Date** | 2026-08-01 |
-| **Total Stable Releases** | 396 (window 2026-06-07 → 2026-08-01) |
+| **Total Stable Releases** | 397 (window 2026-06-07 → 2026-08-01) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---

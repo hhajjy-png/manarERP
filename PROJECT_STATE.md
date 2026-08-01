@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `a84475f6` — release `stable-project-wide-ui-visual-polish-pack-v1` (project-wide visual consistency pass — two structural root causes: no baseline border reserved on `.btn`/`.xpl-chip`, and Material Symbols icons never sized at button level; CSS only) |
+| **Production HEAD** | `631b94c1` — release `stable-invoice-list-collection-date-column-v1` (invoice list gains a "تاريخ التحصيل" column beside a renamed "تاريخ الفاتورة"; presentation only, backed by a minimal additive read-model field) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (release date 2026-08-01) → merge `a84475f6` |
-| **Previous stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (2026-08-01) → merge `ab0128a4` |
-| **Total stable releases** | 396 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
-| **Latest validation** | Frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · `npm run build` ✅ (both passes; only the pre-existing >500kB chunk-size warning, unrelated) · `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** by stashing the changes and re-running to an identical 8/26 on the clean baseline; no test regressed · scope confirmed: exactly the 4 approved CSS files entered the release (`app/theme.css`, `components/explorer/explorer-kit.css`, `styles/financial.css`, `pages/BankAccountExplorer.css`), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded (staged file-by-file, not `git add -A`) and confirmed untouched after merge; no `.tsx`/`.ts` file changed; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `a84475f6` + tag `stable-project-wide-ui-visual-polish-pack-v1`) |
+| **Latest stable tag** | `stable-invoice-list-collection-date-column-v1` (release date 2026-08-01) → merge `631b94c1` |
+| **Previous stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (2026-08-01) → merge `a84475f6` |
+| **Total stable releases** | 397 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
+| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **2236/2236 passing across 154 files** (invoices module 160/160) · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** by stashing the two frontend files and re-running the same 8 files to an identical 8/26 on the clean baseline; no test regressed · scope confirmed: exactly 3 files entered the release (`backend/src/modules/invoices/invoices.service.ts`, `frontend/src/pages/Invoices.tsx`, `frontend/src/lib/i18n.ts`), with all in-flight Google Drive / cloud-sync WIP surgically excluded — including `i18n.ts`, which both changes touched and which was therefore staged by restoring the baseline, re-applying only the 4 approved lines, committing, then restoring the full working copy · Prisma/schema/migrations and Electron untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `631b94c1` + tag `stable-invoice-list-collection-date-column-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,41 @@ in a table cell.
 
 ---
 
-## Latest Release — Project-Wide UI Visual Polish Pack v1
+## Latest Release — Visual Consistency Pack — Invoice List Date Columns v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Visual Consistency Pack — Invoice List Date Columns v1 (invoice list presentation; 3 files — 1 backend read-model line-set, 1 page, 1 i18n) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-01 |
+| **Feature branch** | `feature/invoice-list-collection-date-column-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `dfe2f678` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's read-model investigation → implementation → Product-Owner-approved-release flow |
+| **Feature commit** | `ee56530` |
+| **Production merge commit** | `631b94c1` |
+| **Stable tag** | `stable-invoice-list-collection-date-column-v1` → merge `631b94c1` (annotated) |
+| **Reviews** | Read-model investigation before implementation (located the list query, confirmed payments were absent from it, and identified `Payment.date` as the existing collection date) → implementation → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend + frontend `tsc --noEmit` ✅ (feature branch and post-merge) · backend `vitest run` 2236/2236 across 154 files · frontend 8/26 failures confirmed pre-existing by stash-and-rerun against the clean baseline |
+
+**What changed.** The invoice list table's `التاريخ` column is now `تاريخ الفاتورة`, and a new `تاريخ التحصيل` column sits immediately after it showing the invoice's most recent payment date — for fully paid and partially paid invoices alike, and `—` when the invoice has no payments. Column order is now رقم الفاتورة → الجهة → نوع الفاتورة → الاتجاه → تاريخ الفاتورة → تاريخ التحصيل → الإجمالي → المسدّد → المتبقي → الحالة.
+
+**Why a backend change was unavoidable.** The invoice list read model (`InvoicesService.list()`) returned invoice scalars plus `customer.name`/`supplier.name` only — **payments were not in it at all**. The invoice drawer had always lazily fetched `/invoices/:id` to obtain them. The column therefore could not be rendered from data the list already had. The extension is the minimum that satisfies this: the **existing** `payments` relation is loaded with `orderBy: { date: 'desc' }, take: 1` inside the **already-issued** `findMany`, then flattened to a scalar `lastPaymentDate`. That is one relation load per page — the same shape as the existing `customer`/`supplier` includes — with no extra query, no per-row query, and no full payment history loaded per row. Nothing is calculated: `Payment.date` is the system's existing official collection date, the same field the payment and collection-date-correction flows already write.
+
+**Why the truncated array is not returned.** `Invoices.tsx` treats the presence of a `payments` array on a row as proof that the row is fully detailed, and skips its drawer enrichment fetch on that basis. Returning a one-element array would have silently hidden every payment but the newest in the drawer, so the service deliberately strips it and exposes only the scalar.
+
+**API contract:** additive only. `GET /invoices` rows gain one nullable field, `lastPaymentDate`. Nothing removed, renamed, or retyped. The other consumer of this endpoint (`CustomerHub.tsx`) is unaffected.
+
+**Why the new column is not sortable — a limit, not an omission.** Latest collection date is a `MAX()` over the to-many `payments` relation. Prisma's `orderBy` cannot express aggregates over to-many relations (only `_count`), so the server-side sort whitelist has no way to encode it; and sorting it in the frontend would sort only the visible 15 rows, which `core/utils/sort.ts` explicitly documents as misleading and forbids. Making it genuinely sortable would require raw SQL re-implementing every list filter — a duplicate query that was out of scope. The column therefore follows the precedent already set by `الجهة` and `المتبقي`, both derived and both non-sortable by design.
+
+**Reported at review, accepted:** the Excel export gains the same column automatically, because the visible table and the export are built from one column array by design (Table/Excel Column Unification v1). Export logic itself was not touched; the alternative — an opt-out flag — would reintroduce exactly the table/export drift that unification was built to prevent.
+
+**Not changed:** invoice creation, payments, GL posting, status transitions, invoice governance, filters, pagination, stats, `GET /invoices/:id`, reports (including the `/reports/*` invoices report), colors, spacing, typography, and design tokens. Electron and Prisma/schema/migrations untouched — no migration was required, because the feature reads an existing column through an existing relation.
+
+**Scope discipline:** the working tree at release time contained unrelated, unfinished Google Drive / cloud-sync work across ~12 files plus untracked paths. None of it belongs to this release. `frontend/src/lib/i18n.ts` was modified by **both** efforts, so it could not simply be `git add`-ed; it was staged by restoring the committed baseline, re-applying only the 4 approved key lines, committing, and then restoring the full working copy — leaving the cloud-sync i18n keys intact and unstaged in the working tree. All other WIP files were confirmed still present, unstaged, and unmodified after the merge.
+
+---
+
+## Previous Release — Project-Wide UI Visual Polish Pack v1
 
 | Field | Value |
 |-------|-------|
