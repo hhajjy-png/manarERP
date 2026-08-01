@@ -198,6 +198,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.inv.type': 'نوع الفاتورة',
     'col.inv.direction': 'الاتجاه',
     'col.inv.party': 'الجهة',
+    'col.inv.issue_date': 'تاريخ الفاتورة',
+    'col.inv.collection_date': 'تاريخ التحصيل',
     'col.inv.total': 'الإجمالي',
     'col.inv.paid': 'المسدّد',
 
@@ -4594,6 +4596,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'col.inv.type': 'Invoice Type',
     'col.inv.direction': 'Direction',
     'col.inv.party': 'Party',
+    'col.inv.issue_date': 'Invoice Date',
+    'col.inv.collection_date': 'Collection Date',
     'col.inv.total': 'Total',
     'col.inv.paid': 'Paid',
 
