@@ -249,6 +249,14 @@
 /* ════════════════════════════════════════════════════════════════════════════
    Chips & badges
    ════════════════════════════════════════════════════════════════════════════ */
+/* `border: 1px solid transparent` is the height baseline — the same contract
+   `.xpl-btn` uses below. Of the six tones underneath, only `--neutral` draws a
+   border, so with a borderless base a neutral chip rendered 2px taller and 2px
+   wider than the green / red / orange / blue / indigo chip beside it in the
+   same `.xpl-exec-chips` row. Reserving the 1px on the base makes every tone
+   the same box; `--neutral` now just colours a border that was already there.
+   `.xpl-id-chip` above already declares its border on the base — this brings
+   the tone chips in line with it. */
 .xpl-chip {
   display: inline-flex;
   align-items: center;
@@ -256,6 +264,7 @@
   font-size: 11.5px;
   font-weight: 700;
   padding: 3px 11px;
+  border: 1px solid transparent;
   border-radius: 999px;
   white-space: nowrap;
 }

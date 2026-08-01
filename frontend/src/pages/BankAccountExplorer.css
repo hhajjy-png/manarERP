@@ -379,9 +379,12 @@
 .bae-clear-btn:hover { color: var(--text); }
 .bae-clear-btn .material-symbols-outlined { font-size: 16px !important; }
 
+/* Radius was 8px here while its sibling filter control `.bae-amount-input` used
+   10px — two inputs one grid column apart in the same filter panel with
+   different corners. 10px is the house value (`.xpl-input`, `.field input`). */
 .bae-date-input {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 6px 10px;
   font-family: inherit;
   font-size: 13px;
@@ -393,8 +396,13 @@
 }
 .bae-date-input:focus { border-color: var(--primary); }
 
-.bae-reset-btn { font-size: 12px !important; height: 38px; }
-.bae-export-btn { height: 38px; }
+.bae-reset-btn { font-size: 12px !important; height: 40px; }
+/* 38px put this button 2px below the search field (40px) and the
+   clear-filters button (40px) it shares `.bae-filter-topline` with — a row
+   that centres its items, so the mismatch read as three different button
+   sizes. All four controls on that row are now 40px, the same height
+   `.xpl-btn` uses everywhere else in the app. */
+.bae-export-btn { height: 40px; }
 
 /* ── Timeline summary strip ──────────────────────────────────────────────────── */
 
@@ -756,14 +764,20 @@
   background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600;
 }
 
+/* `height` added so the amount range matches the date range beside it — both
+   are filter inputs in the same `.bae-filter-groups` grid, but this one was
+   sized only by its padding and came out ~3px shorter. */
 .bae-amount-input {
-  width: 110px; font: inherit; font-size: 13px;
+  width: 110px; height: 38px; font: inherit; font-size: 13px;
   padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px;
   background: var(--surface); color: var(--text);
 }
 .bae-amount-input:focus { border-color: var(--primary); outline: none; }
 
-.bae-icon-btn { display: inline-flex; align-items: center; justify-content: center; padding: 8px 10px; }
+/* Square icon button on `.bae-filter-topline` — sized by padding alone, so it
+   tracked whatever the icon font happened to be. Pinned to the row's 40px and
+   made square, matching `.xpl-btn--icon`. */
+.bae-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; }
 .bae-icon-btn .material-symbols-outlined { font-size: 18px !important; }
 
 /* ── Filter workspace — grouped layout ────────────────────────────────────── */

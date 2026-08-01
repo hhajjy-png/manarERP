@@ -193,6 +193,21 @@
 .export-btn.excel { color: #217346; }
 .export-btn.excel .material-symbols-outlined { color: #217346; }
 .export-btn.pdf   .material-symbols-outlined { color: #dc2626; }
+/* Only the icon *colour* was ever set here, so the icons kept the 24px default
+   from material-symbols/outlined.css and made each export button the tallest
+   control in `.fc-action-bar` — noticeably taller than the Load button and the
+   view toggles sitting beside it. 18px matches the size this file already uses
+   for the same icon font in `.fc-load-card-btn`. Colours untouched. */
+.export-btn .material-symbols-outlined { font-size: 18px; }
+
+/* One height for every control on the action bar. Each of the three was sized
+   purely by its own padding + font metrics (0.9rem vs 0.85rem, bordered vs
+   borderless), so they never landed on the same value even before the icon
+   issue above. `min-height` only lifts a short control to the shared baseline —
+   it can never clip one that needs to be taller. */
+.fc-action-bar .fc-load-btn,
+.fc-action-bar .fc-view-toggles,
+.fc-action-bar .export-btn { min-height: 36px; }
 
 /* ─── Summary cards ────────────────────────────────────────────────────────── */
 .financial-summary-cards {
