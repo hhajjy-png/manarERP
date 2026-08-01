@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-07-31 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-01 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Project-Wide i18n Placeholder Integrity Pack v1), like the Administrative Forms Preview UX
+> below. This pass (Dark Mode Color Consistency Pack v1), like the Project-Wide i18n Placeholder Integrity
 > Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `873c3c0` — merge of `feature/project-wide-i18n-placeholder-integrity-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (merge commit `873c3c0`) | High |
-| **Previous stable tag** | `stable-administrative-forms-preview-ux-v1` (`e645f303`) | High |
+| **Current HEAD** | `9b3c437b` — merge of `feature/dark-mode-color-consistency-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-dark-mode-color-consistency-pack-v1` (merge commit `9b3c437b`) | High |
+| **Previous stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (`873c3c0`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,47 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-project-wide-i18n-placeholder-integrity-v1` (`873c3c0`, 2026-07-31)
+### Latest Release — `stable-dark-mode-color-consistency-pack-v1` (`9b3c437b`, 2026-08-01)
+
+Project-wide audit and correction of dark-mode color contrast and theme-reactivity
+across the app — text/background/icon/badge/table/dropdown/popover colors only.
+Frontend-only, no backend/schema changes.
+
+- **Audit method:** static analysis of all 73 stylesheets and every `.tsx` inline
+  style, with WCAG relative-luminance contrast computed against the resolved
+  dark-mode token values. `print-templates/`, `forms/`, and deliberate
+  white-paper preview surfaces excluded as by-design.
+- **6 systemic root causes fixed:** missing `color-scheme: dark` + unstyled
+  placeholders; `--muted` undefined across ~90 call sites; shadcn `dark:`
+  utilities following the OS preference instead of the app's own toggle
+  (new Tailwind v4 `@custom-variant dark`); 3 files gated on
+  `@media (prefers-color-scheme: dark)` instead of `data-theme`; `--text-muted`
+  failing AA (4.07:1) on `--surface-2`, fixed by lightening the dark value only;
+  15 further undefined tokens aliased to existing ones.
+- **~50 leaf fixes** across AI Assistant, Data Import, Bank Reconciliation, Bank
+  Salary Analytics, Bank Account Explorer, Financial Center, Integrations,
+  Approval components, cheque template surfaces, print preview, and the
+  date-calendar popover — dark text on translucent tints, opaque badges that
+  never flipped, an OS-gated calendar hover, Recharts props missing dark fills.
+- **New tokens:** `--violet`/`--violet-light`, `--teal`/`--teal-light` — required
+  because the affected UI (transfer/fee badges, AI capability chips, PAID/PARTIAL
+  approval statuses) was already violet/teal in the approved design.
+- **Corrective follow-up:** a self-identified architecture gap — 4 colors used
+  ~26 times as repeated literals across 6 files — centralized into
+  `--blue-bright`/`--red-bright`/`--green-bright`/`--amber-bright`. Values
+  unchanged; architecture only.
+- **Not changed:** any color value beyond the above, layout, spacing,
+  typography, component hierarchy, business logic, backend, Electron,
+  Prisma/schema/migrations.
+- **Deferred (self-disclosed, logged not fixed):** one further undocumented
+  `var(--primary)`-on-dark instance in `ResultCard.css`, and the same
+  light-island badge pattern recurring at additional un-cited lines in
+  `BankStatementImport.tsx`/`AttachmentsPanel.tsx`.
+- **Validation:** frontend `tsc --noEmit` clean (feature branch and post-merge)
+  · `npm run build` succeeds both passes (only the pre-existing >500kB
+  chunk-size warning, unrelated).
+
+### Previous Release — `stable-project-wide-i18n-placeholder-integrity-v1` (`873c3c0`, 2026-07-31)
 
 Project-wide AST-based audit of every `t()`/`translate()` call site in the frontend
 against the AR/EN `lib/i18n.ts` dictionaries, proving each call supplies every

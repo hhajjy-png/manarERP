@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `873c3c0` — release `stable-project-wide-i18n-placeholder-integrity-v1` (project-wide AST-based audit of i18n placeholder contracts; fixes 10 confirmed caller/translation placeholder-name mismatches and adds a permanent regression guard) |
+| **Production HEAD** | `9b3c437b` — release `stable-dark-mode-color-consistency-pack-v1` (project-wide audit and correction of dark-mode color contrast and theme-reactivity — 6 systemic root causes plus ~50 individual leaf fixes; presentation only) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (release date 2026-07-31) → merge `873c3c0` |
-| **Previous stable tag** | `stable-administrative-forms-preview-ux-v1` (2026-07-31) → merge `e645f303` |
-| **Total stable releases** | 393 (all merged onto `production`; window 2026-06-07 → 2026-07-31) |
-| **Latest validation** | New permanent guard `i18nPlaceholderIntegrity.test.ts` — 32/32 passing · focused affected suites (`expensesPeriodCardLabels`, `formsTranslationKeyCompleteness`, `administrativeFormsEnglishTranslation`) — 99/99 passing · independent project-wide re-audit after fixes: AR/EN placeholder parity mismatches 0, missing-required-placeholder findings 0, unknown-key findings 0 · frontend `tsc --noEmit` ✅ · scope confirmed: exactly the 5 approved files entered the release (3 modified callers + 2 new test files), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded and confirmed untouched after merge; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · 2 pre-existing baseline failures (`formsRegistryTranslationAudit.test.ts`, `currencyHeaderCompleteness.test.ts`) proven unrelated (identical failures reproduced against pristine HEAD) and deliberately left untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `873c3c0` + tag `stable-project-wide-i18n-placeholder-integrity-v1`) |
+| **Latest stable tag** | `stable-dark-mode-color-consistency-pack-v1` (release date 2026-08-01) → merge `9b3c437b` |
+| **Previous stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (2026-07-31) → merge `873c3c0` |
+| **Total stable releases** | 394 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
+| **Latest validation** | Frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · `npm run build` ✅ (both passes; only the pre-existing >500kB chunk-size warning, unrelated) · every replacement color selected by computed WCAG relative-luminance contrast against the actual dark-mode background, not by inspection · scope confirmed: exactly the 31 approved `frontend/src/**` files entered the release, with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded (staged file-by-file, not `git add -A`) and confirmed untouched after merge; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `9b3c437b` + tag `stable-dark-mode-color-consistency-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,45 @@ in a table cell.
 
 ---
 
-## Latest Release — Project-Wide i18n Placeholder Integrity Pack v1
+## Latest Release — Dark Mode Color Consistency Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Dark Mode Color Consistency Pack v1 (project-wide audit and correction of dark-mode color contrast and theme-reactivity — text/background/icon/badge/table/dropdown/popover colors only) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-01 |
+| **Feature branch** | `feature/dark-mode-color-consistency-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `4dd5739d` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's audit → implementation → corrective follow-up → token-consolidation follow-up → Product-Owner-approved-release flow |
+| **Feature commit** | `6e6b401d` |
+| **Production merge commit** | `9b3c437b` |
+| **Stable tag** | `stable-dark-mode-color-consistency-pack-v1` → merge `9b3c437b` (annotated) |
+| **Reviews** | Static audit of all 73 stylesheets + every `.tsx` inline style (WCAG relative-luminance contrast computed against resolved dark-mode token values) → written audit report with severity/location/root-cause classification → IMPLEMENTATION (systemic fixes + ~50 leaf fixes) → design-token-architecture Q&A (self-identified 4 recurring hard-coded colors) → token-consolidation corrective pass → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge) · `npm run build` ✅ (both passes) |
+
+**Root causes fixed (systemic):**
+- No `color-scheme: dark` on the dark root — native `<select>` popups and unstyled `input`/`textarea` placeholders rendered with light-mode chrome regardless of the app's theme. Added `color-scheme: dark` plus a global `::placeholder` rule reading `var(--text-muted)`.
+- `--muted` referenced in ~90 declarations across `BankAccountExplorer.css`, `BankAccounts.tsx`, `TransactionIntelligencePanel.css`, `KpiStat.css`, `Salaries.css` and 4 Recharts `fill` props, but never declared — every one of those declarations silently dropped instead of following the theme. Aliased to `var(--text-muted)`.
+- shadcn's `dark:` utilities (`ui/button.tsx`, `ui/calendar.tsx`) resolved via the OS `prefers-color-scheme` instead of this app's own `data-theme` toggle. Added a Tailwind v4 `@custom-variant dark` repointing it at `[data-theme="dark"]`.
+- 3 files (`PrintCenter.css`, `BankSalaryAnalytics.css`, `calibrator-studio.css`) gated dark styling on `@media (prefers-color-scheme: dark)` instead of the in-app toggle, desyncing from the app's own theme state. Converted to `html[data-theme="dark"]`.
+- `--text-muted` measured 4.07:1 (below WCAG AA 4.5:1) against `--surface-2` in dark mode — every table header and `.pill.gray` inherited the failure. Lightened the dark value from `#94a3b8` to `#a3b3c7` (4.85:1); light mode unchanged.
+- 15 further undefined CSS variables (`--surface2`, `--bg-alt`, `--bg-subtle`, `--bg-card`, `--bg-header`, `--text-primary`, `--text-secondary`, `--color-brand`, `--success`, `--warning`, `--danger`, `--color-danger`, `--yellow-light`, `--amber-bg`, `--xpl-amber`) aliased to existing tokens — resolves every silently-broken call site without editing the component that reads it (`PayrollBankImport.tsx` needed zero direct edits).
+
+**~50 leaf fixes** across `ai/ResultCard.css`, `pages/DataImport.css`, `pages/BankReconciliation.css`, `pages/BankSalaryAnalytics.css`, `pages/BankAccountExplorer.css`, `styles/financial.css`, `pages/Integrations.css`, `components/approval/*`, cheque template surfaces (`chequeTemplateManager.css`, `chequeTemplateDesigner.css`, `chequeStudioOverlay.css`, `chequeTemplatePrintPage.css`), `components/AttachmentsPanel.tsx`, `pages/BankStatementImport.tsx`, `pages/PayrollBankImport.tsx`, `pages/AIAssistant.css`, `pages/TransactionIntelligencePanel.css`, `styles/stitch-full.css`, `components/DateCalendarPicker.css`, `pages/FinancialOperationsDashboard.tsx` — dark text on translucent/theme-reactive tint backgrounds, opaque light badge surfaces that never flipped, an OS-preference-gated calendar day-hover using a foreign shadcn gray instead of the app's own surface-hover token, and Recharts axis/tooltip props missing a dark-aware `fill`/`background`.
+
+**New semantic tokens:** `--violet`/`--violet-light` and `--teal`/`--teal-light`, added to the existing `--green`/`--red`/`--amber`/`--blue` (+`-light`) token family. Required because the affected UI — transfer/fee badges, AI capability chips, the `PAID`/`PARTIAL` approval statuses — was already violet/teal in the approved design; remapping to an existing hue would have changed what those elements visually mean, which was out of scope.
+
+**Corrective follow-up (token consolidation):** a self-identified architecture gap — 4 colors (`#60a5fa`, `#f87171`, `#34d399`, `#fde68a`, used ~26 times across 6 files as brightened dark-mode text on translucent tint backgrounds) were left as repeated literals instead of tokens during the leaf-fix pass. Centralized into `--blue-bright`/`--red-bright`/`--green-bright`/`--amber-bright` (dark-root-only — every consuming rule is already gated under `html[data-theme="dark"]`). Values byte-identical to before; architecture-only, re-verified with `tsc`/build after the swap.
+
+**Not changed:** any color value beyond the ones listed above, layout, spacing, typography, component hierarchy, business logic, routing, APIs, backend, Electron, Prisma/schema/migrations. `print-templates/`, `forms/`, and deliberate white-paper preview surfaces (invoice/payslip/report previews) were excluded from the audit as by-design light surfaces, not touched.
+
+**Deferred, logged but not fixed (self-disclosed, out of the approved scope):** `.ai-rc-meta-chip--generation` in `ResultCard.css` (`var(--primary)` resolves near-black in dark mode); the same light-island badge pattern repeats at additional un-cited lines in `BankStatementImport.tsx` (dedup chips, success dialog, row highlighting) and `AttachmentsPanel.tsx` (row border, two link colors) beyond the lines explicitly fixed. `chequeTemplateDesigner.css`'s `.ctd-field-text { color: #000 }` was investigated and confirmed **not** a defect — it renders on the cheque's always-white paper canvas image, matching the print-template exclusion.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Project-Wide i18n Placeholder Integrity Pack v1
 
 | Field | Value |
 |-------|-------|

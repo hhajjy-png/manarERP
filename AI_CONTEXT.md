@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `873c3c0` (merge of `feature/project-wide-i18n-placeholder-integrity-v1`, a project-wide AST-based audit of i18n placeholder contracts fixing 10 confirmed caller/translation placeholder-name mismatches and adding a permanent regression guard) |
-| **Current Documentation Commit** | `50fc707` |
-| **Current Stable Tag** | `stable-project-wide-i18n-placeholder-integrity-v1` |
-| **Current Release Date** | 2026-07-31 |
-| **Total Stable Releases** | 393 (window 2026-06-07 → 2026-07-31) |
+| **Current Merge Commit** | `9b3c437b` (merge of `feature/dark-mode-color-consistency-pack-v1`, a project-wide audit and correction of dark-mode color contrast and theme-reactivity — 6 systemic root causes plus ~50 leaf fixes, presentation only) |
+| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Stable Tag** | `stable-dark-mode-color-consistency-pack-v1` |
+| **Current Release Date** | 2026-08-01 |
+| **Total Stable Releases** | 394 (window 2026-06-07 → 2026-08-01) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
