@@ -353,6 +353,41 @@ export function buildStyles(
       unicode-bidi: isolate;
     }
 
+    /* ── Analytical Sections (opt-in via ReportInput.sections) ──
+       العنوان لا يُترك وحيدًا في ذيل الصفحة: \`break-after: avoid\` يُبقيه ملتصقًا
+       بأول صفوف جدوله. القسم نفسه **لا** يمنع الانقسام — قد يتجاوز الصفحة الواحدة
+       (مصفوفة بعشرات التصنيفات)، ومنع انقسامه يدفعه كاملًا لصفحة تالية فيترك فراغًا. */
+    .report-analysis {
+      margin-top: 16px;
+    }
+
+    .report-analysis-title {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: ${primary};
+      margin: 0 0 4px 0;
+      padding-bottom: 3px;
+      border-bottom: 1.5px solid ${primary}33;
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    .report-analysis-note {
+      font-size: 8.5px;
+      font-weight: 400;
+      color: #64748b;
+      margin: 0 0 5px 0;
+      page-break-after: avoid;
+      break-after: avoid;
+    }
+
+    /* المصفوفة الشهرية تصل إلى 14 عمودًا — خطّ أصغر قليلًا كي تسع عرض الورقة
+       بلا اقتطاع، مع إبقاء أرقامها على نفس محاذاة الأرقام المعتمدة. */
+    .report-analysis table { font-size: 8.5px; }
+    .report-analysis thead th { font-size: 9px; padding: 5px 5px; }
+    .report-analysis tbody td { font-size: 8.5px; padding: 4px 5px; }
+    .report-analysis tr.totals td { font-size: 9px; padding: 5px 5px; }
+
     /* ── Notes ── */
     .report-notes {
       margin-top: 14px;
@@ -429,6 +464,8 @@ export function buildStyles(
 
     .card-label { font-size: 9.5px; color: #6b7280; margin-bottom: 4px; }
     .card-value { font-size: 14px; font-weight: 700; color: #111827; }
+    .card-hint  { font-size: 9px; font-weight: 600; color: #475569; margin-top: 3px;
+                  font-variant-numeric: tabular-nums; direction: ltr; unicode-bidi: isolate; text-align: right; }
 
     /* ── Profile density + logo sizing ── */
     table td, table th { padding: ${resolveTablePadding(p.tableDensity)}; }

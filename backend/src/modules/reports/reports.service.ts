@@ -9,6 +9,7 @@ import { translateInvoiceStatusAr, translateChequeStatusAr } from '../../shared/
 // see the `cheques()` report below for why this is imported rather than re-derived.
 import { buildChequeFilterWhere, CHEQUES_REPORT_ORDER } from '../cheques/cheques.service';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
+import { buildExpenseAnalysis } from './expenseAnalysis';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
@@ -246,9 +247,32 @@ export class ReportsService {
       },
     });
     const total = round3(rows.reduce((s, e) => s + num(e.amount), 0));
+    /**
+     * Expense Analysis Report Enhancement Pack v1 — الطبقة التحليلية.
+     *
+     * تُشتق من **نفس** `rows` أعلاه: لا استعلام إضافي، ولا تجميع مكرَّر، ولا احتمال
+     * أن تتجاهل فلترًا نشطًا (لا يوجد مسار بيانات ثانٍ أصلًا). و`total` يُمرَّر بقيمته
+     * لا بإعادة حسابه، فإجمالي كل قسم هو إجمالي التقرير حرفيًا.
+     *
+     * مجموعة فارغة ⇒ لا مؤشرات ولا أقسام: التقرير يبقى كما كان قبل الحزمة تمامًا.
+     */
+    const analysis = rows.length > 0
+      ? buildExpenseAnalysis(
+          rows.map((e) => ({
+            date: e.date,
+            categoryLabel: expenseCategoryAr(e.category),
+            amount: num(e.amount),
+            code: e.code,
+            description: e.description,
+          })),
+          total,
+        )
+      : undefined;
     return {
       title: 'تقرير المصروفات',
       subtitle: `العدد: ${rows.length} — الإجمالي: ${formatCurrency(total)}`,
+      kpis: analysis?.kpis,
+      sections: analysis?.sections,
       columns: [
         { header: 'الرقم', key: 'code', width: 16 },
         { header: 'التصنيف', key: 'category', width: 18 },

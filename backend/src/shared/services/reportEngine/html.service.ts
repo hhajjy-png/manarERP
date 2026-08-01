@@ -10,7 +10,10 @@ import { buildPageFooterHtml } from './footer.template';
 import { buildTable } from './table.template';
 import { buildWatermark } from './watermark.template';
 import { buildSummaryTable } from './summaryTable.template';
-import { esc } from './htmlUtils';
+import { buildSummaryCards } from './summary.template';
+import { buildReportSections } from './sections.template';
+import { esc, fmtCell } from './htmlUtils';
+import { formatCurrency } from '../../utils/currency';
 import { buildEmbeddedFontFaceCss } from './fonts';
 
 /** Scales a "<n>px" width string by `factor`, rounding to one decimal place. */
@@ -66,6 +69,24 @@ export function buildReportHtml(input: ReportInput, options?: ReportOptions): st
   const summaryTableHtml = options?.summaryTable
     ? buildSummaryTable(options.summaryTable.columns, options.summaryTable.rows)
     : '';
+  // بطاقات المؤشرات أعلى التقرير (قبل الجدول) — تعيد استخدام بطاقات الملخّص القائمة
+  // بأنماطها كما هي، فلا لغة بصرية جديدة. الأقسام التحليلية تأتي بعد الجدول الرئيسي.
+  //
+  // البطاقة بلا عنوان عمود يحمل الرمز، فالرمز يُكتب داخلها («1,200.125 KWD») — عكس
+  // خلايا الجداول حيث الرمز في الرأس مرّة واحدة.
+  const kpiCell = (value: unknown, format?: 'currency'): string =>
+    format === 'currency' ? formatCurrency(value) : fmtCell(value);
+  const kpiCardsHtml = input.kpis?.length
+    ? buildSummaryCards(
+        input.kpis.map((k) => ({
+          label: k.label,
+          value: kpiCell(k.value, k.format),
+          hint: k.hint !== undefined && k.hint !== '' ? kpiCell(k.hint, k.hintFormat) : undefined,
+          color: k.color,
+        })),
+      )
+    : '';
+  const sectionsHtml = input.sections?.length ? buildReportSections(input.sections) : '';
   const footerHtml   = buildPageFooterHtml(options?.branding, options);
   const bodyClass    = options?.invoiceReportLayout ? ' class="invoice-report-compact"' : '';
 
@@ -98,8 +119,10 @@ export function buildReportHtml(input: ReportInput, options?: ReportOptions): st
   ${watermark}
   ${brandingHdr}
   ${reportHdr}
+  ${kpiCardsHtml}
   ${table}
   ${summaryTableHtml}
+  ${sectionsHtml}
   ${notesSection}
   ${signatureArea}
   ${footerHtml}
