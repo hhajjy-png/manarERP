@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `631b94c1` (merge of `feature/invoice-list-collection-date-column-v1`, an invoice-list presentation pass — `التاريخ` renamed to `تاريخ الفاتورة` via a new dedicated key, plus a new `تاريخ التحصيل` column showing the invoice's most recent payment date, `—` when unpaid; 3 files, the only backend change being an additive `lastPaymentDate` on the list read model, loaded as `take: 1` on the existing payments relation inside the already-issued `findMany`; no schema or migration) |
-| **Current Documentation Commit** | `PENDING` |
+| **Current Documentation Commit** | `c94beca` |
 | **Current Stable Tag** | `stable-invoice-list-collection-date-column-v1` |
 | **Current Release Date** | 2026-08-01 |
 | **Total Stable Releases** | 397 (window 2026-06-07 → 2026-08-01) |
