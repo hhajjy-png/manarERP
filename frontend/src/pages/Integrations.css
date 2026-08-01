@@ -641,6 +641,7 @@
   margin-bottom: 14px;
   border: 1px solid var(--amber);
 }
+html[data-theme="dark"] .ic-warn-box { color: var(--amber); }
 
 .ic-result-box {
   padding: 14px 16px;

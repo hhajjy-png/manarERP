@@ -255,6 +255,8 @@
 
 .ctd-root .ctd-pill.green { background: #dcfce7; color: #166534; }
 .ctd-root .ctd-pill.gray { background: #e2e8f0; color: #475569; }
+html[data-theme="dark"] .ctd-root .ctd-pill.green { background: var(--green-light); color: var(--green); }
+html[data-theme="dark"] .ctd-root .ctd-pill.gray  { background: var(--surface-2); color: var(--text-muted); }
 
 .ctd-root .ctd-btn {
   padding: 6px 12px;

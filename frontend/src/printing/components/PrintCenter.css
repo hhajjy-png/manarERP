@@ -194,9 +194,7 @@
      page always reads as paper rather than as a lit surface. */
   background: #64748b;
 }
-@media (prefers-color-scheme: dark) {
-  .pc-body { background: #334155; }
-}
+html[data-theme="dark"] .pc-body { background: #334155; }
 
 .pc-preview-scroll {
   flex: 1;
@@ -330,13 +328,11 @@
   background-color: #f1f5f9 !important;
   opacity: 1; /* لا نعتمد على الشفافية وحدها — تنتج نصًا باهتًا غير مقروء */
 }
-@media (prefers-color-scheme: dark) {
-  .pc-select { color: #f1f5f9 !important; background-color: #1e293b !important; }
-  .pc-select option { color: #f1f5f9 !important; background-color: #1e293b !important; }
-  .pc-select option:checked,
-  .pc-select option:hover { color: #ffffff !important; background-color: #4f46e5 !important; }
-  .pc-select:disabled { color: #94a3b8 !important; background-color: #0f172a !important; }
-}
+html[data-theme="dark"] .pc-select { color: #f1f5f9 !important; background-color: #1e293b !important; }
+html[data-theme="dark"] .pc-select option { color: #f1f5f9 !important; background-color: #1e293b !important; }
+html[data-theme="dark"] .pc-select option:checked,
+html[data-theme="dark"] .pc-select option:hover { color: #ffffff !important; background-color: #4f46e5 !important; }
+html[data-theme="dark"] .pc-select:disabled { color: #94a3b8 !important; background-color: #0f172a !important; }
 
 .pc-pages {
   font-size: 13px;
@@ -407,9 +403,7 @@
 }
 @media (max-width: 1200px) { .pc-canvas { padding: 48px; } }
 @media (max-width: 900px)  { .pc-canvas { padding: 40px; } }
-@media (prefers-color-scheme: dark) {
-  .pc-canvas { background: var(--xpl-preview-bg, #334155); }
-}
+html[data-theme="dark"] .pc-canvas { background: var(--xpl-preview-bg, #334155); }
 
 /* ── الورقة: بيضاء دائمًا، حدّ خفيف وظل هادئ ─────────────────────────────────
    صندوق **مقيس فعلًا**: عرضه وارتفاعه = مقاس A4 × النسبة. لا يعتمد على أثر

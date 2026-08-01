@@ -85,3 +85,6 @@
 .chp-issue--error { color: #dc2626; }
 .chp-issue--warning { color: #b45309; }
 .chp-issue--info { color: #64748b; }
+html[data-theme="dark"] .chp-issue--error   { color: var(--red); }
+html[data-theme="dark"] .chp-issue--warning { color: var(--amber); }
+html[data-theme="dark"] .chp-issue--info    { color: var(--text-muted); }

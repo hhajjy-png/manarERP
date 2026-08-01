@@ -11,6 +11,7 @@
   gap: 16px;
   padding: 16px;
 }
+html[data-theme="dark"] .ctpp-root { background: var(--bg); }
 
 .ctpp-chrome {
   display: flex;
@@ -76,6 +77,7 @@
   background: #fef3c7;
   color: #92400e;
 }
+html[data-theme="dark"] .ctpp-testprint { background: var(--amber-light); color: var(--amber); }
 
 .ctpp-template-name .material-symbols-outlined,
 .ctpp-testprint .material-symbols-outlined {

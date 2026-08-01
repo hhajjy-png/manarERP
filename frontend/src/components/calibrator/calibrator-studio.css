@@ -141,6 +141,4 @@
 .chq-geom__grid input { padding: 7px 9px; border-radius: 8px; border: 1px solid var(--xpl-border); background: var(--xpl-surface); color: var(--xpl-text); font-family: var(--app-font-mono); font-size: 13px; }
 .chq-geom__foot { display: flex; gap: 8px; padding: 0 12px 12px; }
 
-@media (prefers-color-scheme: dark) {
-  .chq-ghost { border-color: rgba(129,140,248,.95); background: rgba(129,140,248,.10); }
-}
+html[data-theme="dark"] .chq-ghost { border-color: rgba(129,140,248,.95); background: rgba(129,140,248,.10); }

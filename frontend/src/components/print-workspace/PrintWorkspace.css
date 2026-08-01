@@ -296,6 +296,7 @@
   font-weight: 700;
   color: #15803d;
 }
+html[data-theme="dark"] .print-workspace .pw-ready-box .pw-ready-title { color: var(--green); }
 
 .print-workspace .pw-ready-box .pw-ready-sub {
   font-size: 11px;

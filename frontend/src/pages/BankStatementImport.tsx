@@ -420,7 +420,7 @@ export default function BankStatementImport() {
 
         {/* Error */}
         {error && (
-          <div className="card panel" style={{ marginBottom: 16, background: '#FEF2F2', borderColor: '#FECACA', color: '#B91C1C', padding: '12px 16px', fontSize: 13 }}>
+          <div className="card panel" style={{ marginBottom: 16, background: 'var(--red-light)', borderColor: 'var(--red)', color: 'var(--red)', padding: '12px 16px', fontSize: 13 }}>
             <span style={{ fontWeight: 600 }}>{t('msg.error')}: </span>{error}
           </div>
         )}
@@ -490,7 +490,7 @@ export default function BankStatementImport() {
             </div>
 
             {parsedRows.length === 0 && (
-              <div style={{ padding: '12px 16px', background: '#FEF9C3', borderRadius: 8, fontSize: 13, color: '#78350F', border: '1px solid #FDE68A' }}>
+              <div style={{ padding: '12px 16px', background: 'var(--amber-light)', borderRadius: 8, fontSize: 13, color: 'var(--amber)', border: '1px solid var(--amber)' }}>
                 {t('bank.import.detect.no_transactions_found')}
               </div>
             )}
@@ -597,7 +597,7 @@ export default function BankStatementImport() {
             )}
 
             {!preview.canImport && (
-              <div className="card panel" style={{ background: '#FEF2F2', borderColor: '#FECACA', color: '#B91C1C', fontSize: 13, padding: '12px 16px' }}>
+              <div className="card panel" style={{ background: 'var(--red-light)', borderColor: 'var(--red)', color: 'var(--red)', fontSize: 13, padding: '12px 16px' }}>
                 {t('bank.import.cannot_import_msg', { count: preview.invalid })}
               </div>
             )}
@@ -629,12 +629,12 @@ export default function BankStatementImport() {
                         <td style={{ padding: '6px 10px', color: '#22C55E', fontWeight: row.credit > 0 ? 600 : 400 }}>{row.credit > 0 ? fmtAmount(row.credit) : ''}</td>
                         <td style={{ padding: '6px 10px', whiteSpace: 'nowrap' }}>
                           {row.errors.length > 0
-                            ? <span style={{ padding: '2px 8px', background: '#FEE2E2', color: '#B91C1C', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{t('msg.error')}</span>
+                            ? <span style={{ padding: '2px 8px', background: 'var(--red-light)', color: 'var(--red)', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{t('msg.error')}</span>
                             : row.warnings.length > 0
-                            ? <span style={{ padding: '2px 8px', background: '#FEF9C3', color: '#92400E', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{t('bank.import.row.warning_badge')}</span>
-                            : <span style={{ padding: '2px 8px', background: '#DCFCE7', color: '#166534', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{t('import.status.valid')}</span>}
-                          {row.isBankFee && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: '#EDE9FE', color: '#5B21B6', borderRadius: 12, fontSize: 11 }}>{t('bank.import.row.fee_badge')}</span>}
-                          {!row.isBankFee && categoryLabel && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: '#F0F9FF', color: '#0369A1', borderRadius: 12, fontSize: 11 }}>{categoryLabel}</span>}
+                            ? <span style={{ padding: '2px 8px', background: 'var(--amber-light)', color: 'var(--amber)', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{t('bank.import.row.warning_badge')}</span>
+                            : <span style={{ padding: '2px 8px', background: 'var(--green-light)', color: 'var(--green)', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{t('import.status.valid')}</span>}
+                          {row.isBankFee && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: 'var(--violet-light)', color: 'var(--violet)', borderRadius: 12, fontSize: 11 }}>{t('bank.import.row.fee_badge')}</span>}
+                          {!row.isBankFee && categoryLabel && <span style={{ marginInlineStart: 4, padding: '2px 8px', background: 'var(--blue-light)', color: 'var(--blue)', borderRadius: 12, fontSize: 11 }}>{categoryLabel}</span>}
                         </td>
                         <td style={{ padding: '6px 10px', fontSize: 11, color: '#78350F', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={reason}>
                           {reason || '—'}
@@ -669,9 +669,9 @@ export default function BankStatementImport() {
         {/* ── Step: Confirm ── */}
         {step === 'confirm' && preview && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="card panel" style={{ background: '#FFFBEB', borderColor: '#FDE68A', padding: '20px 24px' }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700, color: '#92400E', marginBottom: 8 }}>{t('bank.import.confirm_import')}</h2>
-              <p style={{ fontSize: 13, color: '#78350F' }}>
+            <div className="card panel" style={{ background: 'var(--amber-light)', borderColor: 'var(--amber)', padding: '20px 24px' }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: 'var(--amber)', marginBottom: 8 }}>{t('bank.import.confirm_import')}</h2>
+              <p style={{ fontSize: 13, color: 'var(--amber)' }}>
                 {t('bank.import.confirm.will_import_prefix')} <strong>{preview.totalRows}</strong> {t('bank.import.confirm.bank_transactions_from')}{' '}
                 <strong>{bankLabelFor(preview.bankName, t)}</strong>.{' '}
                 {t('bank.import.confirm.irreversible_notice')}

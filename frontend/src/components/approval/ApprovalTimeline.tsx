@@ -40,7 +40,7 @@ export default function ApprovalTimeline({ history }: Props) {
 
   if (history.length === 0) {
     return (
-      <div style={{ color: '#9ca3af', fontSize: '0.85rem', padding: '12px 0', textAlign: 'center' }}>
+      <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', padding: '12px 0', textAlign: 'center' }}>
         {t('timeline.empty')}
       </div>
     );
@@ -54,12 +54,12 @@ export default function ApprovalTimeline({ history }: Props) {
           <div
             style={{
               width: 28, height: 28, borderRadius: '50%',
-              background: entry.action === 'approve' || entry.action === 'pay' ? '#dcfce7'
-                        : entry.action === 'reject'  ? '#fee2e2'
-                        : '#f3f4f6',
-              color: entry.action === 'approve' || entry.action === 'pay' ? '#16a34a'
-                   : entry.action === 'reject'  ? '#dc2626'
-                   : '#6b7280',
+              background: entry.action === 'approve' || entry.action === 'pay' ? 'var(--green-light)'
+                        : entry.action === 'reject'  ? 'var(--red-light)'
+                        : 'var(--surface-2)',
+              color: entry.action === 'approve' || entry.action === 'pay' ? 'var(--green)'
+                   : entry.action === 'reject'  ? 'var(--red)'
+                   : 'var(--text-muted)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '0.75rem', fontWeight: 700, flexShrink: 0, marginTop: 2,
             }}
@@ -70,22 +70,22 @@ export default function ApprovalTimeline({ history }: Props) {
           {/* Content */}
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#374151' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text)' }}>
                 {entry.user?.fullName ?? t('timeline.system_user')}
               </span>
-              <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 {ACTION_LABEL_KEYS[entry.action] ? t(ACTION_LABEL_KEYS[entry.action]) : entry.action}
               </span>
               <ApprovalBadge status={entry.fromStatus} />
-              <span style={{ color: '#9ca3af', fontSize: '0.75rem' }}>←</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>←</span>
               <ApprovalBadge status={entry.toStatus} />
-              <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginRight: 'auto' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginRight: 'auto' }}>
                 {formatRelativeTime(entry.createdAt, t)}
               </span>
             </div>
 
             {entry.comment && (
-              <div style={{ marginTop: 4, fontSize: '0.8rem', color: '#4b5563', paddingRight: 4 }}>
+              <div style={{ marginTop: 4, fontSize: '0.8rem', color: 'var(--text-muted)', paddingRight: 4 }}>
                 "{entry.comment}"
               </div>
             )}

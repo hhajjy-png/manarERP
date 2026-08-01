@@ -121,6 +121,8 @@
 
 .ctm-badge--default { background: #fef3c7; color: #92400e; }
 .ctm-badge--dirty { background: #e0e7ff; color: #3730a3; }
+html[data-theme="dark"] .ctm-badge--default { background: var(--amber-light); color: var(--amber); }
+html[data-theme="dark"] .ctm-badge--dirty   { background: var(--violet-light); color: var(--violet); }
 
 .ctm-msg {
   font-size: 12px;

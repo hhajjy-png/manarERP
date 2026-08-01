@@ -1088,6 +1088,7 @@ html[data-theme="dark"] .bae-tab-bar--nav .bae-tab-btn.active .bae-tab-icon { co
 .bae-tx-badge--fee        { color: var(--orange, #f59e0b); background: rgba(245,158,11,.12); }
 .bae-tx-badge--cheque     { color: #3b82f6;                background: rgba(59,130,246,.10); }
 .bae-tx-badge--transfer   { color: #7c3aed;                background: rgba(124,58,237,.10); }
+html[data-theme="dark"] .bae-tx-badge--transfer { color: var(--violet); }
 
 /* ── Timeline table — source cell, chevron, column polish ─────────────────── */
 .bae-col-source { width: 150px; }
@@ -1313,6 +1314,7 @@ html[data-theme="dark"] .bae-tab-bar--nav .bae-tab-btn.active .bae-tab-icon { co
 .bae-tx-icon--fee        { background: rgba(245,158,11,.14); color: var(--orange, #f59e0b); }
 .bae-tx-icon--cheque     { background: rgba(59,130,246,.12); color: #3b82f6; }
 .bae-tx-icon--transfer   { background: rgba(124,58,237,.12); color: #7c3aed; }
+html[data-theme="dark"] .bae-tx-icon--transfer { color: var(--violet); }
 
 /* Description column */
 .bae-col-desc-main { width: 320px; }

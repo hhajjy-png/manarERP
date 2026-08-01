@@ -9,6 +9,16 @@
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 
+/* Dark Mode Color Consistency Pack v1 — Tailwind's default `dark:` variant
+   resolves via `@media (prefers-color-scheme: dark)` (the OS preference)
+   unless told otherwise. This app's dark mode is a manual, in-app toggle
+   (`html[data-theme="dark"]`, set by uiStore.ts — see the `--sh-*` token
+   block below), not the OS preference. Without this override, `dark:`
+   utilities used by vendor components (ui/button.tsx, ui/calendar.tsx) stay
+   permanently desynced from the app's own theme toggle. Repoints the `dark:`
+   variant at the same attribute the rest of the app already uses. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 /* shadcn/ui design tokens — style "new-york", base color "neutral".
    `npx shadcn@latest add button popover calendar` (shadcn CLI 4.13.0) did not
    append this block itself in this environment — its "add" command only

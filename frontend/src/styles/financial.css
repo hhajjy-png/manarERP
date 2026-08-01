@@ -252,7 +252,7 @@
 /* Grouped table headers */
 .group-header td { font-weight: 700; background: var(--surface-2, #f1f5f9); cursor: pointer; }
 .year-header  td { background: #e0e7ef; color: var(--xpl-primary, var(--accent, #1d4e6f)); font-size: 0.9rem; }
-.month-header td { background: var(--surface-2, #f1f5f9); color: #374151; padding-inline-start: 28px; }
+.month-header td { background: var(--surface-2, #f1f5f9); color: var(--text-muted); padding-inline-start: 28px; }
 .toggle-icon  { display: inline-block; width: 18px; font-size: 0.7rem; }
 
 /* ─── DrillDown link ───────────────────────────────────────────────────────── */
@@ -797,6 +797,35 @@ html[data-theme="dark"] .mode-toggle button:not(.active):hover,
 html[data-theme="dark"] .journal-book-controls button:hover,
 html[data-theme="dark"] .fc-pagination button:not(:disabled):hover,
 html[data-theme="dark"] .aging-table th.sortable:hover { background: var(--surface-hover); }
+
+/* Aging note banner — opaque amber card → translucent tint on dark surfaces */
+html[data-theme="dark"] .aging-note { background: var(--amber-light); border-color: var(--amber); color: var(--amber); }
+
+/* Aging table severity cells — opaque light tints + dark-on-dark text */
+html[data-theme="dark"] .aging-table td.aging-critical { background: var(--red-light); color: var(--red-bright); }
+html[data-theme="dark"] .aging-table td.aging-warning  { background: var(--amber-light); color: var(--amber); }
+html[data-theme="dark"] .aging-table td.aging-caution  { background: var(--amber-light); color: var(--amber); }
+
+/* Debit/credit balance indicators — dark-toned green/red on inherited dark surface */
+html[data-theme="dark"] .balance-debit  .balance-indicator { color: var(--green-bright); }
+html[data-theme="dark"] .balance-credit .balance-indicator { color: var(--red-bright); }
+
+/* Imbalance alert banner (base, unscoped) — opaque light card on dark surfaces */
+html[data-theme="dark"] .imbalance-alert { background: var(--red-light); border-color: var(--red); color: var(--red-bright); }
+
+/* Journal status chips — opaque light tints, unreadable on dark */
+html[data-theme="dark"] .journal-status-posted    { background: var(--green-light); color: var(--green-bright); }
+html[data-theme="dark"] .journal-status-draft     { background: var(--amber-light); color: var(--amber); }
+html[data-theme="dark"] .journal-status-cancelled { background: var(--surface-2); color: var(--text-muted); }
+
+/* "Coming soon" badge (base, unscoped) */
+html[data-theme="dark"] .coming-soon-badge { background: var(--surface-2); color: var(--text-muted); }
+
+/* Financial dashboard critical sub-label */
+html[data-theme="dark"] .fin-dash-card-sub.critical { color: var(--red-bright); }
+
+/* Info banner — opaque light-blue card on dark surfaces */
+html[data-theme="dark"] .info-banner { background: var(--blue-light); border-color: var(--blue); color: #93c5fd; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    FINANCIAL CENTER — PROFESSIONAL REFRESH v1

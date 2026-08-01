@@ -442,6 +442,9 @@
 }
 
 .psa-quality-icon { font-size: 18px; flex: none; margin-top: 1px; color: #92400e; }
+html[data-theme="dark"] .psa-quality-icon,
+html[data-theme="dark"] .psa-quality-title,
+html[data-theme="dark"] .psa-quality-tag { color: var(--amber); }
 
 .psa-quality-body { flex: 1; min-width: 0; }
 
@@ -484,6 +487,7 @@
   border-color: #f59e0b;
   color: #78350f;
 }
+html[data-theme="dark"] .psa-quality-tag.active { color: var(--amber-bright); }
 
 /* ── Charts section ───────────────────────────────────────────────────────── */
 
@@ -956,6 +960,4 @@
 
 /* ── Dark mode ────────────────────────────────────────────────────────────── */
 
-@media (prefers-color-scheme: dark) {
-  .psa-quality-panel { border-color: rgba(245,158,11,0.5); }
-}
+html[data-theme="dark"] .psa-quality-panel { border-color: rgba(245,158,11,0.5); }

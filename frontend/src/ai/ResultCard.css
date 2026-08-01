@@ -59,6 +59,8 @@
   color: #dc2626;
   border: 1px solid rgba(220, 38, 38, 0.22);
 }
+html[data-theme="dark"] .ai-rc-badge--skill { color: var(--blue-bright); }
+html[data-theme="dark"] .ai-rc-badge--error { color: var(--red); }
 
 /* ─── Summary ────────────────────────────────────────────────────────────────── */
 .ai-rc-summary {
@@ -196,6 +198,9 @@
   border: 1px solid rgba(220, 38, 38, 0.24);
   color: #991b1b;
 }
+html[data-theme="dark"] .ai-rc-warning--info    { color: var(--blue-bright); }
+html[data-theme="dark"] .ai-rc-warning--warning { color: var(--amber); }
+html[data-theme="dark"] .ai-rc-warning--danger  { color: var(--red-bright); }
 
 /* ─── Sources ────────────────────────────────────────────────────────────────── */
 .ai-rc-sources {
@@ -330,6 +335,9 @@
   color: #7c3aed;
   border: 1px solid rgba(139, 92, 246, 0.25);
 }
+html[data-theme="dark"] .ai-rc-capability--complete { color: var(--green); }
+html[data-theme="dark"] .ai-rc-capability--partial  { color: var(--amber); }
+html[data-theme="dark"] .ai-rc-capability--preview  { color: var(--violet); }
 .ai-rc-capability--soon {
   background: rgba(156, 163, 175, 0.12);
   color: var(--text-muted, #6b7280);
@@ -363,6 +371,9 @@
 .ai-rc-quality-score--high   { color: #15803d; }
 .ai-rc-quality-score--medium { color: #b45309; }
 .ai-rc-quality-score--low    { color: #dc2626; }
+html[data-theme="dark"] .ai-rc-quality-score--high   { color: var(--green); }
+html[data-theme="dark"] .ai-rc-quality-score--medium { color: var(--amber); }
+html[data-theme="dark"] .ai-rc-quality-score--low    { color: var(--red); }
 .ai-rc-quality-bar {
   height: 6px;
   background: var(--surface-2, rgba(0,0,0,0.06));
@@ -392,6 +403,9 @@
 .ai-rc-quality-issue--info    { color: #1d4ed8; }
 .ai-rc-quality-issue--warning { color: #92400e; }
 .ai-rc-quality-issue--danger  { color: #991b1b; }
+html[data-theme="dark"] .ai-rc-quality-issue--info    { color: var(--blue-bright); }
+html[data-theme="dark"] .ai-rc-quality-issue--warning { color: var(--amber); }
+html[data-theme="dark"] .ai-rc-quality-issue--danger  { color: var(--red-bright); }
 
 /* ─── Explainability Panel [D] ───────────────────────────────────────────── */
 .ai-rc-explain {
@@ -634,3 +648,5 @@
 .ai-rc-meta-chip--version     { color: #7c3aed; background: rgba(139,92,246,0.08); border-color: rgba(139,92,246,0.2); }
 .ai-rc-meta-chip--generation  { color: var(--primary, #2563eb); background: rgba(37,99,235,0.08); border-color: rgba(37,99,235,0.2); }
 .ai-rc-meta-chip--capability  { color: #15803d; background: rgba(22,163,74,0.08); border-color: rgba(22,163,74,0.2); }
+html[data-theme="dark"] .ai-rc-meta-chip--version    { color: var(--violet); }
+html[data-theme="dark"] .ai-rc-meta-chip--capability { color: var(--green); }
