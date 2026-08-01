@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `631b94c1` — release `stable-invoice-list-collection-date-column-v1` (invoice list gains a "تاريخ التحصيل" column beside a renamed "تاريخ الفاتورة"; presentation only, backed by a minimal additive read-model field) |
+| **Production HEAD** | `0398d8c2` — release `stable-expense-analysis-report-enhancement-pack-v1` (Expenses Report gains executive KPI cards and six analytical sections — pivot matrix, monthly analysis, top categories, top expenses, month comparison, percentage analysis — computed additively from the report's own already-filtered dataset; presentation and export only) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-invoice-list-collection-date-column-v1` (release date 2026-08-01) → merge `631b94c1` |
-| **Previous stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (2026-08-01) → merge `a84475f6` |
-| **Total stable releases** | 397 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
-| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **2236/2236 passing across 154 files** (invoices module 160/160) · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** by stashing the two frontend files and re-running the same 8 files to an identical 8/26 on the clean baseline; no test regressed · scope confirmed: exactly 3 files entered the release (`backend/src/modules/invoices/invoices.service.ts`, `frontend/src/pages/Invoices.tsx`, `frontend/src/lib/i18n.ts`), with all in-flight Google Drive / cloud-sync WIP surgically excluded — including `i18n.ts`, which both changes touched and which was therefore staged by restoring the baseline, re-applying only the 4 approved lines, committing, then restoring the full working copy · Prisma/schema/migrations and Electron untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `631b94c1` + tag `stable-invoice-list-collection-date-column-v1`) |
+| **Latest stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (release date 2026-08-01) → merge `0398d8c2` |
+| **Previous stable tag** | `stable-invoice-list-collection-date-column-v1` (2026-08-01) → merge `631b94c1` |
+| **Total stable releases** | 398 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
+| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **156/156 files, 2261/2261 tests passing** · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** — identical file/test signature to the previous release's documented baseline, re-verified on this branch with no new failures · scope confirmed: exactly 13 files entered the release (8 modified, 5 added — backend report service/engine wiring and two new regression-test files, frontend Reports/ReportPrint pages, one new regression-test file), staged explicitly by path (never `git add -A`), with all in-flight Google Drive / cloud-sync WIP (~13 tracked + 8 untracked paths) and this pass's own investigation-only debug artifacts (a probe script, two ad-hoc test files, a captured JSON fixture) confirmed still present, unstaged, and unmodified after the merge · Prisma/schema/migrations and Electron untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `0398d8c2` + tag `stable-expense-analysis-report-enhancement-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Visual Consistency Pack — Invoice List Date Columns v1
+## Latest Release — Expense Analysis Report Enhancement Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Expense Analysis Report Enhancement Pack v1 (Comprehensive Reports module, Expenses Report; 13 files — 8 modified, 5 added, including 3 new regression-test files) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-01 |
+| **Feature branch** | `feature/expense-analysis-report-enhancement-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `a340e2d6` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's implementation → runtime investigation → Product-Owner-approved-release flow |
+| **Feature commit** | `d507c698` |
+| **Production merge commit** | `0398d8c2` |
+| **Stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` → merge `0398d8c2` (annotated) |
+| **Reviews** | Implementation → a "report won't open" report from the user triggered a full runtime investigation (backend service, live API, React render, Playwright browser — all clean) escalated to a second-pass investigation **inside the actual Electron renderer** via Chrome DevTools Protocol, which found zero exceptions across preload bridge / network / console / render and confirmed the running instance was serving stale mid-edit HMR state, not a source defect → Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend + frontend `tsc --noEmit` ✅ (feature branch and post-merge) · backend `vitest run` 156/156 files, 2261/2261 tests · frontend 8/26 failures confirmed pre-existing (identical signature to the prior release's documented baseline) · Excel/HTML/print export paths and the no-sections regression case verified live inside Electron via CDP with zero exceptions |
+
+**What changed.** The Expenses Report gains, above and below its existing table: six executive KPI cards (total expenses, transaction count, average expense, highest spending month, highest spending category, category count); a Category × Month Pivot Matrix that adapts to the selected period; a Monthly Analysis table; a ranked Top Expense Categories table with percentage of total; a Top 20 Expenses table; a Month Comparison summary (highest vs. lowest month, difference, %); and a Percentage Analysis table whose percentages sum to exactly 100.0%. All of it reaches preview, print, Excel export, and HTML/PDF export — the same three surfaces the base report always had.
+
+**Why no second query, no duplicated aggregation.** `expenseAnalysis.ts` is a pure function (no Prisma, no I/O) that derives every KPI and section from the **same** `rows` array `reports.service.ts`'s `expenses()` already fetches after every existing filter (date range, status, category, supplier, billing month/year) is applied. The report's own `total` is passed in, not recomputed, so every section's grand total is the report total by construction — not a parallel expression that could drift or round differently. Percentages use largest-remainder (Hamilton) apportionment specifically so they sum to exactly 100.0%, never 99.9%/100.1%.
+
+**Engine contract, additive only.** `ReportInput` gains two optional fields, `kpis`/`sections`. Reports that don't set them (all 15 other report types) render byte-identical HTML/print/Excel output — verified by dedicated tests. Sections reuse the report engine's existing `buildTable` (HTML) and `renderSheet` (Excel) — no second visual language was introduced. Excel gets one worksheet per KPI block and per section (collision-safe naming, since two sections can share a title-derived sheet name) instead of extra rows in the main sheet, so the main sheet's row indexes, freeze pane, and autofilter are byte-identical to before this pack. The print route (`ReportPrint.tsx`) switches to A4 landscape only when a report actually carries `sections` — every other report keeps its existing A4 portrait layout unchanged.
+
+**The "report won't open" investigation.** After implementation, the user reported the report no longer opened. A first investigation pass (backend service called directly against the dev DB, the live app's real HTTP API across every report type × format, a React render test against the exact live-captured payload, and a Playwright-driven real browser session) found the report rendering correctly everywhere, with zero exceptions — the only anomaly was a burst of `Unhandled error` log entries that, once clustered by timestamp, matched an identical pre-existing pattern recurring since 06:45 that morning, hours before this pack existed. The user correctly pushed back that browser ≠ Electron and asked for the investigation to continue **inside** the actual Electron renderer. A second pass launched the real dev topology (Electron forking its own backend, Vite dev server) and attached Chrome DevTools Protocol directly to the app's renderer process — not DevTools' own window, which the first attempt mistakenly attached to. Driving the exact click path found: 6 KPI cards, 6 analytical sections, 166 table rows, zero `Runtime.exceptionThrown` events, zero console errors. Print route, Excel export (`200`, valid `.xlsx`), and the HTML/PDF export path were all separately re-verified inside the same renderer. A stale runtime lock (`~/.manarERP/runtime.lock`) that had refused the investigation's first launch attempt identified that the user's own Electron instance was still holding the lock from an earlier session — consistent with the most likely mechanism: the renderer was showing mid-edit Hot Module Replacement state from when the four `Reports.tsx` edits landed while that window stayed open, not a defect in the released source. No code was changed as a result of either investigation pass.
+
+**Not changed:** invoice/payroll/attendance/customer/every other report type, expense creation, expense approval, expense status transitions, backend business logic outside the additive analytics function, accounting/posting rules, permissions, Electron/IPC, Prisma schema/migrations.
+
+**Scope discipline.** The working tree at release time contained unrelated, unfinished Google Drive / cloud-sync work across 13 tracked files plus 8 untracked paths, and this pass's own investigation-only debug artifacts (`backend/__probe_expenses.ts`, two ad-hoc test files, a captured JSON fixture, a Playwright snapshot). None of it belongs to this release. All 13 pack files were staged explicitly by path (never `git add -A`); every WIP and debug file was confirmed still present, unstaged, and unmodified after the merge.
+
+---
+
+## Previous Release — Visual Consistency Pack — Invoice List Date Columns v1
 
 | Field | Value |
 |-------|-------|

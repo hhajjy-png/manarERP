@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Visual Consistency Pack — Invoice List Date Columns v1), like the Project-Wide UI Visual
-> Polish Pack v1 pass and the ones before it, refreshed the "Current Production State" table
+> below. This pass (Expense Analysis Report Enhancement Pack v1), like the Visual Consistency Pack — Invoice
+> List Date Columns v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `631b94c1` — merge of `feature/invoice-list-collection-date-column-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-invoice-list-collection-date-column-v1` (merge commit `631b94c1`) | High |
-| **Previous stable tag** | `stable-project-wide-ui-visual-polish-pack-v1` (`a84475f6`) | High |
+| **Current HEAD** | `0398d8c2` — merge of `feature/expense-analysis-report-enhancement-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (merge commit `0398d8c2`) | High |
+| **Previous stable tag** | `stable-invoice-list-collection-date-column-v1` (`631b94c1`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,51 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-invoice-list-collection-date-column-v1` (`631b94c1`, 2026-08-01)
+### Latest Release — `stable-expense-analysis-report-enhancement-pack-v1` (`0398d8c2`, 2026-08-01)
+
+Comprehensive Reports module, Expenses Report. 13 files (8 modified, 5
+added — 3 of the 5 are new regression tests), 1424 insertions / 65
+deletions.
+
+Adds executive KPI cards and six analytical sections (Category × Month
+Pivot Matrix, Monthly Analysis, Top Expense Categories, Top 20 Expenses,
+Month Comparison, Percentage Analysis) to the Expenses Report's preview,
+print, Excel, and HTML/PDF export — additive only, nothing removed. Every
+figure is derived in-memory from the same already-filtered `Expense`
+dataset the base report fetches: zero new queries, and every section's
+grand total equals the report's own total by construction (the total is
+passed in, never recomputed independently). Percentages use
+largest-remainder apportionment so they sum to exactly 100.0%. The report
+engine's `kpis`/`sections` fields are additive-optional — the other 15
+report types render byte-identical output, verified by tests.
+
+**Runtime investigation, twice.** After implementation, the user reported
+the report would not open. A first investigation (direct backend service
+call against the dev DB, the live app's real HTTP API across all 16
+report types × 3 formats, a React render test against the exact
+live-captured payload, and a real Playwright browser session) found
+everything working — the only anomaly, a burst of unhandled-error log
+entries, turned out to be an unrelated pre-existing pattern recurring
+since hours before this pack was written. The user correctly pointed out
+that a browser is not Electron and asked for the investigation to
+continue inside the actual app. A second pass launched the real Electron
+dev topology and attached Chrome DevTools Protocol directly to the app's
+own renderer (the first attempt had mistakenly attached to DevTools'
+own window instead) — driving the exact click path found 6 KPI cards, 6
+sections, 166 rows, and zero exceptions; Excel export, the print route,
+and the HTML/PDF path were separately re-verified the same way. The most
+likely explanation, given a stale runtime lock found holding the user's
+own earlier session: the renderer was showing mid-edit Hot Module
+Replacement state from when this pack's edits landed while that window
+stayed open. No code changed as a result of either investigation.
+
+Validation: backend + frontend `tsc --noEmit` clean on the feature branch
+and post-merge; backend `vitest run` 156/156 files, 2261/2261 tests;
+frontend 8/26 failures confirmed pre-existing (identical signature to the
+prior release's documented baseline). No Prisma schema/migration change,
+no new permission key, no Electron/IPC change.
+
+### Previous Release — `stable-invoice-list-collection-date-column-v1` (`631b94c1`, 2026-08-01)
 
 Invoice list presentation pass. 3 files, 34 insertions / 4 deletions: one
 backend read-model extension, one page, one i18n pair.
