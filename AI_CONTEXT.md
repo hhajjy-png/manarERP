@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `0398d8c2` (merge of `feature/expense-analysis-report-enhancement-pack-v1` — Expenses Report gains executive KPI cards and six analytical sections (pivot matrix, monthly analysis, top categories, top expenses, month comparison, percentage analysis), computed additively from the report's own already-filtered dataset with zero new queries; reaches preview, print, Excel, and HTML/PDF export; 13 files (8 modified, 5 added), no schema or migration) |
-| **Current Documentation Commit** | `PENDING` |
+| **Current Documentation Commit** | `e211ff4` |
 | **Current Stable Tag** | `stable-expense-analysis-report-enhancement-pack-v1` |
 | **Current Release Date** | 2026-08-01 |
 | **Total Stable Releases** | 398 (window 2026-06-07 → 2026-08-01) |
