@@ -450,9 +450,9 @@ export default function Salaries() {
                 <strong>{t('msg.payroll.missing_active', { count: stats!.missingPayrollCount! })}</strong>
               </div>
               {stats?.missingPayrollEmployees?.length ? (
-                <div style={{ marginTop: 6, paddingInlineStart: 30, fontSize: '.86em', lineHeight: 1.7 }}>
+                <div style={{ marginTop: 6, paddingInlineStart: 30, fontSize: '.86em', lineHeight: 1.7, display: 'flex', flexWrap: 'wrap', gap: '4px 12px', overflowWrap: 'anywhere' }}>
                   {stats.missingPayrollEmployees.map((e) => (
-                    <span key={e.employeeId} style={{ marginInlineEnd: 12, whiteSpace: 'nowrap' }}>
+                    <span key={e.employeeId} style={{ whiteSpace: 'nowrap' }}>
                       {e.employeeName} <span style={{ opacity: .65 }}>({e.employeeCode})</span>
                     </span>
                   ))}

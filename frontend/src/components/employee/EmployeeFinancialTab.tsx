@@ -63,19 +63,17 @@ function monthLabel(m: number, y: number): string {
 }
 
 /**
- * Mask a stored bank identifier for display (task: "IBAN masked if available").
- * We only store a single `bankAccount` string per employee, so we label it as an
- * IBAN when it starts with a 2-letter country code, otherwise as a plain account.
+ * Label a stored bank identifier for display. We only store a single
+ * `bankAccount` string per employee, so we label it as an IBAN when it
+ * starts with a 2-letter country code, otherwise as a plain account number.
+ * Displays the stored value exactly as-is — no masking.
  */
-function maskAccount(raw: string | null | undefined, t: (key: string) => string): { label: string; value: string } | null {
+function formatAccount(raw: string | null | undefined, t: (key: string) => string): { label: string; value: string } | null {
   if (!raw) return null;
-  const s = String(raw).replace(/\s+/g, '');
+  const s = String(raw).trim();
   if (!s) return null;
-  const last4 = s.length >= 4 ? s.slice(-4) : s;
-  if (/^[A-Za-z]{2}\d/.test(s)) {
-    return { label: t('field.ent.iban'), value: `${s.slice(0, 2).toUpperCase()}** **** **** ${last4}` };
-  }
-  return { label: t('field.ent.account_number'), value: `**** **** **** ${last4}` };
+  const label = /^[A-Za-z]{2}\d/.test(s.replace(/\s+/g, '')) ? t('field.ent.iban') : t('field.ent.account_number');
+  return { label, value: s };
 }
 
 /**
@@ -109,7 +107,7 @@ export default function EmployeeFinancialTab({ employee }: { employee: EmployeeL
   }, [employee?.id, canReadPayroll]);
 
   const latest = records[0] ?? null;
-  const account = maskAccount(employee?.bankAccount, t);
+  const account = formatAccount(employee?.bankAccount, t);
   const empStatusKey = EMP_STATUS[employee?.status ?? ''];
   const empStatus = { label: empStatusKey ? t(empStatusKey.key) : (employee?.status ?? '—'), tone: empStatusKey?.tone ?? ('neutral' as Tone) };
   // Graceful degradation: only real data is shown. No fabricated fallbacks —
