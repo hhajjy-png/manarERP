@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `ab0128a4` (merge of `feature/visual-consistency-micro-polish-pack-v1`, three isolated visual-polish fixes: Payroll alert-card overflow, Bank Account Explorer badge width, Employee Financial Tab bank account number unmasked) |
-| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Documentation Commit** | `dfd7c28f` |
 | **Current Stable Tag** | `stable-visual-consistency-micro-polish-pack-v1` |
 | **Current Release Date** | 2026-08-01 |
 | **Total Stable Releases** | 395 (window 2026-06-07 → 2026-08-01) |
