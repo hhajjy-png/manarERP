@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-01 (previously 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Dark Mode Color Consistency Pack v1), like the Project-Wide i18n Placeholder Integrity
+> below. This pass (Visual Consistency Micro Polish Pack v1), like the Dark Mode Color Consistency
 > Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `9b3c437b` — merge of `feature/dark-mode-color-consistency-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-dark-mode-color-consistency-pack-v1` (merge commit `9b3c437b`) | High |
-| **Previous stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (`873c3c0`) | High |
+| **Current HEAD** | `ab0128a4` — merge of `feature/visual-consistency-micro-polish-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (merge commit `ab0128a4`) | High |
+| **Previous stable tag** | `stable-dark-mode-color-consistency-pack-v1` (`9b3c437b`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,35 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-dark-mode-color-consistency-pack-v1` (`9b3c437b`, 2026-08-01)
+### Latest Release — `stable-visual-consistency-micro-polish-pack-v1` (`ab0128a4`, 2026-08-01)
+
+Three previously approved, isolated visual-polish fixes across Payroll, Bank
+Account Explorer, and the Employees drawer. Frontend-only, no backend/schema
+changes.
+
+- **Payroll (`Salaries.tsx`):** missing-payroll-employees alert card rendered
+  each name as a `nowrap` chip with no wrap strategy, so many employees
+  overflowed the card. Fixed with `flex-wrap` + `gap` on the container and an
+  `overflow-wrap: anywhere` fallback. Alert logic/data untouched.
+- **Bank Account Explorer (`BankAccountExplorer.css`):** the Transaction
+  Details drawer's transaction-type badge (e.g. "شيك") was stretched to its
+  sibling amount text's width by its flex-column parent's default `stretch`
+  cross-axis alignment. Fixed with `align-items: flex-start` on the parent;
+  the shared `.bae-tx-badge` rule was untouched, so its other two usages are
+  unaffected.
+- **Employee Financial Tab (`EmployeeFinancialTab.tsx`):** the bank account
+  number was unconditionally masked to `**** **** **** <last4>`, unlike every
+  other financial field in the component (which honors the privacy-mode
+  toggle). `maskAccount()` renamed to `formatAccount()`, truncation removed —
+  displays the stored value as-is. Read-only tab; no edit/save/validation
+  logic to touch.
+- **Not changed:** any layout, colors, typography, spacing, or hierarchy
+  beyond the three fixes; business logic; backend; Electron;
+  Prisma/schema/migrations.
+- **Validation:** frontend `tsc --noEmit` clean (feature branch and
+  post-merge) · `npm run build` succeeds both passes.
+
+### Previous Release — `stable-dark-mode-color-consistency-pack-v1` (`9b3c437b`, 2026-08-01)
 
 Project-wide audit and correction of dark-mode color contrast and theme-reactivity
 across the app — text/background/icon/badge/table/dropdown/popover colors only.

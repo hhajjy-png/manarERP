@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `9b3c437b` — release `stable-dark-mode-color-consistency-pack-v1` (project-wide audit and correction of dark-mode color contrast and theme-reactivity — 6 systemic root causes plus ~50 individual leaf fixes; presentation only) |
+| **Production HEAD** | `ab0128a4` — release `stable-visual-consistency-micro-polish-pack-v1` (three isolated visual-polish fixes: Payroll missing-employees alert wrapping, Bank Account Explorer transaction-type badge width, Employee Financial Tab bank account number unmasked) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-dark-mode-color-consistency-pack-v1` (release date 2026-08-01) → merge `9b3c437b` |
-| **Previous stable tag** | `stable-project-wide-i18n-placeholder-integrity-v1` (2026-07-31) → merge `873c3c0` |
-| **Total stable releases** | 394 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
-| **Latest validation** | Frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · `npm run build` ✅ (both passes; only the pre-existing >500kB chunk-size warning, unrelated) · every replacement color selected by computed WCAG relative-luminance contrast against the actual dark-mode background, not by inspection · scope confirmed: exactly the 31 approved `frontend/src/**` files entered the release, with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded (staged file-by-file, not `git add -A`) and confirmed untouched after merge; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `9b3c437b` + tag `stable-dark-mode-color-consistency-pack-v1`) |
+| **Latest stable tag** | `stable-visual-consistency-micro-polish-pack-v1` (release date 2026-08-01) → merge `ab0128a4` |
+| **Previous stable tag** | `stable-dark-mode-color-consistency-pack-v1` (2026-08-01) → merge `9b3c437b` |
+| **Total stable releases** | 395 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
+| **Latest validation** | Frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · `npm run build` ✅ (both passes; only the pre-existing >500kB chunk-size warning, unrelated) · scope confirmed: exactly the 3 approved files entered the release (`Salaries.tsx`, `BankAccountExplorer.css`, `EmployeeFinancialTab.tsx`), with `.gitignore` / `electron-builder.yml` / `electron/services/googleDriveAuth.service.ts` and all untracked Google Drive Deployment Pack v1 WIP paths surgically excluded (staged file-by-file, not `git add -A`) and confirmed untouched after merge; backend, Electron, and Prisma/schema/migrations untouched; all 5 pre-existing git stashes confirmed untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `ab0128a4` + tag `stable-visual-consistency-micro-polish-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,35 @@ in a table cell.
 
 ---
 
-## Latest Release — Dark Mode Color Consistency Pack v1
+## Latest Release — Visual Consistency Micro Polish Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Visual Consistency Micro Polish Pack v1 (three previously approved, isolated visual-polish fixes — Payroll alert card overflow, Bank Account Explorer badge width, Employee Financial Tab account-number masking) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-01 |
+| **Feature branch** | `feature/visual-consistency-micro-polish-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `b8337513` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's investigation → implementation → Product-Owner-approved-release flow |
+| **Feature commit** | `9a33b982` |
+| **Production merge commit** | `ab0128a4` |
+| **Stable tag** | `stable-visual-consistency-micro-polish-pack-v1` → merge `ab0128a4` (annotated) |
+| **Reviews** | Codebase investigation to locate the exact root cause of each of the three issues (not proposed blind) → IMPLEMENTATION (3 minimal, scoped diffs) → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge) · `npm run build` ✅ (both passes) |
+
+**1. Payroll (`pages/Salaries.tsx`, missing-payroll-employees alert card):** each employee was rendered as a `whiteSpace: nowrap` "Name (Code)" chip inside a plain block `<div>` with no wrap/containment strategy and no `max-width`/`overflow-wrap` safety net, so with many employees the row extended past the amber alert card. Fixed by giving the container `display: flex; flexWrap: wrap` with a `gap` (replacing the old per-chip `marginInlineEnd`), plus `overflowWrap: anywhere` as a fallback for a single pathologically long name. Each chip still keeps its own name+code pair together as one unit. Alert trigger condition (`missingPayrollCount`) and data source (`missingPayrollEmployees`) untouched.
+
+**2. Bank Account Explorer (`pages/BankAccountExplorer.css`, Transaction Details drawer):** the transaction-type badge (e.g. "شيك") appeared wider than its text because its parent, `.bae-drawer-hero-body` (`flex-direction: column`, no `align-items` set), defaulted to `stretch` and forced the badge span to the width of its sibling amount text. Fixed by adding `align-items: flex-start` to the parent. The shared `.bae-tx-badge` rule itself was already correctly content-width and was left untouched, so its other two usages in this file (drawer header-sub row, timeline table) are unaffected — confirmed by inspecting both call sites before editing.
+
+**3. Employee Financial Tab (`components/employee/EmployeeFinancialTab.tsx`):** `maskAccount()` unconditionally truncated the employee's real, already-client-side bank account number to `**** **** **** <last4>`, with no connection to the app's privacy-mode toggle — unlike every other financial value in the same component, which routes through `PrivateAmount`/`usePrivacyMode()`. Renamed to `formatAccount()` and removed the truncation; it now returns the stored value trimmed of stray whitespace only. The IBAN-vs-account-number label detection (a presentational classification, not masking) was preserved. This tab is read-only display only — no edit/save/validation logic exists here to touch.
+
+**Not changed:** any layout, colors, typography, spacing, or hierarchy beyond the three fixes above; business logic; routing; state; the design system; backend; Electron; Prisma/schema/migrations.
+
+**Scope discipline:** the working tree at release time also contained unrelated, unfinished Google Drive Deployment Pack v1 work (`electron/services/googleDriveAuth.service.ts`, `electron/services/googleDriveClientConfig.pure.ts` + its test, `electron/__tests__/`, `electron/resources/`, plus the `.gitignore`/`electron-builder.yml` entries wiring its bundled OAuth client resource). None of it belongs to this release; all of it was explicitly excluded from `git add` (staged file-by-file, not `git add -A`) and confirmed still present, unstaged, and unmodified in the working tree after the merge. All 5 pre-existing git stashes (English Localization, Financial Number/Date Presentation phase-d WIP ×2, font-cleanup WIP, Cheques Tafqeet phase 2) confirmed untouched.
+
+---
+
+## Previous Release — Dark Mode Color Consistency Pack v1
 
 | Field | Value |
 |-------|-------|

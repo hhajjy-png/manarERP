@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `9b3c437b` (merge of `feature/dark-mode-color-consistency-pack-v1`, a project-wide audit and correction of dark-mode color contrast and theme-reactivity — 6 systemic root causes plus ~50 leaf fixes, presentation only) |
-| **Current Documentation Commit** | `42720781` |
-| **Current Stable Tag** | `stable-dark-mode-color-consistency-pack-v1` |
+| **Current Merge Commit** | `ab0128a4` (merge of `feature/visual-consistency-micro-polish-pack-v1`, three isolated visual-polish fixes: Payroll alert-card overflow, Bank Account Explorer badge width, Employee Financial Tab bank account number unmasked) |
+| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Stable Tag** | `stable-visual-consistency-micro-polish-pack-v1` |
 | **Current Release Date** | 2026-08-01 |
-| **Total Stable Releases** | 394 (window 2026-06-07 → 2026-08-01) |
+| **Total Stable Releases** | 395 (window 2026-06-07 → 2026-08-01) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
