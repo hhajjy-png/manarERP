@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `9b3c437b` (merge of `feature/dark-mode-color-consistency-pack-v1`, a project-wide audit and correction of dark-mode color contrast and theme-reactivity — 6 systemic root causes plus ~50 leaf fixes, presentation only) |
-| **Current Documentation Commit** | (this commit — self-referencing hash filled in immediately after) |
+| **Current Documentation Commit** | `42720781` |
 | **Current Stable Tag** | `stable-dark-mode-color-consistency-pack-v1` |
 | **Current Release Date** | 2026-08-01 |
 | **Total Stable Releases** | 394 (window 2026-06-07 → 2026-08-01) |
