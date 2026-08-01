@@ -151,11 +151,22 @@ function buildInvoiceColumns(
     },
     {
       key: 'issueDate',
-      header: t('col.date'),
-      plainLabel: t('col.date'),
+      header: t('col.inv.issue_date'),
+      plainLabel: t('col.inv.issue_date'),
       sortable: true,
       render: (r) => <span style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.issueDate)}</span>,
       exportValue: (r) => dateText(r.issueDate),
+    },
+    // تاريخ التحصيل: تاريخ أحدث دفعة (`lastPaymentDate`)، يأتي جاهزًا من نموذج قراءة
+    // القائمة — لا حساب هنا. `dateText` يعيد «—» تلقائيًا لفاتورة بلا تحصيلات.
+    // مشتقّ من علاقة متعدّدة (أحدث دفعة) بلا حقل خادمي واحد يُفرَز عليه عبر القائمة
+    // البيضاء — غير قابل للفرز، كـ«الجهة» و«المتبقي» تمامًا.
+    {
+      key: 'lastPaymentDate',
+      header: t('col.inv.collection_date'),
+      plainLabel: t('col.inv.collection_date'),
+      render: (r) => <span style={{ whiteSpace: 'nowrap', color: 'var(--xpl-muted)' }}>{dateText(r.lastPaymentDate)}</span>,
+      exportValue: (r) => dateText(r.lastPaymentDate),
     },
     {
       key: 'total',

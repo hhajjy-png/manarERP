@@ -129,11 +129,26 @@ export class InvoicesService {
         skip: pagination.skip,
         take: pagination.take,
         orderBy,
-        include: { customer: { select: { name: true } }, supplier: { select: { name: true } } },
+        include: {
+          customer: { select: { name: true } },
+          supplier: { select: { name: true } },
+          // تاريخ أحدث دفعة فقط — توسعة عرضٍ بحتة لعمود «تاريخ التحصيل» في قائمة
+          // الفواتير. `take: 1` مرتّبة تنازليًا ضمن نفس استدعاء findMany القائم:
+          // تحميل علاقة واحد لصفحة الـ15 كاملة (كما هو حال customer/supplier)،
+          // لا استعلام لكل صف، ولا تحميل سجلّ الدفعات كاملًا.
+          payments: { select: { date: true }, orderBy: { date: 'desc' }, take: 1 },
+        },
       }),
       prisma.invoice.count({ where }),
     ]);
-    return buildPaginatedResult(data, total, pagination);
+    // تُسطَّح إلى حقل قياسي `lastPaymentDate`، ولا تُسرَّب مصفوفة `payments` المقتطعة:
+    // الواجهة تعتبر وجود المصفوفة دليلًا على اكتمال التفاصيل (إثراء Drawer الفاتورة
+    // في Invoices.tsx)، فمصفوفة من عنصر واحد كانت ستُخفي بقية الدفعات هناك.
+    const rows = data.map(({ payments, ...invoice }) => ({
+      ...invoice,
+      lastPaymentDate: payments[0]?.date ?? null,
+    }));
+    return buildPaginatedResult(rows, total, pagination);
   }
 
   async stats(query: {
