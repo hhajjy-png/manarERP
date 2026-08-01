@@ -12,7 +12,7 @@ import { useT } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
 import { resolveName } from '../lib/resolveName';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
-import { formatReportCell } from '../lib/format';
+import { formatReportCell, formatCurrency } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 import {
   ExecutiveHeader,
@@ -34,8 +34,25 @@ import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type ReportColumnDef = { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right' };
+
+/** بطاقة مؤشّر تنفيذي يرسلها التقرير (اختيارية — التقارير التي لا ترسلها لا تتأثر). */
+type ReportKpi = {
+  label: string;
+  value: string | number;
+  format?: 'currency';
+  hint?: string | number;
+  hintFormat?: 'currency';
+  color?: 'default' | 'green' | 'red' | 'blue';
+  icon?: string;
+};
+
+/** قسم تحليلي إضافي يُعرض بعد الجدول الرئيسي — بنفس عقد الأعمدة/الصفوف. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: { header: string; key: string; format?: 'currency' }[]; rows: any[]; totalsRow?: any };
+type ReportSection = { title: string; note?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any };
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[] };
 type CustomerItem = { id: number; name: string };
 type EmployeeItem = { id: number; fullName: string };
 
@@ -229,6 +246,79 @@ function statusMeta(type: ReportType['statusType'], t: (key: string) => string):
   if (type === 'needs-filter') return { tone: 'orange', label: t('rc.status.needs_filter'), icon: 'tune' };
   if (type === 'live')         return { tone: 'blue',   label: t('rc.status.live'), icon: 'bolt' };
   return                              { tone: 'green',  label: t('rc.status.ready'), icon: 'check_circle' };
+}
+
+/** لون البطاقة القادم من التقرير → درجة ExplorerKit (بلا لوحة ألوان جديدة). */
+function kpiTone(color: ReportKpi['color']): 'green' | 'blue' | 'orange' | 'indigo' {
+  if (color === 'green') return 'green';
+  if (color === 'blue')  return 'blue';
+  if (color === 'red')   return 'orange';
+  return 'indigo';
+}
+
+/** قيمة البطاقة: الرمز داخلها («1,200.125 KWD») لأنها بلا عنوان عمود يحمله. */
+function kpiText(value: unknown, format?: 'currency'): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (format === 'currency') return formatCurrency(value, { language: currentCurrencyLanguage() });
+  return typeof value === 'number' ? formatReportCell(value, {}, { symbol: 'header' }) : String(value);
+}
+
+/**
+ * جدول التقرير — نفس الترميز المستخدم منذ البداية للجدول الرئيسي، مُستخرَج كي
+ * تستعمله الأقسام التحليلية حرفيًا فلا تنشأ لغة بصرية ثانية.
+ *
+ * `applyAlign` مُطفأ للجدول الرئيسي عمدًا: تعريفات الأعمدة القديمة (قائمة الدخل)
+ * تُعلن `align` وكانت المعاينة تتجاهلها دائمًا — تفعيلها هنا كان سيغيّر تقريرًا
+ * غير معنيّ بهذه الحزمة.
+ */
+function PreviewTable({ columns, rows, totalsRow, applyAlign, emptyText }: {
+  columns: ReportColumnDef[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rows: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  totalsRow?: any;
+  applyAlign?: boolean;
+  emptyText: string;
+}) {
+  const cellStyle = (c: ReportColumnDef) =>
+    applyAlign && c.align ? { textAlign: c.align, verticalAlign: 'middle' as const } : undefined;
+  return (
+    <div className="xpl-table-wrap rcx-table-scroll">
+      <table className="xpl-table">
+        <thead>
+          {/* الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
+              العنوان **عرضٌ فقط**: تعريف العمود القادم من الخلفية لم يُمسّ. */}
+          <tr>{columns.map((c) => (
+            <th key={c.key} className={c.format === 'currency' ? 'num' : undefined} style={cellStyle(c)}>
+              {c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}
+            </th>
+          ))}</tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{emptyText}</td></tr>
+          ) : (
+            rows.map((row, i) => (
+              <tr key={i}>{columns.map((c) => (
+                <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
+                  {formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                </td>
+              ))}</tr>
+            ))
+          )}
+          {totalsRow && (
+            <tr className="rcx-totals-row">
+              {columns.map((c) => (
+                <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
+                  {formatReportCell(totalsRow[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                </td>
+              ))}
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -918,49 +1008,57 @@ export default function Reports() {
             />
           )}
 
+          {/* Executive KPI cards — تُعرض فقط للتقارير التي ترسلها */}
+          {!loading && preview && preview.kpis && preview.kpis.length > 0 && (
+            <div className="rcx-kpi-grid">
+              {preview.kpis.map((k, i) => (
+                <MetricCard
+                  key={`${k.label}-${i}`}
+                  icon={k.icon ?? 'insights'}
+                  tone={kpiTone(k.color)}
+                  label={k.label}
+                  value={kpiText(k.value, k.format)}
+                  sub={k.hint !== undefined && k.hint !== '' ? kpiText(k.hint, k.hintFormat) : undefined}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Preview table */}
           {!loading && preview && (
             <div>
               {preview.subtitle && <div className="rcx-preview-subtitle">{preview.subtitle}</div>}
-              <div className="xpl-table-wrap rcx-table-scroll">
-                <table className="xpl-table">
-                  <thead>
-                    {/* الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
-                        العنوان **عرضٌ فقط**: تعريف العمود القادم من الخلفية لم يُمسّ. */}
-                    <tr>{preview.columns.map((c) => (
-                      <th key={c.key} className={c.format === 'currency' ? 'num' : undefined}>
-                        {c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}
-                      </th>
-                    ))}</tr>
-                  </thead>
-                  <tbody>
-                    {preview.rows.length === 0 ? (
-                      <tr><td colSpan={preview.columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{t('page.reports.no_data')}</td></tr>
-                    ) : (
-                      preview.rows.map((row, i) => (
-                        <tr key={i}>{preview.columns.map((c) => (
-                          <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined}>
-                            {formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
-                          </td>
-                        ))}</tr>
-                      ))
-                    )}
-                    {preview.totalsRow && (
-                      <tr className="rcx-totals-row">
-                        {preview.columns.map((c) => (
-                          <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined}>
-                            {formatReportCell(preview.totalsRow[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
-                          </td>
-                        ))}
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <PreviewTable
+                columns={preview.columns}
+                rows={preview.rows}
+                totalsRow={preview.totalsRow}
+                emptyText={t('page.reports.no_data')}
+              />
             </div>
           )}
         </div>
       </SectionCard>
+
+      {/* ── Analytical sections (only for reports that provide them) ── */}
+      {!loading && preview?.sections?.map((section, i) => (
+        <SectionCard key={`${section.title}-${i}`} title={section.title} icon="analytics" padded={false}>
+          <div className="xpl-card--pad" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {section.note && (
+              <p className="rcx-note" style={{ margin: 0 }}>
+                <span className="material-symbols-outlined">info</span>
+                {section.note}
+              </p>
+            )}
+            <PreviewTable
+              columns={section.columns}
+              rows={section.rows}
+              totalsRow={section.totalsRow}
+              applyAlign
+              emptyText={t('page.reports.no_data')}
+            />
+          </div>
+        </SectionCard>
+      ))}
 
     </div>
   );

@@ -146,6 +146,14 @@
   color: var(--xpl-muted);
   padding: 4px 2px 12px;
 }
+/* بطاقات المؤشرات التنفيذية أعلى نتيجة التقرير — نفس شبكة بطاقات الصفحة أعلاه
+   (`rcx-metrics-secondary`) بلا مقاسات أو ألوان جديدة. */
+.rcx-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
 .rcx-table-scroll { overflow-x: auto; }
 .rcx-totals-row td {
   font-weight: 800 !important;

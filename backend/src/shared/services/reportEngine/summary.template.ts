@@ -10,6 +10,8 @@ export type CardColor = 'default' | 'green' | 'red' | 'blue';
 export interface SummaryCard {
   label: string;
   value: string;
+  /** سطر ثانوي اختياري تحت القيمة (مثل مبلغ الشهر الأعلى إنفاقًا). */
+  hint?: string;
   color?: CardColor;
 }
 
@@ -23,6 +25,7 @@ export function buildSummaryCards(cards: SummaryCard[]): string {
         <div class="summary-card ${c.color ?? 'default'}">
           <div class="card-label">${esc(c.label)}</div>
           <div class="card-value">${esc(c.value)}</div>
+          ${c.hint ? `<div class="card-hint">${esc(c.hint)}</div>` : ''}
         </div>`,
         )
         .join('')}

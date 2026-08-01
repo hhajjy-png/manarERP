@@ -42,6 +42,38 @@ export interface ReportColumn {
   align?: 'left' | 'center' | 'right';
 }
 
+/**
+ * بطاقة مؤشّر تنفيذي تُعرض أعلى التقرير (HTML/الطباعة/الواجهة) وفي ورقة Excel مستقلة.
+ * محتوى بحت: المستدعي يحسب القيمة، والمحرّك يعرضها فقط.
+ */
+export interface ReportKpi {
+  label: string;
+  /** رقم (يُنسَّق حسب `format`) أو نص جاهز (اسم شهر/تصنيف). */
+  value: string | number;
+  format?: 'currency';
+  /** سطر ثانوي تحت القيمة — مثل مبلغ الشهر الأعلى إنفاقًا. */
+  hint?: string | number;
+  hintFormat?: 'currency';
+  color?: 'default' | 'green' | 'red' | 'blue';
+  /** اسم أيقونة Material Symbols تستخدمه الواجهة. HTML/الطباعة/Excel تتجاهله. */
+  icon?: string;
+}
+
+/**
+ * قسم تحليلي إضافي يُعرض **بعد** الجدول الرئيسي — بنفس عقد الأعمدة/الصفوف.
+ * في Excel يصبح كل قسم ورقة عمل مستقلة، فالورقة الرئيسية تبقى كما هي حرفيًا.
+ */
+export interface ReportSection {
+  title: string;
+  /** ملاحظة تُعرض تحت العنوان — تُستخدم للإفصاح عن أي حدّ (مثل «أكبر 20»). */
+  note?: string;
+  columns: ReportColumn[];
+  rows: Record<string, unknown>[];
+  totalsRow?: Record<string, unknown>;
+  /** اسم ورقة Excel — يسقط إلى `title` عند غيابه. */
+  sheetName?: string;
+}
+
 export interface ReportInput {
   title: string;
   subtitle?: string;
@@ -49,6 +81,10 @@ export interface ReportInput {
   rows: Record<string, unknown>[];
   /** صف مجاميع اختياري. */
   totalsRow?: Record<string, unknown>;
+  /** بطاقات مؤشرات تنفيذية اختيارية — إضافية بحتة، لا تمسّ الجدول الرئيسي. */
+  kpis?: ReportKpi[];
+  /** أقسام تحليلية اختيارية تُعرض بعد الجدول الرئيسي. */
+  sections?: ReportSection[];
   /** تفعيل تظليل الصفوف بالتناوب (افتراضي: مفعّل). */
   zebra?: boolean;
   /** تفعيل الفلترة التلقائية على صف الرأس (افتراضي: مفعّل). */
@@ -69,6 +105,20 @@ function safeSheetName(name: string, fallbackIndex: number): string {
   const cleaned = (name || '').replace(INVALID_SHEET_CHARS, ' ').trim();
   const base = cleaned.length > 0 ? cleaned : `Sheet${fallbackIndex + 1}`;
   return base.slice(0, MAX_SHEET_NAME_LEN);
+}
+
+/**
+ * ExcelJS يرفض اسمَي ورقة متطابقين برمي استثناء — أي أن عنوانَي قسم متشابهين كانا
+ * سيُسقطان **التصدير كله**. نُلحق لاحقة رقمية بدل ذلك: ورقة باسم مختلف قليلًا
+ * أفضل بما لا يُقاس من ملف لا يُنتَج.
+ */
+function uniqueSheetName(name: string, used: Set<string>): string {
+  if (!used.has(name)) { used.add(name); return name; }
+  for (let i = 2; ; i++) {
+    const suffix = ` (${i})`;
+    const candidate = `${name.slice(0, MAX_SHEET_NAME_LEN - suffix.length)}${suffix}`;
+    if (!used.has(candidate)) { used.add(candidate); return candidate; }
+  }
 }
 
 function applyWorkbookProperties(wb: ExcelJS.Workbook, title: string, subtitle?: string): void {
@@ -228,16 +278,88 @@ function renderSheet(ws: ExcelJS.Worksheet, input: ReportInput): void {
   ws.pageSetup.printTitlesRow = `${headerRowIndex}:${headerRowIndex}`;
 }
 
+const KPI_SHEET_NAME = 'المؤشرات التنفيذية';
+
 /**
- * توليد ملف Excel احترافي بدعم RTL عربي كامل — ورقة عمل واحدة.
- * يُرجع Buffer جاهزًا للتنزيل.
+ * ورقة المؤشرات التنفيذية — عرضٌ عمودي بسيط (مؤشر / قيمة / تفصيل).
+ *
+ * لا تمرّ عبر `renderSheet` لأن تنسيق كل خليّة قيمة يختلف حسب المؤشر نفسه
+ * (مبلغ بالدينار، عدّاد صحيح، أو نص كاسم شهر) — لا حسب عمودها.
+ */
+function renderKpiSheet(ws: ExcelJS.Worksheet, title: string, kpis: ReportKpi[]): void {
+  ws.columns = [{ key: 'label', width: 32 }, { key: 'value', width: 24 }, { key: 'hint', width: 20 }];
+
+  ws.mergeCells(1, 1, 1, 3);
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = title;
+  titleCell.font = TITLE_FONT;
+  titleCell.alignment = CENTER_ALIGN;
+  ws.getRow(1).height = 26;
+
+  const headerRow = ws.getRow(2);
+  ['المؤشر', 'القيمة', 'تفصيل'].forEach((h, i) => {
+    const cell = headerRow.getCell(i + 1);
+    cell.value = h;
+    cell.font = HEADER_FONT;
+    cell.fill = HEADER_FILL;
+    cell.alignment = CENTER_ALIGN;
+    cell.border = HEADER_BORDER;
+  });
+  headerRow.height = 22;
+
+  kpis.forEach((kpi, i) => {
+    const r = ws.addRow([kpi.label, kpi.value, kpi.hint ?? '']);
+    r.eachCell((cell, colNumber) => {
+      cell.font = BODY_FONT;
+      cell.border = ROW_BORDER;
+      cell.alignment = colNumber === 1 ? RIGHT_ALIGN : CENTER_ALIGN;
+      if (i % 2 === 1) cell.fill = ZEBRA_FILL;
+    });
+    // التنسيق النقدي يُطبَّق على الخليّة الرقمية وحدها — Excel يتجاهله على النص.
+    if (kpi.format === 'currency') r.getCell(2).numFmt = KWD_FORMAT;
+    if (kpi.hintFormat === 'currency') r.getCell(3).numFmt = KWD_FORMAT;
+  });
+}
+
+/**
+ * توليد ملف Excel احترافي بدعم RTL عربي كامل.
+ *
+ * الورقة الأولى هي التقرير كما كان دائمًا — بلا أي تغيير. عند وجود مؤشرات أو أقسام
+ * تحليلية تُضاف **بعدها** أوراق مستقلة، فلا يتزحزح صفّ واحد في الورقة الرئيسية.
  */
 export async function buildExcel(input: ReportInput): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   applyWorkbookProperties(wb, input.title, input.subtitle);
 
-  const ws = wb.addWorksheet(safeSheetName(input.sheetName ?? DEFAULT_SHEET_NAME, 0), sheetOptions(input));
+  const used = new Set<string>();
+  const ws = wb.addWorksheet(
+    uniqueSheetName(safeSheetName(input.sheetName ?? DEFAULT_SHEET_NAME, 0), used),
+    sheetOptions(input),
+  );
   renderSheet(ws, input);
+
+  let sheetIndex = 1;
+  if (input.kpis && input.kpis.length > 0) {
+    const kpiWs = wb.addWorksheet(
+      uniqueSheetName(safeSheetName(KPI_SHEET_NAME, sheetIndex++), used),
+      sheetOptions(input),
+    );
+    renderKpiSheet(kpiWs, `${input.title} — ${KPI_SHEET_NAME}`, input.kpis);
+  }
+  for (const section of input.sections ?? []) {
+    const sectionInput: ReportInput = {
+      title: section.title,
+      subtitle: section.note,
+      columns: section.columns,
+      rows: section.rows,
+      totalsRow: section.totalsRow,
+    };
+    const sectionWs = wb.addWorksheet(
+      uniqueSheetName(safeSheetName(section.sheetName ?? section.title, sheetIndex++), used),
+      sheetOptions(sectionInput),
+    );
+    renderSheet(sectionWs, sectionInput);
+  }
 
   const buffer = await wb.xlsx.writeBuffer();
   return Buffer.from(buffer);
