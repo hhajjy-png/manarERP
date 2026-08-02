@@ -16,8 +16,15 @@
    الوحدة **نقيّة تمامًا** (لا Prisma، لا I/O) — لذلك تُختبر مباشرة.
    ════════════════════════════════════════════════════════════════════════════ */
 
-import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
-import { monthWindowsBetween } from '../../core/utils/dateWindows';
+import {
+  MAX_MATRIX_MONTHS,
+  TOTAL_LABEL,
+  apportionPercents,
+  axisSpansYears,
+  buildMonthAxis,
+  monthKey,
+  monthLabel,
+} from './analysisKit';
 import { roundMoney } from '../../shared/utils/money';
 import { formatPercent } from '../../shared/utils/currency';
 import { formatDisplayDate } from '../../shared/utils/dateDisplay';
@@ -39,9 +46,6 @@ export interface ExpenseAnalysis {
   sections: ReportSection[];
 }
 
-/** أكبر عدد أعمدة شهرية تُرسم متّصلة قبل الاكتفاء بالأشهر ذات البيانات فقط. */
-const MAX_MATRIX_MONTHS = 36;
-
 /** حدّ «أكبر المصروفات» — محرّك التقارير بلا ترقيم صفحات، فالحدّ معلَن لا صامت. */
 const TOP_EXPENSES_LIMIT = 20;
 
@@ -49,62 +53,10 @@ const CATEGORY_COL_WIDTH = 26;
 const MONTH_COL_WIDTH = 15;
 const TOTAL_COL_WIDTH = 17;
 
-const TOTAL_LABEL = 'الإجمالي';
-
-/** وسم شهر `YYYY-MM` من مكوّنات التاريخ **المحلية** (نفس عقد `monthWindowsBetween`). */
-function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-/** `2025-03` → `مارس` أو `مارس 2025` عندما يمتد التقرير على أكثر من سنة. */
-function monthLabel(key: string, withYear: boolean): string {
-  const [y, m] = key.split('-');
-  const name = ARABIC_MONTHS[Number(m) - 1] ?? m;
-  return withYear ? `${name} ${y}` : name;
-}
-
-/**
- * توزيع النسب المئوية بطريقة **أكبر البواقي** (Hamilton) على منزلة عشرية واحدة.
- *
- * التقريب المستقل لكل نسبة لا يجمع إلى 100% بالضرورة (33.3×3 = 99.9). هذه الطريقة
- * تُوزّع الوحدات المتبقية على أصحاب أكبر كسر، فيصبح المجموع **100.0% بالضبط** —
- * وهو شرط صريح في مواصفة الحزمة.
- *
- * إجمالي صفري (أو سالب) ⇒ أصفار، ولا تُفرض 100% على لا شيء.
- */
-export function apportionPercents(values: number[], total: number, decimals = 1): number[] {
-  if (values.length === 0) return [];
-  if (!(total > 0)) return values.map(() => 0);
-
-  const scale = 10 ** decimals;
-  const targetUnits = 100 * scale;
-  const raw = values.map((v) => (v / total) * targetUnits);
-  const units = raw.map((r) => Math.floor(r));
-  let remainder = Math.max(0, targetUnits - units.reduce((a, b) => a + b, 0));
-
-  const order = raw
-    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
-    .sort((a, b) => b.frac - a.frac || a.i - b.i);
-
-  for (let k = 0; remainder > 0; k++, remainder--) {
-    units[order[k % order.length].i] += 1;
-  }
-  return units.map((u) => u / scale);
-}
-
-/** محور الأشهر: متّصل بين أقدم وأحدث تاريخ، ما لم يتجاوز الحدّ فيقتصر على أشهر البيانات. */
-function buildMonthAxis(rows: ExpenseAnalysisRow[]): { keys: string[]; truncated: boolean } {
-  const present = Array.from(new Set(rows.map((r) => monthKey(r.date)))).sort();
-  let min = rows[0].date;
-  let max = rows[0].date;
-  for (const r of rows) {
-    if (r.date < min) min = r.date;
-    if (r.date > max) max = r.date;
-  }
-  const contiguous = monthWindowsBetween(min, max).map((w) => w.label);
-  if (contiguous.length > MAX_MATRIX_MONTHS) return { keys: present, truncated: true };
-  return { keys: contiguous, truncated: false };
-}
+// محور الأشهر وتسمياته وتوزيع النسب مشتركة الآن مع باقي الحزم التحليلية
+// (`analysisKit.ts`) — سلوكها هنا لم يتغيّر حرفًا واحدًا، لكنها لم تعد نسخة
+// خاصّة بهذا التقرير يمكن أن تنحرف عن نظيرتها في تقرير آخر.
+export { apportionPercents };
 
 /**
  * يبني المؤشرات التنفيذية والأقسام التحليلية من صفوف التقرير المفلترة.
@@ -144,8 +96,8 @@ export function buildExpenseAnalysis(rows: ExpenseAnalysisRow[], grandTotal: num
     byMonth.set(mk, (byMonth.get(mk) ?? 0) + r.amount);
   }
 
-  const { keys: monthKeys, truncated } = buildMonthAxis(rows);
-  const withYear = new Set(monthKeys.map((k) => k.slice(0, 4))).size > 1;
+  const { keys: monthKeys, truncated } = buildMonthAxis(rows.map((r) => r.date));
+  const withYear = axisSpansYears(monthKeys);
 
   // التصنيفات مرتَّبة تنازليًا بالإنفاق — الأهمّ أولًا في كل قسم يذكرها.
   const categories = Array.from(categoryAgg.entries())
