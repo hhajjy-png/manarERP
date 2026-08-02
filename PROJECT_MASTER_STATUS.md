@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-02 (previously 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-02 (previously 2026-08-02, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · This refresh is a release-tracking update, not a read-only audit — it accompanies the Equipment Owner Default Price v1 release, which applied two additive Prisma migrations (documented above and in PROJECT_STATE.md).
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Collections Analysis Report Enhancement Pack v1), like the Expense Analysis Report
+> below. This pass (Equipment Owner Default Price v1), like the Collections Analysis Report
 > Enhancement Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `9a4ae9b1` — merge of `feature/collections-analysis-report-enhancement-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` (merge commit `9a4ae9b1`) | High |
-| **Previous stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (`0398d8c2`) | High |
+| **Current HEAD** | `96a970a8` — merge of `feature/equipment-owner-default-price-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-equipment-owner-default-price-v1` (merge commit `96a970a8`) | High |
+| **Previous stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` (`9a4ae9b1`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,36 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-collections-analysis-report-enhancement-pack-v1` (`9a4ae9b1`, 2026-08-02)
+### Latest Release — `stable-equipment-owner-default-price-v1` (`96a970a8`, 2026-08-02)
+
+Price Agreements + Job & Commission Analysis (first release). 34 files
+(11 modified, 23 added — 2 of the added files are test files), 3660
+insertions / 11 deletions.
+
+`ProjectPrice` gains a default `equipmentOwnerPrice` field beside the
+existing customer `unitPrice`, surfaced in the Prices page (column,
+drawer field, form input — unset renders "—", never "0.000") and in
+`GET /prices/for-invoice`. The Job & Commission Analysis module — built
+earlier in the same development effort, released here for the first
+time since Equipment Owner Default Price has no meaning without it —
+reads that default: selecting a price agreement line auto-fills both
+Customer Price and Equipment Owner Price and immediately recomputes
+commission per unit, customer/owner totals, commission total, and
+margin %, via a pure calc library kept byte-fixture-identical between
+frontend and backend. The owner price stays editable per-analysis only;
+the analysis page issues no write call to `/prices` at all, so an
+override can never propagate back to the agreement, and saved analyses
+rehydrate from their own stored snapshot columns rather than re-querying
+`/prices`, so editing an agreement afterward cannot change a historical
+analysis. Two additive migrations (`work_analyses`/`work_analysis_lines`
+creation; one `ALTER TABLE ADD COLUMN ... DEFAULT 0`) were applied via
+`prisma migrate deploy`, hand-verified beforehand against Prisma's own
+generated diff, with zero existing table/column/index touched. No new
+API endpoints; `equipmentOwnerPrice` was grepped project-wide and
+confirmed absent from every invoice/accounting/reports/transactions/
+expenses module.
+
+### Previous Release — `stable-collections-analysis-report-enhancement-pack-v1` (`9a4ae9b1`, 2026-08-02)
 
 Comprehensive Reports module, Collections Summary Report. 6 files (4
 modified, 2 added — 2 of the changed files are test files, one new one

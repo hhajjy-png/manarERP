@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `9a4ae9b1` — release `stable-collections-analysis-report-enhancement-pack-v1` (Collections Summary Report gains executive KPI cards and eleven analytical sections — customer × month pivot matrix, monthly analysis, payment method breakdown/distribution, customer breakdown, top 20 collections, month comparison, historical analysis by invoice issue year, collection delay buckets, collection efficiency, percentage analysis — computed additively from the report's own already-filtered dataset; presentation and export only) |
+| **Production HEAD** | `96a970a8` — release `stable-equipment-owner-default-price-v1` (Price Agreements gains a default `equipmentOwnerPrice` field beside customer `unitPrice`; Job & Commission Analysis — released for the first time in this same tag — auto-fills both prices from a selected agreement and recomputes commission/margin live; owner price stays editable per-analysis only and never writes back to the agreement; two additive migrations, no existing table/column touched) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` (release date 2026-08-02) → merge `9a4ae9b1` |
-| **Previous stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (2026-08-01) → merge `0398d8c2` |
-| **Total stable releases** | 399 (all merged onto `production`; window 2026-06-07 → 2026-08-02) |
-| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **157/157 files, 2281/2281 tests passing** · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** — identical file/test signature to the previous release's documented baseline, re-verified on this branch with no new failures (this pack touches zero frontend files) · scope confirmed: exactly 6 files entered the release (4 modified, 2 added — a shared analysis-helpers module, the new collections analytics module, service wiring, one refactored analytics module with no behavioral change, plus 2 test files), staged explicitly by path (never `git add -A`), with all in-flight Google Drive / cloud-sync WIP (13 tracked + 8 untracked paths, including this pass's own leftover debug artifact `backend/__verify_collections.ts`) confirmed still present, unstaged, and unmodified after the merge · Prisma/schema/migrations and Electron untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `9a4ae9b1` + tag `stable-collections-analysis-report-enhancement-pack-v1`) |
+| **Latest stable tag** | `stable-equipment-owner-default-price-v1` (release date 2026-08-02) → merge `96a970a8` |
+| **Previous stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` (2026-08-02) → merge `9a4ae9b1` |
+| **Total stable releases** | 400 (all merged onto `production`; window 2026-06-07 → 2026-08-02) |
+| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **158/158 files, 2291/2291 tests passing** · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** — identical file/test signature to the previous release's documented baseline, re-verified on this branch with no new failures · scope confirmed: exactly 34 files entered the release (11 modified, 23 added — Prisma schema + 2 migrations, the new `workAnalysis` backend module, prices DTO/service additions, report-engine `internal` watermark addition, the new Work Analysis frontend page/components/calc-lib, Prices.tsx form/column, i18n, nav/route wiring), staged explicitly by path (never `git add -A`), with all in-flight Google Drive / cloud-sync WIP (10 tracked + 14 untracked paths, including this session's own leftover debug/probe artifacts) confirmed still present, unstaged, and unmodified after the merge · both pending migrations applied via `prisma migrate deploy` against the real dev database — `migrate status` reported "Database schema is up to date!" afterward, all 21 pre-existing price agreements verified intact — Product Owner manual review — **completed & approved** (exercised live: set owner prices on 9 agreements and created one Work Analysis during review), release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `96a970a8` + tag `stable-equipment-owner-default-price-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Collections Analysis Report Enhancement Pack v1
+## Latest Release — Equipment Owner Default Price v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Equipment Owner Default Price v1 (Price Agreements + Job & Commission Analysis; 34 files — 11 modified, 23 added, including 2 test files) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-02 |
+| **Feature branch** | `feature/equipment-owner-default-price-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `f96d759d` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's implementation → Product-Owner-approved-release flow |
+| **Feature commit** | `f298dffb` |
+| **Production merge commit** | `96a970a8` |
+| **Stable tag** | `stable-equipment-owner-default-price-v1` → merge `96a970a8` (annotated) |
+| **Reviews** | Implementation → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend + frontend `tsc --noEmit` ✅ (feature branch and post-merge) · backend `vitest run` 158/158 files, 2291/2291 tests · frontend 8/26 failures confirmed pre-existing (identical signature to the prior release's documented baseline) · production build (`build:back` + `build:front`) ✅ · both migrations applied via `prisma migrate deploy` against the real dev database, verified read-only before and after: `migrate status` → "Database schema is up to date!", all 21 pre-existing `project_prices` rows intact, new tables present with the Product Owner's own review-session data (9 agreements given an owner price, 1 Work Analysis created) |
+
+**What changed.** `ProjectPrice` gains one new field, `equipmentOwnerPrice` (`Float @default(0)`), stored beside the existing customer `unitPrice`. The Prices page gains a matching column, drawer field, and form input — an unset value renders "—", not "0.000", so an unrecorded default never reads as free work. `GET /prices/for-invoice` now returns the field; `POST`/`PATCH /prices` accept it as optional. This is also the **first release of the Job & Commission Analysis module** (`work_analyses` / `work_analysis_lines`, backend `workAnalysis` module, frontend `WorkAnalysis` page) — built earlier in the same development effort but never previously merged, and a hard prerequisite for this pack since the auto-fill behavior targets that module's line editor. Selecting a price agreement line there now fills both Customer Price and Equipment Owner Price and immediately recomputes commission per unit, customer/owner totals, commission total, and margin % via a pure calc library mirrored (byte-identical test fixtures) between frontend and backend to prevent the two copies drifting apart.
+
+**Isolation, by construction not convention.** `work_analyses`/`work_analysis_lines` carry no foreign key to `Customer`, `ProjectPrice`, `Contract`, `Invoice`, or any other existing model — the only relation is the new tables' own internal `WorkAnalysisLine → WorkAnalysis` link — so archiving or editing a price agreement can never be blocked or altered by an analysis that referenced it. The Work Analysis page issues **no write call to `/prices` at all**, so a manual owner-price override inside one analysis cannot propagate back to the agreement. Saved/reopened analyses rehydrate from their own stored snapshot columns and never re-query `/prices`, so editing an agreement afterward cannot change a historical analysis. `equipmentOwnerPrice` was grepped across the whole codebase: zero references in `modules/invoices`, `modules/accounting`, `modules/reports`, `modules/transactions`, or `modules/expenses`.
+
+**Database.** Two additive migrations, both hand-verified against Prisma's own generated diff before being written: `20260802120000_add_work_analysis` (2 `CREATE TABLE` + 5 `CREATE INDEX`, zero `ALTER`) and `20260802140000_add_equipment_owner_price` (one `ALTER TABLE ADD COLUMN ... NOT NULL DEFAULT 0`, which SQLite back-fills in place without a table rewrite). Applied via `prisma migrate deploy` — no reset, no `migrate dev`. A pre-existing, unrelated migration-history divergence (three migrations recorded as applied in the database but present only on an unmerged WIP branch, plus one historical migration file with a stale checksum) was investigated read-only in a prior pass and confirmed **not** to block `deploy`, which — unlike `dev` — applies only pending migrations without drift/checksum detection.
+
+**API.** No new endpoints. `for-invoice`'s existing invoice-side consumers (`InvoiceFastEntryDialog`, `useInvoicePartyPricing`) narrow the response to a fixed `PriceOption` shape and never see the added field, so invoice pricing behavior is unchanged.
+
+**Not changed:** invoices, accounting, journals, reports, permissions, existing pricing logic/validation, Electron/IPC.
+
+**Scope discipline.** The working tree at release time contained unrelated, unfinished Google Drive / cloud-sync work across 10 tracked files plus 14 untracked paths (including this session's own leftover investigation artifacts — two debug scripts, a probe test/payload pair, a one-time scripts folder, two imported spreadsheets, and a scratch markdown file). None of it belongs to this release. All 34 pack files were staged explicitly by path (never `git add -A`); every WIP and debug file was confirmed still present, unstaged, and unmodified after the merge.
+
+---
+
+## Previous Release — Collections Analysis Report Enhancement Pack v1
 
 | Field | Value |
 |-------|-------|
