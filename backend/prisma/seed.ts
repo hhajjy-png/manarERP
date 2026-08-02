@@ -74,6 +74,9 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   bankStatementImport:  ['read', 'create', 'export', 'reconcile', 'delete'],
   expirations:          ['read', 'export'],
   attachments:          ['read', 'create', 'delete'],
+  // تحليل الشغل والعمولة — أداة تحليل داخلية. لا `approve` ولا `post`: لا سير
+  // موافقات ولا ترحيل محاسبي أصلًا، فمفتاح اعتماد هنا يوهم بأثر لا وجود له.
+  workAnalysis:         ['read', 'create', 'update', 'delete', 'export', 'print'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -164,6 +167,10 @@ async function main() {
       'inventory.read',
       'inventory.export',
       'prices.read',
+      // المحاسب يقرأ التحليل ويصدّره/يطبعه، ولا ينشئه: الأداة تشغيلية لا محاسبية.
+      'workAnalysis.read',
+      'workAnalysis.export',
+      'workAnalysis.print',
       'import.read',
       'import.create',
       'financialdashboard.read',
@@ -183,7 +190,9 @@ async function main() {
       'attachments.delete',
     ],
     PROJECT_MANAGER: [
-      ...keysForModules(['contracts', 'prices', 'reports']),
+      // تحليل الشغل والعمولة صلاحية كاملة: مالك القرار التسعيري هو من يحلّل الهامش
+      // قبل إصدار الفاتورة.
+      ...keysForModules(['contracts', 'prices', 'reports', 'workAnalysis']),
       ...readOnly(['dashboard', 'customers', 'equipment', 'invoices', 'expenses', 'suppliers']),
       'inventory.read',
       'forms.read',

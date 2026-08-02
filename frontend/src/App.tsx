@@ -28,6 +28,7 @@ const DataImport = lazy(() => import('./pages/DataImport'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
 const Prices = lazy(() => import('./pages/Prices'));
+const WorkAnalysis = lazy(() => import('./pages/WorkAnalysis'));
 const Attendance = lazy(() => import('./pages/Attendance'));
 const Forms = lazy(() => import('./pages/Forms'));
 const Expenses = lazy(() => import('./pages/Expenses'));
@@ -142,6 +143,7 @@ export default function App() {
             <Route path="/audit" element={<AuditLog />} />
             <Route path="/maintenance" element={<Maintenance />} />
             <Route path="/prices" element={<Prices />} />
+            <Route path="/work-analysis" element={<WorkAnalysis />} />
             <Route path="/attendance" element={<Attendance />} />
             <Route path="/forms" element={<Forms />} />
             <Route path="/statements" element={<Statements />} />

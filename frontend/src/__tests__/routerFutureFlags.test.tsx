@@ -74,7 +74,7 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     expect(appSrc).not.toContain('createHashRouter');
     expect(appSrc).not.toContain('RouterProvider');
     expect(appSrc).toContain('<Suspense fallback={<PageLoader />}>');
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(50); // +1: BlankA4Print (Blank A4 Free Print v1)
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(51); // +1: WorkAnalysis (Job & Commission Analysis v1)
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });

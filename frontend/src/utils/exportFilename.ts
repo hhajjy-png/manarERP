@@ -33,6 +33,8 @@ export const ReportName = {
   Cheques: 'Cheques',
   MonthlyReport: 'MonthlyReport',
   PriceAgreements: 'PriceAgreements',
+  // تحليل الشغل والعمولة — مستند تحليل داخلي، ليس تقريرًا محاسبيًا ولا فاتورة.
+  WorkAnalysis: 'WorkAnalysis',
   // Generic data-module (ResourcePage) list exports:
   Customers: 'Customers',
   Suppliers: 'Suppliers',

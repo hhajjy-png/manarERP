@@ -63,10 +63,23 @@ export interface TableExportTotals {
   value: number;
 }
 
+/**
+ * Free-form rows written ABOVE the header row — a document preamble (title,
+ * party, period, an "internal analysis, not an invoice" disclaimer…) for exports
+ * that are a document rather than a bare table dump.
+ *
+ * Ragged rows are fine: `aoa_to_sheet` pads short rows. Money formatting is NOT
+ * applied here — a preamble is captions and context, not calculable cells.
+ * Omitting this leaves every existing caller's output byte-identical, because the
+ * header stays at row 0 whenever the preamble is empty.
+ */
+export type TableExportPrelude = readonly (readonly (string | number)[])[];
+
 function buildExportSheet<T>(
   rows: T[],
   columns: TableExportColumn<T>[],
   totals?: TableExportTotals,
+  prelude?: TableExportPrelude,
 ): XLSX.WorkSheet {
   const header = columns.map((c) => c.header);
   const body = rows.map((row) =>
@@ -82,13 +95,23 @@ function buildExportSheet<T>(
       return '';
     })
     : null;
-  const ws = XLSX.utils.aoa_to_sheet(totalsRow ? [header, ...body, totalsRow] : [header, ...body]);
+  const preludeRows = prelude ? prelude.map((row) => [...row]) : [];
+  const ws = XLSX.utils.aoa_to_sheet([
+    ...preludeRows,
+    header,
+    ...body,
+    ...(totalsRow ? [totalsRow] : []),
+  ]);
+  // The preamble pushes the whole table down, so every money cell address shifts
+  // with it. `headerOffset` keeps the numFmt loop anchored to the real header row
+  // instead of assuming row 0.
+  const headerOffset = preludeRows.length;
   columns.forEach((c, ci) => {
     if (!c.money) return;
     // Data rows plus the totals row when present — the total is a money cell too.
     const lastRow = totalsRow ? rows.length + 1 : rows.length;
     for (let r = 0; r < lastRow; r += 1) {
-      const ref = XLSX.utils.encode_cell({ r: r + 1, c: ci });
+      const ref = XLSX.utils.encode_cell({ r: headerOffset + r + 1, c: ci });
       const cell = ws[ref];
       if (cell) cell.z = MONEY_NUMFMT;
     }
@@ -108,9 +131,11 @@ export function downloadTableExcel<T>(
   sheetName = 'Sheet1',
   /** Optional totals row appended after the data. Omitted → byte-identical to before. */
   totals?: TableExportTotals,
+  /** Optional caption rows written above the header. Omitted → byte-identical to before. */
+  prelude?: TableExportPrelude,
 ): void {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildExportSheet(rows, columns, totals), sheetName);
+  XLSX.utils.book_append_sheet(wb, buildExportSheet(rows, columns, totals, prelude), sheetName);
   const out = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer;
   const blob = new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   downloadBlob(blob, filename);

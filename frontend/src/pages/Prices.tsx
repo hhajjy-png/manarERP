@@ -320,6 +320,10 @@ export default function Prices() {
                     <SortableHeader label={t('col.prices.location')} title={t('col.prices.location')} state={sort.getState('contractLocation')} onToggle={() => sort.toggle('contractLocation')} />
                     <SortableHeader label={t('col.prices.unit')} title={t('col.prices.unit')} state={sort.getState('contractUnit')} onToggle={() => sort.toggle('contractUnit')} />
                     <SortableHeader label={fcMoneyHeader(t('col.prices.unit_price'))} title={t('col.prices.unit_price')} state={sort.getState('unitPrice')} onToggle={() => sort.toggle('unitPrice')} />
+                    {/* غير قابل للفرز عمدًا: الفرز يمرّ بقائمة بيضاء في الخادم
+                        (PRICES_SORTABLE)، وإضافة مفتاح إليها تغيير في سلوك الـ API
+                        وهذه الحزمة إضافة حقل لا توسيع للواجهة البرمجية. */}
+                    <th title={t('col.prices.owner_price')}>{fcMoneyHeader(t('col.prices.owner_price'))}</th>
                     <th aria-label={t('a11y.open_row')} />
                   </tr>
                 </thead>
@@ -335,6 +339,9 @@ export default function Prices() {
                       <td>{r.contractLocation}</td>
                       <td>{r.contractUnit}</td>
                       <td style={{ fontWeight: 700 }}>{<MoneyCell value={r.unitPrice} />}</td>
+                      {/* اتفاقية لم يُسجَّل لها سعر صاحب معدة تُعرض «—» لا «0.000»:
+                          الصفر رقم يوهم بأن العمل بلا تكلفة، والشرطة تقول «غير مسجَّل». */}
+                      <td>{r.equipmentOwnerPrice ? <MoneyCell value={r.equipmentOwnerPrice} /> : <span style={{ color: 'var(--xpl-muted)' }}>—</span>}</td>
                       <td className="decx-col-chevron" style={{ width: 32, textAlign: 'center' }}><span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 18, color: 'var(--xpl-muted)' }}>chevron_left</span></td>
                     </tr>
                   ))}
@@ -377,6 +384,10 @@ export default function Prices() {
           <DrawerSection title={t('sec.pricing')}>
             <DrawerField label={t('col.prices.unit')} value={viewing.contractUnit} />
             <DrawerField label={t('col.prices.unit_price')} value={<MoneyText value={viewing.unitPrice} />} />
+            <DrawerField
+              label={t('col.prices.owner_price')}
+              value={viewing.equipmentOwnerPrice ? <MoneyText value={viewing.equipmentOwnerPrice} /> : '—'}
+            />
             {viewing.validUntil && <DrawerField label={t('field.valid_until')} value={<span className="prx-valid">{formatDisplayDate(viewing.validUntil)}</span>} />}
           </DrawerSection>
         </Drawer>
@@ -530,6 +541,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
   const [contractLocation, setContractLocation] = useState(price?.contractLocation ?? '');
   const [contractUnit, setContractUnit] = useState<(typeof contractUnits)[number]>((price?.contractUnit ?? 'درب') as (typeof contractUnits)[number]);
   const [unitPrice, setUnitPrice] = useState<number>(price?.unitPrice ?? 0);
+  const [equipmentOwnerPrice, setEquipmentOwnerPrice] = useState<number>(price?.equipmentOwnerPrice ?? 0);
   const [customerId, setCustomerId] = useState<number | ''>(price?.customerId ?? '');
   const [validUntil, setValidUntil] = useState<string>(price?.validUntil ? String(price.validUntil).slice(0, 10) : '');
   const [saving, setSaving] = useState(false);
@@ -541,6 +553,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
     if (!companyName.trim()) { setError(t('error.prices.company_required')); return; }
     if (!contractLocation.trim()) { setError(t('error.prices.location_required')); return; }
     if (unitPrice < 0) { setError(t('error.price_negative')); return; }
+    if (equipmentOwnerPrice < 0) { setError(t('error.prices.owner_price_negative')); return; }
     if (!isEdit && !customerId) { setError(t('error.prices.customer_required')); return; }
 
     setSaving(true);
@@ -551,6 +564,7 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         contractLocation: contractLocation.trim(),
         contractUnit,
         unitPrice,
+        equipmentOwnerPrice,
         validUntil: validUntil || null,
         ...(customerId !== '' ? { customerId: Number(customerId) } : {}),
       };
@@ -619,6 +633,27 @@ function PriceForm({ price, customers, onClose, onSaved }: { price?: any; custom
         <div className="xpl-field">
           <label>{t('col.prices.unit_price')} <span className="req">*</span></label>
           <input className="xpl-input" type="number" min="0" step="0.001" value={unitPrice} onChange={(e) => setUnitPrice(Number(e.target.value))} placeholder="0.000" style={{ direction: 'ltr' }} aria-label={t('col.prices.unit_price')} />
+        </div>
+        {/* بجوار سعر العميل مباشرةً — الرقمان يُقرآن معًا لأن الفرق بينهما هو
+            العمولة. اختياري: صفر يعني «لم يُسجَّل بعد» لا «مجاني». */}
+        <div className="xpl-field">
+          <label>{t('col.prices.owner_price')}</label>
+          <input
+            className="xpl-input"
+            type="number"
+            min="0"
+            step="0.001"
+            value={equipmentOwnerPrice}
+            onChange={(e) => setEquipmentOwnerPrice(Number(e.target.value))}
+            placeholder="0.000"
+            style={{ direction: 'ltr' }}
+            aria-label={t('col.prices.owner_price')}
+          />
+          {/* نفس رموز الطقم المستعملة في `.xpl-field-err` — لا صنف جديد يُخترع
+              لسطر تلميح واحد. */}
+          <small style={{ fontSize: 11.5, color: 'var(--xpl-muted)', marginTop: 1 }}>
+            {t('hint.prices.owner_price')}
+          </small>
         </div>
       </DialogSection>
 
