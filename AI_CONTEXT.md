@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `9a4ae9b1` (merge of `feature/collections-analysis-report-enhancement-pack-v1` — Collections Summary Report gains executive KPI cards and eleven analytical sections (customer × month pivot matrix, monthly analysis, payment method breakdown/distribution, customer breakdown, top 20 collections, month comparison, historical analysis by invoice issue year, collection delay buckets, collection efficiency, percentage analysis), computed additively from the report's own already-filtered dataset with zero new queries; reaches preview, print, Excel, and HTML/PDF export; 6 files (4 modified, 2 added), no schema or migration, no frontend change) |
-| **Current Documentation Commit** | `PENDING` |
+| **Current Documentation Commit** | `fe1f38c` |
 | **Current Stable Tag** | `stable-collections-analysis-report-enhancement-pack-v1` |
 | **Current Release Date** | 2026-08-02 |
 | **Total Stable Releases** | 399 (window 2026-06-07 → 2026-08-02) |
