@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `0398d8c2` — release `stable-expense-analysis-report-enhancement-pack-v1` (Expenses Report gains executive KPI cards and six analytical sections — pivot matrix, monthly analysis, top categories, top expenses, month comparison, percentage analysis — computed additively from the report's own already-filtered dataset; presentation and export only) |
+| **Production HEAD** | `9a4ae9b1` — release `stable-collections-analysis-report-enhancement-pack-v1` (Collections Summary Report gains executive KPI cards and eleven analytical sections — customer × month pivot matrix, monthly analysis, payment method breakdown/distribution, customer breakdown, top 20 collections, month comparison, historical analysis by invoice issue year, collection delay buckets, collection efficiency, percentage analysis — computed additively from the report's own already-filtered dataset; presentation and export only) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (release date 2026-08-01) → merge `0398d8c2` |
-| **Previous stable tag** | `stable-invoice-list-collection-date-column-v1` (2026-08-01) → merge `631b94c1` |
-| **Total stable releases** | 398 (all merged onto `production`; window 2026-06-07 → 2026-08-01) |
-| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **156/156 files, 2261/2261 tests passing** · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** — identical file/test signature to the previous release's documented baseline, re-verified on this branch with no new failures · scope confirmed: exactly 13 files entered the release (8 modified, 5 added — backend report service/engine wiring and two new regression-test files, frontend Reports/ReportPrint pages, one new regression-test file), staged explicitly by path (never `git add -A`), with all in-flight Google Drive / cloud-sync WIP (~13 tracked + 8 untracked paths) and this pass's own investigation-only debug artifacts (a probe script, two ad-hoc test files, a captured JSON fixture) confirmed still present, unstaged, and unmodified after the merge · Prisma/schema/migrations and Electron untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `0398d8c2` + tag `stable-expense-analysis-report-enhancement-pack-v1`) |
+| **Latest stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` (release date 2026-08-02) → merge `9a4ae9b1` |
+| **Previous stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (2026-08-01) → merge `0398d8c2` |
+| **Total stable releases** | 399 (all merged onto `production`; window 2026-06-07 → 2026-08-02) |
+| **Latest validation** | Backend + frontend `tsc --noEmit` ✅ (both pre-merge on the feature branch and post-merge on `production`) · backend `vitest run` **157/157 files, 2281/2281 tests passing** · frontend `vitest run` — 8 failed files / 26 failed tests, **confirmed pre-existing** — identical file/test signature to the previous release's documented baseline, re-verified on this branch with no new failures (this pack touches zero frontend files) · scope confirmed: exactly 6 files entered the release (4 modified, 2 added — a shared analysis-helpers module, the new collections analytics module, service wiring, one refactored analytics module with no behavioral change, plus 2 test files), staged explicitly by path (never `git add -A`), with all in-flight Google Drive / cloud-sync WIP (13 tracked + 8 untracked paths, including this pass's own leftover debug artifact `backend/__verify_collections.ts`) confirmed still present, unstaged, and unmodified after the merge · Prisma/schema/migrations and Electron untouched · Product Owner manual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `9a4ae9b1` + tag `stable-collections-analysis-report-enhancement-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Expense Analysis Report Enhancement Pack v1
+## Latest Release — Collections Analysis Report Enhancement Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Collections Analysis Report Enhancement Pack v1 (Comprehensive Reports module, Collections Summary Report; 6 files — 4 modified, 2 added, including 2 new/updated regression-test files) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-02 |
+| **Feature branch** | `feature/collections-analysis-report-enhancement-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `cf753cbc` (previous release's final documentation commit) |
+| **Checkpoint tag** | none created — proceeded directly per this pass's implementation → Product-Owner-approved-release flow |
+| **Feature commit** | `9450504` |
+| **Production merge commit** | `9a4ae9b1` |
+| **Stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` → merge `9a4ae9b1` (annotated) |
+| **Reviews** | Implementation → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend + frontend `tsc --noEmit` ✅ (feature branch and post-merge) · backend `vitest run` 157/157 files, 2281/2281 tests · frontend 8/26 failures confirmed pre-existing (identical signature to the prior release's documented baseline; this pack touches zero frontend files) · production build (`build:back` + `build:front`) ✅ · Excel export (13 worksheets) and HTML/PDF export generated from a 240-row synthetic payload and inspected directly — every section's totals-row reconciles exactly to the report grand total |
+
+**What changed.** The Collections Summary Report gains, above and after its existing table: eight executive KPI cards (total collections, transaction count, average collection, largest collection, customer count, fully-collected invoices, partially-collected invoices, collection rate against the invoice base); a Customer × Month Pivot Matrix that adapts to the selected period; a Monthly Analysis table; a ranked Collections-by-Payment-Method table with percentage of total and a matching Payment Method Distribution table; a ranked Collections-by-Customer table; a Top 20 Collections table; a Month Comparison summary (highest vs. lowest month, difference, %); a Historical Analysis table classifying collected cash by the **invoice's issue year** (not the payment date), so management can see how much of the period's cash belongs to prior fiscal years; a Collection Delay table bucketing every payment by days-since-issue (0-30 through 365+); a Collection Efficiency summary (average/fastest/slowest/median days to collect); and a Percentage Analysis table whose percentages sum to exactly 100.0%. All of it reaches preview, print, Excel export, and HTML/PDF export — the same three surfaces the base report always had.
+
+**Why no second query, no duplicated aggregation.** `collectionsAnalysis.ts` is a pure function (no Prisma, no I/O) that derives every KPI and section from the **same** `payments` array `reports.service.ts`'s `collectionsSummary()` already fetches after every existing filter (date range on payment date, customer, non-cancelled sales invoices) is applied. The only backend change to the query itself is four additional scalar columns (`id`, `issueDate`, `total`, `paidAmount`) selected on the invoice relation that was already being joined — no new query, no N+1. The report's own `total` is passed in, not recomputed, so every section's grand total is the report total by construction. Percentages use largest-remainder (Hamilton) apportionment so they sum to exactly 100.0%, never 99.9%/100.1%.
+
+**Shared analytical framework.** The month-axis / month-label / percentage-apportionment helpers the Expense Analysis pack introduced were extracted into a new `analysisKit.ts`, and both the expense and collections analytics modules now consume the same implementation — one analytical framework, not two that could quietly drift apart. `expenseAnalysis.ts` was refactored to use the shared kit with **zero behavioral change** (its existing 16-test suite passes unmodified, byte-identical output).
+
+**Engine contract, reused unchanged.** No changes to `ReportInput`, the report engine, or any frontend file — the `kpis`/`sections` fields the Expense Analysis pack added are generic, and `Reports.tsx`/`ReportPrint.tsx` already render whatever any report sends. This pack is a pure backend analytics addition on an existing, already-generic contract.
+
+**Not changed:** invoice/payroll/attendance/customer/expense/every other report type, invoice/payment creation, approval logic, accounting/posting rules, permissions, Electron/IPC, Prisma schema/migrations, any frontend file.
+
+**Scope discipline.** The working tree at release time contained unrelated, unfinished Google Drive / cloud-sync work across 13 tracked files plus 8 untracked paths, plus this pass's own investigation-only debug artifact (`backend/__verify_collections.ts`, an ad-hoc Excel/HTML export verification script). None of it belongs to this release. All 6 pack files were staged explicitly by path (never `git add -A`); every WIP and debug file was confirmed still present, unstaged, and unmodified after the merge.
+
+---
+
+## Previous Release — Expense Analysis Report Enhancement Pack v1
 
 | Field | Value |
 |-------|-------|

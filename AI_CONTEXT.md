@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `0398d8c2` (merge of `feature/expense-analysis-report-enhancement-pack-v1` — Expenses Report gains executive KPI cards and six analytical sections (pivot matrix, monthly analysis, top categories, top expenses, month comparison, percentage analysis), computed additively from the report's own already-filtered dataset with zero new queries; reaches preview, print, Excel, and HTML/PDF export; 13 files (8 modified, 5 added), no schema or migration) |
-| **Current Documentation Commit** | `e211ff4` |
-| **Current Stable Tag** | `stable-expense-analysis-report-enhancement-pack-v1` |
-| **Current Release Date** | 2026-08-01 |
-| **Total Stable Releases** | 398 (window 2026-06-07 → 2026-08-01) |
+| **Current Merge Commit** | `9a4ae9b1` (merge of `feature/collections-analysis-report-enhancement-pack-v1` — Collections Summary Report gains executive KPI cards and eleven analytical sections (customer × month pivot matrix, monthly analysis, payment method breakdown/distribution, customer breakdown, top 20 collections, month comparison, historical analysis by invoice issue year, collection delay buckets, collection efficiency, percentage analysis), computed additively from the report's own already-filtered dataset with zero new queries; reaches preview, print, Excel, and HTML/PDF export; 6 files (4 modified, 2 added), no schema or migration, no frontend change) |
+| **Current Documentation Commit** | `PENDING` |
+| **Current Stable Tag** | `stable-collections-analysis-report-enhancement-pack-v1` |
+| **Current Release Date** | 2026-08-02 |
+| **Total Stable Releases** | 399 (window 2026-06-07 → 2026-08-02) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---

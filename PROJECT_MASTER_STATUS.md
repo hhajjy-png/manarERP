@@ -2,14 +2,14 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-01 (previously 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
+> Last refreshed: 2026-08-02 (previously 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · Read-only audit · No source code or Prisma was modified.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Expense Analysis Report Enhancement Pack v1), like the Visual Consistency Pack — Invoice
-> List Date Columns v1 pass and the ones before it, refreshed the "Current Production State" table
+> below. This pass (Collections Analysis Report Enhancement Pack v1), like the Expense Analysis Report
+> Enhancement Pack v1 pass and the ones before it, refreshed the "Current Production State" table
 > only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -37,9 +37,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `0398d8c2` — merge of `feature/expense-analysis-report-enhancement-pack-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (merge commit `0398d8c2`) | High |
-| **Previous stable tag** | `stable-invoice-list-collection-date-column-v1` (`631b94c1`) | High |
+| **Current HEAD** | `9a4ae9b1` — merge of `feature/collections-analysis-report-enhancement-pack-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-collections-analysis-report-enhancement-pack-v1` (merge commit `9a4ae9b1`) | High |
+| **Previous stable tag** | `stable-expense-analysis-report-enhancement-pack-v1` (`0398d8c2`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -66,7 +66,52 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-expense-analysis-report-enhancement-pack-v1` (`0398d8c2`, 2026-08-01)
+### Latest Release — `stable-collections-analysis-report-enhancement-pack-v1` (`9a4ae9b1`, 2026-08-02)
+
+Comprehensive Reports module, Collections Summary Report. 6 files (4
+modified, 2 added — 2 of the changed files are test files, one new one
+updated), 1139 insertions / 67 deletions.
+
+Adds executive KPI cards and eleven analytical sections (Customer × Month
+Pivot Matrix, Monthly Analysis, Collections by Payment Method, Payment
+Method Distribution, Collections by Customer, Top 20 Collections, Month
+Comparison, Historical Analysis by invoice issue year, Collection Delay
+buckets, Collection Efficiency, Percentage Analysis) to the Collections
+Summary Report's preview, print, Excel, and HTML/PDF export — additive
+only, nothing removed. Every figure is derived in-memory from the same
+already-filtered `Payment` dataset the base report fetches, with four
+extra scalar columns (`id`, `issueDate`, `total`, `paidAmount`) selected
+on the invoice relation already being joined: zero new queries, and every
+section's grand total equals the report's own total by construction (the
+total is passed in, never recomputed independently). The historical
+analysis classifies collected cash by the **invoice's issue year**, not
+the payment date, so management can see how much of a period's cash
+belongs to prior fiscal years. Percentages use largest-remainder
+apportionment so they sum to exactly 100.0%.
+
+**Shared analytical framework.** The month-axis/month-label/percentage-
+apportionment helpers the Expense Analysis pack introduced were extracted
+into a new `analysisKit.ts` — both the expense and collections analytics
+modules now consume the same implementation instead of two copies that
+could drift apart. `expenseAnalysis.ts` was refactored onto the shared kit
+with zero behavioral change (its existing 16-test suite passes unmodified).
+
+**No engine or frontend change.** The `kpis`/`sections` fields the Expense
+Analysis pack added to the report engine's contract are reused completely
+unchanged — `Reports.tsx`/`ReportPrint.tsx` already render whatever any
+report sends generically, so this release touches zero frontend files.
+
+Validation: backend + frontend `tsc --noEmit` clean on the feature branch
+and post-merge; backend `vitest run` 157/157 files, 2281/2281 tests;
+frontend 8/26 failures confirmed pre-existing (identical signature to the
+prior release's documented baseline; this pack touches zero frontend
+files). Excel export (13 worksheets) and HTML/PDF export generated from a
+240-row synthetic payload and inspected directly — every section's
+totals-row reconciles exactly to the report grand total, percentages sum
+to exactly 100.0%. No Prisma schema/migration change, no new permission
+key, no Electron/IPC change.
+
+### Previous Release — `stable-expense-analysis-report-enhancement-pack-v1` (`0398d8c2`, 2026-08-01)
 
 Comprehensive Reports module, Expenses Report. 13 files (8 modified, 5
 added — 3 of the 5 are new regression tests), 1424 insertions / 65
