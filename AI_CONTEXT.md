@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `96a970a8` (merge of `feature/equipment-owner-default-price-v1` — Price Agreements gains a default `equipmentOwnerPrice` field beside customer `unitPrice`; the Job & Commission Analysis module (first release, same tag) auto-fills both prices from a selected agreement and recomputes commission/margin live; owner price stays editable per-analysis and never writes back to the agreement; two additive migrations (WorkAnalysis/WorkAnalysisLine tables + one ALTER TABLE ADD COLUMN), no existing table/column touched; 34 files (11 modified, 23 added)) |
-| **Current Documentation Commit** | `PENDING` |
+| **Current Documentation Commit** | `d895361` |
 | **Current Stable Tag** | `stable-equipment-owner-default-price-v1` |
 | **Current Release Date** | 2026-08-02 |
 | **Total Stable Releases** | 400 (window 2026-06-07 → 2026-08-02) |
