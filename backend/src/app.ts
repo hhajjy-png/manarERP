@@ -31,6 +31,7 @@ import inventoryRoutes from './modules/inventory/inventory.routes';
 import chequesRoutes from './modules/cheques/cheques.routes';
 import importRoutes from './modules/import/import.routes';
 import pricesRoutes from './modules/prices/prices.routes';
+import workAnalysisRoutes from './modules/workAnalysis/workAnalysis.routes';
 import formsRoutes from './modules/forms/forms.routes';
 import internalRoutes from './modules/backups/internal.routes';
 import executiveRoutes from './modules/executive/executive.routes';
@@ -140,6 +141,8 @@ export function createApp(): Application {
   app.use('/api/printing', printingRoutes);
   app.use('/api/attachments', attachmentsRouter);
   app.use('/api/search', searchRoutes);
+  // تحليل الشغل والعمولة — أداة تحليل داخلية خارج الدورة المحاسبية.
+  app.use('/api/work-analysis', workAnalysisRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);

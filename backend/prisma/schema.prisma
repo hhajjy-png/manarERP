@@ -958,7 +958,11 @@ model Backup {
   fileName    String
   filePath    String
   sizeBytes   Int      @default(0)
-  type        String   @default("MANUAL") // MANUAL | AUTO | SCHEDULED
+  // MANUAL | AUTO | SCHEDULED | RESCUE
+  // RESCUE = نسخة إنقاذ تلقائية بعد فشل عملية سحابية. تصنيف مستقلّ عن AUTO: لا يحكمه
+  // إعداد النسخ التلقائي، ولا يُحدِّث حالته، وله حدّ احتفاظ خاص به.
+  // عمود نصّي حرّ — إضافة القيمة لا تتطلب أي migration.
+  type        String   @default("MANUAL")
   status      String   @default("SUCCESS") // SUCCESS | FAILED
   createdById Int?
   createdAt   DateTime @default(now())
@@ -1369,7 +1373,14 @@ model ProjectPrice {
   companyName      String // اسم الشركة
   contractLocation String // مكان العقد
   contractUnit     String // وحدة العقد: طن | درب | يومية
-  unitPrice        Float // سعر الوحدة (د.ك)
+  unitPrice        Float // سعر الوحدة (د.ك) — سعر العميل
+  // القيمة الافتراضية لما يُدفع لصاحب المعدة مقابل وحدة عمل واحدة (د.ك).
+  //
+  // حقل مرجعي بحت لا يدخل أي حساب مالي: الفواتير والمحاسبة والتقارير لا تقرؤه
+  // إطلاقًا — يقرؤه «تحليل الشغل والعمولة» وحده ليملأ به الحقل تلقائيًا، ويظلّ
+  // المحلِّل حرًّا في تجاوزه داخل تحليله دون أن يعود التجاوز إلى هنا.
+  // الافتراضي صفر حتى تبقى الاتفاقيات القائمة صالحة بلا تعبئة (الترقية غير كاسرة).
+  equipmentOwnerPrice Float @default(0)
   validUntil       DateTime? // تاريخ انتهاء الاتفاقية (للتنبيه عند الاقتراب من الانتهاء)
   isArchived       Boolean       @default(false)
   customerId       Int?
@@ -1462,4 +1473,89 @@ model ChequePrintLog {
 
   @@index([chequeId])
   @@map("cheque_print_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  تحليل الشغل والعمولة (Job & Commission Analysis)
+//
+//  أداة تحليل تشغيلية داخلية بحتة: تحسب الفرق بين سعر العميل (من اتفاقيات
+//  الأسعار) وسعر صاحب المعدة الذي يُدخله المستخدم يدويًا — أي عمولة الشركة —
+//  قبل إصدار أي فاتورة. ليست جزءًا من الدورة المحاسبية إطلاقًا.
+//
+//  ═══ لماذا لا توجد أي علاقة (relation) بأي نموذج قائم ═══
+//
+//  الجدولان أدناه لا يرتبطان بـ Customer ولا ProjectPrice ولا Contract ولا أي
+//  نموذج آخر. كل المعرّفات الخارجية (`customerId`, `contractId`, `priceId`)
+//  أعداد صحيحة مرجعية فقط — لا `@relation`، لا مفتاح أجنبي في قاعدة البيانات.
+//  هذا قرار متعمَّد لثلاثة أسباب، لا اختصار:
+//
+//   (١) إضافة علاقة تفرض إضافة back-relation داخل `model ProjectPrice` و
+//       `model Customer` و`model Contract` — أي تعديل نصّي على اتفاقيات الأسعار
+//       وهي مطلوب بقاؤها دون أي مساس.
+//   (٢) مفتاح أجنبي بـ Restrict كان سيمنع أرشفة/حذف اتفاقية سعر لمجرّد وجود
+//       تحليل داخلي يشير إليها — أي أن أداة تحليل تعطّل وحدة تشغيلية. مرفوض.
+//   (٣) التحليل **يجمّد** السعر لحظة إجرائه. لقطة نصية/رقمية مستقلة هي التمثيل
+//       الصحيح دلاليًا: تعديل الاتفاقية لاحقًا يجب ألّا يغيّر تحليلًا قديمًا.
+//
+//  نفس نمط `ChequeTemplateVersion.createdById` و`ChequePrintLog.printedById`
+//  المستقر في هذا المخطط أصلًا (معرّف بلا FK + لقطة اسم نصية).
+//
+//  ═══ عقد الكتابة ═══
+//  لا تُكتب أي بيانات من هذه الوحدة خارج هذين الجدولين. لا قيود يومية، لا
+//  فواتير، لا مصروفات، لا حركات، لا أرصدة عملاء.
+// ─────────────────────────────────────────────────────────────────────────
+
+model WorkAnalysis {
+  id           Int      @id @default(autoincrement())
+  analysisDate DateTime // تاريخ التحليل (DATE-ONLY، منتصف ليل UTC)
+  status       String   @default("DRAFT") // DRAFT (مسودة) | COMPLETED (مكتمل) | ARCHIVED (مؤرشف)
+
+  // ── مراجع خارجية: أرقام فقط، بلا FK (انظر التعليق أعلاه) ──
+  customerId   Int? // معرّف العميل المرجعي — لا علاقة
+  customerName String // لقطة اسم العميل وقت التحليل
+  contractId   Int? // معرّف العقد المرجعي (اختياري) — لا علاقة
+  contractName String? // لقطة وصف العقد وقت التحليل
+  asphaltPlant String? // مصنع الأسفلت (مُرشِّح اختياري، لقطة نصية)
+
+  ownerName String // صاحب المعدة — نص حر (اقتراحات فقط، بلا كيان)
+  notes     String?
+
+  createdById   Int? // معرّف المستخدم — لا علاقة (نفس نمط ChequeTemplateVersion)
+  createdByName String? // لقطة اسم المستخدم وقت الإنشاء
+
+  lines WorkAnalysisLine[] // العلاقة الوحيدة المسموحة: داخلية بين الجدولين الجديدين
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([analysisDate])
+  @@index([customerId])
+  @@index([ownerName])
+  @@map("work_analyses")
+}
+
+model WorkAnalysisLine {
+  id         Int          @id @default(autoincrement())
+  analysisId Int
+  analysis   WorkAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  // ── اللقطة المجمَّدة: تُكتب مرة واحدة ولا تُشتق أبدًا من ProjectPrice بعدها ──
+  priceId            Int? // معرّف اتفاقية السعر المرجعي — لا علاقة، للتتبّع فقط
+  priceAgreementName String // لقطة تعريف الاتفاقية (المصنع — الشركة)
+  itemLabel          String // لقطة البند (مكان العقد)
+  unit               String // لقطة وحدة العقد
+  customerPrice      Float // لقطة سعر العميل وقت التحليل (لا يُقرأ حيًّا أبدًا)
+
+  // ── مُدخَل المستخدم ──
+  quantity   Float @default(0)
+  ownerPrice Float @default(0) // سعر صاحب المعدة — إدخال يدوي حصرًا
+
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([analysisId])
+  @@map("work_analysis_lines")
 }

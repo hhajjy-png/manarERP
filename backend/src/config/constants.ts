@@ -71,6 +71,9 @@ export const MODULES = [
   // modules/printing/printing.routes.ts for why); a dedicated `printing.*` key
   // lands with the print_logs table, alongside its migration and seed update.
   'printing',
+  // تحليل الشغل والعمولة — أداة تحليل تشغيلية داخلية خارج الدورة المحاسبية تمامًا.
+  // تكتب حصرًا في work_analyses / work_analysis_lines.
+  'workAnalysis',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -165,7 +168,10 @@ export const ENUMS = {
   payrollStatus: ['DRAFT', 'APPROVED', 'PAID', 'CANCELLED'] as const,
   paymentMethod: ['CASH', 'BANK', 'CHEQUE', 'TRANSFER'] as const, // legacy — used for invoice Payment.method
   maintenanceType: ['PREVENTIVE', 'CORRECTIVE'] as const,
-  backupType: ['MANUAL', 'AUTO', 'SCHEDULED'] as const,
+  // RESCUE — نسخة إنقاذ تُنشأ تلقائيًا بعد فشل عملية سحابية. ليست نسخة مجدولة:
+  // لا يحكمها إعداد «النسخ التلقائي»، ولا تُحدِّث حالته، ولا تدخل في سياسة احتفاظه.
+  // (Cloud-Failure Local Backup Guarantee v1)
+  backupType: ['MANUAL', 'AUTO', 'SCHEDULED', 'RESCUE'] as const,
   materialUnit: ['طن', 'كيلو', 'لتر', 'قطعة', 'متر', 'كيس', 'برميل', 'صندوق'] as const,
   purchaseOrderStatus: ['DRAFT', 'SUBMITTED', 'RECEIVED', 'CANCELLED'] as const,
   goodsReceiptStatus: ['DRAFT', 'POSTED'] as const,
@@ -180,4 +186,7 @@ export const ENUMS = {
   finalSettlementStatus: ['DRAFT', 'APPROVED', 'PAID', 'CANCELLED'] as const,
   // سبب انتهاء الخدمة — يختار سيناريو مكافأة نهاية الخدمة في المحرّك القانوني القائم.
   terminationReason: ['RESIGNATION', 'EMPLOYER_TERMINATION'] as const,
+  // حالة تحليل الشغل والعمولة — تصنيف تشغيلي بحت. لا يُشغّل أي اعتماد ولا ترحيل
+  // ولا سير موافقات؛ COMPLETED لا تعني «معتمد محاسبيًا» بل «انتهى المستخدم منه».
+  workAnalysisStatus: ['DRAFT', 'COMPLETED', 'ARCHIVED'] as const,
 } as const;

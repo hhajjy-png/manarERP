@@ -1,0 +1,866 @@
+/*
+ * تحليل الشغل والعمولة — أنماط الصفحة.
+ *
+ * تبني على رموز ExplorerKit (`--surface`, `--border`, `--text-muted`…) ولا تُعرِّف
+ * لوحة ألوان جديدة: الصفحة يجب أن تبدو جزءًا من النظام لا ملحقًا به.
+ */
+
+.wa-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── ضغط الترويسة ───────────────────────────────────────────────────────── */
+
+/*
+ * ترويسة الطقم مصمَّمة لصفحات تقارير تُقرأ، وهذه صفحة عمل تُستعمل يوميًا لساعات.
+ * الضغط محصور داخل `.wa-page` فلا يمسّ أي صفحة أخرى تستعمل الترويسة نفسها.
+ */
+.wa-page .xpl-exec-header {
+  padding: 14px 18px;
+  border-radius: 14px;
+  gap: 14px;
+}
+
+.wa-page .xpl-exec-logo {
+  width: 44px;
+  height: 44px;
+}
+
+.wa-page .xpl-exec-logo .material-symbols-outlined {
+  font-size: 24px !important;
+}
+
+.wa-page .xpl-exec-title {
+  font-size: 18px;
+}
+
+.wa-page .xpl-exec-subtitle {
+  margin-top: 1px;
+  font-size: 12px;
+}
+
+.wa-page .xpl-exec-chips {
+  margin-top: 6px;
+}
+
+/* رؤوس البطاقات أخفّ ارتفاعًا، مع إبقاء وزن العنوان مقروءًا. */
+.wa-page .xpl-card-head {
+  padding: 10px 14px;
+}
+
+.wa-page .xpl-card--pad {
+  padding: 12px 14px;
+}
+
+/* ── شريط الأدوات: مجموعتان بوزن بصري متمايز ────────────────────────────── */
+
+.wa-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-actions-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-actions-group--primary {
+  gap: 6px;
+}
+
+.wa-actions-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 24px;
+  margin: 0 2px;
+  background: var(--xpl-border, #e3e6ea);
+}
+
+/* ── تنبيه مدمج ─────────────────────────────────────────────────────────── */
+
+/* لا قاعدة ارتفاع ولا مساحة محجوزة: العنصر غير مُصيَّر أصلًا ما لم يقع خطأ. */
+.wa-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(239, 68, 68, .35);
+  border-inline-start: 3px solid var(--xpl-red, #ef4444);
+  border-radius: 8px;
+  background: rgba(239, 68, 68, .07);
+  color: var(--xpl-red, #b42318);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.wa-alert .material-symbols-outlined {
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.wa-alert-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.wa-alert-close {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: .7;
+  font-size: 13px;
+  line-height: 1;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.wa-alert-close:hover,
+.wa-alert-close:focus-visible {
+  opacity: 1;
+  background: rgba(239, 68, 68, .12);
+}
+
+/* ── شريط المؤشرات الملتصق ──────────────────────────────────────────────── */
+
+/*
+ * يبقى في مجال الرؤية أثناء العمل داخل الشبكة — الغرض كله أن يرى المستخدم أثر
+ * كل سعر يُدخله على الهامش دون تمرير. `z-index` أدنى من اللوح الجانبي وطبقاته.
+ */
+.wa-kpi-bar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: 6px 0 10px;
+  /* رمز ExplorerKit نفسه (المربوط بـ --bg الخاص بمنطقة المحتوى) — فيتبع الوضع
+     الداكن تلقائيًا بدل لون ثابت يفضح نفسه عند تبديل المظهر. */
+  background: var(--xpl-bg);
+}
+
+.wa-kpis {
+  /* أضيق من الافتراضي: سبع بطاقات يجب أن تسع صفًا واحدًا على 1600 وما فوق. */
+  grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+  gap: 10px;
+}
+
+/*
+ * ضغط رأسي للبطاقة (~٢٢٪): 14px→10px حشوًا، والأيقونة 40→34، وسطر القيمة 19→17.
+ * المحتوى والأيقونات والتسلسل البصري كما هي حرفيًا — الارتفاع وحده ينكمش،
+ * والمساحة المستردّة تذهب مباشرةً إلى شبكة التحليل.
+ */
+/* 14px→9px حشوًا رأسيًا + أيقونة 40→34 ⇒ نحو ٦٩px تصير ٥٤px (خفض ~٢٢٪). */
+.wa-page .wa-kpis .xpl-metric {
+  padding: 9px 12px;
+  gap: 9px;
+  border-radius: 12px;
+}
+
+.wa-page .wa-kpis .xpl-metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+
+.wa-page .wa-kpis .xpl-metric-icon .material-symbols-outlined {
+  font-size: 18px !important;
+}
+
+.wa-page .wa-kpis .xpl-metric-label {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.wa-page .wa-kpis .xpl-metric-value {
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+/* ── تخطيط مساحة العمل ──────────────────────────────────────────────────── */
+
+/*
+ * عمودان: «بيانات الشغل» ثابت العرض، و«النتائج» يأخذ ما تبقّى. النموذج عموديًا
+ * في عمود ضيّق بدل صفّ أفقي طويل يمتد بعرض الشاشة — فيتحرّر العرض كله لصالح
+ * الشبكة (نحو ثلثي مساحة العمل)، وهي بطل هذه الصفحة لا النموذج.
+ */
+.wa-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.wa-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* سطر مكثّف يحلّ محلّ النموذج حين يُطوى. */
+.wa-info-digest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 12.5px;
+  color: var(--xpl-muted);
+}
+
+.wa-info-digest b {
+  color: var(--xpl-muted);
+  font-weight: 600;
+}
+
+/* ── ترويسة النموذج ─────────────────────────────────────────────────────── */
+
+.wa-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 14px;
+}
+
+.wa-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wa-field > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+}
+
+.wa-field--wide {
+  grid-column: 1 / -1;
+}
+
+.wa-notes {
+  resize: vertical;
+  font: inherit;
+  line-height: 1.6;
+}
+
+/* ── شبكة إدخال البنود ──────────────────────────────────────────────────── */
+
+/*
+ * الشبكة بطل الصفحة: ارتفاع أدنى يضمن أنها تملأ مجال العمل ولا تنكمش إلى شريط
+ * نحيل حين تقلّ الأسطر — فتُقرأ الصفحة فورًا كمساحة إدخال لا كلوحة مؤشرات.
+ * `vh` لا `px` كي يتناسب مع 768 و900 و1080 بلا كسور ثابتة.
+ */
+.wa-lines {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  min-height: 44vh;
+}
+
+/*
+ * أعمدة متفاوتة العرض عمدًا حسب وزنها المعلوماتي، لا شبكة متساوية:
+ *  • «البند» أعرض عمود بفارق واضح — هو ما يقرأه المستخدم ليعرف أي سطر هذا،
+ *    ونصّه عربي طويل (مكان العقد) بينما البقية أرقام قصيرة.
+ *  • «الوحدة» و«الكمية» ثابتان ضيّقان — «طن»/«يومية» ورقم من رقمين أو ثلاثة.
+ *  • أعمدة المال 104px تكفي «12,345.000» بخطّ جدولي متساوي العرض.
+ *
+ * الحصيلة المحسوبة: 1050px أعمدة + 72px فواصل + 28px حشو = 1150px، بدل 1202px
+ * قبل التعديل (توفير 52px). هذا هو الرقم الذي تُبنى عليه نقاط الاستجابة أدناه.
+ */
+.wa-lines-head,
+.wa-lines-row {
+  display: grid;
+  grid-template-columns:
+    minmax(210px, 2.6fr) 64px 78px minmax(104px, 1fr) minmax(112px, 1.05fr)
+    minmax(104px, 1fr) minmax(112px, 1.05fr) minmax(112px, 1.05fr) minmax(116px, 1.1fr) 38px;
+  gap: 8px;
+  align-items: center;
+  padding: 7px 14px;
+  min-width: 1150px;
+}
+
+.wa-lines-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--xpl-surface-2);
+  border-bottom: 1px solid var(--xpl-border);
+  /* رؤوس أوضح: تتبّع حرفي خفيف ووزن أثقل يفصلها عن الأرقام دون تكبير الخط. */
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  color: var(--xpl-muted);
+  text-transform: none;
+}
+
+.wa-lines-row + .wa-lines-row,
+.wa-lines-head + .wa-lines-row {
+  border-top: 1px solid var(--xpl-border);
+}
+
+.wa-lines-row:hover {
+  background: var(--xpl-surface-2);
+}
+
+/*
+ * السطر الجاهز (بلا بند مختار) يخفت بصريًا بدل أن يزاحم الأسطر الحقيقية: الحقول
+ * تبقى فعّالة تمامًا وسلوكها بلا تغيير — يتغيّر وزنه البصري وحده، فيُقرأ الجدول
+ * كسجلّ فيه سطر جاهز للكتابة لا كجدول نصفه فارغ. يستعيد وضوحه الكامل عند
+ * التحويم أو حين يحوز التركيز أيّ حقل بداخله.
+ */
+.wa-lines-row--empty {
+  opacity: .62;
+  transition: opacity 150ms ease;
+}
+
+.wa-lines-row--empty:hover,
+.wa-lines-row--empty:focus-within {
+  opacity: 1;
+}
+
+.wa-cell {
+  min-width: 0;
+}
+
+.wa-cell--ro {
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--xpl-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-cell--money {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: end;
+}
+
+.wa-input {
+  width: 100%;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.wa-lines-del {
+  display: flex;
+  justify-content: center;
+}
+
+.wa-del-btn {
+  border: 1px solid var(--xpl-border);
+  background: transparent;
+  color: var(--xpl-muted);
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.wa-del-btn:hover,
+.wa-del-btn:focus-visible {
+  background: #fdecec;
+  border-color: #f0b4b4;
+  color: #b42318;
+}
+
+/* نفس الحشو الأفقي للصفوف (14px) — «إضافة بند» يتحاذى مع عمود «البند» تمامًا
+   بدل أن يطفو بعيدًا عنه. `margin-top: auto` يثبّته أسفل الشبكة الممتدة. */
+.wa-lines-foot {
+  margin-top: auto;
+  padding: 10px 14px;
+  border-top: 1px solid var(--xpl-border);
+}
+
+/* ── الجداول التحليلية ──────────────────────────────────────────────────── */
+
+.wa-table-scroll {
+  overflow-x: auto;
+}
+
+.wa-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.wa-table thead th {
+  position: sticky;
+  top: 0;
+  background: var(--xpl-surface-2);
+  border-bottom: 1px solid var(--xpl-border);
+  padding: 8px 12px;
+  text-align: start;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: .2px;
+  color: var(--xpl-muted);
+  white-space: nowrap;
+}
+
+.wa-table tbody td,
+.wa-table tfoot td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--xpl-border);
+  vertical-align: middle;
+}
+
+.wa-table tbody tr:hover {
+  background: var(--xpl-surface-2);
+}
+
+.wa-table tfoot td {
+  font-weight: 800;
+  background: var(--xpl-surface-2);
+  border-top: 2px solid var(--xpl-border);
+  border-bottom: none;
+}
+
+.wa-td-item {
+  min-width: 180px;
+}
+
+.wa-td-item small {
+  display: block;
+  color: var(--xpl-muted);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.wa-num {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: end;
+  white-space: nowrap;
+}
+
+.wa-unit {
+  color: var(--xpl-muted);
+  font-size: 11px;
+}
+
+.wa-strong {
+  font-weight: 700;
+}
+
+/* العمولة السالبة (شغل بخسارة) — تُلوَّن لأن الإشارة هي الرسالة. */
+.wa-neg,
+.wa-neg .wa-profit-value {
+  color: #b42318;
+}
+
+/* ── شريط الإجماليات أسفل الشبكة ────────────────────────────────────────── */
+
+/*
+ * معادلة أفقية واحدة (عميل − مالك = عمولة) بدل أربع بطاقات متساوية: العلاقة بين
+ * الأرقام هي المعلومة، لا الأرقام منفردة. ملتصق بأسفل بطاقة الشبكة بلا فجوة.
+ */
+/*
+ * هوية «منطقة الحساب النهائي»: تدرّج خفيف + شريط علوي بلون الهوية + حشو أفقي
+ * يطابق صفوف الشبكة (14px) فتتحاذى القيم مع أعمدتها. التمييز بالنبرة لا بالثقل —
+ * لا إطار ثقيل ولا ظلّ، فالشريط خاتمة الشبكة لا كتلة منفصلة تنافسها.
+ */
+.wa-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  padding: 11px 14px;
+  border-top: 2px solid var(--xpl-primary);
+  background: linear-gradient(180deg, var(--xpl-faint-2) 0%, var(--xpl-surface-2) 100%);
+  border-radius: 0 0 14px 14px;
+}
+
+.wa-sum-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+/* تدرّج ثلاثي واضح: تسمية خافتة ← مُدخَل ← نتيجة. الحجم والوزن يحملان الرتبة. */
+.wa-sum-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  color: var(--xpl-muted);
+  white-space: nowrap;
+}
+
+.wa-sum-value {
+  font-size: 14.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: start;
+  white-space: nowrap;
+  color: var(--xpl-text);
+}
+
+.wa-sum-op {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+  opacity: .8;
+}
+
+.wa-sum-item--result .wa-sum-value {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+}
+
+/* الهامش يُدفع إلى الطرف المقابل — فاصل بصري بين المعادلة ونتيجتها النسبية. */
+.wa-sum-item--margin {
+  margin-inline-start: auto;
+  align-items: flex-end;
+  padding-inline-start: 18px;
+  border-inline-start: 1px solid var(--xpl-border);
+}
+
+.wa-sum-item--margin .wa-sum-value {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+}
+
+/* ── قائمة التحاليل المحفوظة (داخل اللوح الجانبي) ───────────────────────── */
+
+.wa-saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wa-saved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.wa-saved-item:hover {
+  border-color: var(--xpl-primary);
+  background: var(--xpl-surface-2);
+}
+
+.wa-saved-item--active {
+  border-color: var(--xpl-primary);
+  background: color-mix(in oklab, var(--xpl-primary) 8%, transparent);
+}
+
+.wa-saved-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.wa-saved-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wa-saved-id {
+  font-variant-numeric: tabular-nums;
+  color: var(--xpl-muted);
+  font-size: 12px;
+}
+
+.wa-saved-customer {
+  font-weight: 700;
+  font-size: 13.5px;
+}
+
+.wa-saved-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--xpl-muted);
+}
+
+.wa-saved-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* ── هوية القسمين الختاميين ─────────────────────────────────────────────── */
+
+/*
+ * «التحليل التفصيلي» و«ملخّص الربحية» كانا يُقرآن كامتداد لبطاقة الشبكة لأنهما
+ * يشتركان معها في الشكل نفسه. شريط رفيع على حافة رأس البطاقة يمنح كلًّا منهما
+ * هوية مستقلة ضمن لغة الطقم نفسها — بلا لون جديد ولا إطار ثقيل.
+ */
+.wa-results > .xpl-card + .xpl-card > .xpl-card-head {
+  box-shadow: inset 3px 0 0 var(--xpl-primary);
+}
+
+.wa-results > .xpl-card + .xpl-card > .xpl-card-head .xpl-card-title {
+  font-size: 13.5px;
+  letter-spacing: .1px;
+}
+
+/* فاصل أوضح بين الشبكة وما بعدها — القسمان الختاميان لا يلتصقان بها. */
+.wa-results > .xpl-card + .xpl-card {
+  margin-top: 2px;
+}
+
+/* ── ملخّص الربحية ──────────────────────────────────────────────────────── */
+
+.wa-profit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 520px;
+}
+
+.wa-profit-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 4px;
+}
+
+.wa-profit-row:not(:last-of-type) {
+  border-bottom: 1px dashed var(--xpl-border);
+}
+
+.wa-profit-row:first-child {
+  grid-template-columns: 24px 1fr auto;
+}
+
+.wa-profit-row:first-child .wa-profit-label {
+  grid-column: 2;
+}
+
+.wa-profit-op {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+  text-align: center;
+}
+
+.wa-profit-label {
+  color: var(--xpl-muted);
+  font-size: 12.5px;
+}
+
+.wa-profit-value {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--xpl-text);
+}
+
+/* السطر الختامي يحمل الرتبة الأعلى في القسم — النتيجة لا المُدخَلات. */
+.wa-profit-row--result {
+  border-top: 2px solid var(--xpl-border);
+  padding-top: 10px;
+}
+
+.wa-profit-row--result .wa-profit-label {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--xpl-text);
+}
+
+.wa-profit-row--result .wa-profit-value {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -.3px;
+  color: inherit;
+}
+
+.wa-profit-margin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: var(--xpl-surface-2);
+  border: 1px solid var(--xpl-border);
+  font-size: 12.5px;
+  color: var(--xpl-muted);
+}
+
+.wa-profit-margin strong {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  color: var(--xpl-text);
+}
+
+.wa-profit-margin.wa-neg strong {
+  color: inherit;
+}
+
+/* ── الاستجابة للمقاسات ─────────────────────────────────────────────────── */
+
+/*
+ * نقطة التحوّل إلى عمودين مشتقّة من حساب لا من تقدير.
+ *
+ * الشبكة تحتاج 1150px (انظر الحساب أعلاه). بعد القائمة الجانبية وحشو المحتوى
+ * (~304px) يبقى للمحتوى: 1366→~1062px، 1600→~1296px، 1920→~1616px.
+ *
+ * لذلك عمودان بعرض لوح 280px لا يصحّان قبل 1750px تقريبًا
+ * (280 + 12 فاصلًا + 1150 للشبكة + 304 للإطار ≈ 1746).
+ *
+ * الدرس الذي فرض هذا الرقم: نقطة تحوّل 1500px كانت **تضرّ** بمقاس 1600 — إذ
+ * تترك للشبكة ~1020px، أي أقلّ ممّا تناله في عمود واحد على 1366 (~1062px)،
+ * فيظهر تمرير أفقي في مقاس يتّسع للشبكة كاملةً لو بقي عمودًا واحدًا.
+ *
+ *  1366×768  → عمود واحد (الارتفاع هو المورد النادر؛ يُطوى اللوح عند الحاجة).
+ *  1600×900  → عمود واحد: الشبكة تنال ~1296px فتظهر كاملةً بلا تمرير أفقي.
+ *  1920×1080 → عمودان: اللوح 300px والشبكة ~1304px — كلاهما مرتاح.
+ */
+@media (min-width: 1750px) {
+  .wa-workspace {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 1900px) {
+  .wa-workspace {
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+}
+
+/* شاشات قصيرة (1366×768 وما يماثلها): ارتفاع أقلّ لكل عنصر، لا عرض أقلّ. */
+@media (max-height: 820px) {
+  .wa-page {
+    gap: 10px;
+  }
+
+  .wa-kpi-bar {
+    padding: 4px 0 8px;
+  }
+
+  .wa-kpis {
+    grid-template-columns: repeat(auto-fit, minmax(144px, 1fr));
+    gap: 8px;
+  }
+
+  .wa-lines-head,
+  .wa-lines-row {
+    padding: 6px 12px;
+  }
+}
+
+/* ── الطباعة ────────────────────────────────────────────────────────────── */
+
+/*
+ * الشريط مخفي على الشاشة ومرئي في الطباعة فقط. الوسم مكرَّر عمدًا في الترويسة
+ * (شارة «تحليل داخلي») وفي هذا الشريط وفي مخرَج PDF/Excel — ثلاثة مواضع مستقلة،
+ * فلا يمكن أن تخرج ورقة بلا تصريح بأنها ليست فاتورة.
+ */
+.wa-print-banner {
+  display: none;
+}
+
+@media print {
+  .wa-print-banner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border: 2px solid #b42318;
+    border-radius: 8px;
+    text-align: center;
+    color: #b42318;
+    break-inside: avoid;
+  }
+
+  .wa-print-banner strong {
+    font-size: 20px;
+    letter-spacing: 1px;
+  }
+
+  .wa-print-banner span {
+    font-size: 12px;
+  }
+
+  /* أدوات التفاعل لا معنى لها على الورق. */
+  .wa-actions,
+  .wa-lines-foot,
+  .wa-lines-del,
+  .wa-alert-close {
+    display: none !important;
+  }
+
+  .wa-page {
+    gap: 10px;
+  }
+
+  /* الورق عمود واحد دائمًا، والالتصاق لا معنى له خارج الشاشة. */
+  .wa-workspace {
+    display: block;
+  }
+
+  .wa-results {
+    display: block;
+  }
+
+  .wa-kpi-bar {
+    position: static;
+    padding: 0;
+    background: transparent;
+  }
+
+  .wa-table,
+  .wa-lines-head,
+  .wa-lines-row {
+    min-width: 0;
+  }
+
+  /* الارتفاع الأدنى خدمة شاشة لا ورق — على الورق يُنتج فراغًا في آخر الجدول. */
+  .wa-lines {
+    min-height: 0;
+  }
+
+  /* السطر الجاهز لا يُطبع باهتًا: الطباعة إمّا تُظهر السطر كاملًا أو لا تعنيها. */
+  .wa-lines-row--empty {
+    opacity: 1;
+  }
+
+  /* هوية الأقسام الختامية بصرية على الشاشة؛ الورق لا يحتاج شريط تمييز. */
+  .wa-results > .xpl-card + .xpl-card > .xpl-card-head {
+    box-shadow: none;
+  }
+
+  .wa-table-scroll,
+  .wa-lines {
+    overflow: visible;
+  }
+
+  .wa-table thead th,
+  .wa-lines-head {
+    position: static;
+  }
+
+  .wa-kpis {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

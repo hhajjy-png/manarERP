@@ -488,6 +488,8 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
   { group: '', items: [{ key: 'dashboard', label: 'nav.dashboard', icon: 'dashboard' }] },
   { group: 'nav.group.core', items: [
     { key: 'prices',       label: 'nav.prices',       icon: 'handshake',   permission: 'prices.read' },
+    // تحليل الشغل والعمولة — يجاور اتفاقيات الأسعار لأنه يستهلكها، ويسبق الفوترة.
+    { key: 'work-analysis', label: 'nav.work_analysis', icon: 'query_stats', permission: 'workAnalysis.read' },
     { key: 'customers',    label: 'nav.customers',    icon: 'groups',      permission: 'customers.read' },
     { key: 'equipment',    label: 'nav.equipment',    icon: 'construction', permission: 'equipment.read' },
     { key: 'maintenance',  label: 'nav.maintenance',  icon: 'build_circle', permission: 'maintenance.read' },

@@ -15,7 +15,9 @@ export type WatermarkType =
   | 'cancelled'
   | 'approved'
   | 'rejected'
-  | 'confidential';
+  | 'confidential'
+  /** «تحليل داخلي — ليس فاتورة» — مستندات تحليل تشغيلي خارج الدورة المحاسبية. */
+  | 'internal';
 
 export interface ReportBranding {
   companyNameAr: string;

@@ -256,6 +256,10 @@ export async function getPricesForCustomer(customerId: number) {
       contractLocation: true,
       contractUnit: true,
       unitPrice: true,
+      // إضافة بحتة إلى الحمولة: «تحليل الشغل والعمولة» يقرؤها ليملأ حقله تلقائيًا.
+      // شاشات الفواتير تستهلك هذه النقطة نفسها لكنها تنتقي حقولًا محدَّدة
+      // (`PriceOption`)، فالحقل الزائد لا تراه ولا تدخله في أي حساب.
+      equipmentOwnerPrice: true,
     },
     orderBy: [{ asphaltPlant: 'asc' }, { contractUnit: 'asc' }],
   });
