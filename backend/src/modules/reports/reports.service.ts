@@ -10,6 +10,7 @@ import { translateInvoiceStatusAr, translateChequeStatusAr } from '../../shared/
 import { buildChequeFilterWhere, CHEQUES_REPORT_ORDER } from '../cheques/cheques.service';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { buildExpenseAnalysis } from './expenseAnalysis';
+import { buildCollectionsAnalysis } from './collectionsAnalysis';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
@@ -900,19 +901,66 @@ export class ReportsService {
     const payments = await prisma.payment.findMany({
       where,
       include: {
-        invoice: { select: { invoiceNumber: true, customer: { select: { name: true } } } },
+        /**
+         * الحقول الأربعة المضافة (`id`, `issueDate`, `total`, `paidAmount`) تخدم الطبقة
+         * التحليلية أدناه: سنة إصدار الفاتورة (التحليل التاريخي)، ومدّة التحصيل،
+         * وتصنيف السداد الكامل/الجزئي. هي أعمدة إضافية على **نفس** الوصلة القائمة —
+         * لا استعلام ثانٍ ولا N+1.
+         */
+        invoice: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            issueDate: true,
+            total: true,
+            paidAmount: true,
+            customer: { select: { name: true } },
+          },
+        },
       },
       orderBy: { date: 'desc' },
     });
 
     const METHOD_AR: Record<string, string> = { CASH: 'نقد', BANK: 'تحويل بنكي', CHEQUE: 'شيك', TRANSFER: 'حوالة' };
     const total = round3(payments.reduce((s, p) => s + num(p.amount), 0));
+    const methodAr = (m: string) => METHOD_AR[m] ?? m;
+    const customerAr = (name: string | null | undefined) => name ?? '';
+
+    /**
+     * Collections Analysis Report Enhancement Pack v1 — الطبقة التحليلية.
+     *
+     * تُشتق من **نفس** `payments` أعلاه: لا استعلام إضافي، ولا تجميع مكرَّر، ولا
+     * احتمال أن تتجاهل فلترًا نشطًا (لا يوجد مسار بيانات ثانٍ أصلًا). و`total`
+     * يُمرَّر بقيمته لا بإعادة حسابه، فإجمالي كل قسم هو إجمالي التقرير حرفيًا.
+     * التسميات (العميل/طريقة الدفع) تُمرَّر من **نفس** الدوال التي تبني الجدول
+     * الرئيسي، فلا يظهر اسم في التحليل مخالفًا لما في الجدول.
+     *
+     * مجموعة فارغة ⇒ لا مؤشرات ولا أقسام: التقرير يبقى كما كان قبل الحزمة تمامًا.
+     */
+    const analysis = payments.length > 0
+      ? buildCollectionsAnalysis(
+          payments.map((p) => ({
+            date: p.date,
+            amount: num(p.amount),
+            customerLabel: customerAr(p.invoice.customer?.name),
+            methodLabel: methodAr(p.method),
+            invoiceId: p.invoice.id,
+            invoiceNumber: p.invoice.invoiceNumber,
+            invoiceIssueDate: p.invoice.issueDate,
+            invoiceTotal: num(p.invoice.total),
+            invoicePaidAmount: num(p.invoice.paidAmount),
+          })),
+          total,
+        )
+      : undefined;
 
     return {
       title: 'ملخص التحصيلات',
       subtitle: q.from || q.to
         ? `الفترة: ${q.from ? formatDisplayDate(q.from) : '—'} إلى ${q.to ? formatDisplayDate(q.to) : '—'} — إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`
         : `إجمالي التحصيل: ${formatCurrency(total)} — عدد الدفعات: ${payments.length}`,
+      kpis: analysis?.kpis,
+      sections: analysis?.sections,
       columns: [
         { header: 'التاريخ', key: 'date', width: 14 },
         { header: 'العميل', key: 'customerName', width: 28 },
@@ -923,9 +971,9 @@ export class ReportsService {
       ],
       rows: payments.map((p) => ({
         date: dateAr(p.date),
-        customerName: p.invoice.customer?.name ?? '',
+        customerName: customerAr(p.invoice.customer?.name),
         invoiceNumber: p.invoice.invoiceNumber,
-        method: METHOD_AR[p.method] ?? p.method,
+        method: methodAr(p.method),
         reference: p.reference ?? '',
         amount: num(p.amount),
       })),

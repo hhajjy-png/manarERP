@@ -61,7 +61,17 @@ function makePayment(override = {}) {
     method: 'CASH',
     reference: null,
     notes: null,
-    invoice: { invoiceNumber: 'MN-INV-2026-0001', customer: { name: 'شركة الاختبار' } },
+    // شكل الفاتورة هنا يطابق `select` الفعلي في `collectionsSummary`: الحقول الأربعة
+    // (id/issueDate/total/paidAmount) تخدم الطبقة التحليلية (سنة الفاتورة، مدّة
+    // التحصيل، السداد الكامل/الجزئي). كشف حساب العميل يقرأ الأقل منها ولا يتأثر بها.
+    invoice: {
+      id: 1,
+      invoiceNumber: 'MN-INV-2026-0001',
+      issueDate: new Date('2026-01-01'),
+      total: 1000,
+      paidAmount: 400,
+      customer: { name: 'شركة الاختبار' },
+    },
     ...override,
   };
 }
