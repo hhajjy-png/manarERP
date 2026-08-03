@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `fafd11ff` (merge of `feature/font-registry-enhancement-pack-v2` — Font Registry becomes a full metadata reference (category, recommended use, default size/line-height, weight/bold/italic support measured from the actual font files, direction, preview text, Arabic search aliases) instead of bare family-name strings, plus a reusable `components/common/FontPicker` with true per-font preview rendering and a `getFont`/`findFont`/`getOfficialFonts`/`getUIFonts`/`getFontsByCategory`/`getDefaultFontFor`/`searchFonts` API; foundational only — `FontPicker` is wired to no screen, no existing `font-family` usage changed; 32 files (2 modified, 30 added, including 21 previously-untracked font assets)) |
-| **Current Documentation Commit** | `832c123e` |
-| **Current Stable Tag** | `stable-font-registry-enhancement-pack-v2` |
+| **Current Merge Commit** | `765d2129` (merge of `feature/letter-engine-v1` — the Official Letter module: permanent sequential reference numbers issued only at registration, never reused, guarded by two DB UNIQUE constraints; a block-model composer with true page geometry/pagination/live local validation; a printing engine reusing the composer's own render path (no second renderer); barcode/signature/stamp built entirely on existing ERP infrastructure (the shipped `qrcode` package, the company branding registry); includes a mid-stream fix for a production HTTP-400 bug (unapplied migration + a Prisma-error misclassification, both corrected) and a final UI-reconstruction/production-polish pass; 110 files (11 modified, 99 added); 2 additive Prisma migrations, no existing table/column altered) |
+| **Current Documentation Commit** | `PENDING` |
+| **Current Stable Tag** | `stable-letter-engine-v1` |
 | **Current Release Date** | 2026-08-03 |
-| **Total Stable Releases** | 401 (window 2026-06-07 → 2026-08-03) |
+| **Total Stable Releases** | 402 (window 2026-06-07 → 2026-08-03) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
