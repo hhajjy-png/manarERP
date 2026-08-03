@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `96a970a8` (merge of `feature/equipment-owner-default-price-v1` — Price Agreements gains a default `equipmentOwnerPrice` field beside customer `unitPrice`; the Job & Commission Analysis module (first release, same tag) auto-fills both prices from a selected agreement and recomputes commission/margin live; owner price stays editable per-analysis and never writes back to the agreement; two additive migrations (WorkAnalysis/WorkAnalysisLine tables + one ALTER TABLE ADD COLUMN), no existing table/column touched; 34 files (11 modified, 23 added)) |
-| **Current Documentation Commit** | `d895361` |
-| **Current Stable Tag** | `stable-equipment-owner-default-price-v1` |
-| **Current Release Date** | 2026-08-02 |
-| **Total Stable Releases** | 400 (window 2026-06-07 → 2026-08-02) |
+| **Current Merge Commit** | `fafd11ff` (merge of `feature/font-registry-enhancement-pack-v2` — Font Registry becomes a full metadata reference (category, recommended use, default size/line-height, weight/bold/italic support measured from the actual font files, direction, preview text, Arabic search aliases) instead of bare family-name strings, plus a reusable `components/common/FontPicker` with true per-font preview rendering and a `getFont`/`findFont`/`getOfficialFonts`/`getUIFonts`/`getFontsByCategory`/`getDefaultFontFor`/`searchFonts` API; foundational only — `FontPicker` is wired to no screen, no existing `font-family` usage changed; 32 files (2 modified, 30 added, including 21 previously-untracked font assets)) |
+| **Current Documentation Commit** | `PENDING` |
+| **Current Stable Tag** | `stable-font-registry-enhancement-pack-v2` |
+| **Current Release Date** | 2026-08-03 |
+| **Total Stable Releases** | 401 (window 2026-06-07 → 2026-08-03) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
