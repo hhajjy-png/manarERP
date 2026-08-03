@@ -74,6 +74,10 @@ export const MODULES = [
   // تحليل الشغل والعمولة — أداة تحليل تشغيلية داخلية خارج الدورة المحاسبية تمامًا.
   // تكتب حصرًا في work_analyses / work_analysis_lines.
   'workAnalysis',
+  // محرك الخطابات — هوية المستند ودورة حياته. وحدة إدارية بحتة: لا تكتب في أي جدول
+  // خارج letters / letter_references / letter_sequences، ولا ترتبط بالمحاسبة ولا
+  // بالفواتير ولا بالرواتب ولا بالمخزون.
+  'letters',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -99,6 +103,9 @@ export const ACTIONS = [
   'reconcile',   // Reconcile bank statement transactions
   'overrideLock', // Post/amend inside a locked accounting period (always audited)
   'reverse',      // Post a contra entry that reverses a manual journal entry
+  // محرك الخطابات — إجراءان لا يغطّيهما أي فعل قائم:
+  'register',     // إصدار رقم مرجعي دائم لا يُعاد استخدامه أبدًا (لا رجعة فيه)
+  'archive',      // أرشفة مستند صادر (حفظ، لا حذف)
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 

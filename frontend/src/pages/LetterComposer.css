@@ -1,0 +1,188 @@
+/**
+ * Letter Engine — composer page chrome.
+ *
+ * Only the frame around the paper lives here. The sheet, its rulers, its bands and
+ * its sections carry their own stylesheets, and every millimetre they use comes from
+ * the Geometry Registry rather than from CSS.
+ */
+
+@import '../components/letters/letter-tokens.css';
+
+.lc-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ── Header compression ────────────────────────────────────────────────────
+   SCOPED TO THIS PAGE. `ExecutiveHeader` is shared with Cheques, Settings,
+   WorkAnalysis and others; compressing it globally would restyle surfaces this pack
+   has no business touching. Overriding it from inside `.lc-page` keeps the change
+   where it was asked for.
+
+   The editor is the one screen where chrome competes directly with the work: every
+   row of header is a row of paper the author cannot see. */
+.lc-page .xpl-exec-header {
+  padding-block: 8px;
+  min-height: 0;
+}
+
+.lc-page .xpl-exec-header h1,
+.lc-page .xpl-exec-header .xpl-exec-title {
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+/* The subtitle carries the reference number, so it stays — but at caption weight
+   rather than as a second heading. */
+.lc-page .xpl-exec-header .xpl-exec-subtitle {
+  font-size: 11.5px;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
+/* ── The command strip ─────────────────────────────────────────────────────
+   ONE row, not three stacked ones.
+
+   Every millimetre of vertical chrome is a millimetre of paper the author cannot
+   see, and the previous layout spent three separate bars on controls that belong
+   together. Collapsing them into a single sticky strip is the single largest
+   contributor to "the paper appears immediately" — it recovers roughly 60px of
+   height before the sheet even starts.
+
+   `flex-wrap` is kept so a narrow window degrades by wrapping rather than by
+   clipping a control out of reach. */
+.lc-bars {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0;
+  min-height: 42px;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  /* Lifts the strip off the canvas so the paper reads as sitting beneath it. */
+  box-shadow: var(--lt-chrome-shadow);
+}
+
+.lc-bars > :first-child {
+  flex: 1 1 420px;
+  border-bottom: 0;
+}
+
+/* Groups on the strip are separated by a hairline rather than by whitespace: a rule
+   costs one pixel where padding would cost twenty, and it reads as deliberate
+   grouping rather than as drift. */
+.lc-view-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  align-self: stretch;
+  border-inline-start: 1px solid var(--border, #e2e8f0);
+}
+
+/* The branding picker is the widest control on the strip; it collapses first. */
+.lc-branding-bar {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* Containing block for the measurement layer, which is absolutely positioned so it
+   occupies no space in the flow while still being laid out. */
+.lc-paper-area {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Save state ────────────────────────────────────────────────────────── */
+
+.lc-save-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+}
+
+.lc-save-state span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.lc-save-state .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.lc-save-state .is-saved {
+  color: #15803d;
+}
+
+.lc-readonly-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2, #f1f5f9);
+  font-weight: 600;
+}
+
+/* ── Frozen-content notice ─────────────────────────────────────────────── */
+
+.lc-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  border-radius: 9px;
+  background: color-mix(in srgb, #f59e0b 12%, transparent);
+  border: 1px solid color-mix(in srgb, #f59e0b 34%, transparent);
+  color: #92400e;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.lc-notice .material-symbols-outlined {
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────────
+   Light and short. The sheet fades up once on open, so the workspace resolves rather
+   than snapping into place; nothing else moves on its own. Anything longer than
+   ~200ms on a document surface reads as lag, not polish. */
+
+@keyframes lc-paper-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lc-paper-area .lp-stack {
+  animation: lc-paper-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Honour the OS setting. Motion here is decorative, so there is no case for
+   overriding someone who has asked for less of it. */
+@media (prefers-reduced-motion: reduce) {
+  .lc-paper-area .lp-stack {
+    animation: none;
+  }
+  .lp-sheet,
+  .lp-zone,
+  .lp-ruler,
+  .lp-band::after,
+  .ls-section-label,
+  .vp-issue,
+  .ct-btn {
+    transition: none !important;
+  }
+}
+
+/* Print rules live in `components/letters/letter-print.css` — see the note there on
+   why every print decision sits in one file. */

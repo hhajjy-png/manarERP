@@ -1,0 +1,278 @@
+/**
+ * Letter Engine — validation panel styles.
+ *
+ * Deliberately quiet. The panel lives at the foot of the composer and states its
+ * findings when asked; nothing here animates into view, overlays the paper, or
+ * competes with the document for attention.
+ *
+ * Severity is never carried by colour alone — every finding pairs its tint with an
+ * icon and a written label, so the panel works for a reader who cannot distinguish
+ * amber from red.
+ */
+
+/* The Validation Center.
+   Lifted off the canvas with a shadow rather than sitting flush: it now overlays a
+   dark workspace, and a flat panel against it reads as the page simply ending. The
+   shadow casts UPWARD, which is what tells the eye the panel is in front of the
+   document rather than beneath it. */
+.vp-panel {
+  position: sticky;
+  bottom: 0;
+  z-index: 25;
+  background: var(--surface, #fff);
+  border-top: 1px solid var(--border, #e2e8f0);
+  box-shadow: var(--lt-panel-shadow);
+}
+
+/* ── Summary row ───────────────────────────────────────────────────────── */
+
+.vp-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  border: 0;
+  border-inline-start: 3px solid transparent;
+  background: transparent;
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 13px;
+  text-align: start;
+  cursor: pointer;
+}
+
+.vp-summary:hover {
+  background: var(--surface-2, #f8fafc);
+}
+
+.vp-summary:focus-visible {
+  outline: 2px solid var(--lt-focus);
+  outline-offset: -2px;
+}
+
+.vp-summary--ready {
+  border-inline-start-color: var(--lt-ready);
+}
+
+.vp-summary--warning {
+  border-inline-start-color: #b45309;
+}
+
+.vp-summary--blocking {
+  border-inline-start-color: #b91c1c;
+}
+
+.vp-summary--ready > .material-symbols-outlined {
+  color: #15803d;
+}
+
+.vp-summary--warning > .material-symbols-outlined {
+  color: #b45309;
+}
+
+.vp-summary--blocking > .material-symbols-outlined {
+  color: #b91c1c;
+}
+
+.vp-status {
+  font-weight: 600;
+}
+
+.vp-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-inline-start: auto;
+}
+
+.vp-count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.vp-count--blocking { background: #fee2e2; color: #991b1b; }
+.vp-count--error    { background: #ffedd5; color: #9a3412; }
+.vp-count--warning  { background: #fef3c7; color: #92400e; }
+.vp-count--info     { background: #e0f2fe; color: #075985; }
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+
+/* 34vh → 26vh.
+   The panel scrolls internally, so its height is a question of how much document it
+   is allowed to cover, not of how many findings fit. A third of the workspace was too
+   much to surrender to a list the author consults rather than reads. Six compact
+   cards still fit without scrolling, which covers almost every real document. */
+.vp-body {
+  max-height: 26vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 10px 10px;
+  border-top: 1px solid var(--border, #eef2f7);
+}
+
+.vp-note,
+.vp-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2, #f8fafc);
+  color: var(--text-muted, #64748b);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.vp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Each finding is a CARD, and visibly clickable.
+   The severity stripe on the leading edge is what turns a console-style list into a
+   scannable one: blocking errors are findable by colour alone, without reading a
+   word. The stripe is transparent until the severity modifiers below fill it, so the
+   row keeps its alignment either way. */
+.vp-issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-inline-start: 3px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text, #0f172a);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color var(--lt-fast) ease-out,
+    border-color var(--lt-fast) ease-out,
+    transform var(--lt-fast) var(--lt-ease);
+}
+
+/* Hover shifts the card toward the reader as well as tinting it — these rows navigate
+   to the offending section, and a static tint does not say "this will take you
+   somewhere". */
+.vp-issue:hover {
+  background: var(--surface-2, #f8fafc);
+  border-color: var(--border, #e2e8f0);
+  transform: translateX(-2px);
+}
+
+html[dir='ltr'] .vp-issue:hover {
+  transform: translateX(2px);
+}
+
+.vp-issue--blocking { border-inline-start-color: var(--lt-blocking); }
+.vp-issue--error    { border-inline-start-color: var(--lt-error); }
+.vp-issue--warning  { border-inline-start-color: var(--lt-warning); }
+.vp-issue--info     { border-inline-start-color: var(--lt-info); }
+
+.vp-issue:focus-visible {
+  outline: 2px solid var(--lt-focus);
+  outline-offset: 1px;
+}
+
+.vp-issue-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.vp-issue-icon .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.vp-issue--blocking .vp-issue-icon { color: #b91c1c; }
+.vp-issue--error    .vp-issue-icon { color: #c2410c; }
+.vp-issue--warning  .vp-issue-icon { color: #b45309; }
+.vp-issue--info     .vp-issue-icon { color: #0369a1; }
+
+.vp-issue-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.vp-issue-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.vp-issue-severity {
+  font-weight: 700;
+}
+
+.vp-issue--blocking .vp-issue-severity { color: #b91c1c; }
+.vp-issue--error    .vp-issue-severity { color: #c2410c; }
+.vp-issue--warning  .vp-issue-severity { color: #b45309; }
+.vp-issue--info     .vp-issue-severity { color: #0369a1; }
+
+.vp-issue-where {
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text-muted, #64748b);
+}
+
+.vp-issue-message {
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.vp-issue-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted, #64748b);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.vp-issue-suggestion .material-symbols-outlined {
+  font-size: 14px;
+}
+
+/* ── Inline marker ─────────────────────────────────────────────────────────
+   The subtle half of the feedback: a badge on the section label. It never moves,
+   covers or reflows the text being written. */
+
+.vp-marker {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-start: 4px;
+  vertical-align: middle;
+}
+
+.vp-marker .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.vp-marker--blocking { color: #b91c1c; }
+.vp-marker--error    { color: #c2410c; }
+.vp-marker--warning  { color: #b45309; }
+.vp-marker--info     { color: #0369a1; }
+
+@media print {
+  /* Composer chrome never reaches paper. */
+  .vp-panel {
+    display: none !important;
+  }
+}

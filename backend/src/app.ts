@@ -49,6 +49,7 @@ import expirationsRoutes from './modules/expirations/expirations.routes';
 import printingRoutes from './modules/printing/printing.routes';
 import attachmentsRouter from './modules/attachments/attachments.routes';
 import searchRoutes from './modules/search/search.routes';
+import lettersRoutes from './modules/letters/letters.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -141,6 +142,7 @@ export function createApp(): Application {
   app.use('/api/printing', printingRoutes);
   app.use('/api/attachments', attachmentsRouter);
   app.use('/api/search', searchRoutes);
+  app.use('/api/letters', lettersRoutes);
   // تحليل الشغل والعمولة — أداة تحليل داخلية خارج الدورة المحاسبية.
   app.use('/api/work-analysis', workAnalysisRoutes);
 

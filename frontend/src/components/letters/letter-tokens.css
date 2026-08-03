@@ -1,0 +1,96 @@
+/**
+ * Letter Engine — the design tokens for the composer surface.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  ONE PLACE FOR EVERY SHADOW, TINT, RADIUS AND DURATION THE EDITOR USES.
+ * ══════════════════════════════════════════════════════════════════════════
+ * Before this file the same three-layer paper shadow was written out twice, the
+ * severity palette three times, and `160ms ease-out` in six places with two different
+ * easings. None of that was wrong, but it meant a change to "how the paper sits on the
+ * canvas" had to be made in more than one file and would eventually be made in only
+ * one of them.
+ *
+ * Scoped to `.lc-page` rather than `:root` DELIBERATELY. These are the letter
+ * composer's tokens, not the application's, and leaking them globally would let a
+ * later change here restyle Cheques or Settings — surfaces this pack has no business
+ * touching.
+ *
+ * ── WHAT IS NOT HERE ─────────────────────────────────────────────────────
+ * No millimetre. Every physical dimension still arrives inline from the Geometry
+ * Registry (INV-4), and a mm token here would be a second home for one.
+ */
+
+.lc-page {
+  /* ── Canvas ──────────────────────────────────────────────────────────
+     The surround is deliberately darker than the app's panel grey: paper reads as
+     paper only by contrast, and against near-white the sheet's edge disappears. */
+  --lt-canvas: #4b5563;
+  --lt-canvas-fade: rgba(0, 0, 0, 0.10);
+  --lt-on-canvas: rgba(255, 255, 255, 0.62);
+  --lt-on-canvas-dim: rgba(255, 255, 255, 0.42);
+  --lt-on-canvas-rule: rgba(255, 255, 255, 0.22);
+
+  /* ── Elevation ───────────────────────────────────────────────────────
+     Three layers, always. A contact shadow says the sheet touches the surface, a
+     hairline ring defines its cut edge, a wide cast gives it height — one blurred
+     shadow can only ever produce one of the three. */
+  --lt-paper-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.14),
+    0 12px 32px rgba(0, 0, 0, 0.26);
+  --lt-paper-shadow-current:
+    0 0 0 1px rgba(0, 0, 0, 0.16),
+    0 2px 4px rgba(0, 0, 0, 0.16),
+    0 24px 56px rgba(0, 0, 0, 0.34);
+  --lt-chrome-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  --lt-panel-shadow: 0 -2px 12px rgba(15, 23, 42, 0.10);
+  --lt-chip-shadow: 0 0 0 1px var(--border, #e2e8f0), 0 1px 2px rgba(15, 23, 42, 0.08);
+
+  /* ── Guides ──────────────────────────────────────────────────────────
+     Reserved bands and grid lines are ORIENTATION, not warnings. They were red at
+     full strength, which taught the eye to ignore red — and red has to stay
+     available for an actual validation failure. */
+  --lt-guide: rgba(71, 85, 105, 0.20);
+  --lt-guide-wash-a: rgba(71, 85, 105, 0.055);
+  --lt-guide-wash-b: rgba(71, 85, 105, 0.025);
+  --lt-guide-label: rgba(51, 65, 85, 0.68);
+  --lt-guide-label-bg: rgba(255, 255, 255, 0.72);
+  --lt-hairline: rgba(148, 163, 184, 0.32);
+  --lt-rule-ink: rgba(148, 163, 184, 0.55);
+  --lt-grid-minor: rgba(29, 78, 111, 0.045);
+  --lt-grid-major: rgba(29, 78, 111, 0.11);
+
+  /* ── Severity ────────────────────────────────────────────────────────
+     One palette, used by the validation centre's stripes, icons and counts alike. */
+  --lt-blocking: #dc2626;
+  --lt-error: #ea580c;
+  --lt-warning: #d97706;
+  --lt-info: #0284c7;
+  --lt-ready: #15803d;
+
+  /* ── Radius ──────────────────────────────────────────────────────────
+     Three steps only. Every radius in the editor is one of these; a fourth value is
+     nearly always an accident. */
+  --lt-r-sm: 3px;
+  --lt-r-md: 7px;
+  --lt-r-lg: 9px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────
+     Two durations and one easing. Anything longer than ~260ms on a document surface
+     reads as lag rather than polish. */
+  --lt-fast: 130ms;
+  --lt-slow: 200ms;
+  --lt-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Focus ring — identical everywhere, so "this is focused" is learned once. */
+  --lt-focus: var(--accent, #1d4e6f);
+}
+
+/* Motion is decorative here; someone who has asked for less of it gets none.
+   Declared once, at the token layer, rather than repeated per component. */
+@media (prefers-reduced-motion: reduce) {
+  .lc-page {
+    --lt-fast: 0ms;
+    --lt-slow: 0ms;
+  }
+}

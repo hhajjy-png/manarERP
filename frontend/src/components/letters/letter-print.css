@@ -1,0 +1,216 @@
+/**
+ * Letter Engine — print styles.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  SCREEN AND PRINT ARE THE SAME DOCUMENT. THE ONLY DIFFERENCE IS THAT THE
+ *  INTERFACE DISAPPEARS.
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * Not one dimension is restated in this file. The sheet is still `210mm × 297mm`
+ * because `LetterPaper` sized it from the Geometry Registry; the band still sits where
+ * the registry put it. Everything below either HIDES chrome or neutralises a
+ * screen-only affordance (a shadow, a zoom transform, a scroll container). If a
+ * millimetre ever appears here, print and screen have started describing two different
+ * pages.
+ *
+ * ── WHY `@page { margin: 0 }` ────────────────────────────────────────────
+ * The page box must be the full sheet. With any non-zero page margin the printable
+ * band is shorter than the paper, so a 297 mm element necessarily spills onto a second
+ * sheet and every reserved-zone offset is wrong by the margin. This is the same
+ * decision `BlankA4Print` already proved for the existing print path.
+ *
+ * ── WHY THE PAGE IS *NAMED* ──────────────────────────────────────────────
+ * `app/theme.css` declares a global `@page { margin: 1cm }` for the ordinary screens,
+ * and it is loaded on every route. An unnamed `@page` here would merely be a second
+ * rule of equal weight, so which one won would depend on stylesheet INJECTION ORDER —
+ * and this file rides a lazily-loaded route chunk, so that order is not guaranteed. A
+ * 1 cm page margin would shorten the page box below 297 mm: every sheet would spill a
+ * strip onto a following blank page and every reserved-zone offset would be out by
+ * 10 mm. On screen it would all still look right.
+ *
+ * A NAMED page selector outranks the universal one for the boxes assigned to it, so
+ * the letter's page box is settled by the cascade rather than by load order. The
+ * unnamed rule below is kept as the agreeing fallback for the same values.
+ *
+ * The rest of the application keeps `theme.css`'s 1 cm margin: nothing else prints
+ * from this route, because everything else is hidden.
+ */
+
+@media print {
+  @page manarLetterSheet {
+    size: A4;
+    margin: 0;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
+  /* ── Everything that is interface, and not document ────────────────────
+     Listed explicitly rather than hidden by a blanket rule: an allow-list of what
+     prints would silently drop a section the day one is added, whereas a deny-list of
+     chrome fails in the safe direction — a new chrome element shows up in review
+     rather than being invisibly excluded from the letter. */
+
+  .lc-bars,                  /* toolbar + view controls + page navigator */
+  .lc-notice,                /* the frozen-content banner */
+  .lc-save-state,            /* save indicator */
+  .xpl-exec-header,          /* the composer's page header */
+  .vp-panel,                 /* validation panel */
+  .lp-measure-layer,         /* the hidden measurement mirror */
+  .lp-ruler,                 /* all four rulers, on every page */
+  .lp-grid,                  /* grid overlay */
+  .lp-zone,                  /* reserved-zone bands (guides, not ink) */
+  .lp-page-caption,          /* "صفحة 1 من 2" and the break hint */
+  .ls-section-label {        /* per-section labels and their validation markers */
+    display: none !important;
+  }
+
+  /* ── The paper ─────────────────────────────────────────────────────────
+     Scroll containers, backgrounds and the zoom transform are screen affordances;
+     on paper they are meaningless or actively wrong. */
+
+  /* ── The ancestor chain ────────────────────────────────────────────────
+     Every box between <body> and the sheet is neutralised, because each one is a
+     chance to add height or to block fragmentation. A flex container in particular
+     fragments far less predictably across pages than a plain block, and the page
+     stack sits inside two of them. */
+
+  .lc-page {
+    display: block !important;
+    /* `min-height: 100%` is a screen affordance; in print it can force a page-tall
+       box before the first sheet even starts. */
+    min-height: 0 !important;
+  }
+
+  .lc-paper-area {
+    display: block !important;
+    position: static !important;
+    min-height: 0 !important;
+  }
+
+  .lp-viewport {
+    display: block !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  /* ZOOM MUST NOT REACH PAPER. A letter printed while the screen is at 150% is still
+     A4 — the transform is a viewport preference and nothing more. */
+  .lp-scale {
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+  }
+
+  .lp-stack {
+    display: block !important;
+    /* The composer's entrance animation finishes on `transform: translateY(0)` and,
+       with `both`, LEAVES it applied. A transform — even an identity one — makes the
+       element a containing block, and a transformed subtree cannot be fragmented
+       across pages: the entire multi-page stack would print on one sheet. Cancelled
+       here for the same reason `.lp-scale`'s zoom is. */
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  /* The stage generates NO BOX at print, so neither its screen-only ruler gutter nor
+     any rounding of its own height can push the sheet past the page box. `display:
+     contents` rather than `margin: 0` is the form `BlankA4Print` already proved. Safe
+     because the only things positioned against the stage are the four rulers, and
+     they are hidden above. */
+  .lp-stage {
+    display: contents !important;
+  }
+
+  .lp-page-slot {
+    /* Bind the sheet to the named page box declared at the top of this file. This is
+       what makes `margin: 0` win over the global 1 cm by cascade rather than by luck. */
+    page: manarLetterSheet;
+    /* Each sheet starts a new page. `avoid` inside keeps a sheet from being split
+       across two physical pages if a renderer is tempted. */
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .lp-page-slot:last-child {
+    /* Without this the last sheet is followed by a blank one. */
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .lp-sheet {
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  /* The dashed band guide marks the writable area for the author; it is not ink. */
+  .lp-band::after {
+    display: none !important;
+  }
+
+  /* THE BAND'S CLIP IS NOT OVERRIDDEN HERE, DELIBERATELY.
+     `letter-paper.css` sets `overflow: hidden` on the band so that content can never
+     paint across the reserved footer — the letterhead's own ink. Relaxing that for
+     print would invert the guarantee exactly where it matters: a paragraph that
+     overshoots by a millimetre would be clipped on screen and printed over the
+     reserved zone on paper. Screen and print clip identically, so the author can see
+     what the printer will do. */
+
+  /* ── Editing affordances ───────────────────────────────────────────────
+     In print mode the page stack renders its read-only form, so no form control
+     should reach paper at all. These rules are the second lock: if one ever did, it
+     would print as plain text rather than as a widget with a box around it. */
+
+  .ls-line-input,
+  .ls-paragraph {
+    border: 0 !important;
+    outline: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    resize: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    color: #000 !important;
+  }
+
+  .ls-section.is-active::before {
+    display: none !important;
+  }
+
+  /* ── Signature, stamp and barcode ──────────────────────────────────────
+     These now print — they ARE the letter's authority. What must not print is the
+     scaffolding around them: the "بلا توقيع" note and the "يُصدَر عند التسجيل" hint
+     are guidance for the author, and the reserved outline marks space rather than
+     occupying it. The images and the symbol themselves are untouched here, because
+     what reaches paper is decided by the same components the screen uses. */
+
+  .ls-signature-hint,
+  .ls-barcode-hint {
+    display: none !important;
+  }
+
+  .ls-barcode-reserved {
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  /* Colour fidelity: the letter is black on white, and a printer's colour management
+     must not lighten the text. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

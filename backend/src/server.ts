@@ -3,6 +3,7 @@ import { env } from './config/env';
 import { logger } from './core/utils/logger';
 import { disconnectDatabase, initDatabase } from './config/database';
 import { runPendingMigrations } from './core/utils/migrate';
+import { reconcileSequencesOnStartup } from './modules/letters/reference.service';
 
 /**
  * يسجّل خطأ قاتل ثم يُنهي العملية بأمان (قطع اتصال قاعدة البيانات أولًا إن أمكن).
@@ -36,6 +37,10 @@ async function startServer() {
   try {
     runPendingMigrations();
     await initDatabase();
+    // محرك الخطابات — يرفع عدّادات التسلسل إلى أعلى رقم مرجعي مسجَّل فعلًا.
+    // ضروري بعد استعادة نسخة احتياطية أقدم من آخر خطاب صادر: بدونه يُعاد إصدار
+    // أرقام مرجعية موجودة على ورق سُلّم للغير. لا يرمي أبدًا — شبكة أمان لا شرط بدء.
+    await reconcileSequencesOnStartup();
   } catch (err) {
     crashSafely('startup', err);
     return;
