@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `765d2129` (merge of `feature/letter-engine-v1` — the Official Letter module: permanent sequential reference numbers issued only at registration, never reused, guarded by two DB UNIQUE constraints; a block-model composer with true page geometry/pagination/live local validation; a printing engine reusing the composer's own render path (no second renderer); barcode/signature/stamp built entirely on existing ERP infrastructure (the shipped `qrcode` package, the company branding registry); includes a mid-stream fix for a production HTTP-400 bug (unapplied migration + a Prisma-error misclassification, both corrected) and a final UI-reconstruction/production-polish pass; 110 files (11 modified, 99 added); 2 additive Prisma migrations, no existing table/column altered) |
-| **Current Documentation Commit** | `PENDING` |
+| **Current Documentation Commit** | `6206bfd` |
 | **Current Stable Tag** | `stable-letter-engine-v1` |
 | **Current Release Date** | 2026-08-03 |
 | **Total Stable Releases** | 402 (window 2026-06-07 → 2026-08-03) |
