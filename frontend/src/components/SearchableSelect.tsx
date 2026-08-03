@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { normalizeSearch } from '../lib/arabicSearch';
 import './SearchableSelect.css';
+
+/**
+ * أُخرِجت إلى `lib/arabicSearch` كي يشاركها `components/common/FontPicker` دون
+ * جرّ هذا المكوّن وأنماطه. تُعاد هنا كما كانت — كل وارد قائم يبقى يعمل.
+ */
+export { normalizeSearch };
 
 export interface SearchableOption {
   /** القيمة المخزّنة. */
@@ -25,23 +32,6 @@ interface Props {
   ariaLabel?: string;
   id?: string;
   disabled?: boolean;
-}
-
-/**
- * تطبيع عربي للبحث: إزالة التشكيل والتطويل وتوحيد الألف/الياء/التاء المربوطة،
- * حتى يطابق ما يكتبه المستخدم (مثل «كر»، «بط»، «زي»، «رس») الاسم العربي للبند.
- */
-export function normalizeSearch(s: string): string {
-  return s
-    .replace(/[ً-ٰٟ]/g, '') // تشكيل
-    .replace(/ـ/g, '')                 // تطويل
-    .replace(/[إأآا]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ئ/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ة/g, 'ه')
-    .toLowerCase()
-    .trim();
 }
 
 /**

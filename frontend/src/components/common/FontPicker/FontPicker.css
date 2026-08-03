@@ -1,0 +1,218 @@
+/* ── FontPicker — منتقي خطوط بمعاينة حقيقية ─────────────────────────────────
+   يعتمد متغيّرات الثيم العامة مع قيم احتياطية، فيتبع الوضعين الفاتح والداكن
+   تلقائيًا دون قواعد داكنة مستقلة (نفس نهج SearchableSelect.css).
+
+   القرار البصري: الصف **عيّنة خط** لا سطر قائمة. سطر علوي صغير هادئ يحمل
+   الاسم والتصنيف بخط الواجهة، وتحته العيّنة كبيرة بخط الخط نفسه — تباين مقياس
+   واضح يجعل العين تقرأ الخط لا التسمية. */
+
+.fpk {
+  --fpk-surface: var(--surface, #ffffff);
+  --fpk-surface-2: var(--surface-2, #f1f5f9);
+  --fpk-border: var(--border, #e2e8f0);
+  --fpk-text: var(--text, #0f172a);
+  --fpk-muted: var(--text-muted, #64748b);
+  --fpk-accent: var(--accent, #3b82f6);
+  --fpk-faint: color-mix(in srgb, var(--fpk-accent) 10%, transparent);
+  position: relative;
+  min-width: 0;
+}
+
+/* ── الزرّ المُشغِّل ─────────────────────────────────────────────────────── */
+
+.fpk-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 12px;
+  background: var(--fpk-surface);
+  border: 1px solid var(--fpk-border);
+  border-radius: 10px;
+  color: var(--fpk-text);
+  font-family: inherit;
+  font-size: 13.5px;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.fpk-trigger:hover:not(:disabled) {
+  border-color: var(--fpk-accent);
+}
+.fpk-trigger:focus-visible {
+  outline: none;
+  border-color: var(--fpk-accent);
+  box-shadow: 0 0 0 3px var(--fpk-faint);
+}
+.fpk-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.fpk-trigger-body {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fpk-trigger-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+.fpk-trigger-cat {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--fpk-muted);
+}
+.fpk-placeholder {
+  color: var(--fpk-muted);
+  font-size: 13.5px;
+}
+/* قيمة محفوظة لا تطابق أي خط مسجَّل — تُعرض ولا تُبتلع. */
+.fpk-unknown {
+  color: var(--danger, #dc2626);
+  font-size: 13.5px;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.fpk-chevron {
+  font-size: 20px !important;
+  color: var(--fpk-muted);
+  flex: 0 0 auto;
+  transition: transform 0.15s ease;
+}
+.fpk-trigger[aria-expanded='true'] .fpk-chevron {
+  transform: rotate(180deg);
+}
+
+/* ── اللوحة المنسدلة ─────────────────────────────────────────────────────── */
+
+.fpk-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  max-height: 380px;
+  background: var(--fpk-surface);
+  border: 1px solid var(--fpk-border);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(16, 24, 40, 0.18), 0 2px 8px rgba(16, 24, 40, 0.08);
+  overflow: hidden;
+}
+
+.fpk-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  background: var(--fpk-surface-2);
+  border-bottom: 1px solid var(--fpk-border);
+}
+.fpk-search .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--fpk-muted);
+}
+.fpk-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--fpk-text);
+}
+.fpk-search-input::placeholder {
+  color: var(--fpk-muted);
+}
+
+/* ── القائمة ─────────────────────────────────────────────────────────────── */
+
+.fpk-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.fpk-opt {
+  display: block;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border-inline-start: 3px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.fpk-opt + .fpk-opt {
+  /* خط شعري بدل مسافات متساوية — يفصل العيّنات دون تحويلها إلى بطاقات. */
+  box-shadow: inset 0 1px 0 var(--fpk-border);
+}
+.fpk-opt--active {
+  background: var(--fpk-faint);
+}
+.fpk-opt--selected {
+  border-inline-start-color: var(--fpk-accent);
+}
+
+.fpk-opt-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 3px;
+}
+.fpk-opt-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--fpk-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fpk-opt-cat {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--fpk-surface-2);
+  color: var(--fpk-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.fpk-check {
+  font-size: 17px !important;
+  color: var(--fpk-accent);
+  margin-inline-start: auto;
+  flex: 0 0 auto;
+}
+
+/* العيّنة: خطّها ومقاسها يأتيان من بيانات الخط عبر style سطري. */
+.fpk-opt-preview {
+  display: block;
+  color: var(--fpk-text);
+  white-space: pre-line;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fpk-noresult {
+  padding: 18px 10px;
+  text-align: center;
+  color: var(--fpk-muted);
+  font-size: 12.5px;
+}
+
+.fpk--disabled {
+  opacity: 0.7;
+}
