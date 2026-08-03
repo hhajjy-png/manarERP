@@ -1,0 +1,253 @@
+/* ================================================================
+   assets/fonts/fonts.css — Font Registry Foundation Pack v1
+   ================================================================
+
+   ما هذا الملف
+   ────────────
+   الإعلان الرسمي الوحيد لعائلات خطوط **المستندات** المرفقة داخل
+   `assets/fonts/نموذج كتاب رسمي خطوط`. نظيره في TypeScript هو
+   `FontRegistry` في `styles/fontRegistry.ts` — وهو المصدر الذي يجب أن
+   تُقرأ منه أسماء العائلات، لا نصوصًا حرفية.
+
+   ما ليس فيه، ولماذا (سياسة الحزمة: **صفر تغيير بصري**)
+   ────────────────────────────────────────────────────
+   أربع عائلات من قائمة السجل **محمَّلة بالفعل** في المشروع، وإعادة
+   تعريفها هنا كانت ستغيّر المظهر القائم، فبقيت في مواضعها:
+
+   · `Cairo` → يأتي من `@fontsource/cairo` في `main.tsx` بثلاثة أوزان
+     (400/600/700). ملفات `Cairo-*.ttf` في `assets/fonts` تحمل ثمانية
+     أوزان؛ إعلان الوزن 500 منها كان سيحوّل كل نص بـ `font-weight: 500`
+     من Regular (ما يختاره المتصفح اليوم) إلى Medium — انزياح بصري حقيقي
+     في كل مستند يستعمل `DOC_FONT_STACK`.
+
+   · `IBM Plex Sans Arabic` و `Tajawal` → معلنتان في `styles/fonts.css`.
+     تكرار الإعلان هنا كان سيُنتج قواعد `@font-face` مزدوجة لنفس
+     العائلة والوزن.
+
+   · `Tahoma` → خط نظام Windows، ومُستعمَل فعليًا في
+     `print-templates/reference/quotations/QuotationShared.module.css`
+     وفي `FONT_FAMILIES` بمحرّر الشيكات. الملف المرفق
+     `103-Tahoma.ttf` هو Tahoma نفسه، لكن إعلانه تحت الاسم `Tahoma`
+     كان سيحجب خط النظام على هذين السطحين.
+
+   أسماء هذه العائلات الأربع موجودة في `FontRegistry` كي يبقى السجل
+   مرجعًا كاملًا لاثنتي عشرة عائلة — الإعلان وحده هو المُقسَّم.
+
+   ملاحظة على المسارات
+   ───────────────────
+   لم يُنقل أو يُعَد تسمية أي ملف خط. المسارات أدناه تشير إلى مواضع
+   الملفات كما هي، بما فيها المجلد العربي `نموذج كتاب رسمي خطوط`.
+
+   `font-display: swap` على كل وجه — نفس السياسة المتبعة في
+   `styles/fonts.css`.
+   ================================================================ */
+
+/* ── Amiri — نسخ كلاسيكي (OFL 1.1، الترخيص بجوار الملفات) ───────────
+   أربعة أوجه: عادي ومائل × 400/700. */
+
+@font-face {
+  font-family: "Amiri";
+  src: url("./نموذج كتاب رسمي خطوط/Amiri-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Amiri";
+  src: url("./نموذج كتاب رسمي خطوط/Amiri-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Amiri";
+  src: url("./نموذج كتاب رسمي خطوط/Amiri-Italic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Amiri";
+  src: url("./نموذج كتاب رسمي خطوط/Amiri-BoldItalic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ── Scheherazade New — نسخ للمتون الطويلة (OFL 1.1) ────────────────
+   ملفا Medium و SemiBold يحملان اسم عائلة فرعي في جدول `name`
+   («Scheherazade New Medium» …) وهي تسمية توافقية لويندوز. الاسم
+   التيبوغرافي (name ID 16) لثلاثتها هو «Scheherazade New» — وهو
+   المستعمل هنا، فتنتظم الأوزان الأربعة تحت عائلة واحدة. */
+
+@font-face {
+  font-family: "Scheherazade New";
+  src: url("./نموذج كتاب رسمي خطوط/ScheherazadeNew-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Scheherazade New";
+  src: url("./نموذج كتاب رسمي خطوط/ScheherazadeNew-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Scheherazade New";
+  src: url("./نموذج كتاب رسمي خطوط/ScheherazadeNew-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Scheherazade New";
+  src: url("./نموذج كتاب رسمي خطوط/ScheherazadeNew-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── PFDinTextArabic — ثمانية أوزان ─────────────────────────────────
+   كل ملف من الثمانية يحمل **اسم عائلة مستقلًّا** في جدول `name`
+   (`PFDinTextArabic-Bold`, `PFDinTextArabic-Light`, …) وكلها تُصرّح
+   `usWeightClass = 400`. أي أن بيانات الملفات وحدها لا تكفي لترتيب
+   الأوزان، فوُحِّدت هنا تحت عائلة واحدة بترتيب **مقيس** لا مُخمَّن:
+   حُسبت مساحة حبر ستة محارف مرجعية (H o n ب ع م) لكل ملف، فجاء
+   الترتيب التصاعدي قاطعًا:
+
+     Hairline 0.056 · XThin 0.241 · Thin 0.391 · Light 0.548
+     Regular  0.706 · Medium 0.925 · Bold 1.144 · XBlack 1.490
+
+   الخريطة أدناه تتبع هذا الترتيب. القيم 100/150/200 دون 300 لأن
+   العائلة تضم أربعة أوجه أخف من Regular بينما سُلَّم CSS القياسي
+   يخصّص ثلاث درجات فقط تحت 400. */
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-Hairline.ttf") format("truetype");
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-XThin.ttf") format("truetype");
+  font-weight: 150;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-Thin.ttf") format("truetype");
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-Light.ttf") format("truetype");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PFDinTextArabic";
+  src: url("./نموذج كتاب رسمي خطوط/PFDinTextArabic-XBlack.ttf") format("truetype");
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Sultan — وجه واحد ──────────────────────────────────────────────
+   اسم العائلة في الملف «Sultan Medium»؛ سُجّل هنا باسم العائلة
+   «Sultan» ووزن 500 المطابق لتصميمه. ولأنه الوجه الوحيد المُعلَن
+   فسيُستعمل لأي وزن مطلوب. */
+
+@font-face {
+  font-family: "Sultan";
+  src: url("./نموذج كتاب رسمي خطوط/Sultan-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Traditional Arabic — وجه واحد ──────────────────────────────────
+   الملف يُصرّح `usWeightClass = 5` وهي قيمة غير صالحة (سُلَّم OS/2 يبدأ
+   من 100)؛ استُعمل 400 وهو الوزن الفعلي للتصميم. */
+
+@font-face {
+  font-family: "Traditional Arabic";
+  src: url("./نموذج كتاب رسمي خطوط/Traditional-Arabic.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Simplified Arabic Fixed — وجه واحد ─────────────────────────── */
+
+@font-face {
+  font-family: "Simplified Arabic Fixed";
+  src: url("./نموذج كتاب رسمي خطوط/Simplified Arabic Fixed.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── Droid Arabic Naskh — وجه واحد ──────────────────────────────────
+   اسم الملف `Droid-Naskh-Regular.ttf`، واسم العائلة داخله
+   «Droid Arabic Naskh» — وهو المُعتمَد هنا. */
+
+@font-face {
+  font-family: "Droid Arabic Naskh";
+  src: url("./نموذج كتاب رسمي خطوط/Droid-Naskh-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── PT Bold Heading — وجه واحد ─────────────────────────────────────
+   «Bold» جزء من اسم العائلة لا من وزنها؛ الملف يُصرّح وزن 400. */
+
+@font-face {
+  font-family: "PT Bold Heading";
+  src: url("./نموذج كتاب رسمي خطوط/PT Bold Heading.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

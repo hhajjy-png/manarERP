@@ -5,6 +5,8 @@ import RootErrorBoundary from './components/RootErrorBoundary';
 import GlobalOverflowTooltip from './components/tooltip/GlobalOverflowTooltip';
 import { resetRunStartUIState } from './lib/runStartUIState';
 // Offline fonts — no CDN required
+// خطوط المستندات المرفقة (سجل الخطوط الرسمي) — الشرح في assets/fonts/fonts.css
+import './assets/fonts/fonts.css';
 import './styles/fonts.css';
 import '@fontsource/cairo/400.css';
 import '@fontsource/cairo/600.css';
