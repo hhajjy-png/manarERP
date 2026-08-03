@@ -49,6 +49,8 @@ const BankAccountExplorer = lazy(() => import('./pages/BankAccountExplorer'));
 const Quotation = lazy(() => import('./pages/Quotation'));
 const PurchaseRequest = lazy(() => import('./pages/PurchaseRequest'));
 const BlankA4Print = lazy(() => import('./pages/BlankA4Print'));
+const LetterWorkspace = lazy(() => import('./pages/LetterWorkspace'));
+const LetterComposer = lazy(() => import('./pages/LetterComposer'));
 const ExecutiveDecisionCenter = lazy(() => import('./pages/ExecutiveDecisionCenter'));
 const FinancialOperationsDashboard = lazy(() => import('./pages/FinancialOperationsDashboard'));
 const Statements = lazy(() => import('./pages/Statements'));
@@ -110,6 +112,12 @@ export default function App() {
           <Route path="/forms/payment-voucher" element={<ProtectedRoute><AdminPaymentVoucher /></ProtectedRoute>} />
           <Route path="/forms/receipt-voucher" element={<ProtectedRoute><ReceiptVoucher /></ProtectedRoute>} />
           <Route path="/forms/blank-a4-print" element={<ProtectedRoute><BlankA4Print /></ProtectedRoute>} />
+          {/* محرك الخطابات — تحت /forms عمدًا: المدخل الوحيد هو النماذج الإدارية،
+              ولا اختصار في القائمة الجانبية. تفتح على القائمة لا على محرّر. */}
+          <Route path="/forms/official-letter" element={<ProtectedRoute><LetterWorkspace /></ProtectedRoute>} />
+          {/* المؤلِّف — يُفتح من مساحة العمل بمعرّف خطاب قائم. لا يوجد مسار «جديد»
+              يفتح محرّرًا فارغًا: الإنشاء يمرّ بالقائمة دائمًا. */}
+          <Route path="/forms/official-letter/:id" element={<ProtectedRoute><LetterComposer /></ProtectedRoute>} />
           <Route path="/cheque-template/print" element={<ProtectedRoute><ChequeTemplatePrintPage /></ProtectedRoute>} />
           <Route
             element={

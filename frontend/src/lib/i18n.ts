@@ -3972,6 +3972,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.leaveReq.field.reason': 'السبب',
     'page.leaveReq.field.expected_return': 'تاريخ العودة المتوقع',
     'page.blankA4.title': 'ورقة A4 فارغة',
+    // محرك الخطابات — مساحة العمل (P2). العنوان يُحلّ من هنا حصرًا عبر t(titleKey).
+    'page.officialLetter.title': 'خطاب رسمي',
     // Forms Registry Translation Audit v1 — مفاتيح عنوان مفقودة اكتُشفت بالتدقيق:
     // كل نموذج يجب أن يحلّ عنوانه عبر t(titleKey) لا نصًا حرفيًا مباشرًا.
     'page.salaryCert.title': 'شهادة راتب',
@@ -8449,6 +8451,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.leaveReq.field.reason': 'Reason',
     'page.leaveReq.field.expected_return': 'Expected Return Date',
     'page.blankA4.title': 'Blank A4 Sheet',
+    // Letter Engine — workspace (P2).
+    'page.officialLetter.title': 'Official Letter',
     // Forms Registry Translation Audit v1 — missing title keys found by the audit.
     'page.salaryCert.title': 'Salary Certificate',
     'page.salaryCert.doc_label': 'Salary Certificate',

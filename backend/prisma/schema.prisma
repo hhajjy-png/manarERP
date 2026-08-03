@@ -263,20 +263,20 @@ model LeaveSettlement {
 // لا يؤثر في أي احتساب (رصيد الإجازة/بدل الإجازة/مكافأة نهاية الخدمة)، ولا ينشئ قيودًا
 // محاسبية أو حركات بنكية أو شيكات أو سندات أو رواتب. تسجيل يدوي بحت.
 model EmployeeEntitlementLedger {
-  id            Int      @id @default(autoincrement())
-  employeeId    Int
-  entryType     String // LEAVE_ALLOWANCE | END_OF_SERVICE | OTHER
-  entryDate     DateTime
-  description   String?
-  leaveDays     Float? // يُخزَّن لبدل الإجازة فقط
+  id                   Int      @id @default(autoincrement())
+  employeeId           Int
+  entryType            String // LEAVE_ALLOWANCE | END_OF_SERVICE | OTHER
+  entryDate            DateTime
+  description          String?
+  leaveDays            Float? // يُخزَّن لبدل الإجازة فقط
   // لقطة رصيد الإجازة المحتسَب لحظة إنشاء الصف (لبدل الإجازة فقط). للعرض التاريخي فقط —
   // تُكتب مرة واحدة عند الإنشاء، لا تتحدّث تلقائيًا، ولا تدخل في أي احتساب إطلاقًا.
   leaveBalanceSnapshot Float?
-  amount        Float    @default(0)
-  paymentMethod String // CASH | BANK_TRANSFER | CHEQUE | OTHER
-  notes         String?
-  createdAt     DateTime @default(now())
-  createdBy     Int? // معرّف المستخدم الذي سجّل الصف (تسجيل فقط، بلا علاقة FK)
+  amount               Float    @default(0)
+  paymentMethod        String // CASH | BANK_TRANSFER | CHEQUE | OTHER
+  notes                String?
+  createdAt            DateTime @default(now())
+  createdBy            Int? // معرّف المستخدم الذي سجّل الصف (تسجيل فقط، بلا علاقة FK)
 
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
@@ -313,25 +313,25 @@ model EmployeeFinalSettlement {
   terminationReason String // RESIGNATION | EMPLOYER_TERMINATION
 
   // ── لقطة الاعتماد المجمَّدة (كلها null في المسودة) ─────────────────────────────
-  approvedAt              DateTime?
-  approvedBy              Int? // معرّف المستخدم المعتمِد (تسجيل فقط، بلا علاقة FK)
-  snapshotHireDate        DateTime?
-  snapshotSalaryUsed      Float? // Employee.salary وقت الاعتماد (المصدر الوحيد)
-  snapshotDailyWage       Float?
-  snapshotWageDivisor     Int? // قاسم الأجر اليومي المعتمد وقت الاعتماد (26)
-  snapshotServiceYears    Float?
-  snapshotServiceMonths   Int?
-  snapshotServiceDays     Int?
+  approvedAt               DateTime?
+  approvedBy               Int? // معرّف المستخدم المعتمِد (تسجيل فقط، بلا علاقة FK)
+  snapshotHireDate         DateTime?
+  snapshotSalaryUsed       Float? // Employee.salary وقت الاعتماد (المصدر الوحيد)
+  snapshotDailyWage        Float?
+  snapshotWageDivisor      Int? // قاسم الأجر اليومي المعتمد وقت الاعتماد (26)
+  snapshotServiceYears     Float?
+  snapshotServiceMonths    Int?
+  snapshotServiceDays      Int?
   snapshotServiceTotalDays Int?
-  snapshotLeaveDays       Float? // رصيد أيام الإجازة عند تاريخ التصفية
-  snapshotLeaveValue      Float? // القيمة النقدية لرصيد الإجازة قبل خصم المدفوع سابقًا
-  snapshotPriorLeavePaid  Float? // إجمالي دفعات بدل الإجازة السابقة المنطبقة
-  snapshotLeaveRemaining  Float? // مكوّن الإجازة في التصفية = القيمة − المدفوع سابقًا
-  snapshotEosScenario     String? // RESIGNATION | EMPLOYER_TERMINATION
-  snapshotEosFullAmount   Float? // المكافأة الكاملة (المادة 51) قبل نسبة الاستقالة
-  snapshotEosFraction     Float? // نسبة الاستقالة المطبَّقة (المادة 53) — 1 عند الإنهاء
-  snapshotEosAmount       Float? // مكوّن نهاية الخدمة في التصفية
-  snapshotTotalAmount     Float? // إجمالي التصفية = مكوّن الإجازة + مكوّن نهاية الخدمة
+  snapshotLeaveDays        Float? // رصيد أيام الإجازة عند تاريخ التصفية
+  snapshotLeaveValue       Float? // القيمة النقدية لرصيد الإجازة قبل خصم المدفوع سابقًا
+  snapshotPriorLeavePaid   Float? // إجمالي دفعات بدل الإجازة السابقة المنطبقة
+  snapshotLeaveRemaining   Float? // مكوّن الإجازة في التصفية = القيمة − المدفوع سابقًا
+  snapshotEosScenario      String? // RESIGNATION | EMPLOYER_TERMINATION
+  snapshotEosFullAmount    Float? // المكافأة الكاملة (المادة 51) قبل نسبة الاستقالة
+  snapshotEosFraction      Float? // نسبة الاستقالة المطبَّقة (المادة 53) — 1 عند الإنهاء
+  snapshotEosAmount        Float? // مكوّن نهاية الخدمة في التصفية
+  snapshotTotalAmount      Float? // إجمالي التصفية = مكوّن الإجازة + مكوّن نهاية الخدمة
 
   // ── الإلغاء (حالة نهائية) — لا حذف للسجل ولا مساس باللقطة المجمَّدة ────────────
   cancelledAt        DateTime?
@@ -1023,7 +1023,7 @@ model JournalEntry {
   // للتغيير: القيد المُرحَّل لا يُحذف أبدًا؛ التعديل يُنشئ عكسًا للنسخة الحالية ثم يُرحّل
   // نسخة جديدة. مفتاح التفرّد يشمل `revision` كي تتعايش النسخ في الدفتر دون تعارض،
   // مع بقاء حماية الترحيل المزدوج (نسخة واحدة لكل (نوع، مرجع، رقم نسخة)).
-  revision      Int      @default(1)
+  revision Int @default(1)
 
   lines JournalEntryLine[]
 
@@ -1307,15 +1307,15 @@ model BankStatementTransaction {
   importId Int
   import   BankStatementImport @relation(fields: [importId], references: [id], onDelete: Cascade)
 
-  transactionId  String?
-  bankName       String
-  statementDate  DateTime?
-  postingDate    DateTime?
-  description    String    @default("")
-  reference      String?
-  debit          Float     @default(0)
-  credit         Float     @default(0)
-  balance        Float?
+  transactionId     String?
+  bankName          String
+  statementDate     DateTime?
+  postingDate       DateTime?
+  description       String    @default("")
+  reference         String?
+  debit             Float     @default(0)
+  credit            Float     @default(0)
+  balance           Float?
   // 1-based position of this row among the data rows of its own import file
   // (header rows excluded), in original file order. Row 1 = first data row =
   // newest transaction per the bank's official statement convention. Source
@@ -1323,12 +1323,12 @@ model BankStatementTransaction {
   // statementDate. Nullable for backward compatibility with rows imported
   // before this field existed; backfilled by migration.
   statementSequence Int?
-  currency       String    @default("KWD")
-  accountNumber  String?
-  iban           String?
-  chequeNumber   String?
-  rawRow         String    @default("{}") // JSON
-  normalizedText String    @default("")
+  currency          String    @default("KWD")
+  accountNumber     String?
+  iban              String?
+  chequeNumber      String?
+  rawRow            String    @default("{}") // JSON
+  normalizedText    String    @default("")
 
   // Reconciliation state
   reconcileStatus String  @default("UNMATCHED") // UNMATCHED | MATCHED | IGNORED | DUPLICATE | REVIEW
@@ -1368,24 +1368,24 @@ model BankStatementTransaction {
 // ─────────────────────────────────────────────────────────────────────────
 
 model ProjectPrice {
-  id               Int           @id @default(autoincrement())
-  asphaltPlant     String // مصنع الأسفلت
-  companyName      String // اسم الشركة
-  contractLocation String // مكان العقد
-  contractUnit     String // وحدة العقد: طن | درب | يومية
-  unitPrice        Float // سعر الوحدة (د.ك) — سعر العميل
+  id                  Int           @id @default(autoincrement())
+  asphaltPlant        String // مصنع الأسفلت
+  companyName         String // اسم الشركة
+  contractLocation    String // مكان العقد
+  contractUnit        String // وحدة العقد: طن | درب | يومية
+  unitPrice           Float // سعر الوحدة (د.ك) — سعر العميل
   // القيمة الافتراضية لما يُدفع لصاحب المعدة مقابل وحدة عمل واحدة (د.ك).
   //
   // حقل مرجعي بحت لا يدخل أي حساب مالي: الفواتير والمحاسبة والتقارير لا تقرؤه
   // إطلاقًا — يقرؤه «تحليل الشغل والعمولة» وحده ليملأ به الحقل تلقائيًا، ويظلّ
   // المحلِّل حرًّا في تجاوزه داخل تحليله دون أن يعود التجاوز إلى هنا.
   // الافتراضي صفر حتى تبقى الاتفاقيات القائمة صالحة بلا تعبئة (الترقية غير كاسرة).
-  equipmentOwnerPrice Float @default(0)
-  validUntil       DateTime? // تاريخ انتهاء الاتفاقية (للتنبيه عند الاقتراب من الانتهاء)
-  isArchived       Boolean       @default(false)
-  customerId       Int?
-  customer         Customer?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  invoiceItems     InvoiceItem[]
+  equipmentOwnerPrice Float         @default(0)
+  validUntil          DateTime? // تاريخ انتهاء الاتفاقية (للتنبيه عند الاقتراب من الانتهاء)
+  isArchived          Boolean       @default(false)
+  customerId          Int?
+  customer            Customer?     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  invoiceItems        InvoiceItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1558,4 +1558,184 @@ model WorkAnalysisLine {
 
   @@index([analysisId])
   @@map("work_analysis_lines")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  محرك الخطابات — هوية المستند ودورة حياته (Letter Engine — P1)
+//
+//  ثلاثة جداول تحمل ضمانتين لا ثالث لهما في هذه الحزمة:
+//
+//   (١) الرقم المرجعي دائم. تسلسلي، لا يُعاد استخدامه، ولا يُعاد تدويره، والملغى
+//       يبقى محجوزًا إلى الأبد. الضمانة **في المخطط نفسه** لا في منطق التطبيق:
+//       قيدا التفرّد أدناه (`reference` و`templateKey+year+sequence`) هما ما يمنع
+//       ازدواج رقم مرجعي، لا شرط `if` في خدمة.
+//
+//   (٢) المستند المسجَّل غير قابل للتعديل. `registrationSnapshotJson` تُكتب مرة
+//       واحدة عند التسجيل ولا يمسّها أي مسار تحديث بعدها.
+//
+//  ═══ لماذا سجل المراجع منفصل عن جدول الخطابات ═══
+//  `letter_references` سجل **إلحاقي** مستقل: يجب أن يبقى بعد الخطاب نفسه. لو فُقد
+//  صفّ خطاب في استعادة جزئية، يظل الرقم محسوبًا ومعروف المصير — وهذا هو الفرق بين
+//  فجوة مُفسَّرة (طبيعية في أي سجل رسمي) وفجوة مجهولة (ملاحظة تدقيق).
+//
+//  ولهذا `letterId` عدد صحيح **بلا مفتاح أجنبي** — نفس النمط المستقر في
+//  `ChequePrintLog.printedById` و`WorkAnalysis.customerId`: مفتاح أجنبي بـ Cascade
+//  كان سيحذف قيد السجل مع الخطاب، وهو بالضبط ما يجب ألّا يحدث.
+// ─────────────────────────────────────────────────────────────────────────
+
+/// عدّاد التسلسل لكل (قالب، سنة). يُصفَّر مع بداية كل سنة ميلادية.
+///
+/// العدّاد **ليس** مصدر الحقيقة الوحيد: `reconcileSequences()` تُشغَّل عند بدء
+/// الخدمة وبعد كل استعادة نسخة احتياطية، فترفعه إلى أعلى تسلسل مسجَّل فعلًا. بلا
+/// ذلك، استعادة نسخة أقدم من آخر خطاب صادر كانت ستُعيد إصدار أرقام موجودة على ورق
+/// سُلّم للغير — وهي أخطر حالة فشل في المحرك كله.
+model LetterSequence {
+  id          Int      @id @default(autoincrement())
+  templateKey String // مفتاح القالب (officialLetter) — مطابق لسجل القوالب في الواجهة
+  year        Int // السنة الميلادية
+  lastValue   Int      @default(0) // آخر تسلسل مُخصَّص
+  updatedAt   DateTime @updatedAt
+
+  @@unique([templateKey, year])
+  @@map("letter_sequences")
+}
+
+/// السجل الرسمي للأرقام المرجعية — إلحاقي، ولا يُحذف منه صف أبدًا.
+///
+/// `status`: ALLOCATED (مُخصَّص) | CANCELLED (ملغى — والرقم يبقى محجوزًا).
+model LetterReference {
+  id          Int    @id @default(autoincrement())
+  reference   String @unique // OL-2026-000001 — التفرّد مفروض في قاعدة البيانات
+  templateKey String
+  year        Int
+  sequence    Int
+
+  letterId Int? // معرّف الخطاب المرجعي — بلا مفتاح أجنبي عمدًا (انظر أعلاه)
+
+  status       String  @default("ALLOCATED")
+  cancelReason String?
+
+  allocatedById   Int?
+  allocatedByName String?
+  allocatedAt     DateTime  @default(now())
+  cancelledAt     DateTime?
+
+  @@unique([templateKey, year, sequence])
+  @@index([letterId])
+  @@index([templateKey, year])
+  @@map("letter_references")
+}
+
+/// خطاب واحد.
+///
+/// `reference` قابل للإفراغ **عمدًا**: المسودة بلا رقم مرجعي. الرقم يُحرق في لحظة
+/// واحدة فقط — «تسجيل وإصدار رقم» — لا عند الإنشاء ولا عند أول حفظ. حقل إلزامي كان
+/// سيفرض وجود رقم منذ الإنشاء ويحوّل كل مسودة مهجورة إلى فجوة دائمة في سجل رسمي.
+///
+/// محاور الإصدار الثلاثة و`printProfileId` تُقرأ من الصف ولا تُشتق أبدًا من
+/// «الأحدث»: مستند صدر بإصدار ١ يُصيَّر بإصدار ١ ما بقي.
+model Letter {
+  id          Int    @id @default(autoincrement())
+  templateKey String
+
+  // ── محاور الإصدار — تُجمَّد عند التسجيل ولا يُعاد حسابها ──
+  templateVersion Int
+  layoutVersion   Int
+  barcodeVersion  Int
+  printProfileId  String
+
+  /// DRAFT | REGISTERED | PRINTED | SUPERSEDED | CANCELLED
+  ///
+  /// **الأرشفة ليست حالة** — انظر `isArchived` أدناه. «هل ما زالت هذه مراسلة نشطة؟»
+  /// سؤال مستقل عن «ماذا جرى لهذا المستند؟»، ولو كانت الأرشفة حالة لتعذّرت أرشفة
+  /// خطاب ملغى، ولفُرض اختيار كاذب بين «مطبوع» و«مؤرشف» وكلاهما صحيح معًا.
+  status    String  @default("DRAFT")
+  reference String? @unique // null للمسودة
+
+  /// علم الأرشفة — متعامد مع `status` لا سادس لحالاته.
+  /// يُرفع ويُخفض ما دام المستند غير ملغى.
+  isArchived Boolean @default(false)
+
+  // ── محتوى المستند ──
+  issueDate             DateTime
+  recipientName         String?
+  recipientTitle        String?
+  recipientOrganisation String?
+  subject               String   @default("")
+  contentJson           String   @default("") // نموذج الكتل (Block Model) بصيغة JSON — لا HTML أبدًا
+  contentModelVersion   Int
+
+  /// التوقيع والختم — معرّف أصل من سجل العلامة التجارية القائم (`print.signatures` /
+  /// `print.stamps`)، لا صورة ولا نسخة منها. تخزين المعرّف وحده يعني أن تحديث صورة
+  /// التوقيع في الإعدادات ينعكس على كل مسودة تستخدمه، بينما اللقطة المجمَّدة عند
+  /// التسجيل تحفظ ما طُبع فعلًا. كلاهما اختياري: «بلا توقيع» خيار مشروع.
+  signatureAssetId String?
+  stampAssetId     String?
+
+  /// لقطة التسجيل — تُكتب مرة واحدة عند التسجيل، ولا يمسّها أي تحديث لاحق.
+  registrationSnapshotJson String?
+
+  // ── من فعل ماذا ومتى (لقطات نصية بلا مفاتيح أجنبية) ──
+  createdById      Int?
+  createdByName    String?
+  registeredById   Int?
+  registeredByName String?
+  registeredAt     DateTime?
+  archivedById     Int?
+  archivedByName   String?
+  archivedAt       DateTime?
+  cancelledById    Int?
+  cancelledByName  String?
+  cancelledAt      DateTime?
+  cancelReason     String?
+
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  /// الخط الزمني للمستند — حدث لكل انتقال حالة ولكل أرشفة/إلغاء أرشفة.
+  timeline LetterTimelineEvent[]
+
+  @@index([status])
+  @@index([templateKey, status])
+  @@index([issueDate])
+  @@index([isArchived])
+  @@map("letters")
+}
+
+/// سجل زمني لكل ما جرى للمستند — حدث واحد لكل انتقال حالة، ولكل أرشفة/إلغاء أرشفة.
+///
+/// ═══ لماذا هذا الجدول موجود بينما الأعمدة تحمل نفس البيانات ═══
+/// أعمدة `registeredAt` و`archivedAt` و`cancelledAt` تحمل **الحالة الراهنة**: من فعلها
+/// آخر مرة ومتى. أمّا هذا الجدول فيحمل **التاريخ**: أُرشِف ثم أُلغيت أرشفته ثم أُرشِف
+/// مجددًا — ثلاثة أحداث، بينما العمودان يحملان الأخير فقط.
+/// وبلا هذا الجدول، إلغاء الأرشفة يمحو أثر الأرشفة السابقة نهائيًا.
+///
+/// ═══ لماذا مفتاح أجنبي هنا بينما سجل المراجع بلا مفتاح ═══
+/// عكس `letter_references` تمامًا، وهذا مقصود: سجل المراجع **يجب أن يبقى بعد** الخطاب
+/// لأن الرقم المرجعي يظل محسوبًا مهما جرى للمستند. أمّا الخط الزمني فهو تاريخ المستند
+/// نفسه، والمستند الوحيد القابل للحذف هو المسودة — ومسودة لم يصدر لها رقم قط لا تترك
+/// تاريخًا يستحق الحفظ. فالحذف المتتالي هنا صحيح، ويمنع تراكم صفوف يتيمة.
+model LetterTimelineEvent {
+  id       Int    @id @default(autoincrement())
+  letterId Int
+  letter   Letter @relation(fields: [letterId], references: [id], onDelete: Cascade)
+
+  /// CREATED | REGISTERED | PRINTED | SUPERSEDED | CANCELLED | ARCHIVED | UNARCHIVED
+  eventType String
+
+  /// الحالة قبل الحدث وبعده. كلتاهما `null` لحدثَي الأرشفة — فهما لا يغيّران الحالة.
+  fromStatus String?
+  toStatus   String?
+
+  /// الرقم المرجعي وقت الحدث (يُملأ عند التسجيل والإلغاء) — لقطة نصية.
+  reference String?
+  /// سبب الحدث حين يكون إلزاميًا (الإلغاء).
+  reason    String?
+
+  actorId    Int?
+  actorName  String?
+  occurredAt DateTime @default(now())
+
+  @@index([letterId])
+  @@index([letterId, occurredAt])
+  @@map("letter_timeline_events")
 }

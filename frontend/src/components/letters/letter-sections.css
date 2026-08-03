@@ -1,0 +1,265 @@
+/**
+ * Letter Engine — document section styles.
+ *
+ * Everything here is APPEARANCE ON PAPER. No section states a millimetre of its own:
+ * the content band already positions and sizes them from the Geometry Registry, and
+ * type comes from the template's typography presets as inline styles.
+ *
+ * The section labels and focus rings are `.no-print` chrome — they exist to make the
+ * structure discoverable while composing and belong to no printed letter.
+ */
+
+.ls-section {
+  position: relative;
+  padding: 1mm 0;
+}
+
+/* The label rides just outside the band's start edge so it never displaces content,
+   and sits over the paper's edge and the dark canvas beyond it — hence the solid chip
+   with a hairline, which stays legible against either. Visible on hover or when the
+   section holds focus; otherwise the page reads as a letter rather than as a form.
+   The slight slide-in makes it read as appearing rather than blinking. */
+.ls-section-label {
+  position: absolute;
+  top: 0;
+  inset-inline-end: calc(100% + 3mm);
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--surface, #fff);
+  box-shadow: var(--lt-chip-shadow);
+  color: var(--text-muted, #64748b);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translateX(3px);
+  transition:
+    opacity var(--lt-fast) ease-out,
+    transform var(--lt-fast) var(--lt-ease);
+  pointer-events: none;
+}
+
+/* One rule for both properties — this was two identical selectors before. */
+.ls-section:hover .ls-section-label,
+.ls-section.is-active .ls-section-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.ls-section.is-active::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -2.5mm;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent, #1d4e6f);
+  opacity: 0.55;
+}
+
+/* ── Inputs that must look like paper, not like a form ─────────────────────
+   No border, no background, no padding: on the sheet these ARE the letter's text,
+   and any chrome would print-preview as something the paper will not have. */
+
+.ls-line-input,
+.ls-paragraph {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #000;
+  padding: 0;
+  margin: 0;
+  outline: none;
+}
+
+.ls-line-input:focus-visible,
+.ls-paragraph:focus-visible {
+  /* A soft tint rather than an outline — an outline at paper scale looks like a
+     printed rule. */
+  background: color-mix(in srgb, var(--accent, #1d4e6f) 6%, transparent);
+  border-radius: 2px;
+}
+
+.ls-line-input::placeholder,
+.ls-paragraph::placeholder {
+  color: #cbd5e1;
+}
+
+/* ── Date ──────────────────────────────────────────────────────────────── */
+
+.ls-date {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+  color: #000;
+}
+
+.ls-date-prefix {
+  font-weight: 600;
+}
+
+.ls-date-input {
+  font: inherit !important;
+}
+
+/* ── Recipient ─────────────────────────────────────────────────────────── */
+
+.ls-recipient {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5mm;
+  color: #000;
+  margin-top: 3mm;
+}
+
+/* ── Subject ───────────────────────────────────────────────────────────── */
+
+.ls-subject {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2mm;
+  margin-top: 5mm;
+  margin-bottom: 4mm;
+  color: #000;
+}
+
+.ls-subject-prefix {
+  flex: 0 0 auto;
+}
+
+.ls-subject-input {
+  flex: 1 1 auto;
+  max-width: 70%;
+}
+
+/* ── Content ───────────────────────────────────────────────────────────── */
+
+.ls-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5mm;
+}
+
+/* A paragraph is a textarea that does not look like one: no resize grip, no
+   scrollbar, auto-grown to its content so the paper shows the true line count. */
+.ls-paragraph {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  min-height: 1.35em;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ls-paragraph--ro {
+  white-space: pre-wrap;
+  cursor: default;
+}
+
+/* ── Signature and stamp ───────────────────────────────────────────────────
+   Real content now: these ARE the letter's authority, so they print. No dimension is
+   declared here — the image heights arrive as inline millimetres from the Geometry
+   Registry (INV-4). Only placement and the author-facing hints live in this file. */
+
+.ls-signature {
+  display: flex;
+  align-items: flex-end;
+  gap: 8mm;
+  margin-top: 8mm;
+  /* Signature and stamp sit together at the start edge, as they are signed on paper. */
+  justify-content: flex-start;
+}
+
+/* Empty state still occupies the block's space: a signature area that appeared only
+   once something was chosen would change the pagination at the moment of choosing.
+
+   Presented as a designed empty state rather than grey text — a soft ruled signature
+   line, which is what an unsigned letter actually looks like on paper and what the
+   author is being invited to fill. The height is unchanged. */
+.ls-signature--empty {
+  min-height: 18mm;
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding-bottom: 2mm;
+}
+
+.ls-signature--empty .ls-signature-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2mm;
+  min-width: 55mm;
+  padding-bottom: 1.5mm;
+  border-bottom: 1px solid var(--lt-rule-ink);
+  color: rgba(100, 116, 139, 0.85);
+}
+
+.ls-signature-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1mm;
+  margin: 0;
+}
+
+.ls-signature-image {
+  /* Height is set inline from the registry; width follows the asset's aspect ratio so
+     a wide signature and a square stamp both sit correctly on the same baseline. */
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.ls-signature-name {
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 9px;
+  color: #1f2937;
+  white-space: nowrap;
+}
+
+/* Author-facing only — hidden in print, where an empty signature area is simply empty. */
+.ls-signature-hint,
+.ls-barcode-hint {
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 10px;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ── Barcode ───────────────────────────────────────────────────────────────
+   The symbol itself is styled by `letter-barcode.css`. What lives here is where the
+   block sits on the page, and the reserved outline shown before registration. */
+
+.ls-barcode {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  margin-top: 4mm;
+}
+
+/* The reserved barcode footprint, before a reference exists.
+   A corner-bracket frame rather than a dashed box: brackets say "content will be
+   placed here", a dashed box says "this field is empty and possibly broken". Same
+   footprint to the millimetre — the size still arrives inline from the registry. */
+.ls-barcode-reserved {
+  position: relative;
+  flex: 0 0 auto;
+  border-radius: 2px;
+  background:
+    linear-gradient(var(--lt-rule-ink) 0 0) 0 0 / 3mm 1px no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 0 0 / 1px 3mm no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 100% 0 / 3mm 1px no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 100% 0 / 1px 3mm no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 0 100% / 3mm 1px no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 0 100% / 1px 3mm no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 100% 100% / 3mm 1px no-repeat,
+    linear-gradient(var(--lt-rule-ink) 0 0) 100% 100% / 1px 3mm no-repeat,
+    rgba(248, 250, 252, 0.6);
+}
+
+.ls-barcode-hint {
+  max-width: 46mm;
+  line-height: 1.5;
+}

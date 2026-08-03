@@ -45,6 +45,10 @@ export const FORM_CARDS: FormCard[] = [
   { key: 'receipt-voucher', route: 'receipt-voucher', titleKey: 'voucher.receipt.title', description: 'سند قبض رسمي لتوثيق المبالغ المستلمة نقداً أو بشيك أو تحويل بنكي.', descriptionEn: 'An official receipt voucher documenting amounts received in cash, cheque, or bank transfer.', icon: '🧾', category: 'ops', requiresEmployee: false },
   { key: 'payment-voucher', route: 'payment-voucher', titleKey: 'voucher.payment.title', description: 'سند صرف رسمي بإدخال يدوي لتوثيق المبالغ المصروفة نقداً أو بشيك أو تحويل بنكي، بمعزل عن إدارة الشيكات.', descriptionEn: 'An official payment voucher with manual entry documenting amounts paid in cash, cheque, or bank transfer — independent of Cheque Management.', icon: '💸', category: 'ops', requiresEmployee: false },
   { key: 'blank-a4-print', route: 'blank-a4-print', titleKey: 'page.blankA4.title', description: 'ورقة A4 فارغة لطباعة التوقيع والختم فوق نموذج أو ورقة خارجية جاهزة.', descriptionEn: 'A blank A4 sheet for printing a signature and stamp over an external ready-made form or paper.', icon: '📃', category: 'ops', requiresEmployee: false },
+  // محرك الخطابات — البطاقة هي **المدخل الوحيد** للمحرك: لا اختصار في القائمة
+  // الجانبية ولا دخول مباشر من أي وحدة أعمال. تفتح على مساحة العمل (قائمة
+  // الخطابات) لا على محرّر فارغ.
+  { key: 'official-letter', route: 'official-letter', titleKey: 'page.officialLetter.title', description: 'إنشاء الخطابات الرسمية وتتبّعها وأرشفتها، بأرقام مرجعية تسلسلية دائمة تُطبع على ورق الشركة الرسمي.', descriptionEn: 'Create, track and archive official letters with permanent sequential reference numbers, printed on company letterhead.', icon: '✉️', category: 'ops', requiresEmployee: false },
 ];
 
 /** النماذج المرتبطة بموظف — أساس قائمة «نماذج الموظف» المنبثقة من الدرج. */

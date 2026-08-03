@@ -1,0 +1,318 @@
+/**
+ * Letter Engine — paper surface styles.
+ *
+ * No dimension is declared here either: every millimetre arrives as an inline style
+ * computed from the Geometry Registry. What lives in this file is appearance —
+ * shadow, tint, grid pattern, ruler placement.
+ */
+
+/* ── The canvas ────────────────────────────────────────────────────────────
+   A DARKER surround than the app's usual panel grey.
+
+   Paper reads as paper only by contrast with what surrounds it. On the previous
+   near-white background the sheet's edge was almost invisible and the whole area
+   looked like a form; against a deep neutral the sheet separates instantly and the
+   surface stops competing with the document for attention. This is the same choice
+   Word, Acrobat and Docs all make, and for the same reason.
+
+   Padding is cut hard at the sides: the gutter existed to make room for the rulers,
+   and the rulers live in the stage's own margin. Every pixel returned here is canvas
+   the author can actually use. */
+.lp-viewport {
+  display: flex;
+  justify-content: center;
+  padding: 14px 8px 32px;
+  overflow: auto;
+  background: var(--lt-canvas);
+  /* Keeps the sheet visually anchored while the surround scrolls behind it. */
+  background-image: linear-gradient(180deg, var(--lt-canvas-fade), transparent 140px);
+}
+
+/* The viewport is the scroll container, so its scrollbar is the document's. Styled
+   to recede rather than to decorate — a bright scrollbar beside paper reads as UI. */
+.lp-viewport::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.lp-viewport::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.lp-viewport::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.34);
+  background-clip: content-box;
+}
+
+/* The scale wrapper. `transform-origin: top center` keeps the sheet centred as it
+   grows, rather than drifting toward one edge. */
+.lp-scale {
+  transform-origin: top center;
+  flex: 0 0 auto;
+}
+
+/* ── The page stack ────────────────────────────────────────────────────────
+   Sheets in a column with a real gap between them: the gap IS the page break
+   indicator, and scrolling it is what moves between pages. */
+
+.lp-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.lp-page-slot {
+  position: relative;
+  scroll-margin-top: 16px;
+}
+
+/* The sheet in view is lifted — enough to locate yourself in a long document without
+   turning the page into a highlighted widget. A deeper, wider shadow than the resting
+   state, so "which page am I on" is answered by depth rather than by a border. */
+.lp-page-slot.is-current .lp-sheet {
+  box-shadow: var(--lt-paper-shadow-current);
+}
+
+/* The caption sits on the dark canvas now, so it must be light. Reads as a quiet
+   label beneath the sheet rather than as body text. */
+.lp-page-caption {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0 22px;
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--lt-on-canvas);
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.lp-break-hint {
+  padding-inline-start: 9px;
+  border-inline-start: 1px solid var(--lt-on-canvas-rule);
+  letter-spacing: 0.2px;
+  color: var(--lt-on-canvas-dim);
+}
+
+/* ── Measurement layer ─────────────────────────────────────────────────────
+   Laid out so it has real heights, but never painted and never interactive. It sits
+   OUTSIDE the zoom wrapper deliberately: a measured height must not depend on the
+   zoom, and keeping it out of the transformed subtree makes that structural rather
+   than a convention. `visibility: hidden` (not `display: none`) because a
+   display-less element has no layout and would measure zero. */
+
+.lp-measure-layer {
+  position: absolute;
+  top: 0;
+  inset-inline-start: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+  height: 0;
+  overflow: hidden;
+}
+
+.lp-measure-probe {
+  height: 1px;
+}
+
+/* Room for a ruler on all four sides. A MARGIN, never padding or a border, so the
+   sheet's own box stays exactly A4.
+
+   Tightened from 30px to 22px: the rulers need clearance, not a frame. On a 1440px
+   window this returns 16px of canvas on each side and pulls the sheet closer to the
+   command strip — part of the same "show the paper sooner" goal as collapsing the
+   toolbars. The sheet's own box is untouched. */
+.lp-stage {
+  position: relative;
+  margin: 22px;
+}
+
+/* Without rulers there is nothing to clear, so the gutter goes entirely. Turning the
+   rulers off is a request for more canvas; keeping their empty margin would ignore it. */
+.lp-stage:not(.lp-stage--ruled) {
+  margin: 10px;
+}
+
+/* Rulers.
+   `A4Ruler` is shared with every other printable form, so its ticks and labels are
+   NOT touched — changing them would restyle documents this pack has no business
+   touching. What is styled here is the letter's own wrapper: against the darker
+   canvas the ruler now needs a defined edge to read as an instrument rather than as
+   a pale smear, so it gets a hairline, a soft lift and clipped corners.
+
+   Measurements are untouched: this is a frame around the SVG, not a change to it. */
+.lp-ruler {
+  position: absolute;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.16),
+    0 1px 3px rgba(0, 0, 0, 0.20);
+  opacity: 0.94;
+  transition: opacity var(--lt-fast) ease-out;
+}
+
+/* Rulers are reference, not content — they step back once the author is writing and
+   return in full the moment the pointer looks for them. Scoped through the stage,
+   which contains both the rulers and the sheet; the rulers precede the sheet, so a
+   sibling combinator would never reach them. */
+.lp-stage:focus-within .lp-ruler {
+  opacity: 0.6;
+}
+
+.lp-stage:hover .lp-ruler {
+  opacity: 1;
+}
+
+.lp-ruler--top,
+.lp-ruler--bottom {
+  inset-inline-start: 0;
+  left: 0;
+}
+
+.lp-ruler--start,
+.lp-ruler--end {
+  top: 0;
+}
+
+/* The physical sheet. Zero padding: the coordinate origin is the paper's true corner,
+   which is what the rulers measure from and what every mm offset resolves against.
+   NOT ONE DIMENSION IS SET HERE — width and height arrive inline from the registry.
+
+   The shadow is layered rather than single: a tight contact shadow reads as the sheet
+   touching the surface, a hairline ring defines its cut edge, and a wide soft cast
+   gives it height. One blurred shadow can only ever produce one of the three, which is
+   why the previous sheet looked printed onto the background instead of resting on it. */
+.lp-sheet {
+  position: relative;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--lt-paper-shadow);
+  transition: box-shadow var(--lt-slow) var(--lt-ease);
+}
+
+/* Grid: 5 mm minor, 10 mm major. Sizes are set inline (in mm) so the pattern measures
+   the paper; only the colours live here. Lightened so the grid guides the eye without
+   tinting the page — at the previous strength a full sheet of grid read as blue-grey
+   paper rather than as white paper with a grid on it. */
+.lp-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--lt-grid-minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lt-grid-minor) 1px, transparent 1px),
+    linear-gradient(to right, var(--lt-grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--lt-grid-major) 1px, transparent 1px);
+}
+
+/* ── Reserved bands ────────────────────────────────────────────────────────
+   Where the pre-printed letterhead already has ink.
+
+   Previously red hatching at full strength — which read as an ERROR on a document
+   that has nothing wrong with it. These bands are the normal, permanent shape of the
+   stationery, not a warning, and marking them in alarm-red taught the author to
+   ignore red. They are now a soft neutral wash with a single hairline boundary: the
+   territory is still unmistakable, the paper stays visible beneath it, and red is
+   left free to mean what it should — an actual validation failure.
+
+   The whole overlay fades further once the author is typing (see `.lp-band:focus-within`
+   below), because a guide has done its job the moment work begins.
+
+   NOT ONE MILLIMETRE CHANGES. Position and height still arrive inline from the
+   Geometry Registry; only the paint is different. */
+.lp-zone {
+  position: absolute;
+  inset-inline: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    var(--lt-guide-wash-a),
+    var(--lt-guide-wash-b)
+  );
+  transition: opacity var(--lt-slow) ease-out;
+}
+
+.lp-zone--header {
+  border-bottom: 1px solid var(--lt-guide);
+}
+
+.lp-zone--footer {
+  border-top: 1px solid var(--lt-guide);
+}
+
+/* A quiet caption set INSIDE the band, in the letterhead's own ink colour rather
+   than in a warning colour. Adobe's approach: name the region, do not shout at it. */
+.lp-zone-label {
+  position: absolute;
+  inset-inline-end: 4mm;
+  bottom: 3px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--lt-guide-label-bg);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 7.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--lt-guide-label);
+  white-space: nowrap;
+}
+
+.lp-zone--header .lp-zone-label {
+  bottom: auto;
+  top: 3px;
+}
+
+/* Guides recede while the author writes. They are orientation, not content, and a
+   permanent overlay competes with the text it exists to protect.
+
+   Matched as a DESCENDANT of the sheet, not as a sibling of the band: the zones are
+   rendered before the band, and `~` only reaches forward. */
+.lp-sheet:focus-within .lp-zone {
+  opacity: 0.45;
+}
+
+/* The content band — the only region a letter's sections may occupy. */
+.lp-band {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  /* NOTHING SCROLLS INSIDE THE PAPER. Content that exceeds a band is not hidden behind
+     a scrollbar — it is on the next page. `hidden` rather than `visible` so a
+     mid-measurement frame can never paint text across the reserved footer. */
+  overflow: hidden;
+}
+
+/* The writable area's boundary.
+   Barely-there by default and fading entirely once the author is writing: a dashed
+   box around the text is the single strongest "this is a form" signal there is, and
+   the band's edge only needs to be discoverable, not permanent. */
+.lp-band::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  outline: 1px dashed var(--lt-hairline);
+  outline-offset: 3px;
+  transition: opacity var(--lt-slow) ease-out;
+}
+
+.lp-band:focus-within::after {
+  opacity: 0;
+}
+
+/* Print rules live in `letter-print.css`, deliberately in ONE file rather than spread
+   across every stylesheet. What reaches paper is a single decision and should be
+   readable in a single place. Until the printing pack existed this file suppressed
+   printing outright; that suppression is now replaced by real print styles. */
