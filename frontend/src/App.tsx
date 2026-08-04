@@ -55,6 +55,7 @@ const ExecutiveDecisionCenter = lazy(() => import('./pages/ExecutiveDecisionCent
 const FinancialOperationsDashboard = lazy(() => import('./pages/FinancialOperationsDashboard'));
 const Statements = lazy(() => import('./pages/Statements'));
 const FinancialCenter = lazy(() => import('./pages/FinancialCenter'));
+const FinancialAnalysisCenter = lazy(() => import('./pages/FinancialAnalysisCenter'));
 const Integrations = lazy(() => import('./pages/Integrations'));
 const DocumentExpirationCenter = lazy(() => import('./pages/DocumentExpirationCenter'));
 const DocumentVerify = lazy(() => import('./pages/DocumentVerify'));
@@ -156,6 +157,7 @@ export default function App() {
             <Route path="/forms" element={<Forms />} />
             <Route path="/statements" element={<Statements />} />
             <Route path="/financial" element={<FinancialCenter />} />
+            <Route path="/financial-analysis" element={<FinancialAnalysisCenter />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/bank-statement-import" element={<Navigate to="/import?bankModule=statement" replace />} />
             <Route path="/bank-reconciliation" element={<BankReconciliation />} />

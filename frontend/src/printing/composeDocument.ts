@@ -148,6 +148,23 @@ export function composeFromHtml(html: string): string {
 export interface ComposeStyledOptions extends ComposeOptions {
   /** Document to capture stylesheets from. Injectable for tests. */
   sourceDocument?: Document;
+  /**
+   * Let the caller's `pageSpec` WIN over the captured `@page` rules instead of
+   * deferring to them. Default `false` — every existing caller keeps byte-identical
+   * output.
+   *
+   * Why this exists: `app/theme.css` declares a document-wide `@page { margin: 1cm }`.
+   * Because that rule is always captured, the `?? toPageCss(pageSpec)` fallback below
+   * is **unreachable in this app** — a caller asking for `a4-landscape` silently got
+   * portrait. The only alternatives were declaring `@page { size: … landscape }` in a
+   * page's own stylesheet (a document-global rule that leaks to every other print
+   * surface once that lazy chunk loads) or string-patching this module's output.
+   *
+   * Opting in appends the spec's `@page` LAST, so `mergePageRules`' existing
+   * cascade semantics (later property wins) give the caller `size` and `margin`
+   * while any other captured property survives. No second geometry engine.
+   */
+  forcePageSpec?: boolean;
 }
 
 /**
@@ -181,6 +198,7 @@ export function composeStyledFromNode({
   lang = 'ar',
   stripSelectors = [],
   sourceDocument,
+  forcePageSpec = false,
 }: ComposeStyledOptions): string {
   const captured = capturePrintStyles(sourceDocument ?? node.ownerDocument ?? document);
 
@@ -205,7 +223,11 @@ export function composeStyledFromNode({
 
   // Exactly one @page: the captured rules merged in cascade order (later property
   // wins — see `mergePageRules`), or the PageSpec's if none were captured at all.
-  const pageCss = mergePageRules(captured.pageRules) ?? toPageCss(pageSpec);
+  // `forcePageSpec` appends the spec LAST so its properties win the same merge —
+  // still exactly one @page, still the same cascade rule, no second code path.
+  const pageCss = forcePageSpec
+    ? mergePageRules([...captured.pageRules, toPageCss(pageSpec)])!
+    : mergePageRules(captured.pageRules) ?? toPageCss(pageSpec);
 
   // Reproduce the SOURCE document's inherited context rather than inventing one.
   // Bidi resolution depends on the root direction, and the app's <html> is `dir="rtl"`;

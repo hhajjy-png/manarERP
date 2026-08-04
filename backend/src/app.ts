@@ -46,6 +46,7 @@ import payrollBankExportRoutes from './modules/payrollBankExport/payrollBankExpo
 import bankStatementImportRoutes from './modules/bankStatementImport/routes.js';
 import bankAccountsRoutes from './modules/bankAccounts/bankAccounts.routes.js';
 import expirationsRoutes from './modules/expirations/expirations.routes';
+import financialAnalysisRoutes from './modules/financialAnalysis/financialAnalysis.routes';
 import printingRoutes from './modules/printing/printing.routes';
 import attachmentsRouter from './modules/attachments/attachments.routes';
 import searchRoutes from './modules/search/search.routes';
@@ -138,6 +139,7 @@ export function createApp(): Application {
   app.use('/api/bank-statement-import', bankStatementImportRoutes);
   app.use('/api/bank-accounts', bankAccountsRoutes);
   app.use('/api/expirations', expirationsRoutes);
+  app.use('/api/financial-analysis', financialAnalysisRoutes);
   // Print Center Foundation v1 — audit sink for PRINT / PDF_EXPORT events.
   app.use('/api/printing', printingRoutes);
   app.use('/api/attachments', attachmentsRouter);

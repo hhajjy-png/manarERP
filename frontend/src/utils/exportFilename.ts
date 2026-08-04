@@ -35,6 +35,8 @@ export const ReportName = {
   PriceAgreements: 'PriceAgreements',
   // تحليل الشغل والعمولة — مستند تحليل داخلي، ليس تقريرًا محاسبيًا ولا فاتورة.
   WorkAnalysis: 'WorkAnalysis',
+  // مركز التحليل المالي — تصدير الصفحة كاملة (PDF) أو جداولها (Excel).
+  FinancialAnalysis: 'FinancialAnalysis',
   // Generic data-module (ResourcePage) list exports:
   Customers: 'Customers',
   Suppliers: 'Suppliers',
