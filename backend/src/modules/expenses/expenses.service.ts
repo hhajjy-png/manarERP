@@ -10,6 +10,7 @@ import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
 import { repostExpenseToGL, reverseExpenseFromGL } from './expenses.accounting';
 import { CreateExpenseInput, UpdateExpenseInput } from './expenses.schema';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
+import { assertDateWithinBillingPeriod } from '../../shared/validation/accountingPeriod.validation';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { approvalEngine } from '../../shared/services/approval.service';
 // المصدر الموحّد لأسماء التصنيفات بالعربية (وسم القيود المحاسبية وتجميع الإحصائيات).
@@ -102,6 +103,7 @@ export class ExpensesService {
   async create(input: CreateExpenseInput, req: Request) {
     const code = input.code ?? (await this.generateCode());
     const expenseDate = input.date ?? new Date();
+    assertDateWithinBillingPeriod(expenseDate, input.billingMonth, input.billingYear);
     // المصروف يُنشأ بحالة PENDING فلا يمرّ بـ createBalancedJournal بعد؛ الحارس صريح هنا.
     await assertPeriodOpen(prisma, expenseDate, { operation: 'إنشاء مصروف', module: 'expenses' });
     const expense = await prisma.expense.create({
@@ -149,15 +151,21 @@ export class ExpensesService {
       await assertPeriodOpen(prisma, input.date, { operation: 'نقل مصروف إلى فترة مقفلة', module: 'expenses', entityId: id });
     }
 
+    // القيم النهائية بعد الدمج مع السجل الحالي — تُحسب مرة واحدة، تُستخدم للتحقق ثم للحفظ.
+    const finalDate = input.date ?? current.date;
+    const finalBillingMonth = input.billingMonth !== undefined ? input.billingMonth : current.billingMonth;
+    const finalBillingYear = input.billingYear !== undefined ? input.billingYear : current.billingYear;
+    assertDateWithinBillingPeriod(finalDate, finalBillingMonth, finalBillingYear);
+
     const expense = await prisma.expense.update({
       where: { id },
       data: {
         category: input.category ?? current.category,
         description: input.description ?? current.description,
         amount: input.amount ?? current.amount,
-        date: input.date ?? current.date,
-        billingMonth: input.billingMonth !== undefined ? input.billingMonth : current.billingMonth,
-        billingYear: input.billingYear !== undefined ? input.billingYear : current.billingYear,
+        date: finalDate,
+        billingMonth: finalBillingMonth,
+        billingYear: finalBillingYear,
         notes: input.notes !== undefined ? input.notes : current.notes,
         contractId: input.contractId === undefined ? current.contractId : input.contractId,
         supplierId: input.supplierId === undefined ? current.supplierId : input.supplierId,
