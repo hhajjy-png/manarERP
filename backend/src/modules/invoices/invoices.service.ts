@@ -30,6 +30,7 @@ import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySet
 import { roundMoney } from '../../shared/utils/money';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseSalesPaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
+import { assertDateWithinBillingPeriod } from '../../shared/validation/accountingPeriod.validation';
 import { recordHistoricalEntry } from '../../shared/services/historicalEntry.service';
 import { toLocalDateString, localDateRange } from '../../core/utils/dateWindows';
 
@@ -272,6 +273,8 @@ export class InvoicesService {
   async create(input: CreateInvoiceInput, req: Request) {
     const { lines, subtotal, taxAmount, total } = computeTotals(input.items, input.taxRate, input.discount);
     const invoiceNumber = input.invoiceNumber.trim();
+    const issueDate = input.issueDate ?? new Date();
+    assertDateWithinBillingPeriod(issueDate, input.billingMonth, input.billingYear);
 
     // فاتورة شراء نقدية/بنكية تُسدَّد لحظة الإنشاء (القيد يُدائن الصندوق/البنك مباشرة)،
     // لذا تُحفظ مدفوعة بالكامل لمنع تسجيل دفعة تسوية ثانية تُدائن النقد مرتين (خطأ C1).
@@ -308,7 +311,7 @@ export class InvoicesService {
           customerId: input.customerId ?? null,
           supplierId: input.supplierId ?? null,
           contractId: input.contractId ?? null,
-          issueDate: input.issueDate ?? new Date(),
+          issueDate,
           dueDate: input.dueDate ?? null,
           deliveryDate: input.deliveryDate ?? null,
           billingMonth: input.billingMonth ?? null,
@@ -373,6 +376,12 @@ export class InvoicesService {
       await assertPeriodOpen(prisma, input.issueDate, { operation: 'نقل فاتورة إلى فترة مقفلة', module: 'invoices', entityId: id });
     }
 
+    // القيم النهائية بعد الدمج مع السجل الحالي — تُحسب مرة واحدة، تُستخدم للتحقق ثم للحفظ.
+    const finalIssueDate = input.issueDate ?? current.issueDate;
+    const finalBillingMonth = input.billingMonth !== undefined ? input.billingMonth : current.billingMonth;
+    const finalBillingYear = input.billingYear !== undefined ? input.billingYear : current.billingYear;
+    assertDateWithinBillingPeriod(finalIssueDate, finalBillingMonth, finalBillingYear);
+
     const items = input.items ?? current.items.map((i) => ({
       description: i.description,
       quantity: i.quantity,
@@ -423,11 +432,11 @@ export class InvoicesService {
           supplierId: input.supplierId !== undefined ? input.supplierId : current.supplierId,
           contractId: input.contractId === undefined ? current.contractId : input.contractId,
           invoiceType: input.invoiceType ?? current.invoiceType,
-          issueDate: input.issueDate ?? current.issueDate,
+          issueDate: finalIssueDate,
           dueDate: input.dueDate ?? current.dueDate,
           deliveryDate: input.deliveryDate !== undefined ? input.deliveryDate : current.deliveryDate,
-          billingMonth: input.billingMonth !== undefined ? input.billingMonth : current.billingMonth,
-          billingYear: input.billingYear !== undefined ? input.billingYear : current.billingYear,
+          billingMonth: finalBillingMonth,
+          billingYear: finalBillingYear,
           paymentMethod: input.paymentMethod !== undefined ? input.paymentMethod : (current as Record<string, unknown>)['paymentMethod'] as string ?? null,
           taxRate,
           discount,

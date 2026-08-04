@@ -41,7 +41,8 @@ function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
-function daysInMonth(year: number, month: number): number {
+/** عدد أيام الشهر التقويمي الحقيقي (28/29/30/31) — مُصدَّرة لإعادة استخدامها في تحقّقات أخرى (مثل مطابقة تاريخ المستند لشهر الحساب). */
+export function daysInMonth(year: number, month: number): number {
   return month === 2 && isLeapYear(year) ? 29 : DAYS_IN_MONTH[month - 1];
 }
 

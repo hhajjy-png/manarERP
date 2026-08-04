@@ -241,3 +241,68 @@ describe('ExpensesService.reject — guards', () => {
       .rejects.toThrow('لا يمكن رفض مصروف معتمد — استخدم إلغاء الاعتماد');
   });
 });
+
+describe('ExpensesService — accounting period validation (date vs billingMonth/billingYear)', () => {
+  let service: ExpensesService;
+
+  beforeEach(() => {
+    service = new ExpensesService();
+    vi.clearAllMocks();
+  });
+
+  const inPeriodInput = {
+    category: 'FUEL', description: 'وقود', amount: 100,
+    date: new Date(2026, 6, 15), billingMonth: 7, billingYear: 2026,
+  } as unknown as import('../expenses.schema').CreateExpenseInput;
+
+  const outOfPeriodInput = {
+    category: 'FUEL', description: 'وقود', amount: 100,
+    date: new Date(2026, 5, 30), billingMonth: 7, billingYear: 2026,
+  } as unknown as import('../expenses.schema').CreateExpenseInput;
+
+  it('create — blocks saving when the expense date falls outside billingMonth/billingYear', async () => {
+    await expect(service.create(outOfPeriodInput, fakeReq))
+      .rejects.toThrow('لا يمكن حفظ المستند');
+    expect(mockPrisma.expense.create).not.toHaveBeenCalled();
+  });
+
+  it('create — allows saving when the expense date falls inside billingMonth/billingYear', async () => {
+    mockPrisma.expense.create.mockResolvedValue({ id: 10, ...inPeriodInput });
+    await expect(service.create(inPeriodInput, fakeReq)).resolves.toBeDefined();
+    expect(mockPrisma.expense.create).toHaveBeenCalledOnce();
+  });
+
+  it('update — blocks moving the expense date outside its existing billingMonth/billingYear', async () => {
+    mockPrisma.expense.findUnique.mockResolvedValue({
+      ...pendingExpense, date: new Date(2026, 6, 15), billingMonth: 7, billingYear: 2026,
+    });
+    await expect(service.update(1, { date: new Date(2026, 7, 1) }, fakeReq))
+      .rejects.toThrow('لا يمكن حفظ المستند');
+    expect(mockPrisma.expense.update).not.toHaveBeenCalled();
+  });
+
+  it('update — blocks moving billingMonth away from the existing (unchanged) date', async () => {
+    mockPrisma.expense.findUnique.mockResolvedValue({
+      ...pendingExpense, date: new Date(2026, 6, 15), billingMonth: 7, billingYear: 2026,
+    });
+    await expect(service.update(1, { billingMonth: 6 }, fakeReq))
+      .rejects.toThrow('لا يمكن حفظ المستند');
+    expect(mockPrisma.expense.update).not.toHaveBeenCalled();
+  });
+
+  it('update — allows a same-period date change', async () => {
+    mockPrisma.expense.findUnique.mockResolvedValue({
+      ...pendingExpense, date: new Date(2026, 6, 15), billingMonth: 7, billingYear: 2026,
+    });
+    mockPrisma.expense.update.mockResolvedValue({ ...pendingExpense, date: new Date(2026, 6, 20) });
+    await expect(service.update(1, { date: new Date(2026, 6, 20) }, fakeReq)).resolves.toBeDefined();
+    expect(mockPrisma.expense.update).toHaveBeenCalledOnce();
+  });
+
+  it('update — no billingMonth/billingYear on the record at all → no period to violate', async () => {
+    mockPrisma.expense.findUnique.mockResolvedValue(pendingExpense); // no billingMonth/billingYear
+    mockPrisma.expense.update.mockResolvedValue({ ...pendingExpense, amount: 999 });
+    await expect(service.update(1, { amount: 999 }, fakeReq)).resolves.toBeDefined();
+    expect(mockPrisma.expense.update).toHaveBeenCalledOnce();
+  });
+});
