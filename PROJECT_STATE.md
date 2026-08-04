@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `34e3b6a7` — release `stable-bank-explorer-audit-filter-export-v1` (Bank Account Explorer forensic filter/KPI/export audit: 14 proven defects fixed [5 critical]; Direction and Category enforced as two independent dimensions sharing one golden contract across server and UI; honest KPIs — debits/credits/net/turnover; mixed-currency and duplicate disclosure; full-filtered-set Excel + CSV export from the server; two-dimension filter bar with inline range validation; 27 files modified/added; no Prisma/schema/migration change) |
+| **Production HEAD** | `83ee6632` — release `stable-accounting-period-validation-pack-v1` (one shared validator, `assertDateWithinBillingPeriod`, blocks saving any invoice or expense whose document date falls outside its own billingMonth/billingYear — real calendar-day math, no override, no skip, no admin bypass; wired into expenses.service.ts and invoices.service.ts, Create and Edit, at the service layer before any database write; 7 files, 3 new; no Prisma/schema/migration change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-bank-explorer-audit-filter-export-v1` (release date 2026-08-04) → merge `34e3b6a7` |
-| **Previous stable tag** | `stable-letter-engine-font-picker-dynamic-registry-v1` (2026-08-04) → merge `c45622b5` |
-| **Total stable releases** | 404 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
-| **Latest validation** | Frontend + backend + Electron `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · backend `vitest run` **170/170 files, 2612/2612 tests passing** (post-merge) · frontend `vitest run` — 3438/3464 passing; 26 failed tests across 6 files, **confirmed pre-existing** (identical file/test signature to the prior release's documented baseline, and re-proven against a `git stash` baseline during this pack's first phase) · Bank Explorer suites 6/6 files, 193/193 tests passing post-merge · `build:back` ✅ · frontend production build ✅ (`vite build`) · scope confirmed: exactly 27 files entered the release (14 modified, 13 added), staged explicitly by path via an exact list (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-only` scope check showing zero out-of-scope paths · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `34e3b6a7` + tag `stable-bank-explorer-audit-filter-export-v1`) |
+| **Latest stable tag** | `stable-accounting-period-validation-pack-v1` (release date 2026-08-04) → merge `83ee6632` |
+| **Previous stable tag** | `stable-bank-explorer-audit-filter-export-v1` (2026-08-04) → merge `34e3b6a7` |
+| **Total stable releases** | 405 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · frontend `tsc --noEmit` ✅ (unaffected — confirmed clean, no frontend files touched) · backend `vitest run` **172/172 files, 2638/2638 tests passing** (feature branch and post-merge, zero regressions) · `build:back` ✅ · scope confirmed: exactly 7 files entered the release (4 modified, 3 added), staged explicitly by path via an exact list (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-only` scope check showing zero out-of-scope paths · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `83ee6632` + tag `stable-accounting-period-validation-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,39 @@ in a table cell.
 
 ---
 
-## Latest Release — Bank Account Explorer Enterprise Audit, Filter Integrity & Export Pack v1
+## Latest Release — Accounting Period Validation Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Accounting Period Validation Pack v1 (7 files — 4 modified, 3 added) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-04 |
+| **Feature branch** | `feature/accounting-period-validation-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `cba8f2e7` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-accounting-period-validation-pack-v1` → `cba8f2e7` |
+| **Feature commit** | `3d7a5788` |
+| **Production merge commit** | `83ee6632` |
+| **Stable tag** | `stable-accounting-period-validation-pack-v1` → merge `83ee6632` (annotated) |
+| **Reviews** | Claude Code Review (self-verified via `tsc --noEmit` + full test suite, iterated until clean) → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ (unaffected) · backend `vitest run` **172/172 files, 2638/2638 passing** (feature branch and post-merge) · `build:back` ✅ |
+
+**The gap.** Nothing enforced that an invoice's `issueDate` or an expense's `date` actually fell within the accounting period (`billingMonth`/`billingYear`) it was billed to. A document could be saved dated outside its own accounting period — on Create or Edit, via the UI or a direct API call — with no server-side check to catch it.
+
+**One shared validator.** `backend/src/shared/validation/accountingPeriod.validation.ts` — `assertDateWithinBillingPeriod(date, billingMonth, billingYear)` throws `AppError.badRequest` (400) with the required user-facing message when the date falls outside the real calendar days of that month/year. Skips validation when `billingMonth`/`billingYear` are not both set (both are optional on `Invoice` and `Expense`) — no period to violate. Reuses `core/utils/dateOnly.ts`'s existing `daysInMonth()` (now exported) for real calendar-day math (28/29/30/31, leap years) — no hardcoded month lengths, no duplicated leap-year logic.
+
+**Wired into both services, Create and Edit, before any database write.** `expenses.service.ts`'s `create()` validates the resolved date immediately; `update()` now computes `finalDate`/`finalBillingMonth`/`finalBillingYear` once (merging input with the current record) and both validates and persists from those same locals, replacing what had been a duplicated merge computation. `invoices.service.ts` follows the same pattern on `issueDate`, validated **before** `prisma.$transaction` is entered, so an invalid save never opens a transaction or touches the database. `Payment.date` (the collection date) is intentionally untouched — out of this pack's scope, and it already carries its own deliberate tolerance for preceding the invoice date.
+
+**Enforcement is unconditional.** No Override, no Skip, no hidden flag, no admin-role bypass — enforced 100% at the service layer, so it holds even for a direct API call bypassing the UI entirely.
+
+**Not changed:** journal entries, posting, balances, reports, Prisma schema/migrations, any other business logic.
+
+**Tests.** New `accountingPeriod.validation.test.ts` (13 cases: first/last day of month, 28/30/31-day months, leap year 2028, non-leap Feb 29 rejected, before/after period, missing `billingMonth`/`billingYear` skips validation, 400 status code) plus 7 new integration cases across `expenses.service.test.ts` and the new `invoices.accountingPeriod.test.ts`, covering Create and Edit, blocked and allowed paths, for both modules.
+
+**Scope discipline.** The working tree still contains the same unrelated, unfinished Google Drive / cloud-sync work carried at prior releases (`.gitignore`, `electron-builder.yml`, `electron/preload.ts`, `electron/services/googleDriveAuth.service.ts`, `electron/services/syncEngine.service.ts`, `backend/src/modules/backups/internal.routes.ts`, `backend/src/shared/services/backup.service.ts`, `frontend/src/api/client.ts`, `frontend/src/components/CloudSyncPanel.tsx`, `frontend/src/pages/Backup.tsx`, plus `electron/__tests__/`, `electron/resources/` and several Electron Drive service/test files), the AR-reconciliation scripts under `backend/scripts/one-time/`, two untracked `docs/*.xlsx` spreadsheets, the 2 duplicate font files, and five `.tmp-*.json` vitest report dumps. Also excluded: `backend/scripts/one-time/fix-expense-dates-2026-06-07.ts`, a separate one-time maintenance script (Expense Date Correction Tool v1) executed earlier in this session against dev data — not part of this pack's scope and never requested for release. All 7 pack files were staged explicitly by an exact path list; a `git diff --cached --name-only` scope check confirmed zero out-of-scope paths before commit.
+
+---
+
+## Previous Release — Bank Account Explorer Enterprise Audit, Filter Integrity & Export Pack v1
 
 | Field | Value |
 |-------|-------|
