@@ -2,13 +2,13 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-03 (previously 2026-08-03, 2026-08-02, 2026-08-02, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · This refresh is a release-tracking update, not a read-only audit — it accompanies the Letter Engine v1 release: a new Official Letter module (reference registration, block-model composer, geometry/pagination, local validation, printing, barcode/signature/stamp), two additive Prisma migrations, no existing table/column touched.
+> Last refreshed: 2026-08-04 (previously 2026-08-03, 2026-08-03, 2026-08-02, 2026-08-02, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · This refresh is a release-tracking update, not a read-only audit — it accompanies the Letter Engine Font Picker Dynamic Registry v1 release: the Official Letter font picker is now fully dynamic (letter font pool == Font Registry's own `getEnabledFonts()`, no allow-list/category/`recommendedFor` filter), plus the previously-validated Post-Release Hotfix v1 (dead toolbar button removed, barcode print race fixed, safe-writing-zone outline fixed). No Prisma/schema/migration change.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
 > **Refresh cadence:** this file must be regenerated every time `PROJECT_STATE.md` is rotated (see that file's
 > "Rotation & Archive Policy" section) — at minimum the "Current Production State" and "Repository Status" tables
-> below. This pass (Letter Engine v1), like the Font Registry Enhancement Pack v2 pass and
+> below. This pass (Letter Engine Font Picker Dynamic Registry v1), like the Letter Engine v1 pass and
 > the ones before it, refreshed the "Current Production State" table only (re-derived directly from `git`) —
 > the "Repository Status" quantitative table and the deeper narrative surveys (Banking/Printing/AI/ExplorerKit
 > sections further down) were last verified 2026-07-17/2026-07-01 respectively and have not been re-audited in
@@ -39,9 +39,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `765d2129` — merge of `feature/letter-engine-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-letter-engine-v1` (merge commit `765d2129`) | High |
-| **Previous stable tag** | `stable-font-registry-enhancement-pack-v2` (`fafd11ff`) | High |
+| **Current HEAD** | `c45622b5` — merge of `feature/letter-engine-font-picker-dynamic-registry-v1` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-letter-engine-font-picker-dynamic-registry-v1` (merge commit `c45622b5`) | High |
+| **Previous stable tag** | `stable-letter-engine-v1` (`765d2129`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |

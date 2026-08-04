@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `765d2129` (merge of `feature/letter-engine-v1` — the Official Letter module: permanent sequential reference numbers issued only at registration, never reused, guarded by two DB UNIQUE constraints; a block-model composer with true page geometry/pagination/live local validation; a printing engine reusing the composer's own render path (no second renderer); barcode/signature/stamp built entirely on existing ERP infrastructure (the shipped `qrcode` package, the company branding registry); includes a mid-stream fix for a production HTTP-400 bug (unapplied migration + a Prisma-error misclassification, both corrected) and a final UI-reconstruction/production-polish pass; 110 files (11 modified, 99 added); 2 additive Prisma migrations, no existing table/column altered) |
-| **Current Documentation Commit** | `6206bfd` |
-| **Current Stable Tag** | `stable-letter-engine-v1` |
-| **Current Release Date** | 2026-08-03 |
-| **Total Stable Releases** | 402 (window 2026-06-07 → 2026-08-03) |
+| **Current Merge Commit** | `c45622b5` (merge of `feature/letter-engine-font-picker-dynamic-registry-v1` — the Official Letter font picker's font pool made fully dynamic: `getLetterFontPool()` is now exactly the Font Registry's own `getEnabledFonts()`, with no allow-list, no `category` filter, no `recommendedFor` filter, and no font-name literal in the selection path, so a future font that ships `enabled` appears automatically with zero code changes elsewhere; retains the dropdown-width and no-ellipsis `FontPicker` UI improvements from the same in-session work; also carries the previously-validated Post-Release Hotfix v1 (dead toolbar button removed, barcode print race fixed, safe-writing-zone outline fixed); 9 files (8 modified, 1 added); no Prisma/schema/migration change) |
+| **Current Documentation Commit** | PENDING |
+| **Current Stable Tag** | `stable-letter-engine-font-picker-dynamic-registry-v1` |
+| **Current Release Date** | 2026-08-04 |
+| **Total Stable Releases** | 403 (window 2026-06-07 → 2026-08-04) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
