@@ -69,6 +69,68 @@ function nextPaint(): Promise<void> {
   });
 }
 
+/**
+ * Post-Release Hotfix v1 — root cause and fix for the barcode not appearing in
+ * Preview/Print.
+ *
+ * ROOT CAUSE: `nextPaint()` guarantees a LAYOUT has been painted; it says nothing
+ * about whether an `<img>` whose `src` was just set has finished DECODING. The
+ * letter's barcode is generated ASYNCHRONOUSLY — `LetterBarcode` requests a QR code
+ * from the `qrcode` package inside a `useEffect` and only sets `<img src>` once that
+ * promise resolves. If the payload had just changed (registration completing, or the
+ * letter simply having just loaded) and the user printed immediately, two animation
+ * frames were not enough to guarantee that image had painted — so the OS print
+ * preview and the printed page could both capture the barcode blank, while the
+ * on-screen composer went on to show it correctly a moment later. Nothing was
+ * "broken" in the component; the print binding was not waiting long enough.
+ *
+ * FIX: wait for the same two signals `electron/services/renderReadiness.ts` already
+ * uses to solve this exact class of problem for the hidden-window PDF pipeline
+ * (`document.fonts.ready` and every `<img>` reaching `.complete`), adapted to run
+ * directly in THIS renderer — there is no hidden window here, because printing
+ * captures the same view the author is looking at, which is the one-renderer rule
+ * this whole pack is built on. Bounded by a timeout so a stuck image or a slow font
+ * can never hang the print dialog; on timeout this degrades to exactly the old
+ * two-frame wait, so the fallback path can never be worse than before this fix.
+ */
+const RENDER_READY_TIMEOUT_MS = 2000;
+
+/** Resolves once every currently-incomplete `<img>` has loaded or errored. Exported
+ *  for direct testing — the root cause this function fixes is exactly this timing,
+ *  and it deserves a test that does not depend on the whole print pipeline mocking
+ *  a real image element correctly. */
+export function settleImages(): Promise<void> {
+  const pending = Array.from(document.images).filter((img) => !img.complete);
+  if (pending.length === 0) return Promise.resolve();
+  return Promise.all(
+    pending.map(
+      (img) =>
+        new Promise<void>((resolve) => {
+          const done = () => {
+            img.removeEventListener('load', done);
+            img.removeEventListener('error', done);
+            resolve();
+          };
+          img.addEventListener('load', done);
+          img.addEventListener('error', done);
+        }),
+    ),
+  ).then(() => undefined);
+}
+
+export function waitForRenderReady(): Promise<void> {
+  const ready = Promise.all([
+    document.fonts ? document.fonts.ready : Promise.resolve(),
+    settleImages(),
+  ]).then(() => nextPaint());
+
+  const timeout = new Promise<void>((resolve) => {
+    setTimeout(resolve, RENDER_READY_TIMEOUT_MS);
+  });
+
+  return Promise.race([ready, timeout]);
+}
+
 export function useLetterPrint(platform: PrintPlatform | null = livePlatform): UseLetterPrintResult {
   const [printMode, setPrintMode] = useState(false);
   const [printing, setPrinting] = useState(false);
@@ -80,7 +142,7 @@ export function useLetterPrint(platform: PrintPlatform | null = livePlatform): U
       setPrinting(true);
       setPrintMode(true);
       try {
-        await nextPaint();
+        await waitForRenderReady();
         const outcome = await runPrintPipeline({ ...input, platform });
         if (!outcome.ok) {
           setLastError(outcome.error);

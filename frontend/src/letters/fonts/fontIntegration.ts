@@ -17,27 +17,33 @@
  *
  * WHY THIS LAYER EXISTS AT ALL RATHER THAN CALLING THE REGISTRY DIRECTLY
  * ─────────────────────────────────────────────────────────────────────
- * Three engine-specific decisions that do not belong in the shared registry, because
+ * Two engine-specific decisions that do not belong in the shared registry, because
  * they are true of letters and not of the rest of the application:
  *
- *   1. WHICH FONTS A LETTER MAY USE. The registry's twelve families serve charts,
- *      tables and dashboards too. A letter's pool is narrower — see below.
- *   2. HOW A TYPOGRAPHY ROLE RESOLVES. Sections name a role; the template maps roles
+ *   1. HOW A TYPOGRAPHY ROLE RESOLVES. Sections name a role; the template maps roles
  *      to presets; this resolves the pair into concrete, renderable type.
- *   3. WHAT COUNTS AS A REAL WEIGHT. The registry reports what a font file contains;
+ *   2. WHAT COUNTS AS A REAL WEIGHT. The registry reports what a font file contains;
  *      this is where the engine decides that promising a face the file lacks is an
  *      error rather than an acceptable browser-synthesised approximation.
  *
  * THIS PACK MODIFIES NOTHING IN THE FONT REGISTRY.
- * The design work flagged that non-bundled families break print fidelity — a system
- * font renders from whatever the machine happens to ship, so the same registered
- * document can paginate differently on a different PC. The registry has no `bundled`
- * flag today, and adding one would mean editing a file outside this pack's boundary.
- * It is not needed in v1 for a simple reason: the letter pool is the `Official`
- * category, whose three members are all `@font-face`-declared in the repository.
- * Tahoma — the one system font in the registry — is `UI` and therefore already out of
- * the pool. Widening the pool beyond `Official` is what would require the flag, and
- * that is recorded as a deferred item, not done here.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  FONT PICKER — DYNAMIC REGISTRY HOTFIX v2 — no allow-list, no curation
+ * ══════════════════════════════════════════════════════════════════════════
+ * Fourth policy this function has carried: `category === 'Official'` (three fonts) →
+ * `recommendedFor` includes `'letters'` (five fonts) → a named ten-family allow-list
+ * (`APPROVED_LETTER_FONT_IDS`) → and now, on explicit instruction, back to THIS —
+ * every font the registry itself marks `enabled`, with no name, category, or
+ * `recommendedFor` filter of any kind layered on top. `getEnabledFonts()` alone
+ * decides membership.
+ *
+ * This makes the Font Registry the single, sole and dynamic source of truth for the
+ * letter picker: a font added to `FontRegistry` in the future and marked `enabled`
+ * appears in the letter composer automatically, with zero changes to this file or
+ * any other. A font marked `enabled: false` disappears the same way, for the same
+ * reason. There is no second list anywhere in the engine for this to drift out of
+ * sync with.
  */
 
 import {
@@ -45,7 +51,7 @@ import {
   type FontMeta,
   findFont,
   fontStackFor,
-  getFontsByCategory,
+  getEnabledFonts,
 } from '../../styles/fontRegistry';
 import {
   type TypographyPreset,
@@ -56,15 +62,16 @@ import {
 import { type DocumentTemplate } from '../registry/templateRegistry';
 
 /**
- * The fonts a letter may be set in.
+ * The fonts a letter may be set in — every registry font marked `enabled`, exactly as
+ * `getEnabledFonts()` reports it. See the file header for the full policy history.
  *
- * The registry's `Official` category — Traditional Arabic, Simplified Arabic Fixed
- * and Amiri. All three are bundled `@font-face` families, so a document renders
- * identically on every machine, which is a precondition for the safe-zone guarantee:
- * a font that resolves differently elsewhere paginates differently elsewhere.
+ * Each family appears exactly once. The registry itself already guarantees this — one
+ * entry per family, with every weight/file the family ships declared inside that one
+ * entry's `weights` array (see `FontMeta`) — so no separate de-duplication step exists
+ * or is needed here.
  */
 export function getLetterFontPool(): FontMeta[] {
-  return getFontsByCategory('Official');
+  return getEnabledFonts();
 }
 
 /** Ids of the letter font pool. */

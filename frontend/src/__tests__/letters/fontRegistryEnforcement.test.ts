@@ -15,7 +15,14 @@
  */
 import { describe, it, expect } from 'vitest';
 import { readEngineSources, matchingLines } from './engineSourceScan';
-import { FontRegistry, findFont, fontStackFor } from '../../styles/fontRegistry';
+import {
+  FontRegistry,
+  FONT_IDS,
+  findFont,
+  fontStackFor,
+  getAllFonts,
+  getEnabledFonts,
+} from '../../styles/fontRegistry';
 import {
   TYPOGRAPHY_PRESET_SETS,
   TYPOGRAPHY_PRESET_SET_IDS,
@@ -177,25 +184,77 @@ describe('Typography presets agree with the Font Registry', () => {
 });
 
 describe('The letter font pool', () => {
-  it('is the registry\'s Official category', () => {
-    const pool = getLetterFontPool();
-    expect(pool.length).toBeGreaterThan(0);
-    for (const font of pool) expect(font.category).toBe('Official');
+  // Font Picker — Dynamic Registry Hotfix v2 — FOURTH policy for this pool, on
+  // explicit instruction: no allow-list, no curation layer, no filter on category
+  // or recommendedFor. The pool is exactly `getEnabledFonts()` — every registered,
+  // enabled font, full stop. Three prior policies (`category === 'Official'`;
+  // `recommendedFor` including `'letters'`; a named ten-family allow-list) are
+  // superseded, in that order.
+
+  it('is exactly every enabled registry font — no name, category, or usage filter', () => {
+    const poolIds = getLetterFontPool().map((f) => f.id).sort();
+    const enabledIds = getEnabledFonts().map((f) => f.id).sort();
+    expect(poolIds).toEqual(enabledIds);
   });
 
-  it('excludes the system font, so a document paginates identically on every machine', () => {
-    // Tahoma is the registry's one OS-supplied family: it renders from whatever the
-    // machine ships, so the same registered document could paginate differently
-    // elsewhere — and a different pagination can put content in a reserved zone.
-    expect(isLetterPoolFontId('tahoma')).toBe(false);
-    expect(FontRegistry.tahoma.category).toBe('UI');
+  it('is the full twelve-font registry today — nothing curated out', () => {
+    const names = getLetterFontPool().map((f) => f.displayName).sort();
+    expect(names).toHaveLength(FONT_IDS.length);
+    expect(names).toEqual([...getAllFonts().map((f) => f.displayName)].sort());
   });
 
-  it('every pool member is enabled and recommended for letters', () => {
+  it('includes UI-category fonts too — no category restricts membership', () => {
+    // Under the prior allow-list, `ibmPlexArabic` and `tajawal` were the two
+    // deliberately-excluded UI fonts. Under this dynamic policy there is no
+    // curation layer left to exclude them.
+    expect(isLetterPoolFontId('ibmPlexArabic')).toBe(true);
+    expect(isLetterPoolFontId('tajawal')).toBe(true);
+  });
+
+  it('is NOT reducible to `category`', () => {
+    const categories = new Set(getLetterFontPool().map((f) => f.category));
+    expect(categories.size).toBeGreaterThan(1); // spans UI/Official/Classic/Modern/Decorative
+  });
+
+  it('is NOT reducible to `recommendedFor`', () => {
+    // `scheherazade`, `pdfDinArabic`, `sultan` and `ptBoldHeading` carry no `'letters'`
+    // tag at all, yet all four are in the pool — proving membership does not derive
+    // from this field.
+    for (const id of ['scheherazade', 'pdfDinArabic', 'sultan', 'ptBoldHeading'] as const) {
+      expect(FontRegistry[id].recommendedFor, id).not.toContain('letters');
+      expect(isLetterPoolFontId(id), id).toBe(true);
+    }
+  });
+
+  it('includes the system font — the same recorded print-fidelity trade-off as before', () => {
+    // Tahoma has no `@font-face` in this repository and renders from whatever the OS
+    // ships. Recorded again here rather than silently dropped from the history.
+    expect(isLetterPoolFontId('tahoma')).toBe(true);
+  });
+
+  it('every pool member is enabled', () => {
     for (const font of getLetterFontPool()) {
       expect(font.enabled).toBe(true);
-      expect(font.recommendedFor).toContain('letters');
     }
+  });
+
+  it('tracks `getEnabledFonts()` dynamically — a disabled font drops out with no code change here', () => {
+    // Proven structurally: `getLetterFontPool` IS `getEnabledFonts()`, not a filtered
+    // copy of it, so a future font that ships disabled is simply absent, and a future
+    // font that ships enabled simply appears — with zero changes to this file.
+    const enabledIds = new Set(getEnabledFonts().map((f) => f.id));
+    for (const font of getLetterFontPool()) {
+      expect(enabledIds.has(font.id)).toBe(true);
+    }
+  });
+
+  it('each family appears exactly once — no per-file or per-weight duplicate', () => {
+    // Guaranteed structurally by the registry's own data model (one entry per family,
+    // every weight declared inside that entry's `weights` array — see `FontMeta`),
+    // not by any de-duplication step in this pool. Asserted directly so a future
+    // change to that model cannot silently reintroduce duplicates here.
+    const ids = getLetterFontPool().map((f) => f.id);
+    expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('rejects unknown, empty and prototype-chain ids', () => {

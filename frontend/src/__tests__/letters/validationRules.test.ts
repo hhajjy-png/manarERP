@@ -32,6 +32,8 @@ import { type LetterValidationContext } from '../../letters/validation/context';
 import { createLetterValidationRegistry, IMPLEMENTED_RULES } from '../../letters/validation/rules';
 import { createValidationRunner, summarise, type ValidationResult } from '../../letters/validation/framework';
 import { getValidationRule } from '../../letters/registry/validationRuleCatalog';
+import { type FontId } from '../../styles/fontRegistry';
+import { getLetterFontPool } from '../../letters/fonts/fontIntegration';
 
 const GEOMETRY = getPageGeometry('companyLetterhead', 1);
 const FIRST_BAND = usableBandMm(GEOMETRY, 0);
@@ -335,15 +337,57 @@ describe('Content rules', () => {
     expect(issues[0].severity).toBe('warning');
   });
 
-  it('W3 — a font outside the letter pool is a warning', () => {
+  it('W3 — silent for every font the letter pool currently contains', () => {
+    // Font Picker — Dynamic Registry Hotfix v2 made the letter pool exactly
+    // `getEnabledFonts()` (`fontIntegration.ts`) — no allow-list, no curation.
+    // Looped over the pool's OWN members rather than a hardcoded id list, so this
+    // keeps testing the right thing as the registry's enabled set evolves, instead
+    // of silently drifting the way a copy-pasted id list would.
+    for (const font of getLetterFontPool()) {
+      const content: BlockDocument = {
+        contentModelVersion: 1,
+        blocks: [createBlock('b0', 'paragraph', [createSpan('x')], { ...BODY, fontId: font.id as FontId })],
+      };
+      const issues = issuesFor(validate(context({ content })), 'W3_nonOfficialFontUsed');
+      expect(issues, `W3 fired for "${font.id}", which is in the pool`).toEqual([]);
+    }
+  });
+
+  it('W3 — is dormant for real data under the current no-filter pool', () => {
+    // The prior named allow-list revived this rule for `ibmPlexArabic`/`tajawal`
+    // (genuine, enabled registry fonts outside that curated ten). This pack removes
+    // the curation layer entirely, so every enabled font is back in the pool and W3
+    // cannot currently be triggered by any real, enabled font id — only by a font id
+    // the registry cannot resolve at all (see the next test). This is the honest,
+    // expected shape of a rule guarding a boundary that no longer excludes anything.
+    for (const fontId of ['ibmPlexArabic', 'tajawal'] as const) {
+      const content: BlockDocument = {
+        contentModelVersion: 1,
+        blocks: [createBlock('b0', 'paragraph', [createSpan('x')], { ...BODY, fontId })],
+      };
+      const issues = issuesFor(validate(context({ content })), 'W3_nonOfficialFontUsed');
+      expect(issues, fontId).toEqual([]);
+    }
+  });
+
+  it('W3 — does not fire for a font the registry cannot resolve at all', () => {
+    // The honest boundary of what W3 can and cannot catch: it guards "resolvable but
+    // not approved", not "unresolvable". A saved letter naming a font id the registry
+    // no longer has at all (`findFont` returns `undefined`) short-circuits the rule's
+    // own condition (`findFont(...) && !pool.has(...)`) before the pool is even
+    // consulted — this is a real, documented scenario `findFont` itself is written to
+    // tolerate, not something this test invents.
     const content: BlockDocument = {
       contentModelVersion: 1,
-      // A real registry font, but a UI face rather than an official one.
-      blocks: [createBlock('b0', 'paragraph', [createSpan('x')], { ...BODY, fontId: 'cairo' })],
+      blocks: [
+        // Cast deliberately: simulates a saved document referencing a font id the
+        // registry has since removed — `FontId`'s type should not be able to express
+        // this for NEW content, only for data arriving from storage.
+        createBlock('b0', 'paragraph', [createSpan('x')], { ...BODY, fontId: 'doesNotExist' as BlockAttributes['fontId'] }),
+      ],
     };
     const issues = issuesFor(validate(context({ content })), 'W3_nonOfficialFontUsed');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('warning');
+    expect(issues).toEqual([]);
   });
 
   it('W5 — typography deviation is reported once, not once per paragraph', () => {

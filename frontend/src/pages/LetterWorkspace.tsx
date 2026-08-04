@@ -461,12 +461,6 @@ export default function LetterWorkspace() {
             aria-label="كثافة العرض"
           />
           <Button icon="view_column" onClick={() => setShowColumns(true)} iconOnly title="الأعمدة" aria-label="الأعمدة" />
-
-          {/* Export is a later pack. Rendered disabled so the surface is honest about
-              what exists rather than hiding a planned capability. */}
-          <Button icon="download" disabled title="التصدير — يصل في حزمة لاحقة" aria-label="تصدير">
-            تصدير
-          </Button>
         </div>
 
         {selected.size > 0 && (
