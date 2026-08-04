@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `7cb24752` — release `stable-employee-table-column-optimization-pack-v1` (narrows the nationality column and 8 neighboring Employees-table columns so the license-expiry column sits ~209px closer to the visible viewport at the project's standard 1440×900 window, without reordering columns or touching sort/filter/search/data logic; 1 file, frontend-only) |
+| **Production HEAD** | `4a672e70` — release `stable-financial-analysis-center-v1` (Financial Analysis Center v1: a new read-only executive analysis page at `#/financial-analysis` with eight table-only sections over the existing operational reporting engine — one shared filter, one request per load, per-section KPIs derived from their own table rows, cell- and row-level drill-down, an 11-worksheet Excel export and a landscape multi-page PDF export, both through the system's own engines; 32 files, backend + frontend, no Prisma/schema/permission/Electron change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-employee-table-column-optimization-pack-v1` (release date 2026-08-04) → merge `7cb24752` |
-| **Previous stable tag** | `stable-accounting-period-validation-pack-v1` (2026-08-04) → merge `83ee6632` |
-| **Total stable releases** | 406 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
-| **Latest validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · backend `tsc --noEmit` ✅ (unaffected — confirmed clean, no backend files touched) · `build:front` ✅ (feature branch and post-merge) · scope confirmed: exactly 1 file entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-only` scope check showing zero out-of-scope paths · Product Owner manual visual review — **completed & approved**, confirmed the license-expiry column is now visible without horizontal scroll, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `7cb24752` + tag `stable-employee-table-column-optimization-pack-v1`) |
+| **Latest stable tag** | `stable-financial-analysis-center-v1` (release date 2026-08-04) → merge `4a672e70` |
+| **Previous stable tag** | `stable-employee-table-column-optimization-pack-v1` (2026-08-04) → merge `7cb24752` |
+| **Total stable releases** | 407 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
+| **Latest validation** | Backend / frontend / electron `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (feature branch and post-merge) · backend 2697 tests ✅ · frontend 3484 pass, 26 failures identical in count and identity to the pre-release baseline (pre-existing, unrelated to this release) · 100 new tests added · scope confirmed: exactly 32 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-status` scope check showing zero out-of-scope paths — the unrelated Google-Drive cloud-sync WIP in the working tree was deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `4a672e70` + tags `stable-financial-analysis-center-v1`, `checkpoint-financial-analysis-center-v1` + branch `feature/financial-analysis-center-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,45 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee Table Column Optimization Pack v1
+## Latest Release — Financial Analysis Center v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Financial Analysis Center v1 — three release packs merged as one feature (32 files: 20 new, 12 modified; backend + frontend, no Electron change) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-04 |
+| **Feature branch** | `feature/financial-analysis-center-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `2fb01029` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-financial-analysis-center-v1` → `2fb01029` |
+| **Feature commit** | `9eb160d4` |
+| **Production merge commit** | `4a672e70` |
+| **Stable tag** | `stable-financial-analysis-center-v1` → merge `4a672e70` (annotated) |
+| **Reviews** | Claude Code Review (self-verified via `tsc --noEmit` × 3 targets + all three builds + both test suites, iterated until clean) → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend/frontend/electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (feature branch and post-merge) · backend 2697 tests ✅ · frontend 3484 pass / 26 pre-existing baseline failures (count and identity unchanged) |
+
+**What it is.** A new read-only executive page at `#/financial-analysis` (sidebar: المالية → مركز التحليل المالي), guarded by `reports.read`. Eight numbered sections, one shared filter, one request per page load, **professional tables only — no charts**, per spec.
+
+**Sections.** 1 الربحية · 2 الإيرادات · 3 المصروفات · 4 التحصيل · 5 الذمم المدينة · 6 الأداء الشهري · 7 أعلى القوائم · 8 المؤشرات المالية.
+
+**Architecture — four layers, one data source.** New `backend/src/modules/financialAnalysis/` splits into `types` (the shared contract mirrored on the frontend), `dataset` (the only Prisma layer), `compute` (**pure** — no Prisma, no I/O, no `new Date()`, therefore unit-tested directly), and thin `service`/`controller`/`routes`. Business rules are **not redefined**: revenue, expenses, collections and P&L come from `shared/services/operational.reporting`, the project's single operational source, so every figure matches the dashboard, the P&L report and the Financial Centre by definition. One dataset load per request (3 row queries + 1 previous-period aggregate) feeds all eight sections; every section KPI is derived from its own table rows, so a card can never disagree with the column beneath it. No new permission key, no Prisma change, no migration.
+
+**Tables UX, Alignment & Export Pack v1.** Header/body misalignment was fixed at its **root**, not cosmetically: the shared kit declares `.xpl-table th { text-align: start }` at specificity (0,1,1), which outranked the bare `.fac-al-*` class (0,1,0) on headers, while `.xpl-table td` declares no alignment at all — so headers sat start-aligned above end-aligned data in every column except the first, which matched the kit rule by coincidence. Alignment rules are now qualified with `th`/`td` together and header and cell share one rule. Horizontal scroll was removed by letting the single open-length text column absorb slack and ellipsise (`width:100% + max-width:0`) while numeric columns keep their full content width, with the full value exposed as a tooltip. The kit's per-table `max-height: 62vh` was dropped on this page — nested scrolling was also a clipping container that would have truncated PDF output. Excel and PDF export were added using the system's existing engines only.
+
+**Export Enhancement Pack v1.** PDF is now **landscape**. Root cause: `theme.css` declares a document-wide `@page { margin: 1cm }`, which is always captured, making `composeStyledFromNode`'s `?? toPageCss(pageSpec)` fallback **unreachable in this app** — any requested page spec was silently ignored. An opt-in `forcePageSpec` flag now appends the spec's `@page` last so it wins the existing merge; default `false` keeps every current caller byte-identical (proven by test). A structural **print root** was introduced: report content lives in `.fac-report`, with the filter bar, export buttons and drill-down drawer outside it, so exclusion no longer depends on a `no-print` class alone. Declared print sections (`data-print-section`) drive page-break protection, table headers and totals repeat across pages, and truncation is lifted on paper. Excel gained a leading `الملخص` worksheet (period, generation time, exporting user, revenue, expenses, net profit, margin, table count) plus short house-standard sheet names.
+
+**Receivables Analysis Table v1.** New section 5, placed directly after Collections because both sit on the customer axis and answer complementary questions (flow vs. outstanding balance and risk). Ageing is derived **purely from the already-loaded arrays** — no extra query, no new field: the oldest open invoice is found by applying a customer's payments to their invoices oldest-first (FIFO), the accounting convention for ageing. Six KPIs, five of which appear nowhere else; total receivables sums **positive balances only**, deliberately different from the net collections figure. Five-state risk badge, sortable and searchable table, row-level drill-down.
+
+**Render-loop fix (folded in).** `useT()` returned a fresh object every render, making `t` an unstable dependency. With `t` in the load effect's dependency array this became an unbounded fetch loop — measured **119 commits / 79 requests and diverging** — and the filter bar visibly shook because the refresh button's busy indicator kept resizing the flex row. `useT()` is now memoised on `lang`, and the effects store an error *key* instead of a translated string so they no longer depend on `t` at all. Measured after: **4 commits, 1 request**. A permanent Profiler-based guard test locks this in.
+
+**Exports.** Excel: 11 worksheets (`الملخص` + 9 data tables + indicators) via the shared `buildExcelWorkbook`, KWD `#,##0.000`, raw numbers, audited as `EXPORT`, guarded by `reports.export`. PDF: the page as the user sees it minus filters and buttons, landscape, multi-page, nothing clipped.
+
+**Not changed:** `explorer-kit.css` / `ExplorerKit.tsx` (shared kit untouched), `excel.service.ts`, `pdf.ipc.ts`, `pageSpec.ts`, `styleCapture.ts`, `operational.reporting.ts`, `reports.service.ts`, `Invoices.tsx`, `Expenses.tsx`, `constants.ts`, `seed.ts`, `schema.prisma`, Electron.
+
+**Known coupling, documented:** `lib/drilldownHandoff.ts` is the single, deliberate point that knows the Invoices/Expenses pages' persisted-filter storage keys — it exists so those pages needed **zero** modification, and it is covered by tests.
+
+---
+
+## Previous Release — Employee Table Column Optimization Pack v1
 
 | Field | Value |
 |-------|-------|

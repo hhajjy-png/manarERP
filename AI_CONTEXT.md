@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `7cb24752` (merge of `feature/employee-table-column-optimization-pack-v1` — narrows the Employees table's `nationality` column and 8 neighboring columns (`fullName`, `fullNameEn`, `jobTitle`, `civilId`, `passportNumber`, `residencyExpiry`, `passportExpiry`, `licenseExpiry`) so `licenseExpiry` sits ~209px closer to the visible viewport at the project's standard 1440×900 window. `nationality` (104px→84px) was the named target, but the math showed it alone could only free ~20-24px against a ~320-355px shortfall — disclosed to the user before implementation, who approved widening scope. `fullName`/`fullNameEn`/`jobTitle` were trimmed more aggressively since all three render through the ellipsis-protected `NameCell`; `residencyExpiry`/`passportExpiry`/`licenseExpiry` were normalized to 120px, matching the already-safe `hireDate` column; `civilId`/`passportNumber` trimmed minimally (fixed-length numeric, no wrap protection). Frozen-column sticky offsets derive automatically from `width`, so no other code changed. Column order, data, sort/filter/search logic untouched. 1 file, frontend-only; no backend/Prisma/Electron change) |
-| **Current Documentation Commit** | `828f51ba` |
-| **Current Stable Tag** | `stable-employee-table-column-optimization-pack-v1` |
+| **Current Merge Commit** | `4a672e70` (merge of `feature/financial-analysis-center-v1` — **Financial Analysis Center v1**, three release packs merged as one feature. A new read-only executive page at `#/financial-analysis` (sidebar: المالية → مركز التحليل المالي), guarded by `reports.read`, with **eight numbered, table-only sections** (no charts, per spec): profitability, revenue, expenses, collections, receivables, monthly performance, top lists, financial indicators. New `backend/src/modules/financialAnalysis/` splits into four layers — shared type contract (mirrored on the frontend), a single Prisma `dataset` layer, a **pure** `compute` layer (no Prisma, no I/O, no `new Date()` — unit-tested directly), and thin service/controller/routes. Business rules are **not redefined**: revenue, expenses, collections and P&L are taken from `shared/services/operational.reporting`, the project's single operational source, so every figure matches the dashboard, the P&L report and the Financial Centre by definition. **One dataset load per request** (3 row queries + 1 previous-period aggregate) feeds all eight sections, and every section KPI is derived from its own table rows so a card can never disagree with the column beneath it. Cell- and row-level drill-down opens the underlying records with the same filters, then hands off to the Invoices/Expenses browsers via `lib/drilldownHandoff.ts` — the single deliberate coupling point, which exists so those pages needed zero modification. Exports reuse the system's own engines only: an 11-worksheet Excel file (leading `الملخص` sheet + 9 data tables + indicators) through the shared `buildExcelWorkbook`, and a **landscape, multi-page** PDF through `composeStyledFromNode` + Electron `exportPdfFromHtml`, composed from a structural print root (`.fac-report`) that excludes the filter bar and export buttons by DOM boundary rather than by CSS class. Three root-cause fixes landed with it: (1) table header/body misalignment caused by the shared kit's `.xpl-table th { text-align: start }` (0,1,1) outranking a bare `.fac-al-*` class (0,1,0) while `.xpl-table td` declared no alignment; (2) PDF silently ignoring any requested page spec because `theme.css`'s document-wide `@page` is always captured, making `composeStyledFromNode`'s fallback unreachable — fixed by an opt-in `forcePageSpec` flag whose default keeps every existing caller byte-identical; (3) an unbounded render/fetch loop (measured 119 commits / 79 requests, diverging) caused by `useT()` returning a fresh function identity every render while sitting in an effect's dependency array — fixed by memoising `useT()` on `lang` and storing error *keys* instead of translated strings, measured after at 4 commits / 1 request and locked in by a Profiler-based guard test. 32 files (20 new, 12 modified); no Prisma/schema/migration, no new permission key, no Electron change) |
+| **Current Documentation Commit** | `__DOC_COMMIT__` |
+| **Current Stable Tag** | `stable-financial-analysis-center-v1` |
 | **Current Release Date** | 2026-08-04 |
-| **Total Stable Releases** | 406 (window 2026-06-07 → 2026-08-04) |
+| **Total Stable Releases** | 407 (window 2026-06-07 → 2026-08-04) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,28 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Financial Analysis Center v1** (2026-08-04, `stable-financial-analysis-center-v1`) — a new read-only
+  executive page at `#/financial-analysis` (sidebar: المالية → مركز التحليل المالي), guarded by
+  `reports.read`. Eight numbered, **table-only** sections (no charts, per spec): profitability, revenue,
+  expenses, collections, **receivables**, monthly performance, top lists, financial indicators — all driven
+  by one shared filter that rides the global `FinancialPeriodContext`, and all loaded by **one request**.
+  Backend `modules/financialAnalysis/` is split into a shared type contract, a single Prisma `dataset` layer,
+  a **pure** `compute` layer (no Prisma/I/O/`new Date()`, unit-tested directly) and thin
+  service/controller/routes. **No business rule was redefined:** revenue, expenses, collections and P&L are
+  taken from `shared/services/operational.reporting`, so the page agrees with the dashboard and the P&L
+  report by construction. Each section's KPI cards are computed from that section's own table rows, so a
+  card cannot disagree with the column beneath it. Receivables ageing uses FIFO payment application over the
+  already-loaded arrays — no extra query, no new field — and reports positive balances only (deliberately a
+  different figure from net collections). Exports reuse existing engines only: 11-worksheet Excel via
+  `buildExcelWorkbook` and a landscape multi-page PDF via `composeStyledFromNode` + Electron
+  `exportPdfFromHtml`, with a structural print root that excludes filters and buttons by DOM boundary.
+  Three root causes fixed along the way: header/body misalignment from CSS specificity in the shared kit;
+  PDF ignoring any requested page spec because `theme.css`'s document-wide `@page` made the composer's
+  fallback unreachable (fixed by an opt-in `forcePageSpec` whose default is byte-identical for all existing
+  callers); and an unbounded render/fetch loop from `useT()`'s unstable identity (119 commits/79 requests →
+  4 commits/1 request, guarded by a Profiler test). 32 files; **no Prisma/schema/migration, no new
+  permission key, no Electron change.** 100 new tests.
 
 - **Administrative Forms Preview UX Pack v1** (2026-07-31,
   `stable-administrative-forms-preview-ux-v1`) — frontend-only, no backend/schema changes.
