@@ -16,12 +16,16 @@ import {
   channelLabel, chequeDirectionLabel, chequePresentationTypeLabel,
   type TransactionPresentationModel, type TransactionChannel,
 } from './bankTransactionIntelligence';
-import type { TxBadgeKind } from './BankAccountExplorer';
+import { txCategoryIcon, txCategoryLabel, type TxCategory } from './bankTransactionCategory';
+import type { TxDirection } from './bankTransactionDirection';
 import './TransactionIntelligencePanel.css';
 
 interface Props {
-  intel:     TransactionPresentationModel;
-  badgeKind: TxBadgeKind;
+  intel:        TransactionPresentationModel;
+  /** الاتجاه المالي الحقيقي — مصدر اللون وحده. */
+  direction:    TxDirection;
+  /** تصنيف المستند — يؤثر على رمز الأيقونة فقط، لا على الاتجاه ولا اللون. */
+  category:     TxCategory;
 }
 
 type TranslateFn = (key: string) => string;
@@ -31,16 +35,21 @@ type TranslateFn = (key: string) => string;
 // shown in the amount hero above this panel — this one reflects what the
 // engine actually recognised (a returned cheque, a cheque, an ATM channel, an
 // internal transfer) before falling back to the plain debit/credit direction.
+// رمز الأيقونة فقط قد يعكس نوع المستند؛ الاتجاه (واللون) يبقى من الأثر المالي.
 
-function resolveHeroIcon(intel: TransactionPresentationModel, badgeKind: TxBadgeKind): string {
+const DIRECTION_ICONS: Record<TxDirection, string> = {
+  deposit: 'south_west', withdrawal: 'north_east', neutral: 'remove',
+};
+
+function resolveHeroIcon(
+  intel: TransactionPresentationModel, direction: TxDirection, category: TxCategory,
+): string {
   if (intel.chequePresentationType === 'returned') return 'cancel';
   if (intel.chequeNumber) return 'receipt_long';
   if (intel.channel === 'atm') return 'local_atm';
   if (intel.title.includes('داخلي')) return 'sync_alt';
-  if (badgeKind === 'transfer') return 'swap_horiz';
-  if (badgeKind === 'fee') return 'percent';
-  if (badgeKind === 'deposit') return 'south_west';
-  return 'north_east';
+  // رمز التصنيف من مصدره الموحّد؛ سهم الاتجاه هو الافتراضي فقط.
+  return txCategoryIcon(category, DIRECTION_ICONS[direction]);
 }
 
 const CHANNEL_ICONS: Record<TransactionChannel, string> = {
@@ -52,8 +61,12 @@ const CHANNEL_ICONS: Record<TransactionChannel, string> = {
 
 interface Chip { key: string; icon: string; label: string; tone?: 'accent' | 'danger'; }
 
-function buildChips(intel: TransactionPresentationModel, t: TranslateFn): Chip[] {
+function buildChips(intel: TransactionPresentationModel, category: TxCategory, t: TranslateFn): Chip[] {
   const chips: Chip[] = [];
+  // تصنيف المستند — من المصدر الموحّد نفسه المستخدم في الجدول والتصدير.
+  chips.push({
+    key: 'category', icon: txCategoryIcon(category, 'sell'), label: txCategoryLabel(category, t),
+  });
   if (intel.channel) {
     chips.push({ key: 'channel', icon: CHANNEL_ICONS[intel.channel], label: channelLabel(intel.channel, t), tone: 'accent' });
   }
@@ -123,17 +136,17 @@ function buildInsights(intel: TransactionPresentationModel, t: TranslateFn): Ins
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function TransactionIntelligencePanel({ intel, badgeKind }: Props) {
+export function TransactionIntelligencePanel({ intel, direction, category }: Props) {
   const { t } = useT();
-  const chips     = buildChips(intel, t);
+  const chips     = buildChips(intel, category, t);
   const insights  = buildInsights(intel, t);
-  const heroIcon  = resolveHeroIcon(intel, badgeKind);
+  const heroIcon  = resolveHeroIcon(intel, direction, category);
 
   return (
     <div className="tip-panel">
       {/* 1. What happened + why — hero card */}
       <div className="tip-hero">
-        <div className={`tip-hero-icon tip-hero-icon--${badgeKind}`}>
+        <div className={`tip-hero-icon tip-hero-icon--${direction}`}>
           <span className="material-symbols-outlined" aria-hidden="true">{heroIcon}</span>
         </div>
         <div className="tip-hero-body">

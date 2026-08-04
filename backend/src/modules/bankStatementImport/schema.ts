@@ -1,3 +1,4 @@
+import { TX_CATEGORIES } from './timelineClassification.js';
 import { z } from 'zod';
 import { dateOnlySchema } from '../../core/utils/dateOnly.js';
 
@@ -131,7 +132,24 @@ export const TimelineQuerySchema = z.object({
   toDate:    z.string().max(32).optional(),
   search:    z.string().max(128).optional(),
   type:      z.enum(['all', 'deposits', 'withdrawals', 'fees', 'cheques', 'transfers']).optional(),
+  /** البُعد الأول: الاتجاه المالي الحقيقي. */
+  direction: z.enum(['deposit', 'withdrawal', 'neutral']).optional(),
+  /** البُعد الثاني: تصنيف المستند — قائمة مفصولة بفواصل (متعدد الاختيار). */
+  categories: z.string().max(256).optional()
+    .transform((v) => (v ? v.split(',').map((c) => c.trim()).filter(Boolean) : undefined))
+    .pipe(z.array(z.enum(TX_CATEGORIES as unknown as [string, ...string[]])).optional()),
   minAmount: z.coerce.number().nonnegative().optional(),
   maxAmount: z.coerce.number().nonnegative().optional(),
-});
+  excludeDuplicates: z.coerce.boolean().optional(),
+})
+  // «من > إلى» و«الأدنى > الأعلى» تناقضان يُنتجان صفر نتائج بلا سبب مفهوم —
+  // يُرفضان صراحةً برسالة عربية بدل إرجاع قائمة فارغة مضلِّلة.
+  .refine((q) => !(q.fromDate && q.toDate) || q.fromDate <= q.toDate, {
+    message: 'تاريخ «من» يجب أن يسبق تاريخ «إلى» أو يساويه',
+    path: ['fromDate'],
+  })
+  .refine((q) => !(q.minAmount != null && q.maxAmount != null) || q.minAmount <= q.maxAmount, {
+    message: 'الحد الأدنى للمبلغ يجب أن يكون أقل من الحد الأعلى أو يساويه',
+    path: ['minAmount'],
+  });
 export type TimelineQuery = z.infer<typeof TimelineQuerySchema>;

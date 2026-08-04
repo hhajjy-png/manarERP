@@ -1,0 +1,144 @@
+{
+  "_comment": "عقد مشترك بين الخادم والواجهة. تقرأه حزمتا الاختبار في الطرفين: backend/__tests__/timelineClassification.golden.test.ts و frontend/src/__tests__/classificationGoldenContract.test.ts. أي تعديل في قاعدة الاتجاه أو التصنيف في أحد الجانبين دون الآخر يُسقط البناء.",
+  "cases": [
+    { "name": "شيك مقاصة وارد مدين — الحالة المُبلَّغ عنها أصلًا",
+      "row": { "debit": 255, "credit": 0, "description": "Inward Clearing Cheque 000006 Presented in KFH", "chequeNumber": "000006", "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "cheque", "source": "chequeNumber" },
+
+    { "name": "شيك محصَّل دائن",
+      "row": { "debit": 0, "credit": 255, "description": "Cheque collected", "chequeNumber": "000007", "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "cheque", "source": "chequeNumber" },
+
+    { "name": "حوالة صادرة مصنَّفة بنكيًا",
+      "row": { "debit": 900, "credit": 0, "description": "Outgoing RTGS to Gulf Bank", "chequeNumber": null, "reference": null, "bankFeeType": "BANK_TRANSFER", "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "transfer", "source": "bankFeeType" },
+
+    { "name": "حوالة واردة دائنة",
+      "row": { "debit": 0, "credit": 5000, "description": "Incoming transfer", "chequeNumber": null, "reference": null, "bankFeeType": "BANK_TRANSFER", "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "transfer", "source": "bankFeeType" },
+
+    { "name": "رسوم تحويل — الرسوم تسبق الحوالة في القواعد النصية",
+      "row": { "debit": 3, "credit": 0, "description": "رسوم تحويل", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "bank_fee", "source": "text" },
+
+    { "name": "رسوم مصنَّفة بنكيًا",
+      "row": { "debit": 5, "credit": 0, "description": "Monthly Charge", "chequeNumber": null, "reference": null, "bankFeeType": "MONTHLY_FEE", "isBankFee": true, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "bank_fee", "source": "bankFeeType" },
+
+    { "name": "ردّ رسوم دائن — التصنيف رسوم والاتجاه إيداع",
+      "row": { "debit": 0, "credit": 5, "description": "Fee reversal credit", "chequeNumber": null, "reference": null, "bankFeeType": "CHARGE", "isBankFee": true, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "bank_fee", "source": "bankFeeType" },
+
+    { "name": "فوائد دائنة",
+      "row": { "debit": 0, "credit": 12.5, "description": "Interest credited", "chequeNumber": null, "reference": null, "bankFeeType": "INTEREST", "isBankFee": true, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "interest", "source": "bankFeeType" },
+
+    { "name": "سحب نقدي من الصراف",
+      "row": { "debit": 100, "credit": 0, "description": "ATM Withdrawal", "chequeNumber": null, "reference": null, "bankFeeType": "CASH_WITHDRAWAL", "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "cash", "source": "bankFeeType" },
+
+    { "name": "سند قبض من النص",
+      "row": { "debit": 0, "credit": 500, "description": "سند قبض رقم 125", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "receipt_voucher", "source": "text" },
+
+    { "name": "سند صرف من النص",
+      "row": { "debit": 250, "credit": 0, "description": "Payment Voucher 88", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "payment_voucher", "source": "text" },
+
+    { "name": "قيد يومية من النص",
+      "row": { "debit": 40, "credit": 0, "description": "Journal Entry 44", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "journal", "source": "text" },
+
+    { "name": "تسوية من النص",
+      "row": { "debit": 0, "credit": 7, "description": "Reversal of duplicate entry", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "adjustment", "source": "text" },
+
+    { "name": "رصيد افتتاحي",
+      "row": { "debit": 0, "credit": 0, "description": "Opening Balance", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "neutral", "category": "opening_balance", "source": "text" },
+
+    { "name": "كيان مطابَق: رواتب يتقدّم على كل ما دونه",
+      "row": { "debit": 12000, "credit": 0, "description": "Inward Clearing Cheque", "chequeNumber": "000006", "reference": "EXP-2026-00001", "bankFeeType": "CHEQUE_PAYMENT", "isBankFee": true, "matchedType": "payroll", "matchedRef": null },
+      "direction": "withdrawal", "category": "payroll", "source": "entityType" },
+
+    { "name": "كيان مطابَق: فاتورة",
+      "row": { "debit": 0, "credit": 3400, "description": "Payment received", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": "invoice", "matchedRef": "MN-INV-2026-00142" },
+      "direction": "deposit", "category": "invoice", "source": "entityType" },
+
+    { "name": "كيان مطابَق: مصروف",
+      "row": { "debit": 220, "credit": 0, "description": "POS purchase", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": "expense", "matchedRef": null },
+      "direction": "withdrawal", "category": "expense", "source": "entityType" },
+
+    { "name": "كيان مطابَق: سند (payment) — محايد لا يدّعي قبضًا ولا صرفًا",
+      "row": { "debit": 0, "credit": 800, "description": "Payment record", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": "payment", "matchedRef": null },
+      "direction": "deposit", "category": "voucher", "source": "entityType" },
+
+    { "name": "كيان مطابَق: سند بمبلغ مدين — نفس التصنيف، اتجاه معاكس",
+      "row": { "debit": 800, "credit": 0, "description": "Payment record", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": "payment", "matchedRef": null },
+      "direction": "withdrawal", "category": "voucher", "source": "entityType" },
+
+    { "name": "كيان مطابَق: قيد",
+      "row": { "debit": 15, "credit": 0, "description": "manual", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": "journal", "matchedRef": null },
+      "direction": "withdrawal", "category": "journal", "source": "entityType" },
+
+    { "name": "كيان مطابَق: شيك",
+      "row": { "debit": 700, "credit": 0, "description": "cleared", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": "cheque", "matchedRef": null },
+      "direction": "withdrawal", "category": "cheque", "source": "entityType" },
+
+    { "name": "بادئة مرجع: فاتورة مبيعات",
+      "row": { "debit": 0, "credit": 1200, "description": "settlement", "chequeNumber": null, "reference": "MN-INV-2026-00142", "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "invoice", "source": "referenceType" },
+
+    { "name": "بادئة مرجع: فاتورة مشتريات",
+      "row": { "debit": 1200, "credit": 0, "description": "settlement", "chequeNumber": null, "reference": "PINV-2026-00007", "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "invoice", "source": "referenceType" },
+
+    { "name": "بادئة مرجع: مصروف",
+      "row": { "debit": 60, "credit": 0, "description": "settlement", "chequeNumber": null, "reference": "EXP-2026-00031", "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "expense", "source": "referenceType" },
+
+    { "name": "بادئة مرجع: قيد تتقدّم على تصنيف البنك ورقم الشيك والنص",
+      "row": { "debit": 44, "credit": 0, "description": "Cheque paid", "chequeNumber": "000006", "reference": "JE-2026-00044", "bankFeeType": "CHEQUE_PAYMENT", "isBankFee": true, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "journal", "source": "referenceType" },
+
+    { "name": "matchedRef يُفحص قبل reference",
+      "row": { "debit": 10, "credit": 0, "description": "x", "chequeNumber": null, "reference": "JE-2026-1", "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": "EXP-2026-1" },
+      "direction": "withdrawal", "category": "expense", "source": "referenceType" },
+
+    { "name": "مرجع بنكي غير معروف لا يُصنَّف بالمرجع",
+      "row": { "debit": 10, "credit": 0, "description": "REF 8891 XYZ", "chequeNumber": null, "reference": "FT26001234567", "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "unclassified", "source": "fallback" },
+
+    { "name": "«checking account» لا تُقرأ شيكًا",
+      "row": { "debit": 300, "credit": 0, "description": "Fund transfer from checking account", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "transfer", "source": "text" },
+
+    { "name": "«Check No. 4471» تُقرأ شيكًا",
+      "row": { "debit": 300, "credit": 0, "description": "Check No. 4471 paid", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "cheque", "source": "text" },
+
+    { "name": "رقم شيك فارغ (مسافات) لا يُصنَّف شيكًا",
+      "row": { "debit": 20, "credit": 0, "description": "unknown movement", "chequeNumber": "   ", "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "unclassified", "source": "fallback" },
+
+    { "name": "راية الرسوم تتقدّم على النص",
+      "row": { "debit": 9, "credit": 0, "description": "Outgoing RTGS transfer", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": true, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "bank_fee", "source": "systemFlag" },
+
+    { "name": "حركة بصافي صفر بلا إشارات",
+      "row": { "debit": 0, "credit": 0, "description": "Balance enquiry", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "neutral", "category": "unclassified", "source": "fallback" },
+
+    { "name": "صف بجانبين — الاتجاه بالصافي لا بوجود العمود",
+      "row": { "debit": 500, "credit": 150, "description": "Split settlement", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "withdrawal", "category": "unclassified", "source": "fallback" },
+
+    { "name": "صف بجانبين بصافي موجب",
+      "row": { "debit": 150, "credit": 500, "description": "Split settlement", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "deposit", "category": "unclassified", "source": "fallback" },
+
+    { "name": "صف بجانبين متساويين ⇒ بدون حركة",
+      "row": { "debit": 300, "credit": 300, "description": "Contra entry", "chequeNumber": null, "reference": null, "bankFeeType": null, "isBankFee": false, "matchedType": null, "matchedRef": null },
+      "direction": "neutral", "category": "unclassified", "source": "fallback" }
+  ]
+}

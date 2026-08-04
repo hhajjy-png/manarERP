@@ -14,16 +14,18 @@ import PrivateAmount from '../components/PrivateAmount';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { useFocusTrap, Pagination } from '../components/explorer/ExplorerKit';
 import {
-  getTimeline, listImports,
+  getTimeline, listImports, downloadTimelineExport,
   type TimelineTransaction, type TimelineResult, type ImportListItem,
-  type TimelineFilterType, type TimelineFilters,
+  type TimelineFilters, type TimelineDirection, type TimelineCategory,
 } from '../api/bankStatementImport';
 import {
   getBankAccountDashboard,
   type BankAccountDashboard, type MonthlyEntry,
 } from '../api/bankAccounts';
 import {
-  quickRangeToDates, QUICK_RANGE_LABELS, TYPE_LABELS, timelineTotalLabel, safeAmount, safeNum,
+  quickRangeToDates, QUICK_RANGE_LABELS, safeAmount, safeNum,
+  DIRECTION_OPTIONS, DIRECTION_FILTER_KEYS, CATEGORY_OPTIONS, CATEGORY_FILTER_KEYS,
+  countActiveFilters, validateFilterInputs,
   type QuickRange,
 } from './bankTimelineFilters';
 import {
@@ -31,6 +33,10 @@ import {
   type PresentationConfidence,
 } from './bankTransactionPresentation';
 import { buildTransactionIntelligence } from './bankTransactionIntelligence';
+import {
+  txDirectionView, txDirection, txDirectionLabel, txSignedImpact,
+} from './bankTransactionDirection';
+import { txCategoryView, txCategory, txCategoryLabel, txCategoryIcon } from './bankTransactionCategory';
 import { TransactionIntelligencePanel } from './TransactionIntelligencePanel';
 import { formatCurrency, formatNumber } from '../lib/format';
 import { formatDate, formatMonthLabel } from '../lib/date';
@@ -145,6 +151,7 @@ function exportTimelineCsv(
     trFallback('col.acc.credit', 'دائن', translate),
     trFallback('bank.explorer.col_balance', 'الرصيد', translate),
     trFallback('col.type', 'النوع', translate),
+    trFallback('col.category', 'التصنيف', translate),
     trFallback('bank.explorer.col_batch', 'الدفعة', translate),
   ];
   const rows = transactions.map((t) => [
@@ -154,7 +161,9 @@ function exportTimelineCsv(
     t.debit  > 0 ? t.debit.toFixed(3)  : '',
     t.credit > 0 ? t.credit.toFixed(3) : '',
     t.balance != null ? t.balance.toFixed(3) : '',
-    t.bankFeeType ? catLabel(t.bankFeeType, translate) : '',
+    // «النوع» = الاتجاه المالي الحقيقي؛ «التصنيف» = مصدر المستند — مصدران مستقلان.
+    txDirectionLabel(txDirection(t), translate),
+    txCategoryLabel(txCategory(t), translate),
     `"${t.importBatchLabel.replace(/"/g, '""')}"`,
   ]);
   const csv  = '﻿' + [headers, ...rows].map((r) => r.join(',')).join('\r\n');
@@ -169,34 +178,10 @@ function exportTimelineCsv(
   URL.revokeObjectURL(a.href);
 }
 
-// ── Transaction type badge ────────────────────────────────────────────────────
-
-export type TxBadgeKind = 'deposit' | 'withdrawal' | 'fee' | 'cheque' | 'transfer';
-
-interface TxBadge { kind: TxBadgeKind; label: string; }
-
-// Derive a semantic transaction-type badge from the already-available flags.
-// Display-only — no reconciliation/accounting logic.
-function txTypeBadge(t: TimelineTransaction, translate?: TranslateFn): TxBadge {
-  if (t.bankFeeType === 'BANK_TRANSFER') {
-    return { kind: 'transfer', label: trFallback('opt.payment.transfer', 'تحويل', translate) };
-  }
-  if (t.chequeNumber || t.bankFeeType === 'CHEQUE_PAYMENT') {
-    return { kind: 'cheque', label: trFallback('opt.payment.cheque', 'شيك', translate) };
-  }
-  if (t.isBankFee) return { kind: 'fee', label: trFallback('bank.explorer.badge_fee', 'رسوم', translate) };
-  if (safeNum(t.credit) > 0) return { kind: 'deposit', label: trFallback('bank.explorer.badge_deposit', 'إيداع', translate) };
-  return { kind: 'withdrawal', label: trFallback('bank.explorer.badge_withdrawal', 'سحب', translate) };
-}
-
-// Semantic icon per transaction kind (display-only).
-const TX_ICONS: Record<TxBadgeKind, string> = {
-  deposit:    'south_west',
-  withdrawal: 'north_east',
-  fee:        'percent',
-  cheque:     'description',
-  transfer:   'swap_horiz',
-};
+// ── النوع والتصنيف — مسؤوليتان مستقلتان ───────────────────────────────────────
+// «النوع» يأتي حصرًا من `bankTransactionDirection.ts` (دائن − مدين).
+// «التصنيف» يأتي حصرًا من `bankTransactionCategory.ts` (إشارات المستند).
+// لا تُشتق إحداهما من الأخرى، ولا يُعاد بناء أيٍّ منهما داخل أي Component.
 
 // ── Copy-to-clipboard button (with transient confirmation) ─────────────────────
 
@@ -568,9 +553,14 @@ function TransactionDrawer({
   const panelRef = useFocusTrap(onClose);
   const [drawerTab, setDrawerTab] = useState<DrawerTab>('basic');
 
-  const badge      = txTypeBadge(tx, t);
-  const isIncoming = safeNum(tx.credit) > 0;
-  const heroAmount = isIncoming ? safeNum(tx.credit) : safeNum(tx.debit);
+  // مصدران مستقلان: الاتجاه من الأثر المالي، والتصنيف من إشارات المستند.
+  // مُذكَّران: تبديل تبويبات الدرج لا يُعيد اشتقاقهما.
+  const view       = useMemo(() => txDirectionView(tx, t), [tx, t]);
+  const category   = useMemo(() => txCategoryView(tx, t), [tx, t]);
+  const isIncoming = view.direction === 'deposit';
+  const signPrefix = view.direction === 'deposit' ? '+' : view.direction === 'withdrawal' ? '−' : '';
+  const amountClass = view.direction === 'deposit' ? 'bae-credit' : view.direction === 'withdrawal' ? 'bae-debit' : '';
+  const heroAmount = Math.abs(txSignedImpact(tx));
   const reconcileClass = tx.reconcileStatus === 'MATCHED' ? 'good'
     : tx.reconcileStatus === 'UNMATCHED' ? 'warn' : 'neutral';
 
@@ -585,14 +575,15 @@ function TransactionDrawer({
   const impactClass   = impact >= 0 ? 'bae-credit' : 'bae-debit';
 
   // Smart presentation (display-only): structured category + safe detail, plus
-  // provenance for the Audit tab.
-  const pres = presentTransaction(tx, t);
+  // provenance for the Audit tab. مُذكَّر: تبديل التبويب لا يُعيد تشغيل قواعده.
+  const pres = useMemo(() => presentTransaction(tx, t), [tx, t]);
 
   // Intelligence view model (display-only): structured, optional fields built on
   // top of `pres` — channel, counterparty, cheque/branch/account/reference/device
   // identifiers. Never fabricated; every value is a literal substring of the
   // source. Powers the Transaction Intelligence Panel rendered below the hero.
-  const intel = buildTransactionIntelligence(tx, t);
+  // مُذكَّر: كاشفات الذكاء (قناة/شيك/فرع/حساب/مرجع) لا تُعاد عند كل تصيير.
+  const intel = useMemo(() => buildTransactionIntelligence(tx, t), [tx, t]);
 
   return (
     <>
@@ -610,7 +601,11 @@ function TransactionDrawer({
             <h3 className="bae-drawer-title" id={DRAWER_TITLE_ID}>{t('bank.explorer.tx_details_title')}</h3>
             <div className="bae-drawer-header-sub">
               <span className="bae-drawer-txid mono">{t('bank.explorer.tx_id_prefix')} #{tx.id}</span>
-              <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
+              <span className={`bae-tx-badge bae-tx-badge--${view.direction}`}>{view.label}</span>
+              <span className="bae-tx-cat">
+                <span className="material-symbols-outlined" aria-hidden="true">{txCategoryIcon(category.category, view.icon)}</span>
+                {category.label}
+              </span>
             </div>
           </div>
           <button type="button" className="bae-drawer-close" onClick={onClose} aria-label={t('action.close')}>
@@ -627,12 +622,13 @@ function TransactionDrawer({
               </span>
             </div>
             <div className="bae-drawer-hero-body">
-              <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
+              <span className={`bae-tx-badge bae-tx-badge--${view.direction}`}>{view.label}</span>
+              <span className="bae-tx-cat">{category.label}</span>
               {/* الرقم والرمز كانا عنصرين منفصلين برمز مثبَّت — داخل واجهة RTL ينقلب
                   ترتيبهما بصريًا («KWD 255.000»). `money-cell` تعزل القيمة في اتجاه LTR
                   بلا التفاف، والرمز يأتي من إعداد العملة. */}
-              <div className={`bae-drawer-hero-amount money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number} <span className="bae-drawer-hero-cur">{moneyParts(heroAmount).currency}</span>
+              <div className={`bae-drawer-hero-amount money-cell ${amountClass}`}>
+                {signPrefix}{moneyParts(heroAmount).number} <span className="bae-drawer-hero-cur">{moneyParts(heroAmount).currency}</span>
               </div>
               {hasBalance && (
                 <div className="bae-drawer-hero-balance">
@@ -642,7 +638,7 @@ function TransactionDrawer({
             </div>
           </div>
 
-          <TransactionIntelligencePanel intel={intel} badgeKind={badge.kind} />
+          <TransactionIntelligencePanel intel={intel} direction={view.direction} category={category.category} />
 
           {/* ── Information-Hub tab bar ── */}
           <div className="bae-drawer-tabs" role="tablist" aria-label={t('bank.explorer.tx_sections_label')}>
@@ -856,8 +852,8 @@ function TransactionDrawer({
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
                 <div className="bae-drawer-summary-cell">
                   <span className="bae-drawer-summary-label">{t('col.amount')}</span>
-                  <span className={`bae-drawer-summary-value money-cell ${isIncoming ? 'bae-credit' : 'bae-debit'}`}>
-                    {isIncoming ? '+' : '−'}{moneyParts(heroAmount).number}<span className="bae-drawer-summary-cur">{moneyParts(heroAmount).currency}</span>
+                  <span className={`bae-drawer-summary-value money-cell ${amountClass}`}>
+                    {signPrefix}{moneyParts(heroAmount).number}<span className="bae-drawer-summary-cur">{moneyParts(heroAmount).currency}</span>
                   </span>
                 </div>
                 <span className="bae-drawer-summary-arrow material-symbols-outlined" aria-hidden="true">arrow_back</span>
@@ -884,7 +880,6 @@ function TransactionDrawer({
 // ── Tab: Timeline ─────────────────────────────────────────────────────────────
 
 const QUICK_RANGES: QuickRange[] = ['today', 'week', 'month', 'last30', 'last90', 'all'];
-const TYPE_OPTIONS: TimelineFilterType[] = ['all', 'deposits', 'withdrawals', 'fees', 'cheques', 'transfers'];
 
 interface FilterChip { key: string; label: string; onRemove: () => void; }
 
@@ -903,16 +898,36 @@ export function TimelineTab({
   const [error, setError]     = useState<string | null>(null);
   const [page, setPage]       = useState(1);
   const [drawerTx, setDrawerTx] = useState<TimelineTransaction | null>(null);
+  const [exporting, setExporting]   = useState<null | 'xlsx' | 'csv'>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   // Committed filters drive the query; raw inputs feed them (debounced where noisy).
-  const [filters, setFilters]       = useState<TimelineFilters>({ type: 'all' });
+  const [filters, setFilters]       = useState<TimelineFilters>({});
   const [searchInput, setSearchInput] = useState('');
   const [minInput, setMinInput]     = useState('');
   const [maxInput, setMaxInput]     = useState('');
   const [quick, setQuick]           = useState<QuickRange | null>(null);
+  // مدخلات التاريخ الخام — تبقى معروضة كما كتبها المستخدم حتى مع مدى متناقض،
+  // فيرى سبب الرفض بدل قائمة فارغة بلا تفسير.
+  const [fromInput, setFromInput]   = useState('');
+  const [toInput, setToInput]       = useState('');
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const amountTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── رصد التناقضات قبل الاستعلام ──
+  const parsedMin = minInput.trim() ? Number(minInput) : undefined;
+  const parsedMax = maxInput.trim() ? Number(maxInput) : undefined;
+  const issues = useMemo(() => validateFilterInputs({
+    fromDate:  fromInput || undefined,
+    toDate:    toInput   || undefined,
+    minAmount: Number.isFinite(parsedMin) ? parsedMin : undefined,
+    maxAmount: Number.isFinite(parsedMax) ? parsedMax : undefined,
+  }), [fromInput, toInput, parsedMin, parsedMax]);
+  const dateIssue   = issues.find((i) => i.field === 'dateRange');
+  const amountIssue = issues.find((i) => i.field === 'amountRange');
+  // قيمة سالبة كانت تُسقط الفلتر بصمت بينما تبقى ظاهرة في الحقل — تُعلَن الآن.
+  const negativeAmount = (parsedMin != null && parsedMin < 0) || (parsedMax != null && parsedMax < 0);
 
   // Single source of truth: reload whenever account, page, or committed filters change.
   useEffect(() => {
@@ -950,34 +965,73 @@ export function TimelineTab({
   const applyQuick = useCallback((r: QuickRange) => {
     setQuick(r);
     const { fromDate, toDate } = quickRangeToDates(r);
+    setFromInput(fromDate);
+    setToInput(toDate);
     patchFilters({ fromDate: fromDate || undefined, toDate: toDate || undefined });
   }, [patchFilters]);
 
   const onDateChange = useCallback((which: 'from' | 'to', v: string) => {
     setQuick(null); // manual date selection overrides a quick range
+    if (which === 'from') setFromInput(v); else setToInput(v);
     patchFilters(which === 'from' ? { fromDate: v || undefined } : { toDate: v || undefined });
   }, [patchFilters]);
+
+  const onDirection = useCallback((d: TimelineDirection) => {
+    setFilters((f) => ({ ...f, direction: f.direction === d ? undefined : d }));
+    setPage(1);
+  }, []);
+
+  const onToggleCategory = useCallback((c: TimelineCategory) => {
+    setFilters((f) => {
+      const current = f.categories ?? [];
+      const next = current.includes(c) ? current.filter((x) => x !== c) : [...current, c];
+      return { ...f, categories: next.length ? next : undefined };
+    });
+    setPage(1);
+  }, []);
 
   const clearAllFilters = useCallback(() => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
     if (amountTimer.current) clearTimeout(amountTimer.current);
-    setSearchInput(''); setMinInput(''); setMaxInput(''); setQuick(null);
+    setSearchInput(''); setMinInput(''); setMaxInput('');
+    setQuick(null); setFromInput(''); setToInput('');
     setPage(1);
-    setFilters({ type: 'all' });
+    setFilters({});
   }, []);
 
   const refresh = useCallback(() => {
     setFilters((f) => ({ ...f })); // new identity → effect re-runs the same query
   }, []);
 
-  const total      = result?.totalCount ?? 0;
+  const onExport = useCallback(async (format: 'xlsx' | 'csv') => {
+    setExportOpen(false);
+    setExporting(format);
+    try {
+      await downloadTimelineExport(accountKey, filters, format);
+    } catch (e) {
+      setError(errorMessage(e) || t('bank.explorer.export_failed'));
+    } finally {
+      setExporting(null);
+    }
+  }, [accountKey, filters, t]);
+
+  const total       = result?.totalCount ?? 0;
   const totalPages  = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const shown       = result?.transactions.length ?? 0;
 
-  const hasActiveFilters = !!(
-    filters.search || filters.fromDate || filters.toDate ||
-    (filters.type && filters.type !== 'all') ||
-    filters.minAmount != null || filters.maxAmount != null
+  const activeCount      = countActiveFilters(filters);
+  const hasActiveFilters = activeCount > 0;
+  const mixedCurrency    = (result?.currencies.length ?? 0) > 1;
+
+  // نماذج عرض الصفوف تُحسب مرة واحدة لكل مجموعة نتائج — لا عند كل ضغطة مفتاح.
+  const rows = useMemo(
+    () => (result?.transactions ?? []).map((tx) => ({
+      tx,
+      view:     txDirectionView(tx, t),
+      category: txCategoryView(tx, t),
+      pres:     presentTransaction(tx, t),
+    })),
+    [result?.transactions, t],
   );
 
   // Active filter chips.
@@ -989,16 +1043,26 @@ export function TimelineTab({
     const label = quick
       ? QUICK_RANGE_LABELS[quick]
       : `${filters.fromDate ?? '…'} — ${filters.toDate ?? '…'}`;
-    chips.push({ key: 'date', label, onRemove: () => { setQuick(null); patchFilters({ fromDate: undefined, toDate: undefined }); } });
+    chips.push({ key: 'date', label, onRemove: () => { setQuick(null); setFromInput(''); setToInput(''); patchFilters({ fromDate: undefined, toDate: undefined }); } });
   }
-  if (filters.type && filters.type !== 'all') {
-    chips.push({ key: 'type', label: TYPE_LABELS[filters.type], onRemove: () => patchFilters({ type: 'all' }) });
+  if (filters.direction) {
+    chips.push({
+      key: 'direction',
+      label: t(DIRECTION_FILTER_KEYS[filters.direction]),
+      onRemove: () => patchFilters({ direction: undefined }),
+    });
+  }
+  for (const c of filters.categories ?? []) {
+    chips.push({ key: `cat-${c}`, label: t(CATEGORY_FILTER_KEYS[c]), onRemove: () => onToggleCategory(c) });
   }
   if (filters.minAmount != null) {
     chips.push({ key: 'min', label: t('bank.explorer.min_amount_chip', { amount: filters.minAmount }), onRemove: () => { setMinInput(''); patchFilters({ minAmount: undefined }); } });
   }
   if (filters.maxAmount != null) {
     chips.push({ key: 'max', label: t('bank.explorer.max_amount_chip', { amount: filters.maxAmount }), onRemove: () => { setMaxInput(''); patchFilters({ maxAmount: undefined }); } });
+  }
+  if (filters.excludeDuplicates) {
+    chips.push({ key: 'dups', label: t('bank.explorer.exclude_duplicates'), onRemove: () => patchFilters({ excludeDuplicates: undefined }) });
   }
 
   const openDrawer = (tx: TimelineTransaction) => setDrawerTx(tx);
@@ -1016,6 +1080,7 @@ export function TimelineTab({
               placeholder={t('bank.explorer.search_placeholder')}
               value={searchInput}
               onChange={(e) => onSearchInput(e.target.value)}
+              title={t('bank.explorer.search_hint')}
             />
             {searchInput && (
               <button type="button" className="bae-clear-btn" onClick={() => onSearchInput('')} aria-label={t('bank.explorer.clear_search')}>
@@ -1027,43 +1092,95 @@ export function TimelineTab({
             {hasActiveFilters && (
               <button type="button" className="btn secondary bae-clear-filters-inline" onClick={clearAllFilters} title={t('bank.explorer.clear_all_filters')}>
                 <span className="material-symbols-outlined">filter_alt_off</span>
-                {t('page.warning.clear_confirm_btn')}
+                {t('bank.explorer.clear_filters_short')}
+                <span className="bae-filter-count" aria-label={t('bank.explorer.active_filters_count', { count: activeCount })}>{activeCount}</span>
               </button>
             )}
             <button type="button" className="btn secondary bae-icon-btn" onClick={refresh} title={t('action.refresh')} aria-label={t('action.refresh')}>
               <span className="material-symbols-outlined">refresh</span>
             </button>
-            <button
-              type="button"
-              className="btn secondary bae-export-btn"
-              onClick={() => shown > 0 && result && exportTimelineCsv(result.transactions, bankName, accountKey, t)}
-              disabled={shown === 0}
-              title={t('bank.explorer.export_current_page')}
-            >
-              <span className="material-symbols-outlined">download</span>
-              {t('bank.explorer.export_csv')}
-            </button>
+            {/* زر تصدير واحد بقائمة — والنطاق مُعلَن صراحةً: كل النتائج المفلترة */}
+            <div className="bae-export-menu-wrap">
+              <button
+                type="button"
+                className="btn secondary bae-export-btn"
+                onClick={() => setExportOpen((o) => !o)}
+                disabled={total === 0 || exporting !== null}
+                aria-haspopup="menu"
+                aria-expanded={exportOpen}
+                title={t('bank.explorer.export_scope_hint')}
+              >
+                <span className="material-symbols-outlined">{exporting ? 'hourglass_top' : 'download'}</span>
+                {exporting ? t('bank.explorer.exporting') : t('bank.explorer.export_button')}
+                <span className="material-symbols-outlined bae-export-caret">expand_more</span>
+              </button>
+              {exportOpen && (
+                <>
+                  <div className="bae-export-backdrop" onClick={() => setExportOpen(false)} />
+                  <div className="bae-export-menu" role="menu">
+                    <div className="bae-export-menu-note">
+                      {t('bank.explorer.export_scope_all', { count: total.toLocaleString() })}
+                    </div>
+                    <button type="button" role="menuitem" onClick={() => onExport('xlsx')}>
+                      <span className="material-symbols-outlined">table_view</span>
+                      {t('bank.explorer.export_xlsx')}
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => onExport('csv')}>
+                      <span className="material-symbols-outlined">description</span>
+                      {t('bank.explorer.export_csv')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Grouped controls: Type · Period · Amount (RTL: right → left) */}
+        {/* Grouped controls: Direction · Category · Period · Amount (RTL: right → left) */}
         <div className="bae-filter-groups">
           <div className="bae-filter-group">
-            <span className="bae-filter-group-label">
-              <span className="material-symbols-outlined">category</span>
-              {t('bank.explorer.tx_type_filter')}
+            <span className="bae-filter-group-label" title={t('bank.explorer.direction_filter_hint')}>
+              <span className="material-symbols-outlined">swap_vert</span>
+              {t('bank.explorer.direction_filter')}
             </span>
-            <div className="bae-type-group" role="group" aria-label={t('bank.explorer.tx_type_filter')}>
-              {TYPE_OPTIONS.map((opt) => (
+            <div className="bae-type-group" role="group" aria-label={t('bank.explorer.direction_filter')}>
+              {DIRECTION_OPTIONS.map((d) => (
                 <button
-                  key={opt}
+                  key={d}
                   type="button"
-                  className={`bae-chip-btn${(filters.type ?? 'all') === opt ? ' active' : ''}`}
-                  onClick={() => patchFilters({ type: opt })}
+                  className={`bae-chip-btn bae-dir-chip bae-dir-chip--${d}${filters.direction === d ? ' active' : ''}`}
+                  aria-pressed={filters.direction === d}
+                  onClick={() => onDirection(d)}
                 >
-                  {TYPE_LABELS[opt]}
+                  {t(DIRECTION_FILTER_KEYS[d])}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="bae-filter-group bae-filter-group--wide">
+            <span className="bae-filter-group-label" title={t('bank.explorer.category_filter_hint')}>
+              <span className="material-symbols-outlined">sell</span>
+              {t('bank.explorer.category_filter')}
+              {(filters.categories?.length ?? 0) > 0 && (
+                <span className="bae-filter-count">{filters.categories!.length}</span>
+              )}
+            </span>
+            <div className="bae-cat-group" role="group" aria-label={t('bank.explorer.category_filter')}>
+              {CATEGORY_OPTIONS.map((c) => {
+                const on = filters.categories?.includes(c) ?? false;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`bae-chip-btn bae-cat-chip${on ? ' active' : ''}`}
+                    aria-pressed={on}
+                    onClick={() => onToggleCategory(c)}
+                  >
+                    {t(CATEGORY_FILTER_KEYS[c])}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1086,7 +1203,7 @@ export function TimelineTab({
             </div>
             <div className="bae-date-range">
               <DateInput
-                className="bae-date-input"
+                className={`bae-date-input${dateIssue ? ' bae-input-invalid' : ''}`}
                 value={filters.fromDate ?? ''}
                 onChange={(v) => onDateChange('from', v)}
                 title={t('filter.date_from')}
@@ -1094,13 +1211,19 @@ export function TimelineTab({
               />
               <span className="bae-range-sep" aria-hidden="true">—</span>
               <DateInput
-                className="bae-date-input"
+                className={`bae-date-input${dateIssue ? ' bae-input-invalid' : ''}`}
                 value={filters.toDate ?? ''}
                 onChange={(v) => onDateChange('to', v)}
                 title={t('filter.date_to')}
                 ariaLabel={t('filter.date_to')}
               />
             </div>
+            {dateIssue && (
+              <p className="bae-filter-error" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                {t(dateIssue.messageKey)}
+              </p>
+            )}
           </div>
 
           <div className="bae-filter-group">
@@ -1110,7 +1233,7 @@ export function TimelineTab({
             </span>
             <div className="bae-amount-range">
               <input
-                className="bae-amount-input"
+                className={`bae-amount-input${amountIssue || negativeAmount ? ' bae-input-invalid' : ''}`}
                 type="number"
                 min="0"
                 step="0.001"
@@ -1121,7 +1244,7 @@ export function TimelineTab({
               />
               <span className="bae-range-sep" aria-hidden="true">—</span>
               <input
-                className="bae-amount-input"
+                className={`bae-amount-input${amountIssue || negativeAmount ? ' bae-input-invalid' : ''}`}
                 type="number"
                 min="0"
                 step="0.001"
@@ -1131,10 +1254,24 @@ export function TimelineTab({
                 aria-label={t('bank.explorer.max_amount_ph')}
               />
             </div>
+            {(amountIssue || negativeAmount) && (
+              <p className="bae-filter-error" role="alert">
+                <span className="material-symbols-outlined">error</span>
+                {amountIssue ? t(amountIssue.messageKey) : t('bank.explorer.negative_amount_ignored')}
+              </p>
+            )}
+            <label className="bae-dup-toggle" title={t('bank.explorer.exclude_duplicates_hint')}>
+              <input
+                type="checkbox"
+                checked={filters.excludeDuplicates ?? false}
+                onChange={(e) => patchFilters({ excludeDuplicates: e.target.checked || undefined })}
+              />
+              {t('bank.explorer.exclude_duplicates')}
+            </label>
           </div>
         </div>
 
-        {/* Active chips + result count + clear */}
+        {/* Active chips + result count + financial summary */}
         {(chips.length > 0 || result) && (
           <div className="bae-filter-status">
             <div className="bae-active-chips">
@@ -1155,12 +1292,51 @@ export function TimelineTab({
             {result && (
               <span className="bae-result-count">
                 {t('bank.explorer.result_count', { count: total.toLocaleString() })}
-                {result.fromDate && <> · {fmtDate(result.fromDate)} — {fmtDate(result.toDate)}</>}
-                {' · '}
-                <span className="bae-result-total">
-                  {timelineTotalLabel(filters.type)}: {<MoneyText value={result.filteredTotal} />}
-                </span>
+                {result.filteredFromDate && (
+                  <> · {fmtDate(result.filteredFromDate)} — {fmtDate(result.filteredToDate)}</>
+                )}
               </span>
+            )}
+          </div>
+        )}
+
+        {/* شريط الإجماليات: مدين / دائن / الصافي — كل بطاقة اسمها يطابق حسابها */}
+        {result && (
+          <div className="bae-totals-bar">
+            <span className="bae-total-cell bae-total-cell--debit" title={t('bank.explorer.total_debits_hint')}>
+              <span className="bae-total-label">{t('bank.explorer.total_debits')}</span>
+              <MoneyText value={result.totalDebits} />
+            </span>
+            <span className="bae-total-cell bae-total-cell--credit" title={t('bank.explorer.total_credits_hint')}>
+              <span className="bae-total-label">{t('bank.explorer.total_credits')}</span>
+              <MoneyText value={result.totalCredits} />
+            </span>
+            <span
+              className={`bae-total-cell bae-total-cell--net ${result.netMovement >= 0 ? 'bae-credit' : 'bae-debit'}`}
+              title={t('bank.explorer.net_movement_hint')}
+            >
+              <span className="bae-total-label">{t('bank.explorer.net_movement')}</span>
+              <MoneyText value={result.netMovement} />
+            </span>
+            <span className="bae-total-cell bae-total-cell--turnover" title={t('bank.explorer.turnover_hint')}>
+              <span className="bae-total-label">{t('bank.explorer.turnover')}</span>
+              <MoneyText value={result.turnover} />
+            </span>
+            {mixedCurrency && (
+              <span className="bae-total-warning" role="status">
+                <span className="material-symbols-outlined">warning</span>
+                {t('bank.explorer.mixed_currency_warning', { list: result.currencies.join('، ') })}
+              </span>
+            )}
+            {result.duplicateCount > 0 && !filters.excludeDuplicates && (
+              <button
+                type="button"
+                className="bae-total-warning bae-total-warning--action"
+                onClick={() => patchFilters({ excludeDuplicates: true })}
+              >
+                <span className="material-symbols-outlined">content_copy</span>
+                {t('bank.explorer.duplicates_included', { count: result.duplicateCount })}
+              </button>
             )}
           </div>
         )}
@@ -1187,16 +1363,28 @@ export function TimelineTab({
         </div>
       )}
 
-      {/* Filtered empty state */}
+      {/* Filtered empty state — يوضّح ما الذي أخفى النتائج بالضبط */}
       {!loading && !error && result && shown === 0 && hasActiveFilters && (
         <div className="bae-empty-state">
           <div className="bae-empty-illus bae-empty-illus--lg"><span className="material-symbols-outlined">filter_alt_off</span></div>
           <h3>{t('bank.explorer.no_matching_tx')}</h3>
           <p className="bae-empty-msg">{t('bank.explorer.no_matching_tx_msg')}</p>
-          <button type="button" className="btn bae-clear-filters-btn" onClick={clearAllFilters}>
-            <span className="material-symbols-outlined">filter_alt_off</span>
-            {t('bank.explorer.clear_all_filters')}
-          </button>
+          <p className="bae-empty-filters">
+            {t('bank.explorer.active_filters_count', { count: activeCount })}
+            {chips.length > 0 && <> — {chips.map((c) => c.label).join(' · ')}</>}
+          </p>
+          <div className="bae-empty-actions">
+            {chips.length > 1 && (
+              <button type="button" className="btn secondary" onClick={chips[chips.length - 1].onRemove}>
+                <span className="material-symbols-outlined">undo</span>
+                {t('bank.explorer.remove_last_filter')}
+              </button>
+            )}
+            <button type="button" className="btn bae-clear-filters-btn" onClick={clearAllFilters}>
+              <span className="material-symbols-outlined">filter_alt_off</span>
+              {t('bank.explorer.clear_all_filters')}
+            </button>
+          </div>
         </div>
       )}
 
@@ -1226,6 +1414,7 @@ export function TimelineTab({
                   <th className="bae-col-op">{t('bank.explorer.col_operation')}</th>
                   <th className="bae-col-date">{t('col.date')}</th>
                   <th className="bae-col-type">{t('col.type')}</th>
+                  <th className="bae-col-cat">{t('col.category')}</th>
                   <th className="bae-col-desc-main">{t('col.description')}</th>
                   <th className="bae-col-amount">{fcMoneyHeader(t('col.amount'))}</th>
                   <th className="bae-col-balance">{fcMoneyHeader(t('bank.explorer.balance_after'))}</th>
@@ -1233,12 +1422,12 @@ export function TimelineTab({
                 </tr>
               </thead>
               <tbody>
-                {result.transactions.map((tx) => {
-                  const isDeposit  = safeNum(tx.credit) > 0;
+                {/* نماذج العرض محسوبة مسبقًا في `rows` — لا إعادة اشتقاق عند كل تصيير. */}
+                {rows.map(({ tx, view, category, pres }) => {
+                  const signPrefix = view.direction === 'deposit' ? '+' : view.direction === 'withdrawal' ? '−' : '';
+                  const amountClass = view.direction === 'deposit' ? 'bae-credit' : view.direction === 'withdrawal' ? 'bae-debit' : '';
                   const isSelected = drawerTx?.id === tx.id;
-                  const badge      = txTypeBadge(tx, t);
-                  const pres       = presentTransaction(tx, t);
-                  const amount     = isDeposit ? safeNum(tx.credit) : safeNum(tx.debit);
+                  const amount     = Math.abs(txSignedImpact(tx));
                   const statusClass = tx.reconcileStatus === 'MATCHED' ? 'good'
                     : tx.reconcileStatus === 'UNMATCHED' ? 'warn' : 'neutral';
                   const rowClass = [
@@ -1260,8 +1449,8 @@ export function TimelineTab({
                       {/* Operation: type icon + reconcile status dot */}
                       <td className="bae-col-op">
                         <span className="bae-op-cell">
-                          <span className={`bae-tx-icon bae-tx-icon--${badge.kind}`}>
-                            <span className="material-symbols-outlined">{TX_ICONS[badge.kind]}</span>
+                          <span className={`bae-tx-icon bae-tx-icon--${view.direction}`}>
+                            <span className="material-symbols-outlined">{txCategoryIcon(category.category, view.icon)}</span>
                           </span>
                           <span
                             className={`bae-status-dot-cell bae-status-dot-cell--${statusClass}`}
@@ -1271,7 +1460,10 @@ export function TimelineTab({
                       </td>
                       <td className="bae-col-date">{fmtDate(tx.statementDate)}</td>
                       <td className="bae-col-type">
-                        <span className={`bae-tx-badge bae-tx-badge--${badge.kind}`}>{badge.label}</span>
+                        <span className={`bae-tx-badge bae-tx-badge--${view.direction}`}>{view.label}</span>
+                      </td>
+                      <td className="bae-col-cat">
+                        <span className="bae-tx-cat">{category.label}</span>
                       </td>
                       {/* Description: single-line, ellipsis-truncated; full text via title tooltip */}
                       <td className="bae-col-desc-main">
@@ -1280,8 +1472,8 @@ export function TimelineTab({
                         </span>
                       </td>
                       <td className="bae-col-amount">
-                        <span className={isDeposit ? 'bae-credit' : 'bae-debit'}>
-                          {isDeposit ? '+' : '−'}{formatNumber(amount)}
+                        <span className={amountClass}>
+                          {signPrefix}{formatNumber(amount)}
                         </span>
                       </td>
                       <td className="bae-col-balance">

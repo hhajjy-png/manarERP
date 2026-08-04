@@ -26,6 +26,7 @@
 .tip-hero-icon--fee        { background: rgba(245, 158, 11, .14); color: var(--orange, #f59e0b); }
 .tip-hero-icon--cheque     { background: rgba(59, 130, 246, .12); color: #3b82f6; }
 .tip-hero-icon--transfer   { background: rgba(124, 58, 237, .12); color: #7c3aed; }
+.tip-hero-icon--neutral    { background: rgba(100, 116, 139, .12); color: var(--muted, #64748b); }
 html[data-theme="dark"] .tip-hero-icon--transfer { color: var(--violet); }
 .tip-hero-body { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding-top: 3px; }
 .tip-hero-title {

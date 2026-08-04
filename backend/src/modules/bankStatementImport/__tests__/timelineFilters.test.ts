@@ -1,101 +1,168 @@
 /**
- * buildTimelineWhere — Phase C server-side timeline filters
- * (date range + transaction type + amount range + text search composition).
- * TIMELINE_ORDER_BY — default Bank Account/Transaction Explorer sort order.
+ * buildTimelineWhere — أبعاد الفلترة الخادمية بعد حزمة التدقيق:
+ * التاريخ + الاتجاه (مقارنة عمود بعمود) + المبلغ (متماثل حول الصفر) +
+ * البحث (كل المعرّفات + حياد رسم الحروف) + استبعاد التكرارات.
+ * TIMELINE_ORDER_BY — ترتيب مستعرض الحسابات الافتراضي.
  */
-
 import { describe, it, expect, vi } from 'vitest';
 
-// service.ts imports prisma at load time; stub it (the values under test are pure).
-vi.mock('@config/database.js', () => ({ prisma: {} }));
+// service.ts يستورد prisma عند التحميل. مراجع الحقول تحتاج `fields` فقط.
+vi.mock('@config/database.js', () => ({
+  prisma: {
+    bankStatementTransaction: {
+      fields: {
+        debit:  { name: 'debit',  modelName: 'BankStatementTransaction', typeName: 'Float' },
+        credit: { name: 'credit', modelName: 'BankStatementTransaction', typeName: 'Float' },
+      },
+    },
+  },
+}));
 
-import { buildTimelineWhere, TIMELINE_ORDER_BY } from '../service.js';
+// نفس شكل مرجع الحقل الذي يبنيه المحاكي — تُستخدم في التوقّعات.
+const FIELDS = {
+  debit:  { name: 'debit',  modelName: 'BankStatementTransaction', typeName: 'Float' },
+  credit: { name: 'credit', modelName: 'BankStatementTransaction', typeName: 'Float' },
+};
+
+import { buildTimelineWhere, TIMELINE_ORDER_BY, mapLegacyType } from '../service.js';
 import { expectLocalRange, expectLocalStartOfDay } from '../../../core/utils/__tests__/localDayMatchers';
+import type { Prisma } from '@prisma/client';
 
-describe('buildTimelineWhere', () => {
-  it('filters by accountKey only when no options given', () => {
+/** `AND` قد يكون كائنًا أو مصفوفة في نوع Prisma — البانّي يبنيها مصفوفةً دائمًا. */
+function andList(w: Prisma.BankStatementTransactionWhereInput): Prisma.BankStatementTransactionWhereInput[] {
+  return (w.AND ?? []) as Prisma.BankStatementTransactionWhereInput[];
+}
+
+describe('buildTimelineWhere — الأساس', () => {
+  it('بلا خيارات: قيد الحساب فقط', () => {
     expect(buildTimelineWhere('IBAN:KW1')).toEqual({ accountKey: 'IBAN:KW1' });
   });
 
-  // الحدود مدى تقويمي محلي شامل الطرفين — لا لحظات UTC مثبَّتة. قبل حزمة توحيد
-  // حدود التاريخ كان `toDate` يُقفل عند منتصف الليل فيسقط اليوم الأخير بأكمله.
-  it('adds an inclusive local-calendar statementDate range for from/to', () => {
+  it('مدى تقويمي محلي شامل الطرفين', () => {
     const w = buildTimelineWhere('A', { fromDate: '2026-01-01', toDate: '2026-06-30' });
     expectLocalRange(w.statementDate, '2026-01-01', '2026-06-30');
   });
 
-  it('maps each transaction type to the right column constraint', () => {
-    expect(buildTimelineWhere('A', { type: 'deposits' }).credit).toEqual({ gt: 0 });
-    expect(buildTimelineWhere('A', { type: 'withdrawals' }).debit).toEqual({ gt: 0 });
-    expect(buildTimelineWhere('A', { type: 'fees' }).isBankFee).toBe(true);
-    expect(buildTimelineWhere('A', { type: 'transfers' }).bankFeeType).toBe('BANK_TRANSFER');
-  });
-
-  it('matches cheques by cheque number OR cheque-payment category (mirrors the display badge)', () => {
-    // Fix: a cheque-payment row without a parsed cheque number (shown as «شيك») must be included.
-    const w = buildTimelineWhere('A', { type: 'cheques' });
-    expect(w.chequeNumber).toBeUndefined(); // no longer a bare chequeNumber constraint
-    expect(w.AND).toContainEqual({
-      OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }],
-    });
-  });
-
-  it('composes the cheque filter together with date + amount + search', () => {
-    const w = buildTimelineWhere('A', {
-      type: 'cheques', fromDate: '2026-01-01', minAmount: 100, search: 'x',
-    });
-    expectLocalStartOfDay((w.statementDate as { gte?: Date })?.gte, '2026-01-01');
-    expect(w.AND).toContainEqual({ OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }] });
-    expect(w.AND).toContainEqual({ OR: [{ debit: { gte: 100 } }, { credit: { gte: 100 } }] });
-    expect(w.AND).toContainEqual({ OR: [{ description: { contains: 'x' } }, { reference: { contains: 'x' } }] });
-  });
-
-  it('treats type "all" as no constraint', () => {
+  it('«الكل» بلا قيد', () => {
     expect(buildTimelineWhere('A', { type: 'all' })).toEqual({ accountKey: 'A' });
-  });
-
-  it('builds amount range against either side (debit OR credit)', () => {
-    const w = buildTimelineWhere('A', { minAmount: 100, maxAmount: 500 });
-    expect(w.AND).toEqual([
-      { OR: [{ debit: { gte: 100 } }, { credit: { gte: 100 } }] },
-      { OR: [{ debit: { gt: 0, lte: 500 } }, { credit: { gt: 0, lte: 500 } }] },
-    ]);
-  });
-
-  it('composes search + amount range into the AND array together', () => {
-    const w = buildTimelineWhere('A', { search: 'salary', minAmount: 50 });
-    expect(w.AND).toHaveLength(2);
-    expect(w.AND).toContainEqual({ OR: [{ debit: { gte: 50 } }, { credit: { gte: 50 } }] });
-    expect(w.AND).toContainEqual({
-      OR: [{ description: { contains: 'salary' } }, { reference: { contains: 'salary' } }],
-    });
-  });
-
-  it('combines date + type + amount + search at once', () => {
-    const w = buildTimelineWhere('A', {
-      fromDate: '2026-01-01', type: 'deposits', maxAmount: 1000, search: 'x',
-    });
-    expect(w.accountKey).toBe('A');
-    expectLocalStartOfDay((w.statementDate as { gte?: Date })?.gte, '2026-01-01');
-    expect(w.credit).toEqual({ gt: 0 });
-    expect(w.AND).toHaveLength(2); // maxAmount + search
   });
 });
 
-describe('TIMELINE_ORDER_BY (default transaction explorer ordering)', () => {
-  it('shows the latest imported batch first, then original file row order, then id as a legacy tiebreaker', () => {
-    expect(TIMELINE_ORDER_BY).toEqual([
-      { importId:          'desc' },
-      { statementSequence: 'asc' },
-      { id:                'asc' },
+describe('الاتجاه — مقارنة عمود بعمود تطابق قاعدة العرض (دائن − مدين)', () => {
+  it('إيداع = دائن > مدين (لا «دائن > 0»)', () => {
+    const w = buildTimelineWhere('A', { direction: 'deposit' });
+    expect(w.AND).toEqual([{ credit: { gt: FIELDS.debit } }]);
+    expect(w.credit).toBeUndefined();
+  });
+
+  it('سحب = مدين > دائن', () => {
+    expect(buildTimelineWhere('A', { direction: 'withdrawal' }).AND)
+      .toEqual([{ debit: { gt: FIELDS.credit } }]);
+  });
+
+  it('بدون حركة = نفي الطرفين', () => {
+    expect(buildTimelineWhere('A', { direction: 'neutral' }).AND).toEqual([
+      { NOT: [{ credit: { gt: FIELDS.debit } }, { debit: { gt: FIELDS.credit } }] },
     ]);
   });
 
-  it('uses importId descending as the primary sort key (latest statement file first)', () => {
-    expect(TIMELINE_ORDER_BY[0]).toEqual({ importId: 'desc' });
+  it('الفلتر القديم يُترجَم إلى البُعدين المستقلين', () => {
+    expect(mapLegacyType('deposits')).toEqual({ direction: 'deposit' });
+    expect(mapLegacyType('withdrawals')).toEqual({ direction: 'withdrawal' });
+    expect(mapLegacyType('cheques')).toEqual({ categories: ['cheque'] });
+    expect(mapLegacyType('transfers')).toEqual({ categories: ['transfer'] });
+    expect(mapLegacyType('fees')).toEqual({ categories: ['bank_fee'] });
+    expect(mapLegacyType('all')).toEqual({});
   });
 
-  it('uses statementSequence ascending to reproduce the original file order within a batch', () => {
-    expect(TIMELINE_ORDER_BY[1]).toEqual({ statementSequence: 'asc' });
+  it('«إيداعات» القديمة تُنتج نفس شرط الاتجاه الجديد', () => {
+    expect(buildTimelineWhere('A', { type: 'deposits' }).AND)
+      .toEqual(buildTimelineWhere('A', { direction: 'deposit' }).AND);
+  });
+
+  it('التصنيف لا يُبنى في SQL إطلاقًا (يُطبَّق بمنفذ القاعدة)', () => {
+    expect(buildTimelineWhere('A', { categories: ['cheque'] })).toEqual({ accountKey: 'A' });
+  });
+});
+
+describe('المبلغ — متماثل حول الصفر', () => {
+  it('مدى كامل يُقارَن بالجانب غير الصفري', () => {
+    const w = buildTimelineWhere('A', { minAmount: 100, maxAmount: 500 });
+    expect(w.AND).toEqual([{
+      OR: [
+        { debit:  { gt: 0, gte: 100, lte: 500 } },
+        { credit: { gt: 0, gte: 100, lte: 500 } },
+      ],
+    }]);
+  });
+
+  it('حدّ أعلى وحده يشمل حركات الصفر — لا يُخفيها كما كان', () => {
+    const w = buildTimelineWhere('A', { maxAmount: 500 });
+    expect((andList(w)[0] as { OR: unknown[] }).OR).toContainEqual({ AND: [{ debit: 0 }, { credit: 0 }] });
+  });
+
+  it('حدّ أدنى موجب يستبعد حركات الصفر', () => {
+    const w = buildTimelineWhere('A', { minAmount: 1 });
+    expect((andList(w)[0] as { OR: unknown[] }).OR).not.toContainEqual({ AND: [{ debit: 0 }, { credit: 0 }] });
+  });
+
+  it('توسيع الحدّ الأعلى لا يُقلّص المجموعة (لا تناقض منطقي)', () => {
+    const narrow = buildTimelineWhere('A', { minAmount: 0, maxAmount: 100 });
+    const wide   = buildTimelineWhere('A', { minAmount: 0 });
+    const branches = (w: typeof narrow): number => ((andList(w)[0] as { OR: unknown[] }).OR).length;
+    expect(branches(narrow)).toBe(branches(wide));
+  });
+});
+
+describe('البحث — كل المعرّفات المعروضة + حياد الرسم العربي', () => {
+  it('يشمل الوصف والمرجع ورقم الشيك والمرجع المطابق ورقم العملية', () => {
+    const w = buildTimelineWhere('A', { search: 'X1' });
+    const or = (andList(w)[0] as { OR: Record<string, unknown>[] }).OR;
+    expect(or.map((c) => Object.keys(c)[0])).toEqual([
+      'description', 'reference', 'chequeNumber', 'matchedRef', 'transactionId',
+    ]);
+  });
+
+  it('يحوّل عائلات الحروف العربية إلى محرف بدل واحد', () => {
+    const w = buildTimelineWhere('A', { search: 'إحالة' });
+    const or = (andList(w)[0] as { OR: Record<string, { contains: string }>[] }).OR;
+    expect(or[0].description.contains).toBe('_ح_ل_');
+  });
+
+  it('يُزيل محارف البدل التي يكتبها المستخدم', () => {
+    const w = buildTimelineWhere('A', { search: '50%' });
+    const or = (andList(w)[0] as { OR: Record<string, { contains: string }>[] }).OR;
+    expect(or[0].description.contains).toBe('50');
+  });
+
+  it('بحث فارغ لا يُنتج قيدًا', () => {
+    expect(buildTimelineWhere('A', { search: '   ' })).toEqual({ accountKey: 'A' });
+  });
+});
+
+describe('التكرارات والتركيب', () => {
+  it('استبعاد التكرارات يضيف قيدًا صريحًا', () => {
+    expect(buildTimelineWhere('A', { excludeDuplicates: true }).AND)
+      .toEqual([{ isDuplicate: false }]);
+  });
+
+  it('كل الأبعاد معًا تتركّب في AND واحد (تقاطع صرف)', () => {
+    const w = buildTimelineWhere('A', {
+      fromDate: '2026-01-01', toDate: '2026-12-31',
+      direction: 'withdrawal', minAmount: 100, maxAmount: 500,
+      search: 'شيك', excludeDuplicates: true,
+    });
+    expectLocalStartOfDay((w.statementDate as { gte?: Date })?.gte, '2026-01-01');
+    expect(w.AND).toHaveLength(4);
+    expect(w.AND).toContainEqual({ debit: { gt: FIELDS.credit } });
+    expect(w.AND).toContainEqual({ isDuplicate: false });
+  });
+});
+
+describe('TIMELINE_ORDER_BY', () => {
+  it('أحدث دفعة أولًا، ثم ترتيب الملف الأصلي، ثم المعرّف', () => {
+    expect(TIMELINE_ORDER_BY).toEqual([
+      { importId: 'desc' }, { statementSequence: 'asc' }, { id: 'asc' },
+    ]);
   });
 });
