@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `7cb24752` (merge of `feature/employee-table-column-optimization-pack-v1` — narrows the Employees table's `nationality` column and 8 neighboring columns (`fullName`, `fullNameEn`, `jobTitle`, `civilId`, `passportNumber`, `residencyExpiry`, `passportExpiry`, `licenseExpiry`) so `licenseExpiry` sits ~209px closer to the visible viewport at the project's standard 1440×900 window. `nationality` (104px→84px) was the named target, but the math showed it alone could only free ~20-24px against a ~320-355px shortfall — disclosed to the user before implementation, who approved widening scope. `fullName`/`fullNameEn`/`jobTitle` were trimmed more aggressively since all three render through the ellipsis-protected `NameCell`; `residencyExpiry`/`passportExpiry`/`licenseExpiry` were normalized to 120px, matching the already-safe `hireDate` column; `civilId`/`passportNumber` trimmed minimally (fixed-length numeric, no wrap protection). Frozen-column sticky offsets derive automatically from `width`, so no other code changed. Column order, data, sort/filter/search logic untouched. 1 file, frontend-only; no backend/Prisma/Electron change) |
-| **Current Documentation Commit** | `PENDING` |
+| **Current Documentation Commit** | `828f51ba` |
 | **Current Stable Tag** | `stable-employee-table-column-optimization-pack-v1` |
 | **Current Release Date** | 2026-08-04 |
 | **Total Stable Releases** | 406 (window 2026-06-07 → 2026-08-04) |
