@@ -144,10 +144,22 @@ export interface TimelineTransaction {
 export interface TimelineResult {
   accountKey:   string;
   totalCount:   number;
-  /** Sum of the filtered set's transaction amounts (respects every active filter). Display-only. */
-  filteredTotal: number;
+  /** حجم التداول = Σمدين + Σدائن — **ليس صافيًا**. الاسم يطابق طريقة الحساب. */
+  turnover:      number;
+  totalDebits:   number;
+  totalCredits:  number;
+  /** صافي الحركة = Σدائن − Σمدين. */
+  netMovement:   number;
+  /** مدى تاريخ المجموعة المفلترة نفسها. */
+  filteredFromDate: string | null;
+  filteredToDate:   string | null;
+  /** مدى تغطية الحساب كاملًا — مستقل عن الفلاتر. */
   fromDate:     string | null;
   toDate:       string | null;
+  /** العملات داخل المجموعة المفلترة — أكثر من واحدة ⇒ الإجماليات مختلطة. */
+  currencies:   string[];
+  /** عدد الحركات المعلَّمة كتكرار محتمل داخل المجموعة المفلترة. */
+  duplicateCount: number;
   importCount:  number;
   transactions: TimelineTransaction[];
   page:         number;
@@ -379,13 +391,26 @@ export async function bulkDeleteImports(ids: number[]): Promise<{ deleted: numbe
 export type TimelineFilterType =
   'all' | 'deposits' | 'withdrawals' | 'fees' | 'cheques' | 'transfers';
 
+/** الاتجاه المالي الحقيقي — بُعد مستقل عن التصنيف. */
+export type TimelineDirection = 'deposit' | 'withdrawal' | 'neutral';
+
+/** تصنيف المستند — بُعد مستقل، متعدد الاختيار. */
+export type TimelineCategory =
+  | 'cheque' | 'transfer' | 'invoice' | 'expense' | 'payroll' | 'voucher'
+  | 'receipt_voucher' | 'payment_voucher' | 'journal' | 'bank_fee'
+  | 'interest' | 'adjustment' | 'opening_balance' | 'cash' | 'unclassified';
+
 export interface TimelineFilters {
   fromDate?:  string;
   toDate?:    string;
   search?:    string;
+  /** فلتر النوع القديم — يبقى مدعومًا في الخادم، لم تعد الشاشة تستخدمه. */
   type?:      TimelineFilterType;
+  direction?: TimelineDirection;
+  categories?: TimelineCategory[];
   minAmount?: number;
   maxAmount?: number;
+  excludeDuplicates?: boolean;
 }
 
 export async function getTimeline(
@@ -399,11 +424,51 @@ export async function getTimeline(
   if (filters.toDate)              params.toDate    = filters.toDate;
   if (filters.search)              params.search    = filters.search;
   if (filters.type && filters.type !== 'all') params.type = filters.type;
+  if (filters.direction)           params.direction = filters.direction;
+  if (filters.categories?.length)  params.categories = filters.categories.join(',');
   if (filters.minAmount != null)   params.minAmount = filters.minAmount;
   if (filters.maxAmount != null)   params.maxAmount = filters.maxAmount;
+  if (filters.excludeDuplicates)   params.excludeDuplicates = 'true';
   const res = await api.get<{ data: TimelineResult }>(
     `/bank-statement-import/timeline/${encodeURIComponent(accountKey)}`,
     { params },
   );
   return res.data.data;
+}
+
+/**
+ * تصدير التسلسل الزمني — **كل** النتائج بعد تطبيق الفلاتر (لا الصفحة الحالية).
+ * يُبنى في الخادم من نفس خيارات الفلترة وبنفس الترتيب والتصنيف، فالمُصدَّر
+ * مطابق للمعروض بالبناء لا بالاتفاق.
+ */
+export async function downloadTimelineExport(
+  accountKey: string,
+  filters: TimelineFilters,
+  format: 'xlsx' | 'csv',
+): Promise<void> {
+  const params: Record<string, string | number> = { format };
+  if (filters.fromDate)            params.fromDate = filters.fromDate;
+  if (filters.toDate)              params.toDate   = filters.toDate;
+  if (filters.search)              params.search   = filters.search;
+  if (filters.direction)           params.direction = filters.direction;
+  if (filters.categories?.length)  params.categories = filters.categories.join(',');
+  if (filters.minAmount != null)   params.minAmount = filters.minAmount;
+  if (filters.maxAmount != null)   params.maxAmount = filters.maxAmount;
+  if (filters.excludeDuplicates)   params.excludeDuplicates = 'true';
+
+  const res = await api.get(
+    `/bank-statement-import/timeline/${encodeURIComponent(accountKey)}/export`,
+    { params, responseType: 'blob' },
+  );
+  const disposition = String(res.headers['content-disposition'] ?? '');
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const fallback = `account-ledger.${format}`;
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = match?.[1] ?? fallback;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

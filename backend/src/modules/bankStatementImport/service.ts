@@ -2,6 +2,12 @@ import { prisma } from '@config/database.js';
 import type { Prisma } from '@prisma/client';
 import { AppError } from '@core/errors/AppError.js';
 import { localDateRange } from '@core/utils/dateWindows.js';
+import {
+  txCategory,
+  type TxCategory,
+  type TxDirection,
+} from './timelineClassification.js';
+import { buildSearchPattern, SEARCHABLE_FIELDS } from './timelineSearch.js';
 import { buildPreview } from './previewBuilder.js';
 import { normalizeRow, buildNormalizedText } from './normalizer.js';
 import { validateRows, detectFileDuplicates } from './validators.js';
@@ -366,19 +372,50 @@ export async function exportReport(
 export type TimelineFilterType =
   'all' | 'deposits' | 'withdrawals' | 'fees' | 'cheques' | 'transfers';
 
-// Pure builder for the timeline Prisma where clause. Extracted so the filter
-// composition (date + type + amount range + text search) is unit-testable
-// without a database.
+/**
+ * توافُق خلفي: فلتر «النوع» القديم كان يخلط الاتجاه بالتصنيف في قائمة واحدة.
+ * يُترجَم الآن إلى البُعدين المستقلين بلا تغيير في سلوك المستدعي القديم.
+ */
+export function mapLegacyType(
+  type?: TimelineFilterType,
+): { direction?: TxDirection; categories?: TxCategory[] } {
+  switch (type) {
+    case 'deposits':    return { direction: 'deposit' };
+    case 'withdrawals': return { direction: 'withdrawal' };
+    case 'fees':        return { categories: ['bank_fee'] };
+    case 'cheques':     return { categories: ['cheque'] };
+    case 'transfers':   return { categories: ['transfer'] };
+    default:            return {};
+  }
+}
+
+export interface TimelineFilterOptions {
+  fromDate?:   string;
+  toDate?:     string;
+  search?:     string;
+  /** فلتر النوع القديم — يُترجَم عبر `mapLegacyType`. */
+  type?:       TimelineFilterType;
+  /** الاتجاه المالي الحقيقي (دائن − مدين) — بُعد مستقل عن التصنيف. */
+  direction?:  TxDirection;
+  /** تصنيف المستند — بُعد مستقل، متعدد الاختيار. يُطبَّق خارج SQL. */
+  categories?: TxCategory[];
+  minAmount?:  number;
+  maxAmount?:  number;
+  /** استبعاد الحركات المعلَّمة كتكرار محتمل من النتائج والإجماليات. */
+  excludeDuplicates?: boolean;
+}
+
+/**
+ * باني شرط Prisma للتسلسل الزمني — كل الأبعاد القابلة للتعبير في SQL.
+ *
+ * التصنيف **غير** مبني هنا عمدًا: قاعدته سلسلة أولويات من ست مراحل تشمل مطابقة
+ * نصية مرتَّبة، وأي محاولة لتقريبها بـ`contains` تُنتج انحرافًا عن العرض. لذلك
+ * يُطبَّق التصنيف في `getTimeline` عبر نفس منفذ القاعدة (`timelineClassification`)
+ * المربوط بالواجهة عبر ملف حالات ذهبية مشترك.
+ */
 export function buildTimelineWhere(
   accountKey: string,
-  opts: {
-    fromDate?:  string;
-    toDate?:    string;
-    search?:    string;
-    type?:      TimelineFilterType;
-    minAmount?: number;
-    maxAmount?: number;
-  } = {},
+  opts: TimelineFilterOptions = {},
 ): Prisma.BankStatementTransactionWhereInput {
   const where: Prisma.BankStatementTransactionWhereInput = { accountKey };
   const and: Prisma.BankStatementTransactionWhereInput[] = [];
@@ -386,36 +423,49 @@ export function buildTimelineWhere(
   const dateRange = localDateRange(opts.fromDate, opts.toDate);
   if (dateRange) where.statementDate = dateRange;
 
-  switch (opts.type) {
-    case 'deposits':    where.credit = { gt: 0 }; break;
-    case 'withdrawals': where.debit  = { gt: 0 }; break;
-    case 'fees':        where.isBankFee = true; break;
-    // A cheque transaction is one that carries a cheque number OR is categorised as a
-    // cheque payment — mirrors the display badge (chequeNumber || bankFeeType==='CHEQUE_PAYMENT').
-    // Previously matched chequeNumber only, so cheque-payment rows without a parsed cheque
-    // number (shown as «شيك») were missing from the filter.
-    case 'cheques':     and.push({ OR: [{ chequeNumber: { not: null } }, { bankFeeType: 'CHEQUE_PAYMENT' }] }); break;
-    case 'transfers':   where.bankFeeType = 'BANK_TRANSFER'; break;
-    default: break; // 'all' / undefined → no type constraint
+  // ── الاتجاه: مقارنة عمود بعمود، مطابِقة تمامًا لقاعدة العرض (دائن − مدين) ──
+  // مراجع الحقول في Prisma تعبّر عن المقارنة بدقة، فلا يبقى أي صف بجانبين
+  // يظهر في «إيداعات» و«سحوبات» معًا كما كان مع `credit > 0` / `debit > 0`.
+  // مرجع الحقل يُقرأ فقط عند وجود فلتر اتجاه — فلا يلمس البانّي عميل Prisma بلا داعٍ.
+  const direction = opts.direction ?? mapLegacyType(opts.type).direction;
+  if (direction) {
+    const fields = prisma.bankStatementTransaction.fields;
+    if (direction === 'deposit') {
+      and.push({ credit: { gt: fields.debit } });
+    } else if (direction === 'withdrawal') {
+      and.push({ debit: { gt: fields.credit } });
+    } else {
+      and.push({ NOT: [{ credit: { gt: fields.debit } }, { debit: { gt: fields.credit } }] });
+    }
   }
 
-  // Amount range matches the non-zero side of the transaction (debit OR credit).
-  if (opts.minAmount != null) {
-    and.push({ OR: [{ debit: { gte: opts.minAmount } }, { credit: { gte: opts.minAmount } }] });
-  }
-  if (opts.maxAmount != null) {
-    and.push({ OR: [
-      { debit:  { gt: 0, lte: opts.maxAmount } },
-      { credit: { gt: 0, lte: opts.maxAmount } },
-    ] });
+  // ── المبلغ: يُقارَن بالجانب غير الصفري، مع تماثل حول الصفر ──
+  // الحدّ الأعلى كان يشترط `> 0` فيُخفي حركات الصفر التي يُظهرها الحدّ الأدنى
+  // وحده — توسيع المدى كان يُقلّص النتيجة. الآن الطرفان يعاملان الصفر بنفس المنطق.
+  const { minAmount, maxAmount } = opts;
+  if (minAmount != null || maxAmount != null) {
+    const side = (field: 'debit' | 'credit'): Prisma.BankStatementTransactionWhereInput => {
+      const range: Prisma.FloatFilter = { gt: 0 };
+      if (minAmount != null) range.gte = minAmount;
+      if (maxAmount != null) range.lte = maxAmount;
+      return { [field]: range } as Prisma.BankStatementTransactionWhereInput;
+    };
+    const branches: Prisma.BankStatementTransactionWhereInput[] = [side('debit'), side('credit')];
+    // حركة بصافي صفر تقع داخل المدى متى كان المدى يشمل الصفر.
+    if ((minAmount ?? 0) <= 0) branches.push({ AND: [{ debit: 0 }, { credit: 0 }] });
+    and.push({ OR: branches });
   }
 
-  if (opts.search) {
-    and.push({ OR: [
-      { description: { contains: opts.search } },
-      { reference:   { contains: opts.search } },
-    ] });
+  // ── البحث: كل معرّف يراه المستخدم + حياد رسم الحروف العربية ──
+  const pattern = buildSearchPattern(opts.search);
+  if (pattern) {
+    and.push({
+      OR: SEARCHABLE_FIELDS.map((field) => ({ [field]: { contains: pattern } })) as
+        Prisma.BankStatementTransactionWhereInput[],
+    });
   }
+
+  if (opts.excludeDuplicates) and.push({ isDuplicate: false });
 
   if (and.length) where.AND = and;
   return where;
@@ -438,54 +488,16 @@ export const TIMELINE_ORDER_BY: Prisma.BankStatementTransactionOrderByWithRelati
   { id:                'asc' },
 ];
 
-export async function getTimeline(
-  accountKey: string,
-  page       = 1,
-  pageSize   = 50,
-  fromDate?:   string,
-  toDate?:     string,
-  search?:     string,
-  type?:       TimelineFilterType,
-  minAmount?:  number,
-  maxAmount?:  number,
-): Promise<TimelineResult> {
-  const skip = (page - 1) * pageSize;
+/** الشكل الخام لصف قادم من Prisma مع دفعة الاستيراد المضمَّنة. */
+type TimelineRow = Prisma.BankStatementTransactionGetPayload<{
+  include: { import: { select: { id: true; fileName: true; importedAt: true; bankName: true } } };
+}>;
 
-  const where = buildTimelineWhere(accountKey, {
-    fromDate, toDate, search, type, minAmount, maxAmount,
-  });
+/** سقف أمان لمسار التصنيف (يقرأ المجموعة المفلترة كاملة قبل الترقيم). */
+export const CATEGORY_SCAN_CAP = 50_000;
 
-  const [total, txs, agg, filteredAgg, importCount] = await Promise.all([
-    prisma.bankStatementTransaction.count({ where }),
-    prisma.bankStatementTransaction.findMany({
-      where,
-      orderBy: TIMELINE_ORDER_BY,
-      skip,
-      take:    pageSize,
-      include: {
-        import: {
-          select: { id: true, fileName: true, importedAt: true, bankName: true },
-        },
-      },
-    }),
-    prisma.bankStatementTransaction.aggregate({
-      where: { accountKey },  // aggregate over the full account, not the filtered window
-      _min:  { statementDate: true },
-      _max:  { statementDate: true },
-    }),
-    // Filtered total: sum of the filtered set using the SAME `where` as count/findMany, so it
-    // respects every active filter (type + search + date range + amount range). Each row is
-    // single-sided (debit XOR credit), so debit+credit = total movement of the matching rows.
-    prisma.bankStatementTransaction.aggregate({
-      where,
-      _sum: { debit: true, credit: true },
-    }),
-    prisma.bankStatementImport.count({ where: { accountKey } }),
-  ]);
-
-  const filteredTotal = Number(filteredAgg._sum.debit ?? 0) + Number(filteredAgg._sum.credit ?? 0);
-
-  const transactions: TimelineTransaction[] = txs.map((t) => ({
+function toTimelineTransaction(t: TimelineRow): TimelineTransaction {
+  return {
     id:               t.id,
     importId:         t.importId,
     importBatchLabel: `Import #${t.importId}`,
@@ -509,18 +521,178 @@ export async function getTimeline(
     isBankFee:        Boolean(t.isBankFee),
     bankFeeType:      (t.bankFeeType ?? null) as TimelineTransaction['bankFeeType'],
     transactionFingerprint: t.transactionFingerprint ?? null,
-  }));
+  };
+}
 
+/** مجاميع المجموعة المفلترة — محسوبة من نفس الصفوف المعروضة، لا من مصدر ثانٍ. */
+export interface TimelineTotals {
+  totalDebits:  number;
+  totalCredits: number;
+  netMovement:  number;
+  turnover:     number;
+  currencies:   string[];
+  duplicateCount:   number;
+  filteredFromDate: string | null;
+  filteredToDate:   string | null;
+}
+
+/** يجمع مجاميع مجموعة حركات في مرور واحد (بلا مسح مكرّر). */
+export function summariseTransactions(rows: TimelineTransaction[]): TimelineTotals {
+  let totalDebits = 0;
+  let totalCredits = 0;
+  let duplicateCount = 0;
+  let min: string | null = null;
+  let max: string | null = null;
+  const currencies = new Set<string>();
+
+  for (const r of rows) {
+    totalDebits  += r.debit;
+    totalCredits += r.credit;
+    if (r.isDuplicate) duplicateCount += 1;
+    if (r.currency) currencies.add(r.currency);
+    if (r.statementDate) {
+      if (min === null || r.statementDate < min) min = r.statementDate;
+      if (max === null || r.statementDate > max) max = r.statementDate;
+    }
+  }
+
+  const round = (n: number): number => Math.round(n * 1000) / 1000;
   return {
+    totalDebits:  round(totalDebits),
+    totalCredits: round(totalCredits),
+    netMovement:  round(totalCredits - totalDebits),
+    turnover:     round(totalDebits + totalCredits),
+    currencies:   [...currencies].sort(),
+    duplicateCount,
+    filteredFromDate: min,
+    filteredToDate:   max,
+  };
+}
+
+const TIMELINE_INCLUDE = {
+  import: { select: { id: true, fileName: true, importedAt: true, bankName: true } },
+} as const;
+
+/**
+ * يُرجع كل الحركات المطابقة (بلا ترقيم) بعد تطبيق كل الأبعاد — يُستخدم للتصدير
+ * ولمسار التصنيف. مقيَّد بسقف `CATEGORY_SCAN_CAP` مع إفصاح عبر `truncated`.
+ */
+export async function getTimelineRows(
+  accountKey: string,
+  opts: TimelineFilterOptions = {},
+): Promise<{ rows: TimelineTransaction[]; truncated: boolean }> {
+  const where = buildTimelineWhere(accountKey, opts);
+  const raw = await prisma.bankStatementTransaction.findMany({
+    where,
+    orderBy: TIMELINE_ORDER_BY,
+    take:    CATEGORY_SCAN_CAP + 1,
+    include: TIMELINE_INCLUDE,
+  });
+  const truncated = raw.length > CATEGORY_SCAN_CAP;
+  const mapped = (truncated ? raw.slice(0, CATEGORY_SCAN_CAP) : raw).map(toTimelineTransaction);
+  const categories = opts.categories?.length
+    ? new Set<TxCategory>(opts.categories)
+    : null;
+  const rows = categories ? mapped.filter((r) => categories.has(txCategory(r))) : mapped;
+  return { rows, truncated };
+}
+
+/** تغطية الحساب الكاملة — مستقلة عن أي فلتر (تُستخدم في الشاشة والتصدير). */
+export async function getAccountCoverage(
+  accountKey: string,
+): Promise<{ fromDate: string | null; toDate: string | null }> {
+  const agg = await prisma.bankStatementTransaction.aggregate({
+    where: { accountKey },
+    _min:  { statementDate: true },
+    _max:  { statementDate: true },
+  });
+  return {
+    fromDate: agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
+    toDate:   agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
+  };
+}
+
+export async function getTimeline(
+  accountKey: string,
+  page       = 1,
+  pageSize   = 50,
+  opts: TimelineFilterOptions = {},
+): Promise<TimelineResult> {
+  const skip = (page - 1) * pageSize;
+  const where = buildTimelineWhere(accountKey, opts);
+
+  // تغطية الحساب كاملًا + عدد الدفعات: ثابتان لا يتأثران بالفلاتر.
+  const [coverage, importCount] = await Promise.all([
+    prisma.bankStatementTransaction.aggregate({
+      where: { accountKey },
+      _min:  { statementDate: true },
+      _max:  { statementDate: true },
+    }),
+    prisma.bankStatementImport.count({ where: { accountKey } }),
+  ]);
+
+  const base = {
     accountKey,
-    totalCount:  total,
-    filteredTotal,
-    fromDate:    agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
-    toDate:      agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
+    fromDate: coverage._min.statementDate ? coverage._min.statementDate.toISOString().substring(0, 10) : null,
+    toDate:   coverage._max.statementDate ? coverage._max.statementDate.toISOString().substring(0, 10) : null,
     importCount,
-    transactions,
     page,
     pageSize,
+  };
+
+  // ── المسار السريع: بلا فلتر تصنيف ⇒ العدّ والترقيم والمجاميع من SQL ──
+  if (!opts.categories?.length) {
+    const [total, txs, agg, currencyGroups, duplicateCount] = await Promise.all([
+      prisma.bankStatementTransaction.count({ where }),
+      prisma.bankStatementTransaction.findMany({
+        where, orderBy: TIMELINE_ORDER_BY, skip, take: pageSize, include: TIMELINE_INCLUDE,
+      }),
+      prisma.bankStatementTransaction.aggregate({
+        where,
+        _sum: { debit: true, credit: true },
+        _min: { statementDate: true },
+        _max: { statementDate: true },
+      }),
+      prisma.bankStatementTransaction.groupBy({ by: ['currency'], where }),
+      prisma.bankStatementTransaction.count({ where: { AND: [where, { isDuplicate: true }] } }),
+    ]);
+
+    const totalDebits  = Math.round(Number(agg._sum.debit  ?? 0) * 1000) / 1000;
+    const totalCredits = Math.round(Number(agg._sum.credit ?? 0) * 1000) / 1000;
+
+    return {
+      ...base,
+      totalCount:   total,
+      totalDebits,
+      totalCredits,
+      netMovement:  Math.round((totalCredits - totalDebits) * 1000) / 1000,
+      turnover:     Math.round((totalDebits + totalCredits) * 1000) / 1000,
+      filteredFromDate: agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
+      filteredToDate:   agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
+      currencies:     currencyGroups.map((g) => g.currency).filter(Boolean).sort(),
+      duplicateCount,
+      transactions:   txs.map(toTimelineTransaction),
+    };
+  }
+
+  // ── مسار التصنيف: يُطبَّق بنفس منفذ قاعدة العرض، ثم يُرقَّم ويُجمَّع منه ──
+  // العدّ والمجاميع والصفحة كلها مشتقّة من **نفس** المجموعة، فلا يمكن أن يختلف
+  // العدّاد عمّا يظهر في الجدول ولا عمّا يُصدَّر.
+  const { rows } = await getTimelineRows(accountKey, opts);
+  const totals = summariseTransactions(rows);
+
+  return {
+    ...base,
+    totalCount:   rows.length,
+    totalDebits:  totals.totalDebits,
+    totalCredits: totals.totalCredits,
+    netMovement:  totals.netMovement,
+    turnover:     totals.turnover,
+    filteredFromDate: totals.filteredFromDate,
+    filteredToDate:   totals.filteredToDate,
+    currencies:       totals.currencies,
+    duplicateCount:   totals.duplicateCount,
+    transactions:     rows.slice(skip, skip + pageSize),
   };
 }
 

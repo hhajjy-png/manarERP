@@ -230,10 +230,27 @@ export interface TimelineTransaction {
 export interface TimelineResult {
   accountKey:   string;
   totalCount:   number;
-  /** Sum of the filtered set's transaction amounts (respects every active filter). Display-only. */
-  filteredTotal: number;
+  /**
+   * حجم التداول (Turnover) = Σمدين + Σدائن للمجموعة المفلترة. **ليس صافيًا** —
+   * الاسم يطابق طريقة الحساب بعد تدقيق v1؛ الصافي في `netMovement`.
+   */
+  turnover:      number;
+  /** Σمدين للمجموعة المفلترة. */
+  totalDebits:   number;
+  /** Σدائن للمجموعة المفلترة. */
+  totalCredits:  number;
+  /** صافي الحركة = Σدائن − Σمدين (موجب ⇒ زيادة صافية في الرصيد). */
+  netMovement:   number;
+  /** أقدم/أحدث تاريخ **داخل المجموعة المفلترة** (لا الحساب كله). */
+  filteredFromDate: string | null;
+  filteredToDate:   string | null;
+  /** أقدم/أحدث تاريخ في الحساب كله — تغطية البيانات، مستقلة عن الفلاتر. */
   fromDate:     string | null;
   toDate:       string | null;
+  /** العملات المميّزة داخل المجموعة المفلترة — أكثر من واحدة ⇒ الإجماليات مختلطة. */
+  currencies:   string[];
+  /** عدد الحركات المعلَّمة كتكرار محتمل داخل المجموعة المفلترة. */
+  duplicateCount: number;
   importCount:  number;
   transactions: TimelineTransaction[];
   page:         number;

@@ -12,8 +12,14 @@ import {
   ReportExportSchema,
   BulkDeleteImportSchema,
   TimelineQuerySchema,
+  type TimelineQuery,
 } from './schema.js';
 import * as svc from './service.js';
+import { buildExcel } from '@shared/services/reportEngine/excel.service.js';
+import {
+  buildTimelineReportInput, buildTimelineCsv,
+  DIRECTION_LABELS_AR, CATEGORY_LABELS_AR,
+} from './timelineExport.js';
 
 // ── Preview ────────────────────────────────────────────────────────────────────
 
@@ -180,14 +186,86 @@ export const timelineHandler = asyncHandler(async (req: Request, res: Response) 
     accountKey,
     parsed.data.page,
     parsed.data.pageSize,
-    parsed.data.fromDate,
-    parsed.data.toDate,
-    parsed.data.search,
-    parsed.data.type,
-    parsed.data.minAmount,
-    parsed.data.maxAmount,
+    timelineFilterOptions(parsed.data),
   );
   ok(res, result);
+});
+
+/** يحوّل استعلام الشاشة إلى خيارات الفلترة — مصدر واحد للعرض والتصدير معًا. */
+function timelineFilterOptions(q: TimelineQuery): svc.TimelineFilterOptions {
+  return {
+    fromDate:   q.fromDate,
+    toDate:     q.toDate,
+    search:     q.search,
+    type:       q.type,
+    direction:  q.direction,
+    categories: q.categories as svc.TimelineFilterOptions['categories'],
+    minAmount:  q.minAmount,
+    maxAmount:  q.maxAmount,
+    excludeDuplicates: q.excludeDuplicates,
+  };
+}
+
+// ── Timeline export (Excel / CSV) ──────────────────────────────────────────────
+// يُبنى من **نفس** خيارات الفلترة التي بنت الشاشة، وبنفس الترتيب والتصنيف —
+// فالمُصدَّر هو نتيجة الفلترة كاملة، لا الصفحة الحالية.
+
+function describeFilters(q: TimelineQuery): string[] {
+  const parts: string[] = [];
+  if (q.fromDate || q.toDate) parts.push(`الفترة: ${q.fromDate ?? '…'} — ${q.toDate ?? '…'}`);
+  if (q.direction) parts.push(`الاتجاه: ${DIRECTION_LABELS_AR[q.direction]}`);
+  if (q.categories?.length) {
+    const labels = q.categories.map((c) => CATEGORY_LABELS_AR[c as keyof typeof CATEGORY_LABELS_AR] ?? c);
+    parts.push(`التصنيف: ${labels.join('، ')}`);
+  }
+  if (q.minAmount != null) parts.push(`الحد الأدنى: ${q.minAmount}`);
+  if (q.maxAmount != null) parts.push(`الحد الأعلى: ${q.maxAmount}`);
+  if (q.search) parts.push(`بحث: ${q.search}`);
+  if (q.excludeDuplicates) parts.push('استبعاد التكرارات');
+  return parts;
+}
+
+export const timelineExportHandler = asyncHandler(async (req: Request, res: Response) => {
+  const accountKey = decodeURIComponent(req.params.accountKey ?? '');
+  if (!accountKey) throw AppError.badRequest('مفتاح الحساب مطلوب');
+
+  const parsed = TimelineQuerySchema.safeParse(req.query);
+  if (!parsed.success) throw AppError.badRequest(parsed.error.errors[0]?.message ?? 'معامل غير صحيح');
+
+  const format = String(req.query.format ?? 'xlsx').toLowerCase() === 'csv' ? 'csv' : 'xlsx';
+  const opts = timelineFilterOptions(parsed.data);
+
+  const [{ rows, truncated }, coverage] = await Promise.all([
+    svc.getTimelineRows(accountKey, opts),
+    svc.getAccountCoverage(accountKey),
+  ]);
+  const totals = svc.summariseTransactions(rows);
+
+  const ctx = {
+    accountKey,
+    bankName:      rows[0]?.bankName ?? null,
+    filterSummary: describeFilters(parsed.data),
+    coverageFrom:  coverage.fromDate,
+    coverageTo:    coverage.toDate,
+    exportedAt:    new Date(),
+    truncated,
+  };
+
+  const slug = accountKey.replace(/[^A-Za-z0-9-]+/g, '-').slice(0, 40);
+  const stamp = ctx.exportedAt.toISOString().substring(0, 10);
+
+  if (format === 'csv') {
+    const csv = buildTimelineCsv(rows, totals, ctx);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="account-ledger-${slug}-${stamp}.csv"`);
+    res.send(csv);
+    return;
+  }
+
+  const buffer = await buildExcel(buildTimelineReportInput(rows, totals, ctx));
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="account-ledger-${slug}-${stamp}.xlsx"`);
+  res.send(buffer);
 });
 
 // ── Bulk delete imports ────────────────────────────────────────────────────────
