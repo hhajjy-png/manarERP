@@ -43,13 +43,13 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `83ee6632` — release `stable-accounting-period-validation-pack-v1` (one shared validator, `assertDateWithinBillingPeriod`, blocks saving any invoice or expense whose document date falls outside its own billingMonth/billingYear — real calendar-day math, no override, no skip, no admin bypass; wired into expenses.service.ts and invoices.service.ts, Create and Edit, at the service layer before any database write; 7 files, 3 new; no Prisma/schema/migration change) |
+| **Production HEAD** | `7cb24752` — release `stable-employee-table-column-optimization-pack-v1` (narrows the nationality column and 8 neighboring Employees-table columns so the license-expiry column sits ~209px closer to the visible viewport at the project's standard 1440×900 window, without reordering columns or touching sort/filter/search/data logic; 1 file, frontend-only) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-accounting-period-validation-pack-v1` (release date 2026-08-04) → merge `83ee6632` |
-| **Previous stable tag** | `stable-bank-explorer-audit-filter-export-v1` (2026-08-04) → merge `34e3b6a7` |
-| **Total stable releases** | 405 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
-| **Latest validation** | Backend `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · frontend `tsc --noEmit` ✅ (unaffected — confirmed clean, no frontend files touched) · backend `vitest run` **172/172 files, 2638/2638 tests passing** (feature branch and post-merge, zero regressions) · `build:back` ✅ · scope confirmed: exactly 7 files entered the release (4 modified, 3 added), staged explicitly by path via an exact list (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-only` scope check showing zero out-of-scope paths · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `83ee6632` + tag `stable-accounting-period-validation-pack-v1`) |
+| **Latest stable tag** | `stable-employee-table-column-optimization-pack-v1` (release date 2026-08-04) → merge `7cb24752` |
+| **Previous stable tag** | `stable-accounting-period-validation-pack-v1` (2026-08-04) → merge `83ee6632` |
+| **Total stable releases** | 406 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
+| **Latest validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · backend `tsc --noEmit` ✅ (unaffected — confirmed clean, no backend files touched) · `build:front` ✅ (feature branch and post-merge) · scope confirmed: exactly 1 file entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-only` scope check showing zero out-of-scope paths · Product Owner manual visual review — **completed & approved**, confirmed the license-expiry column is now visible without horizontal scroll, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `7cb24752` + tag `stable-employee-table-column-optimization-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +61,41 @@ in a table cell.
 
 ---
 
-## Latest Release — Accounting Period Validation Pack v1
+## Latest Release — Employee Table Column Optimization Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Table Column Optimization Pack v1 (1 file modified, frontend-only) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-04 |
+| **Feature branch** | `feature/employee-table-column-optimization-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `15334e93` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-employee-table-column-optimization-pack-v1` → `15334e93` |
+| **Feature commit** | `ec357ed4` |
+| **Production merge commit** | `7cb24752` |
+| **Stable tag** | `stable-employee-table-column-optimization-pack-v1` → merge `7cb24752` (annotated) |
+| **Reviews** | Claude Code Review (self-verified via `tsc --noEmit` + `build:front`, iterated until clean) → Product Owner manual visual review — **completed & approved**, confirmed the goal was achieved, release explicitly requested |
+| **Validation** | Frontend `tsc --noEmit` ✅ · `build:front` ✅ (feature branch and post-merge) · backend `tsc --noEmit` ✅ (unaffected) |
+
+**The goal.** The Employees table's "الجنسية" (nationality) column pushed "تاريخ انتهاء رخصة القيادة" (license expiry) — the 10th of 15 columns — far enough right that it required horizontal scroll to reach on the project's standard 1440×900 window.
+
+**The arithmetic, disclosed before implementation.** At 1440px, the table's real available content width is ~1036–1070px after the 248px sidebar, page/card padding, and worst-case scrollbars. `licenseExpiry` started at x≈1259px — a ~320–355px shortfall. Narrowing `nationality` alone (104px, already one of the narrower columns) could free at most ~20–24px — nowhere near enough. This was computed and shown to the user before any code changed; they chose to widen scope to additional columns rather than accept a change that couldn't achieve the stated goal.
+
+**What changed — 9 of 15 `employees.columns` entries in `modules.tsx`, width only:**
+- `nationality`: 104px → 84px (the pack's named target).
+- `fullName` (frozen), `fullNameEn`, `jobTitle`: trimmed more aggressively (230→180, 215→140, 132→100) — all three render through `NameCell`, which is ellipsis-protected (`employee-table.css`'s `.emp-name`), so long values truncate gracefully instead of breaking the row.
+- `residencyExpiry`, `passportExpiry`, `licenseExpiry`: normalized 132px → 120px, matching the already-proven-safe `hireDate` column (identical `dd/mm/yyyy` format, no icon/badge chrome — `ToneCell` reuses the cell's own padding box, confirmed by reading the component).
+- `civilId`, `passportNumber`: trimmed minimally (112px → 108px) — fixed-length numeric fields with no wrap/ellipsis protection, so left close to unchanged to avoid any risk of clipping.
+
+**Mechanics confirmed safe.** Frozen-column sticky offsets are derived automatically from each frozen column's `width` (`ResourcePage.tsx`'s `frozenInsets` calc) — shrinking the frozen `fullName` column required no other code change. `employee-table.css`'s `.xpl-table--emp { min-width: 1420px }` floor did not need adjusting: the new total table width (~1806px) still exceeds it, same as before.
+
+**Result.** Cumulative width through `licenseExpiry`'s right edge dropped from 1391px to ~1170px — a 209px reduction — bringing the column meaningfully closer to (and, per the user's own visual confirmation on their actual screen, within) the visible viewport at 1440×900.
+
+**Not changed:** column order, keys, sortability, render functions, export values, data, sort/filter/search/selection logic, virtualization (none exists for this table), any other page's table (`DataTable.tsx` and its consumers untouched), backend, Prisma, Electron.
+
+---
+
+## Previous Release — Accounting Period Validation Pack v1
 
 | Field | Value |
 |-------|-------|

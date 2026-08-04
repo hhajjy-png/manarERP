@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `83ee6632` (merge of `feature/accounting-period-validation-pack-v1` — one shared validator, `assertDateWithinBillingPeriod` (`backend/src/shared/validation/accountingPeriod.validation.ts`), now blocks saving any invoice or expense whose document date falls outside its own billingMonth/billingYear. Uses real calendar-day math (28/29/30/31, leap years) via the existing `daysInMonth()` helper (now exported from `core/utils/dateOnly.ts`) — no hardcoded month lengths. Wired into `expenses.service.ts` and `invoices.service.ts`, on both Create and Edit, at the service layer before any database write (invoices: before `prisma.$transaction` is even entered) — so it holds even for a direct API call. No Override, no Skip, no hidden flag, no admin-role bypass. Skips validation only when billingMonth/billingYear are not both set (both optional on both models). `Payment.date` (collection date) intentionally untouched — out of scope, has its own pre-existing tolerance. 7 files (4 modified, 3 added); no Prisma/schema/migration change) |
-| **Current Documentation Commit** | `0b2c030b` |
-| **Current Stable Tag** | `stable-accounting-period-validation-pack-v1` |
+| **Current Merge Commit** | `7cb24752` (merge of `feature/employee-table-column-optimization-pack-v1` — narrows the Employees table's `nationality` column and 8 neighboring columns (`fullName`, `fullNameEn`, `jobTitle`, `civilId`, `passportNumber`, `residencyExpiry`, `passportExpiry`, `licenseExpiry`) so `licenseExpiry` sits ~209px closer to the visible viewport at the project's standard 1440×900 window. `nationality` (104px→84px) was the named target, but the math showed it alone could only free ~20-24px against a ~320-355px shortfall — disclosed to the user before implementation, who approved widening scope. `fullName`/`fullNameEn`/`jobTitle` were trimmed more aggressively since all three render through the ellipsis-protected `NameCell`; `residencyExpiry`/`passportExpiry`/`licenseExpiry` were normalized to 120px, matching the already-safe `hireDate` column; `civilId`/`passportNumber` trimmed minimally (fixed-length numeric, no wrap protection). Frozen-column sticky offsets derive automatically from `width`, so no other code changed. Column order, data, sort/filter/search logic untouched. 1 file, frontend-only; no backend/Prisma/Electron change) |
+| **Current Documentation Commit** | `PENDING` |
+| **Current Stable Tag** | `stable-employee-table-column-optimization-pack-v1` |
 | **Current Release Date** | 2026-08-04 |
-| **Total Stable Releases** | 405 (window 2026-06-07 → 2026-08-04) |
+| **Total Stable Releases** | 406 (window 2026-06-07 → 2026-08-04) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
