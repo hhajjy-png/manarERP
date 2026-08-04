@@ -57,6 +57,17 @@
   --lt-guide-label-bg: rgba(255, 255, 255, 0.72);
   --lt-hairline: rgba(148, 163, 184, 0.32);
   --lt-rule-ink: rgba(148, 163, 184, 0.55);
+  /*
+   * The Safe Writing Zone boundary — the ONE frame that answers "where do I write".
+   *
+   * Deliberately its own token rather than a reuse of `--lt-hairline`: that token
+   * faded to invisible under `:focus-within` in the pass that introduced it, which
+   * is the exact defect this token exists to correct (Post-Release Hotfix v1). This
+   * boundary must read clearly and MUST NOT depend on focus state — a professional
+   * editor's page-margin guide (Word's "Text Boundaries", Acrobat's crop guide)
+   * stays on screen for the entire time the author is composing, not only while idle.
+   */
+  --lt-band-boundary: rgba(71, 85, 105, 0.42);
   --lt-grid-minor: rgba(29, 78, 111, 0.045);
   --lt-grid-major: rgba(29, 78, 111, 0.11);
 

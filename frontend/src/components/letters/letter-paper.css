@@ -294,22 +294,38 @@
   overflow: hidden;
 }
 
-/* The writable area's boundary.
-   Barely-there by default and fading entirely once the author is writing: a dashed
-   box around the text is the single strongest "this is a form" signal there is, and
-   the band's edge only needs to be discoverable, not permanent. */
+/* ── The Safe Writing Zone boundary ───────────────────────────────────────
+ * Post-Release Hotfix v1 — root cause and fix.
+ *
+ * ROOT CAUSE: the previous rule faded this boundary to `opacity: 0` the instant the
+ * author focused any control inside the band (`.lp-band:focus-within::after`) — and
+ * composing a letter means being focused inside a paragraph for nearly the entire
+ * session. Combined with an already-faint 0.32-alpha DASHED line even at rest, the
+ * one frame that answers "where do I write" was invisible for the whole time the
+ * feature exists to serve. That is the literal, traceable cause of "no visible
+ * writing area" — not a missing feature, a rule that hid an existing one.
+ *
+ * FIX: a solid, clearly visible, ALWAYS-ON boundary. No focus-dependent fade — a
+ * professional editor's page-margin guide (Word's "Text Boundaries", Acrobat's crop
+ * guide) stays on screen for the entire time the author is composing, not only while
+ * idle. Solid rather than dashed: a dashed line reads as "fill this in", the exact
+ * form-field impression this pack set out to avoid; a solid hairline reads as a page
+ * boundary, the way a real sheet's printable-area guide does.
+ *
+ * GEOMETRY IS UNCHANGED. `.lp-band` itself is still positioned and sized entirely by
+ * the inline styles `LetterPaper.tsx` computes from the Geometry Registry (INV-4);
+ * this pseudo-element only paints a boundary AROUND that existing box. The 3px offset
+ * is unchanged from before this fix — a screen-pixel breathing gap, not a millimetre,
+ * so it carries no geometric meaning and was left exactly as it was.
+ * `letter-print.css` still forces `display: none` on this rule — unchanged and
+ * unaffected — so print output is byte-identical to before this fix. */
 .lp-band::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  outline: 1px dashed var(--lt-hairline);
+  outline: 1px solid var(--lt-band-boundary);
   outline-offset: 3px;
-  transition: opacity var(--lt-slow) ease-out;
-}
-
-.lp-band:focus-within::after {
-  opacity: 0;
 }
 
 /* Print rules live in `letter-print.css`, deliberately in ONE file rather than spread

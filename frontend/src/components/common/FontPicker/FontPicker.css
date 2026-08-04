@@ -95,10 +95,24 @@
 
 /* ── اللوحة المنسدلة ─────────────────────────────────────────────────────── */
 
+/* Font Picker Final UI Hotfix v1 — the popup no longer matches the trigger's width.
+   `inset-inline: 0` pinned BOTH logical edges to the trigger, forcing popup width to
+   equal trigger width exactly — inside a crowded toolbar (`ct-group--font` is only
+   190px) that is narrower than several approved display names ("Simplified Arabic
+   Fixed", "Droid Arabic Naskh", "PF Din Text Arabic"), which is why they were being
+   cut off. Only the START edge stays pinned (`inset-inline-start: 0`) — the popup
+   still opens flush with the trigger's start edge, exactly as before, in either
+   writing direction — and `width: max-content` lets it grow toward the end edge to
+   fit its own widest line. `min-width: 100%` keeps the old floor: it is never
+   narrower than the trigger even when every name is short. `max-width` is a safety
+   ceiling only — with the current ten approved names it is never actually reached. */
 .fpk-pop {
   position: absolute;
   top: calc(100% + 6px);
-  inset-inline: 0;
+  inset-inline-start: 0;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(360px, calc(100vw - 24px));
   z-index: 60;
   display: flex;
   flex-direction: column;
@@ -172,13 +186,22 @@
   gap: 7px;
   margin-bottom: 3px;
 }
+/* No ellipsis, ever: the full name renders regardless of length. `white-space: nowrap`
+   is kept (single line, so item height does not change) but the clipping pair
+   (`overflow: hidden` + `text-overflow: ellipsis`) is gone — `nowrap` alone no longer
+   hides anything, it only stops the name from wrapping to a second line. `flex-shrink:
+   0` is the load-bearing addition: without it, the flex row (`.fpk-opt-head`) would
+   still squeeze this element to make room for the category badge exactly as before,
+   which reintroduces truncation through layout even with no CSS clipping property
+   left to do it explicitly. The popup's own `width: max-content` (above) is sized
+   FROM this rule's natural (never-shrunk) width, so the two changes depend on each
+   other — removing either alone would not fix the cut-off names. */
 .fpk-opt-name {
   font-size: 12px;
   font-weight: 700;
   color: var(--fpk-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .fpk-opt-cat {
   flex: 0 0 auto;
@@ -198,12 +221,14 @@
 }
 
 /* العيّنة: خطّها ومقاسها يأتيان من بيانات الخط عبر style سطري. */
+/* `text-overflow: ellipsis` had no visible effect here even before this pack — this
+   element already wraps (`white-space: pre-line`) rather than clipping to one line —
+   but "no ellipsis, ever" means none should be LEFT DECLARED either, dead or not. */
 .fpk-opt-preview {
   display: block;
   color: var(--fpk-text);
   white-space: pre-line;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .fpk-noresult {
