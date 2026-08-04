@@ -509,6 +509,8 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'accounting', label: 'nav.accounting', icon: 'account_balance', permission: 'transactions.read' },
     { key: 'financial', label: 'nav.financial', icon: 'account_balance', permission: 'statements.read' },
     { key: 'financial-ops', label: 'nav.financial_ops', icon: 'monitoring', permission: 'financialdashboard.read' },
+    // مركز التحليل المالي — قراءة فقط فوق نفس المحرّك التشغيلي، يحرسه reports.read.
+    { key: 'financial-analysis', label: 'nav.financial_analysis', icon: 'query_stats', permission: 'reports.read' },
   ] },
   { group: 'nav.group.import_center', items: [
     { key: 'payroll/bank-analytics', label: 'nav.bank_analytics', icon: 'bar_chart', permission: 'import.read' },

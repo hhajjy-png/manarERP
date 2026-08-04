@@ -1,0 +1,407 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   مركز التحليل المالي — أنماط الصفحة (`.fac-*`).
+
+   يُركَّب فوق Explorer Kit (`explorer-kit.css` / `.xpl-*`) ولا يُعيد تعريف أي
+   لون أو ظلّ أو حافّة: كل القيم من توكنات `--xpl-*` القائمة، فيتبع الوضعين
+   الفاتح والداكن تلقائيًا. ما يضيفه هذا الملف هو **التخطيط والكثافة** فقط:
+   شبكة الأقسام، شريط البطاقات، محاذاة الأرقام، صفّ المجاميع، وخلايا الضغط.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.fac-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* الطقم المشترك يحدّ كل جدول بـ`max-height: 62vh` مع تمرير داخلي. داخل صفحة
+   تمرّر أصلًا يصبح ذلك تمريرًا متداخلًا (عيب استخدام معروف)، والأخطر أنه حاوية
+   قصّ: تصدير PDF كان سيبتر كل صفّ خارج النافذة المرئية. الجداول هنا محدودة
+   الطول أصلًا بزرّ «عرض الكل»، فتتدفّق مع الصفحة. مقصور على هذه الصفحة. */
+.fac-page .xpl-table-wrap { max-height: none; }
+
+/* ── أزرار التصدير (رأس الصفحة) ────────────────────────────────────────────── */
+
+.fac-export { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ── جذر التقرير ───────────────────────────────────────────────────────────
+   الحاوية التي تُصدَّر إلى PDF. على الشاشة مجرّد عمود بنفس تباعد الصفحة، فلا
+   يتغيّر أي شيء بصريًا؛ وظيفتها **حدّ بنيوي** يفصل محتوى التقرير عن الفلاتر
+   والأزرار ودرج التفصيل. */
+.fac-report {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ترويسة المستند — للطباعة/التصدير فقط، مخفيّة تمامًا على الشاشة. */
+.fac-report-head { display: none; }
+
+/* ── الفلتر الوحيد ─────────────────────────────────────────────────────────── */
+
+.fac-filter-row {
+  align-items: flex-end;
+  gap: 12px;
+}
+.fac-filter-field { min-width: 140px; }
+.fac-filter-field .xpl-select,
+.fac-filter-field .xpl-input { width: 100%; }
+
+/* بطاقة الفترة المختارة — تظهر مرّة واحدة في الصفحة كلها. */
+.fac-period-card {
+  margin-inline-start: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 190px;
+  padding: 8px 14px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+  background: var(--xpl-faint-2);
+}
+.fac-period-card--custom { border-color: var(--xpl-primary); }
+.fac-period-card-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+}
+.fac-period-card-head .material-symbols-outlined { font-size: 15px !important; }
+.fac-period-card-range {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--xpl-text);
+  font-family: var(--app-font-mono);
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+}
+.fac-period-card-sep {
+  width: 22px;
+  height: 1px;
+  background: var(--xpl-border);
+}
+.fac-period-card-days { font-size: 11.5px; color: var(--xpl-muted); }
+
+/* ── غلاف القسم ────────────────────────────────────────────────────────────── */
+
+.fac-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--xpl-surface);
+  border: 1px solid var(--xpl-border);
+  border-radius: 14px;
+  box-shadow: var(--xpl-shadow-sm);
+}
+
+.fac-section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--xpl-border);
+}
+.fac-section-index {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--xpl-faint);
+  color: var(--xpl-primary);
+  font-size: 12.5px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+.fac-section-title {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--xpl-text);
+}
+.fac-section-title .material-symbols-outlined { font-size: 19px !important; color: var(--xpl-primary); }
+.fac-section-actions { margin-inline-start: auto; display: flex; align-items: center; gap: 8px; }
+.fac-section-body { display: flex; flex-direction: column; gap: 10px; }
+
+/* شريط بطاقات القسم — بطاقات ExplorerKit كما هي، الشبكة فقط من هنا. */
+.fac-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+/* ── الجداول ───────────────────────────────────────────────────────────────── */
+
+.fac-table th,
+.fac-table td { white-space: nowrap; }
+.fac-table--compact th { padding-block: 8px; }
+.fac-table--compact td { padding-block: 7px; }
+
+/* ── محاذاة الأعمدة ────────────────────────────────────────────────────────────
+   الانتقاء هنا `.fac-table th.fac-al-*` (0,2,1) **عمدًا** لا `.fac-al-*` وحدها
+   (0,1,0): الطقم المشترك يعلن `.xpl-table th { text-align: start }` بنوعية (0,1,1)،
+   فكان يهزم صنف المحاذاة على رؤوس الأعمدة بينما `.xpl-table td` لا يعلن محاذاة
+   إطلاقًا فتُطبَّق على الخلايا. النتيجة كانت رأسًا محاذيًا للبداية فوق بيانات
+   محاذية للنهاية — إزاحة أفقية في كل عمود عدا الأول (وهو الوحيد الذي محاذاته
+   `start` أصلًا فتطابق قاعدة الطقم صدفةً).
+
+   الرأس والخليّة يتشاركان القاعدة نفسها حرفيًا، فيستحيل أن ينحرف أحدهما عن الآخر.
+   لا `!important`، ولا تعديل على الطقم المشترك. */
+.fac-table th.fac-al-start,
+.fac-table td.fac-al-start { text-align: start; }
+.fac-table th.fac-al-end,
+.fac-table td.fac-al-end { text-align: end; }
+.fac-table th.fac-al-center,
+.fac-table td.fac-al-center { text-align: center; }
+
+/* ── العمود النصّي القابل للاقتطاع ───────────────────────────────────────────
+   `max-width: 0` مع `table-layout: auto` هي الصيغة القياسية لـ«اجعل هذا العمود
+   يبتلع المساحة المتبقية واختصره»: خوارزم الجدول يمنحه ما يفيض عن الأعمدة
+   الأخرى بعد أخذها عرض محتواها الكامل. لذلك تبقى المبالغ ظاهرة كاملة أبدًا،
+   والاسم وحده هو ما يُختصر — وبنقاط في نهايته فتبقى بدايته مقروءة. */
+.fac-table th.fac-truncate,
+.fac-table td.fac-truncate {
+  /* `width: 100%` يطالب بكل المساحة، و`max-width: 0` يجعل الحدّ الأدنى صفرًا —
+     الزوج القياسي الذي يجعل هذا العمود وحده يمتصّ الفائض وينكمش عند الضيق. */
+  width: 100%;
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* الأعمدة غير المقتطعة تأخذ عرض محتواها بالضبط (`width: 1%` تحت التخطيط التلقائي
+   تعني «أصغر ما يكفي»)، فلا يبقى فائض يُوسّع الجدول خارج حاويته. مقصورة على
+   الجداول التي فيها عمود مقتطع فعلًا كي لا يتغيّر تخطيط أي جدول آخر. */
+.fac-table--truncating th:not(.fac-truncate),
+.fac-table--truncating td:not(.fac-truncate) { width: 1%; }
+
+.fac-num,
+.fac-money {
+  font-family: var(--app-font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.fac-mono { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
+.fac-muted { color: var(--xpl-muted); }
+
+/* صفّ المجاميع — أثقل بصريًا وثابت أسفل الجدول. */
+.fac-totals-row td {
+  background: var(--xpl-faint-2);
+  font-weight: 800;
+  border-top: 2px solid var(--xpl-border);
+}
+
+/* خليّة قابلة للضغط تفتح نافذة التفصيل. */
+.fac-drill {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background .15s ease, color .15s ease;
+}
+.fac-drill .material-symbols-outlined {
+  font-size: 14px !important;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.fac-drill:hover,
+.fac-drill:focus-visible {
+  background: var(--xpl-faint);
+  color: var(--xpl-primary);
+  outline: none;
+}
+.fac-drill:hover .material-symbols-outlined,
+.fac-drill:focus-visible .material-symbols-outlined { opacity: .85; }
+
+/* اتجاه التغيّر مقابل الفترة السابقة. */
+.fac-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.fac-change .material-symbols-outlined { font-size: 14px !important; }
+.fac-change--up { color: var(--xpl-green); }
+.fac-change--down { color: var(--xpl-red); }
+
+/* زرّ «عرض الكل» أسفل الجداول المقصوصة. */
+.fac-expand {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--xpl-primary);
+}
+.fac-expand:hover { text-decoration: underline; }
+.fac-expand .material-symbols-outlined { font-size: 16px !important; }
+.fac-expand-count {
+  background: var(--xpl-faint);
+  border-radius: 999px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fac-empty {
+  margin: 0;
+  padding: 18px 4px;
+  text-align: center;
+  color: var(--xpl-muted);
+  font-size: 13px;
+}
+
+/* شريط بحث الجدول — `SearchBox` من الطقم، محصور بعرض معقول فوق الجدول. */
+.fac-table-search { display: flex; max-width: 320px; }
+
+/* ── §6 أعلى القوائم — ثلاثة جداول صغيرة جنبًا إلى جنب ────────────────────── */
+
+.fac-top-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.fac-top-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+  background: var(--xpl-bg);
+}
+.fac-top-card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--xpl-text);
+}
+.fac-top-card-title .material-symbols-outlined { font-size: 17px !important; color: var(--xpl-primary); }
+
+/* ── ملاحظات ونافذة التفصيل ───────────────────────────────────────────────── */
+
+.fac-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--xpl-muted);
+}
+.fac-drill-note {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--xpl-orange);
+}
+
+/* ── استجابة الشاشات الضيّقة ──────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .fac-period-card { margin-inline-start: 0; width: 100%; }
+  .fac-filter-field { min-width: 120px; flex: 1 1 120px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   الطباعة / تصدير PDF
+
+   كل القواعد مُنتقاة داخل `.fac-page` — **لا `@page` هنا إطلاقًا**: قاعدة `@page`
+   عالمية على مستوى المستند لا مقصورة على صفحة، وورقة أنماط هذه الصفحة تبقى
+   محمَّلة بعد مغادرتها، فكانت ستغيّر هندسة طباعة كل شاشة أخرى في النظام.
+   هندسة الورقة تبقى للقاعدة العامة في `app/theme.css` كما هي لكل التقارير.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  /* ترويسة المستند — تحلّ محلّ رأس الصفحة وبطاقة الفترة اللذين يبقيان خارج
+     جذر الطباعة. تُطبع مرّة واحدة في صدر التقرير. */
+  .fac-report .fac-report-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 8px;
+    margin-bottom: 4px;
+    border-bottom: 2px solid var(--xpl-primary);
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .fac-report .fac-report-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--xpl-text);
+  }
+  .fac-report .fac-report-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--xpl-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* لا حاوية قصّ ولا تمرير — كل صفّ يجب أن يصل إلى الورق. */
+  .fac-page .xpl-table-wrap {
+    max-height: none;
+    overflow: visible;
+    border-radius: 0;
+  }
+
+  /* على الورق لا وجود لـ Hover ولا لتلميح، فالاقتطاع يُخفي بيانات. تُلغى كل
+     قيود سطر واحد فتلتفّ الأسماء الطويلة وتظهر كاملة. */
+  .fac-page .fac-table th,
+  .fac-page .fac-table td {
+    white-space: normal;
+    word-break: break-word;
+  }
+  .fac-page .fac-table th.fac-truncate,
+  .fac-page .fac-table td.fac-truncate {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  /* المبالغ تبقى على سطر واحد — التفافها يجعلها غير قابلة للقراءة. */
+  .fac-page .fac-money,
+  .fac-page .fac-num,
+  .fac-page .fac-mono { white-space: nowrap; }
+
+  /* تكرار رؤوس الأعمدة على كل ورقة يمتدّ إليها الجدول، وصفّ المجاميع في ذيلها. */
+  .fac-page .fac-table thead { display: table-header-group; }
+  .fac-page .fac-table tfoot { display: table-footer-group; }
+
+  /* لا قصّ لبطاقة ولا لصفّ ولا لقسم عبر فاصل الصفحات.
+     `[data-print-section]` يستهدف أقسام الطباعة المُعلَنة صراحةً — لا يعتمد على
+     صنف تخطيط قد يتغيّر. */
+  .fac-report [data-print-section],
+  .fac-page .fac-section,
+  .fac-page .fac-top-card,
+  .fac-page .xpl-metric { break-inside: avoid; page-break-inside: avoid; }
+  .fac-page .fac-table tr { break-inside: avoid; page-break-inside: avoid; }
+  /* عنوان القسم لا ينفصل أبدًا عن جدوله. */
+  .fac-report .fac-section-head,
+  .fac-report .fac-kpis { break-after: avoid; page-break-after: avoid; }
+
+  /* عناصر تفاعلية بحتة لا معنى لها على الورق. */
+  .fac-page .fac-expand { display: none; }
+  .fac-page .fac-drill { color: inherit; background: none; }
+  .fac-page .fac-drill .material-symbols-outlined { display: none; }
+}
