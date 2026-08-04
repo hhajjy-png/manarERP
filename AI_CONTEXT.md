@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `c45622b5` (merge of `feature/letter-engine-font-picker-dynamic-registry-v1` — the Official Letter font picker's font pool made fully dynamic: `getLetterFontPool()` is now exactly the Font Registry's own `getEnabledFonts()`, with no allow-list, no `category` filter, no `recommendedFor` filter, and no font-name literal in the selection path, so a future font that ships `enabled` appears automatically with zero code changes elsewhere; retains the dropdown-width and no-ellipsis `FontPicker` UI improvements from the same in-session work; also carries the previously-validated Post-Release Hotfix v1 (dead toolbar button removed, barcode print race fixed, safe-writing-zone outline fixed); 9 files (8 modified, 1 added); no Prisma/schema/migration change) |
-| **Current Documentation Commit** | PENDING |
+| **Current Documentation Commit** | `4bbda65f` |
 | **Current Stable Tag** | `stable-letter-engine-font-picker-dynamic-registry-v1` |
 | **Current Release Date** | 2026-08-04 |
 | **Total Stable Releases** | 403 (window 2026-06-07 → 2026-08-04) |
