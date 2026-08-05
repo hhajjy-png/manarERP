@@ -43,13 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `4a672e70` — release `stable-financial-analysis-center-v1` (Financial Analysis Center v1: a new read-only executive analysis page at `#/financial-analysis` with eight table-only sections over the existing operational reporting engine — one shared filter, one request per load, per-section KPIs derived from their own table rows, cell- and row-level drill-down, an 11-worksheet Excel export and a landscape multi-page PDF export, both through the system's own engines; 32 files, backend + frontend, no Prisma/schema/permission/Electron change) |
+| **Production HEAD** | `4941b2ca` — release `stable-cloud-backup-google-drive-sync-v1` (Cloud Backup & Google Drive Sync v1: four packs delivered as one feature — the Google Drive Deployment Pack (OAuth Desktop client bundled into the installer, resolved by a pure policy layer, never touched by the end user), the Cloud-Failure Local Backup Guarantee (every failed cloud operation leaves a local backup, with a direct `VACUUM INTO` path for when the backend is stopped), the Production Hardening Pack (dead-grant detection and recovery as a distinct `GRANT_DEAD` state, OAuth client binding on stored tokens, one central Arabic error translation layer, a sync mutex, real `AbortController` timeouts on every Drive call, atomic state writes, lost-update protection, rescue-backup namespace separation, 403 rate-limit handling with `Retry-After`, and full test coverage of the decision engine), the Production UX & Diagnostics Pack (a cloud diagnostics centre with 16 status items, a 0-100 health score, smart actions, a copyable report and a support block — all from a passive read with zero network calls) and the Production Polish Pack (operation durations, an operation-details drawer, diagnostics history, one-click self repair, health history, engine information, and PDF/Excel diagnostics exports); 33 files, Electron main process + backend + frontend, no Prisma/schema/migration and no new permission key) |
+| **Previous production HEAD** | `4a672e70` — release `stable-financial-analysis-center-v1` (Financial Analysis Center v1: a new read-only executive analysis page at `#/financial-analysis` with eight table-only sections over the existing operational reporting engine — one shared filter, one request per load, per-section KPIs derived from their own table rows, cell- and row-level drill-down, an 11-worksheet Excel export and a landscape multi-page PDF export, both through the system's own engines; 32 files, backend + frontend, no Prisma/schema/permission/Electron change) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-financial-analysis-center-v1` (release date 2026-08-04) → merge `4a672e70` |
-| **Previous stable tag** | `stable-employee-table-column-optimization-pack-v1` (2026-08-04) → merge `7cb24752` |
-| **Total stable releases** | 407 (all merged onto `production`; window 2026-06-07 → 2026-08-04) |
-| **Latest validation** | Backend / frontend / electron `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (feature branch and post-merge) · backend 2697 tests ✅ · frontend 3484 pass, 26 failures identical in count and identity to the pre-release baseline (pre-existing, unrelated to this release) · 100 new tests added · scope confirmed: exactly 32 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-status` scope check showing zero out-of-scope paths — the unrelated Google-Drive cloud-sync WIP in the working tree was deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `4a672e70` + tags `stable-financial-analysis-center-v1`, `checkpoint-financial-analysis-center-v1` + branch `feature/financial-analysis-center-v1`) |
+| **Latest stable tag** | `stable-cloud-backup-google-drive-sync-v1` (release date 2026-08-05) → merge `4941b2ca` |
+| **Previous stable tag** | `stable-financial-analysis-center-v1` (2026-08-04) → merge `4a672e70` |
+| **Total stable releases** | 408 (all merged onto `production`; window 2026-06-07 → 2026-08-05) |
+| **Latest validation** | Backend / frontend / electron `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (post-merge) · electron 354 tests ✅ · backend 2697 tests ✅ · frontend 3484 pass, 26 failures identical in count and identity to the pre-release baseline (pre-existing, unrelated to this release) · 127 new tests added · scope confirmed: exactly 33 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-status` scope check showing zero out-of-scope paths — the one-time backend probe scripts, the `.tmp-*.json` scratch files, the two `docs/*.xlsx` workbooks, the unreferenced font files and a leftover measurement test were deliberately left unstaged · Product Owner manual visual review — **completed & approved** (diagnostics card, activity log, details drawer, PDF and Excel reports, RTL and dark mode), release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `4941b2ca` + tags `stable-cloud-backup-google-drive-sync-v1`, `checkpoint-cloud-backup-google-drive-sync-v1` + branch `feature/cloud-backup-google-drive-sync-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -61,7 +62,119 @@ in a table cell.
 
 ---
 
-## Latest Release — Financial Analysis Center v1
+## Latest Release — Cloud Backup & Google Drive Sync v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Cloud Backup & Google Drive Sync v1 — four packs merged as one feature (33 files: 18 new, 15 modified; Electron main process + backend + frontend) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-05 |
+| **Feature branch** | `feature/cloud-backup-google-drive-sync-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `d6515f40` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-cloud-backup-google-drive-sync-v1` → `d6515f40` |
+| **Feature commit** | `52062358` |
+| **Production merge commit** | `4941b2ca` |
+| **Stable tag** | `stable-cloud-backup-google-drive-sync-v1` → merge `4941b2ca` (annotated) |
+| **Reviews** | Deep architecture audit (pre-release, read-only) → Claude Code Review self-verified via `tsc --noEmit` × 3 targets + all three builds + all test suites, iterated until clean → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend/frontend/electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (feature branch and post-merge) · electron 354 tests ✅ · backend 2697 tests ✅ · frontend 3484 pass / 26 pre-existing baseline failures (count and identity unchanged) |
+
+**What it is.** The Google Drive sync engine existed before this release but was not
+production-safe. The audit that opened this work found three blocking defects: a dead OAuth
+grant was invisible and unrecoverable (`isAuthenticated()` answered "is there a string on
+disk?", so the UI reported a healthy connection forever while every sync failed silently),
+two devices could overwrite each other with no trace, and no Drive call had a timeout at all.
+It also found that the decision engine — the ~40 lines that decide which copy of the database
+lives — had zero test coverage. This release closes all of that and turns the backup page into
+a diagnostics centre.
+
+**Google Drive Deployment Pack v1.** The packaged app resolves its OAuth Desktop client from a
+developer-provisioned `electron/resources/gdrive-oauth-client.json`, bundled by electron-builder
+into `process.resourcesPath`. The end user never creates or copies a credentials file. The
+resolution order (env → packaged → dev) lives in a pure, unit-tested policy module; the real
+credentials file is git-ignored, and the `extraResources` entry is guarded by a test so a
+drive-by edit cannot silently ship an installer that can never authorise.
+
+**Cloud-Failure Local Backup Guarantee v1.** Any failed cloud operation now leaves a local
+backup behind, unconditionally — including a network outage or an auth failure that never
+reaches Drive. The preferred path is the backend's own backup service (recorded in the `Backup`
+table under a new `RESCUE` type, so it appears in the backup centre); when the backend is
+stopped — exactly the case during shutdown sync, the most common failure moment — a direct
+`VACUUM INTO` snapshot writes to the same folder in the same `.db` format the restore screen
+already understands. The two paths now use separate filename namespaces (`manar-rescue-` for
+the recorded path, `manar-rescue-local-` for the direct one) so retention pruning can never
+delete a backup that is restorable from inside the system.
+
+**Production Hardening Pack v1 (P0).** Eleven items:
+1. **Grant Recovery Engine** — `invalid_grant` / `unauthorized_client` / `access_denied` are
+   classified as a distinct `GRANT_DEAD` state, not an error string. The dead token is deleted
+   (so no further attempt can be built on it), the reason is persisted across restarts, and the
+   UI shows a permanent banner with a reconnect button and an explicit statement that the local
+   database is intact.
+2. **OAuth client binding** — stored tokens record the client id that issued them and are
+   rejected locally, before any network call, when it changes. Tokens saved by earlier builds
+   carry no binding and are treated as "unknown", not "mismatched", so upgrading never
+   disconnects a working account.
+3. **Central Google error translation** — one pure module maps every OAuth and Drive failure to
+   a professional Arabic message. No raw Google text can reach the screen.
+4. **Cloud sync mutex** — one lock serialises sync-now / upload / download / conflict check /
+   conflict resolution / startup / shutdown. Concurrent calls are rejected immediately with a
+   clear message rather than queued behind decisions that may already be stale.
+5. **Real network timeouts** — every Drive call runs under an `AbortController` (30s metadata,
+   180s transfer) and aborts for real, freeing the socket.
+6. **Atomic state writes** — `sync-metadata.json` and `gdrive-token.dat` are written
+   temp → fsync → rename. A truncated metadata file used to read back as "no sync history",
+   which produced a false conflict.
+7. **Lost-update protection** — uploads compare the remote file against the snapshot the
+   decision was built on (which may be minutes old while a conflict dialog is open) and again
+   immediately before writing. Any change becomes a conflict for the user to resolve instead of
+   a silent overwrite.
+8. **Rescue backup protection** — the namespace separation described above.
+9. **Rate-limit handling** — Drive returns rate limits as 403, which was classified as fatal;
+   it is now retryable and honours `Retry-After`, while `storageQuotaExceeded` stays correctly
+   non-retryable.
+10. **Decision engine tests** — the rules moved to a pure module covered for local-newer,
+    remote-newer, same-hash, conflict, missing remote, missing local, empty database, seed
+    database, startup and shutdown.
+11. **Production UX** — Arabic messages, retry action, reconnect action.
+
+**Production UX & Diagnostics Pack v1 (P1).** A Cloud Diagnostics Centre at the top of the
+backup page: sixteen status items (account, email, grant, refresh token, access token, internet,
+Drive, storage, last sync/upload/download, local and cloud revisions, last conflict check,
+mutex, system status), a 0-100 health score graded Excellent/Good/Warning/Critical, smart
+actions, a copyable diagnostics report and a short support block. The passive read performs
+**zero network calls** — every value comes from disk, local computation, or a probe cache filled
+by operations that ran for another reason. Only the explicit "test connection" action touches
+Google, and it walks the whole trust chain so a successful Drive query *proves* the grant is
+alive rather than inferring it from a file on disk.
+
+**Production Polish Pack v1.** Operation durations are measured and shown; each log row opens a
+details drawer with start, end, duration, failure reason and a suggested action derived from the
+entry itself (a dead grant suggests reconnecting, not retrying). A six-row diagnostics history
+answers "when did each of these last happen". One-click self repair composes the existing
+disconnect → relink → verify steps into a single button and only reports success after a real
+Drive query succeeds. Health history records a point when the score *changes* — never on a timer
+— so the card distinguishes a stable 70% from a 70% that dropped from 100% an hour ago. Engine
+information, an official-template PDF report and a single-sheet Excel export complete the centre.
+
+**Design language.** The entire diagnostics UI is composed from the existing ExplorerKit
+primitives inside `.xpl-scope` — zero new CSS classes and zero colours outside the system tokens,
+so RTL and dark mode work by inheritance rather than special-casing. The only exception is the
+print root, which is never rendered on screen.
+
+**Security.** The diagnostics snapshot type carries no field for any secret — no access token, no
+refresh token, no client secret — so the report and the support block cannot leak what they
+cannot see. Access-token validity is represented by an expiry timestamp only. Both properties are
+covered by tests.
+
+**Known operational prerequisite (not code).** The Google Cloud OAuth consent screen must be set
+to **In production**. While it remains in *Testing*, Google expires refresh tokens after 7 days,
+which is the most likely origin of the `invalid_grant` incident that opened this work. This
+release makes that failure **visible and recoverable in one click**; it does not prevent it from
+recurring.
+
+---
+
+## Previous Release — Financial Analysis Center v1
 
 | Field | Value |
 |-------|-------|
