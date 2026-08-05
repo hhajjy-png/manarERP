@@ -15,6 +15,13 @@ import type { BrandingSelection } from '../hooks/useBrandingSelection';
  */
 interface Props {
   selection: BrandingSelection;
+  /**
+   * Adds the barcode's show/hide checkbox to the SAME group, for the documents that draw
+   * one. Absent ⇒ this control is exactly what it has always been, so no form gains a
+   * toggle for an element it does not render. There is no dropdown beside it because a
+   * barcode is generated from the document rather than chosen from Settings.
+   */
+  withBarcode?: boolean;
 }
 
 const rowStyle: React.CSSProperties = {
@@ -33,12 +40,13 @@ const selectStyle: React.CSSProperties = {
   borderRadius: 6,
 };
 
-export default function BrandingAssetPicker({ selection }: Props) {
+export default function BrandingAssetPicker({ selection, withBarcode }: Props) {
   const { t } = useT();
 
   const signatureOptions = selectableAssets(selection.signatures);
   const stampOptions = selectableAssets(selection.stamps);
-  if (signatureOptions.length === 0 && stampOptions.length === 0) return null;
+  // The barcode needs no uploaded asset, so it alone can keep the control on screen.
+  if (signatureOptions.length === 0 && stampOptions.length === 0 && !withBarcode) return null;
 
   const optionLabel = (asset: BrandingAsset, index: number, indexKey: string): string =>
     asset.name.trim() || asset.title.trim() || t(indexKey, { n: index + 1 });
@@ -112,6 +120,22 @@ export default function BrandingAssetPicker({ selection }: Props) {
             checked={selection.showStamp}
             disabled={!selection.stampUrl}
             onChange={(e) => selection.setShowStamp(e.target.checked)}
+          />
+        </span>
+      )}
+
+      {withBarcode && (
+        <span style={rowStyle}>
+          <label htmlFor="branding-pick-barcode" style={{ color: 'var(--text)' }}>
+            {t('lbl.barcode_chrome')}
+          </label>
+          <input
+            id="branding-pick-barcode"
+            type="checkbox"
+            aria-label={t('page.settings.show_barcode_in_documents')}
+            title={t('page.settings.show_barcode_in_documents')}
+            checked={selection.showBarcode}
+            onChange={(e) => selection.setShowBarcode(e.target.checked)}
           />
         </span>
       )}

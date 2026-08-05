@@ -119,7 +119,9 @@ describe('سريان الحدود على كل مسار تحكّم', () => {
     const hook = src('src/print-templates/hooks/useBrandingDesigner.ts');
     // مصدر واحد للحدود، محلولٌ بمفتاح المستند — لا رقم مثبَّت ولا مجموعة ثانية.
     expect(hook).toContain('const bounds = getBrandingLayoutBounds(docType);');
-    expect(hook).toContain('clampBrandingElementLayout({ ...current[type], ...patch }, bounds)');
+    // العنصر يُحلّ عبر resolveBrandingElement (بدل current[type]) منذ عنصر الباركود —
+    // الاختيارية في السجل تُقرأ كتخطيط الهوية. القصّ نفسه وحدوده لم يتغيّرا.
+    expect(hook).toContain('clampBrandingElementLayout({ ...resolveBrandingElement(current, type), ...patch }, bounds)');
     const drag = hook.slice(hook.indexOf('function continueDrag'), hook.indexOf('function endDrag'));
     const resize = hook.slice(hook.indexOf('function continueResize'), hook.indexOf('function endResize'));
     expect(drag).toContain('patchDoc(');

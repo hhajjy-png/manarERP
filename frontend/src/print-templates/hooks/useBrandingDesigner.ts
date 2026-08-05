@@ -12,6 +12,7 @@ import {
   getBrandingLayoutBounds,
   clampBrandingElementLayout,
   getBrandingLayoutForDocument,
+  resolveBrandingElement,
   normalizeRotation,
   serializeBrandingLayout,
   type BrandingLayoutBounds,
@@ -25,7 +26,42 @@ import {
   type GridSizeOption,
 } from '../utils/designerUtils';
 
-export type ElementType = 'signature' | 'stamp';
+/**
+ * The kinds of element this designer moves. `barcode` is the third one, added by
+ * Administrative Forms Barcode Designer v1: it is a plain member of this union — NOT a
+ * parallel system — so every gesture, clamp, history entry, save and render path below
+ * treats it exactly as it already treats a signature or a stamp.
+ */
+export type ElementType = 'signature' | 'stamp' | 'barcode';
+
+/**
+ * The roster a host gets when it does not declare one — the two elements every document
+ * has always had. A document that draws a third element (today only Blank A4, with its
+ * barcode) declares it via `BrandingDesignerConfig.elements`; every other surface keeps
+ * exactly the pair it had, so no form gains a control for an element it never renders.
+ */
+export const DEFAULT_DESIGNER_ELEMENTS: readonly ElementType[] = ['signature', 'stamp'];
+
+/** Plain Arabic name per element — one source for the panel, the handles and the a11y labels. */
+export const ELEMENT_LABEL_AR: Record<ElementType, string> = {
+  signature: 'التوقيع',
+  stamp: 'الختم',
+  barcode: 'الباركود',
+};
+
+/** The icon each element is tagged with in the properties panel. */
+export const ELEMENT_ICON: Record<ElementType, string> = {
+  signature: '✏',
+  stamp: '🔵',
+  barcode: '▦',
+};
+
+/** Selection colour per element — the panel's accent and the on-document outline agree by construction. */
+export const ELEMENT_ACCENT_COLOR: Record<ElementType, string> = {
+  signature: '#3b82f6',
+  stamp: '#10b981',
+  barcode: '#f97316',
+};
 
 export interface BrandingDesignerConfig {
   /**
@@ -38,10 +74,18 @@ export interface BrandingDesignerConfig {
   docType: BrandingDocKey | undefined;
   initialLayout: PrintBrandingLayoutSettings | undefined;
   onSaved?: (layout: PrintBrandingLayoutSettings) => void;
+  /**
+   * Which elements this document actually draws. Omitted ⇒ `DEFAULT_DESIGNER_ELEMENTS`
+   * (signature + stamp), which is every existing caller — so their panel, their reset
+   * buttons and their saved record are unchanged to the character.
+   */
+  elements?: readonly ElementType[];
 }
 
 export interface BrandingDesignerHandle {
   docType: BrandingDocKey | undefined;
+  /** The elements this document draws — the panel builds its controls from exactly this. */
+  elements: readonly ElementType[];
   /** The central travel/scale envelope every control derives its range from. */
   bounds: Readonly<BrandingLayoutBounds>;
   /** This document's layout, resolved (identity when it has never been designed). */
@@ -136,6 +180,7 @@ export function useBrandingDesigner({
   docType,
   initialLayout,
   onSaved,
+  elements = DEFAULT_DESIGNER_ELEMENTS,
 }: BrandingDesignerConfig): BrandingDesignerHandle {
   const effective = initialLayout ?? DEFAULT_BRANDING_LAYOUT;
 
@@ -265,7 +310,10 @@ export function useBrandingDesigner({
         ...current,
         // Clamped with THIS document's envelope, so drag, the resize handle, the panel
         // sliders, undo/redo and save all share one range — there is no second limit.
-        [type]: clampBrandingElementLayout({ ...current[type], ...patch }, bounds),
+        // `resolveBrandingElement` (not `current[type]`) so an element the record has no
+        // entry for yet — a barcode on its first edit — starts from the identity layout
+        // instead of spreading `undefined` into a partial object.
+        [type]: clampBrandingElementLayout({ ...resolveBrandingElement(current, type), ...patch }, bounds),
       },
     };
   }
@@ -277,7 +325,7 @@ export function useBrandingDesigner({
   }
 
   function startDrag(type: ElementType, pointerX: number, pointerY: number, renderScale?: number) {
-    const el = getBrandingLayoutForDocument(layoutRef.current, docType)[type];
+    const el = resolveBrandingElement(getBrandingLayoutForDocument(layoutRef.current, docType), type);
     dragStartRef.current = { px: pointerX, py: pointerY, ex: el.x, ey: el.y, type };
     // Snapshot effective zoom at drag start — an explicit render scale wins, because the
     // caller measured what the document is ACTUALLY rendered at.
@@ -331,7 +379,7 @@ export function useBrandingDesigner({
   const RESIZE_PX_PER_DOUBLING = 120;
 
   function startResize(type: ElementType, pointerX: number, pointerY: number, renderScale?: number) {
-    const el = getBrandingLayoutForDocument(layoutRef.current, docType)[type];
+    const el = resolveBrandingElement(getBrandingLayoutForDocument(layoutRef.current, docType), type);
     resizeStartRef.current = {
       px: pointerX,
       py: pointerY,
@@ -407,7 +455,7 @@ export function useBrandingDesigner({
     pointerX: number,
     pointerY: number,
   ) {
-    const el = getBrandingLayoutForDocument(layoutRef.current, docType)[type];
+    const el = resolveBrandingElement(getBrandingLayoutForDocument(layoutRef.current, docType), type);
     rotateStartRef.current = {
       cx: centerX,
       cy: centerY,
@@ -467,15 +515,23 @@ export function useBrandingDesigner({
     updateElement(type, { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined });
   }
 
+  /**
+   * Every element this document draws, back to the template's own placement — same reset
+   * value `resetElement` writes, applied across the roster. `signature`/`stamp` are seeded
+   * unconditionally because they are required by the type and were always cleared here;
+   * the loop then covers whatever else the host declared (Blank A4's barcode). A document
+   * with the default roster therefore produces the exact record it produced before.
+   */
   function resetDoc() {
     if (!docType) return;
-    const next: PrintBrandingLayoutSettings = {
-      ...layoutRef.current,
-      [docType]: {
-        signature: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined },
-        stamp: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined },
-      },
+    const cleared: BrandingLayout = {
+      signature: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined },
+      stamp: { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined },
     };
+    for (const type of elements) {
+      cleared[type] = { ...DEFAULT_ELEMENT_LAYOUT, inkMode: undefined, rotation: undefined };
+    }
+    const next: PrintBrandingLayoutSettings = { ...layoutRef.current, [docType]: cleared };
     setLayout(next);
     pushHistory(next);
   }
@@ -507,6 +563,7 @@ export function useBrandingDesigner({
 
   return {
     docType,
+    elements,
     bounds,
     docLayout: getBrandingLayoutForDocument(layout, docType),
     isActive,

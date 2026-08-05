@@ -222,7 +222,15 @@ function isElementLayout(v: unknown): v is BrandingElementLayout {
 function isDocLayout(v: unknown): v is BrandingLayout {
   if (typeof v !== 'object' || v === null) return false;
   const o = v as Record<string, unknown>;
-  return isElementLayout(o.signature) && isElementLayout(o.stamp);
+  return (
+    isElementLayout(o.signature) &&
+    isElementLayout(o.stamp) &&
+    // Barcode v1 — same additive contract as `rotation`/`inkMode` on the element itself:
+    // absent on every pre-barcode saved layout, and an absent entry means "identity".
+    // Accepting it here (rather than rejecting the whole entry) is what lets a designed
+    // barcode survive a round-trip through this parser.
+    (o.barcode === undefined || isElementLayout(o.barcode))
+  );
 }
 
 export function parseBrandingLayout(
@@ -278,6 +286,23 @@ export function getBrandingLayoutForDocument(
 ): BrandingLayout {
   if (!docType) return DEFAULT_ELEMENT_PAIR;
   return layout?.[docType] ?? DEFAULT_ELEMENT_PAIR;
+}
+
+/**
+ * ONE element of a resolved document layout, never `undefined`.
+ *
+ * `signature`/`stamp` are always present, so for them this is a plain read. `barcode` is
+ * optional in the stored record (it simply does not exist on a document that has no
+ * barcode, or on one saved before barcodes existed) — an absent entry resolves to the
+ * identity layout, i.e. exactly where the template already anchors the element. Every
+ * read path goes through here so absence is handled in one place instead of at each
+ * caller, which is what makes the third element need no branching of its own.
+ */
+export function resolveBrandingElement(
+  layout: BrandingLayout,
+  type: keyof BrandingLayout,
+): BrandingElementLayout {
+  return layout[type] ?? { ...DEFAULT_ELEMENT_LAYOUT };
 }
 
 // ─── CSS helper ──────────────────────────────────────────────────────────────

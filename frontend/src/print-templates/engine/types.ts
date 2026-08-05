@@ -111,6 +111,17 @@ export interface BrandingElementLayout {
 export interface BrandingLayout {
   signature: BrandingElementLayout;
   stamp: BrandingElementLayout;
+  /**
+   * Barcode v1 — a THIRD element in the same per-document record, carrying the same
+   * `BrandingElementLayout` the signature and the stamp already carry, so it shares
+   * their clamp, transform, Save/Reset/Undo/Redo and print pipeline verbatim.
+   *
+   * OPTIONAL for the same reason `rotation` and `inkMode` above are: absent means the
+   * document has no barcode element (every document but Blank A4 today) or has one that
+   * was never designed. `resolveBrandingElement` reads an absent entry as the identity
+   * layout, so no saved record needs migrating and no existing document changes.
+   */
+  barcode?: BrandingElementLayout;
 }
 
 /**

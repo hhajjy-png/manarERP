@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import type { BrandingElementLayout } from '../engine/types';
 import {
   BRANDING_LAYOUT_BOUNDS,
@@ -6,13 +6,20 @@ import {
   ROTATION_MIN,
   brandingElementTransform,
 } from '../utils/brandingLayout';
+import { ELEMENT_ACCENT_COLOR, ELEMENT_LABEL_AR } from '../hooks/useBrandingDesigner';
 import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
 import { getInkFilterStyle, resolveInkMode } from '../utils/inkFilter';
 import InkColorFilterDefs from './InkColorFilterDefs';
 
 /**
- * A signature/stamp image that carries its saved layout and, in design mode, can be
- * dragged and resized in place.
+ * A branding element — signature, stamp or barcode — that carries its saved layout and,
+ * in design mode, can be dragged, resized and rotated in place.
+ *
+ * The three differ ONLY in what they paint: the first two are an uploaded bitmap passed
+ * as `src`, the third is composed content passed as `children`. Everything below this
+ * line — the transform, the clamp, the gestures, the two handles, the ink filter, the
+ * `data-*` hooks the overlay selects by — is one code path shared by all of them, which
+ * is why a third element needed no engine of its own.
  *
  * Written once and reused by every surface that draws a branding image inside a document
  * it does not own the geometry of — today the shared approval slot on ten administrative
@@ -35,7 +42,16 @@ import InkColorFilterDefs from './InkColorFilterDefs';
  *    both drag and resize would drift on every rotated element.
  */
 interface Props {
-  src: string;
+  /** The image to draw — a signature or a stamp. Omitted when `children` is given. */
+  src?: string;
+  /**
+   * Content to draw INSTEAD of an image, for an element that is not a single bitmap —
+   * today Blank A4's barcode, which is a QR plus its caption. It changes only WHAT is
+   * painted: the layout transform, the gestures, the handles, the ink filter, the
+   * `data-*` hooks and the print/PDF/preview path are the same code either way, which
+   * is precisely why the barcode needs no renderer of its own.
+   */
+  children?: ReactNode;
   kind: ElementType;
   layout: BrandingElementLayout;
   /** Everything that positions and sizes the image outside design mode. */
@@ -47,10 +63,7 @@ interface Props {
   transformPrefix?: string;
 }
 
-const OUTLINE_COLOR: Record<ElementType, string> = {
-  signature: '#3b82f6',
-  stamp: '#10b981',
-};
+const OUTLINE_COLOR = ELEMENT_ACCENT_COLOR;
 
 /**
  * The factor the document is currently rendered at.
@@ -69,6 +82,7 @@ function measureRenderScale(handle: HTMLElement | null): number {
 
 export default function DesignableBrandingImage({
   src,
+  children,
   kind,
   layout,
   baseStyle,
@@ -92,7 +106,10 @@ export default function DesignableBrandingImage({
    */
   const resolvedInk = resolveInkMode(layout.inkMode);
   const handleRef = useRef<HTMLSpanElement>(null);
-  const imgRef = useRef<HTMLImageElement>(null);
+  // `HTMLElement`, not `HTMLImageElement`: the drawn node is an <img> for a signature or
+  // stamp and a <div> for the barcode's composite content. Everything read from it here
+  // (`getBoundingClientRect`) is on `HTMLElement`, so one ref serves both.
+  const imgRef = useRef<HTMLElement | null>(null);
   const gestureRef = useRef<'drag' | 'resize' | 'rotate' | null>(null);
 
   // Pointer move/up live on the window so a fast gesture that leaves the small image
@@ -144,28 +161,32 @@ export default function DesignableBrandingImage({
       : {}),
   };
 
-  const img = (
-    <img
-      ref={imgRef}
-      src={src}
-      alt=""
-      data-bd-type={kind}
-      data-designer-type="branding"
-      data-designer-id={kind}
-      draggable={false}
-      style={imageStyle}
-      onPointerDown={
-        active && designer
-          ? (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              gestureRef.current = 'drag';
-              designer.startDrag(kind, e.clientX, e.clientY, measureRenderScale(handleRef.current));
-            }
-          : undefined
-      }
-    />
-  );
+  /**
+   * The identical set of attributes on either node, so the two forms are
+   * indistinguishable to the designer (`data-bd-type` / `data-designer-*` are what the
+   * overlay and the tests locate elements by) and to the export paths.
+   */
+  const drawnProps = {
+    'data-bd-type': kind,
+    'data-designer-type': 'branding',
+    'data-designer-id': kind,
+    draggable: false,
+    style: imageStyle,
+    ref: (node: HTMLElement | null) => { imgRef.current = node; },
+    onPointerDown:
+      active && designer
+        ? (e: React.PointerEvent) => {
+            e.preventDefault();
+            e.stopPropagation();
+            gestureRef.current = 'drag';
+            designer.startDrag(kind, e.clientX, e.clientY, measureRenderScale(handleRef.current));
+          }
+        : undefined,
+  };
+
+  const drawn = children !== undefined
+    ? <div {...drawnProps}>{children}</div>
+    : <img {...drawnProps} src={src} alt="" />;
 
   if (!active || !designer) {
     // A React Fragment — unlike a `display:contents` span — inserts NO DOM node at
@@ -175,7 +196,7 @@ export default function DesignableBrandingImage({
     return (
       <>
         <InkColorFilterDefs mode={resolvedInk} />
-        {img}
+        {drawn}
       </>
     );
   }
@@ -186,12 +207,12 @@ export default function DesignableBrandingImage({
        signature's ruling, the stamp's anchor), so adding design mode moves nothing. */
     <span style={{ display: 'contents' }}>
       <InkColorFilterDefs mode={resolvedInk} />
-      {img}
+      {drawn}
       <span
         ref={handleRef}
         role="slider"
         tabIndex={-1}
-        aria-label={kind === 'signature' ? 'تغيير حجم التوقيع' : 'تغيير حجم الختم'}
+        aria-label={`تغيير حجم ${ELEMENT_LABEL_AR[kind]}`}
         aria-valuenow={Math.round(layout.scale * 100)}
         aria-valuemin={Math.round(activeBounds.minScale * 100)}
         aria-valuemax={Math.round(activeBounds.maxScale * 100)}
@@ -218,7 +239,7 @@ export default function DesignableBrandingImage({
       <span
         role="slider"
         tabIndex={-1}
-        aria-label={kind === 'signature' ? 'تدوير التوقيع' : 'تدوير الختم'}
+        aria-label={`تدوير ${ELEMENT_LABEL_AR[kind]}`}
         aria-valuenow={Math.round(layout.rotation ?? 0)}
         aria-valuemin={ROTATION_MIN}
         aria-valuemax={ROTATION_MAX}
