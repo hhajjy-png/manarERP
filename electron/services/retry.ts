@@ -13,6 +13,14 @@ export interface RetryOptions {
   maxDelayMs?: number;
   /** يُحدّد إن كان الخطأ مؤقتًا (قابل لإعادة المحاولة) — الافتراضي يعيد المحاولة دائمًا. */
   isRetryable?: (err: unknown) => boolean;
+  /**
+   * يسمح للخطأ نفسه بتحديد زمن الانتظار بدل التراجع الأُسّي المحسوب.
+   *
+   * سببه الوحيد اليوم هو ترويسة `Retry-After` من Google (P0-9): حين يقول الخادم
+   * صراحةً «أعد بعد N ثانية»، تجاهُل ذلك ومعاودة المحاولة أبكر يُطيل الحظر بدل
+   * أن يُنهيه. الافتراضي (غياب الدالة) يُبقي السلوك السابق حرفيًا.
+   */
+  getRetryDelayMs?: (err: unknown, defaultDelayMs: number) => number;
   /** يُستدعى قبل كل محاولة إعادة — لتسجيل المحاولة في سجلّ المزامنة. */
   onRetry?: (attempt: number, err: unknown, delayMs: number) => void;
 }
@@ -37,7 +45,8 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
         }
         throw err;
       }
-      const delayMs = Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs);
+      const backoffMs = Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs);
+      const delayMs = opts.getRetryDelayMs?.(err, backoffMs) ?? backoffMs;
       opts.onRetry?.(attempt, err, delayMs);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }

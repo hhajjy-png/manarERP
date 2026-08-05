@@ -54,3 +54,8 @@ frontend/src/pages/index.html
 # Claude Code agent/skill tooling (mirrors .claude/ — not application source)
 .agents/
 skills-lock.json
+
+# Google Drive Deployment Pack v1 — developer-provisioned OAuth Desktop client config,
+# bundled into the installer via electron-builder.yml's extraResources. A release
+# artifact, never application source. See electron/resources/README.md.
+electron/resources/gdrive-oauth-client.json

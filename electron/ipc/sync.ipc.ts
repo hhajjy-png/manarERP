@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import { getUserDataPaths } from '../services/backendLauncher';
 import { hasSessionPermission } from './session.ipc';
 import {
@@ -11,6 +11,9 @@ import {
   performDownload,
   checkForConflict,
   resolveConflict,
+  getCloudDiagnostics,
+  testCloudConnection,
+  repairCloudConnection,
 } from '../services/syncEngine.service';
 
 /**
@@ -75,6 +78,42 @@ export function registerSyncIpc() {
   ipcMain.handle('sync:getConflict', async () => {
     const { dbPath, dataDir } = getUserDataPaths();
     return checkForConflict(dbPath, dataDir);
+  });
+
+  // ─── Production UX & Diagnostics Pack v1 ────────────────────────────────────
+
+  /**
+   * قراءة تشخيصية سلبية — بلا شبكة وبلا استعلام Google، فبنفس مستوى قراءة
+   * `sync:getStatus` تمامًا: لا صلاحية إضافية.
+   */
+  ipcMain.handle('sync:getDiagnostics', async () => {
+    const { dbPath, dataDir } = getUserDataPaths();
+    return getCloudDiagnostics(dbPath, dataDir, { version: app.getVersion(), platform: process.platform });
+  });
+
+  /**
+   * اختبار الاتصال — العملية الوحيدة في هذه الحزمة التي تلمس الشبكة، وتُجدّد رمز
+   * الوصول فعليًا. لذلك تُعامل كعملية مزامنة نشطة لا كقراءة: نفس صلاحية بقية
+   * العمليات النشطة (`backups.update`).
+   */
+  ipcMain.handle('sync:testConnection', async () => {
+    if (!hasSessionPermission('backups.update')) {
+      return { ok: false, internet: 'unknown', drive: 'unknown', error: 'ليست لديك صلاحية لاختبار الاتصال السحابي' };
+    }
+    const { dataDir } = getUserDataPaths();
+    return testCloudConnection(dataDir);
+  });
+
+  /**
+   * §4 — الإصلاح بضغطة واحدة. يُركّب عمليات قائمة (فصل ← ربط ← اختبار) ولا يضيف
+   * منطق مصادقة، لكنه **يُنشئ منحة جديدة** — فصلاحيته صلاحية إدارة المزامنة نفسها.
+   */
+  ipcMain.handle('sync:repairConnection', async () => {
+    if (!hasSessionPermission('backups.update')) {
+      return { ok: false, message: 'ليست لديك صلاحية لإصلاح الاتصال السحابي' };
+    }
+    const { dataDir } = getUserDataPaths();
+    return repairCloudConnection(dataDir);
   });
 
   ipcMain.handle('sync:resolveConflict', async (_e, choice: 'LOCAL' | 'REMOTE') => {

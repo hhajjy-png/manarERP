@@ -20,16 +20,30 @@ function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+/** تصنيف النسخة — يظهر في سجلّ مركز النسخ الاحتياطي ويحدّد سياسة الاحتفاظ. */
+export type BackupType = 'MANUAL' | 'AUTO' | 'SCHEDULED' | 'RESCUE';
+
+/**
+ * بادئة اسم الملف لكل تصنيف — نسخة الإنقاذ تحمل بادئة مميّزة حتى يُعرَف أصلها من
+ * اسم الملف وحده على القرص، لا من سجلّ القاعدة فقط.
+ */
+const FILE_PREFIX: Record<BackupType, string> = {
+  MANUAL: 'manar-backup-',
+  AUTO: 'manar-backup-',
+  SCHEDULED: 'manar-backup-',
+  RESCUE: 'manar-rescue-',
+};
+
 export class BackupService {
   /** إنشاء نسخة احتياطية من ملف قاعدة البيانات. */
-  async create(type: 'MANUAL' | 'AUTO' | 'SCHEDULED', createdById?: number) {
+  async create(type: BackupType, createdById?: number) {
     const dbPath = resolveDbPath();
     if (!fs.existsSync(dbPath)) throw AppError.internal('ملف قاعدة البيانات غير موجود');
 
     const backupDir = path.resolve(process.cwd(), env.BACKUP_DIR);
     ensureDir(backupDir);
 
-    const fileName = `manar-backup-${timestamp()}.db`;
+    const fileName = `${FILE_PREFIX[type] ?? 'manar-backup-'}${timestamp()}.db`;
     const filePath = path.join(backupDir, fileName);
 
     try {
@@ -191,13 +205,17 @@ export class BackupService {
   }
 
   /**
-   * حذف النسخ التلقائية القديمة (AUTO) ما يزيد عن عدد `keep`.
+   * حذف النسخ القديمة من تصنيف واحد ما يزيد عن عدد `keep`.
    * يحذف الملف من القرص + السجل من قاعدة البيانات.
-   * لا يمسّ النسخ اليدوية أو نسخ ما قبل الاستعادة.
+   * لا يمسّ النسخ اليدوية أو نسخ ما قبل الاستعادة، ولا أي تصنيف آخر.
+   *
+   * التصنيف وسيط لأن لكل نوع سياسة احتفاظ مستقلّة: النسخ التلقائية يحكمها إعداد
+   * المستخدم `backup.auto.retention`، بينما نسخ الإنقاذ (RESCUE) لها حدّ ثابت
+   * خاص بها — فلا تُزاحم إحداهما الأخرى ولا تُحذف نسخة إنقاذ بسبب إعداد الجدولة.
    */
-  async pruneAutoBackups(keep: number): Promise<string[]> {
+  async pruneAutoBackups(keep: number, type: BackupType = 'AUTO'): Promise<string[]> {
     const autoBackups = await prisma.backup.findMany({
-      where: { type: 'AUTO' },
+      where: { type },
       orderBy: { createdAt: 'desc' },
     });
 
