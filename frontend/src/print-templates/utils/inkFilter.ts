@@ -23,17 +23,45 @@ export type InkMode =
   | 'original'
   | 'black'
   | 'blue-ink' // legacy — resolution only, not offered in the v2 picker
-  | 'ballpoint-dark-blue'
-  | 'ballpoint-medium-blue'
-  | 'royal-blue'
-  | 'blue-violet-ink';
+  | NewInkColorId;
 
-/** The four new colors offered in the v2 Design Mode picker. */
+/**
+ * Every color offered in the Design Mode picker, IN PICKER ORDER.
+ *
+ * Professional Ink Set v1 APPENDS twenty shades to the original four. Appending — never
+ * inserting, never reordering, never removing — is what keeps this list safe to extend:
+ * the ids are what `BrandingElementLayout.inkMode` stores, so a saved design keeps
+ * resolving to the same color, and an operator's muscle memory for where a swatch sits
+ * is not disturbed.
+ *
+ * The twenty run light → dark as one continuous ballpoint-blue ramp, which is why they
+ * are ordered by value rather than alphabetically: the picker reads as a gradient.
+ */
 export const NEW_INK_COLOR_IDS = [
   'ballpoint-dark-blue',
   'ballpoint-medium-blue',
   'royal-blue',
   'blue-violet-ink',
+  'ink-sky',
+  'ink-light-blue',
+  'ink-classic',
+  'ink-bic',
+  'ink-standard',
+  'ink-executive',
+  'ink-official',
+  'ink-regal',
+  'ink-marine',
+  'ink-dark',
+  'ink-professional',
+  'ink-velvet',
+  'ink-navy',
+  'ink-vintage',
+  'ink-archival',
+  'ink-documentary',
+  'ink-night',
+  'ink-deep',
+  'ink-imperial',
+  'ink-blue-black',
 ] as const;
 export type NewInkColorId = typeof NEW_INK_COLOR_IDS[number];
 
@@ -47,6 +75,27 @@ export const INK_COLOR_HEX: Record<NewInkColorId, string> = {
   'ballpoint-medium-blue': '#1F3F94',
   'royal-blue': '#2A52BE',
   'blue-violet-ink': '#3D3B8E',
+  // ── Professional Ink Set v1 ────────────────────────────────────────────────
+  'ink-sky': '#0062D2',
+  'ink-light-blue': '#005DC8',
+  'ink-classic': '#0058BE',
+  'ink-bic': '#0054B5',
+  'ink-standard': '#0050AC',
+  'ink-executive': '#004CA3',
+  'ink-official': '#00489B',
+  'ink-regal': '#004493',
+  'ink-marine': '#00418C',
+  'ink-dark': '#003E85',
+  'ink-professional': '#003B7E',
+  'ink-velvet': '#003878',
+  'ink-navy': '#003572',
+  'ink-vintage': '#00326C',
+  'ink-archival': '#003067',
+  'ink-documentary': '#002E62',
+  'ink-night': '#002C5D',
+  'ink-deep': '#002A58',
+  'ink-imperial': '#002854',
+  'ink-blue-black': '#002650',
 };
 
 /** One stable SVG `<filter>` id per color — identical id/content wherever it is rendered, so
@@ -81,6 +130,18 @@ export function getInkFilterStyle(mode: InkMode | undefined): CSSProperties {
   }
 }
 
+/**
+ * The label shown on each swatch.
+ *
+ * EVERY LABEL HERE IS DISTINCT, and `inkColorSystem.test.tsx` fails the build if a future
+ * addition breaks that. Distinctness is the requirement; a runtime de-duplicator would be
+ * dead code, because a collision is caught before it can ship — and if one ever is added
+ * deliberately, the fix is to number it here (`… (2)`) rather than to rename an existing
+ * label, which would change what an operator sees for a color they already chose.
+ *
+ * Note the new set names the SHADE («الحبر الملكي») while the original four name the PEN
+ * («أزرق ملكي») — near neighbours in meaning, distinct as strings, and neither is renamed.
+ */
 export const INK_MODE_LABELS: Record<InkMode, string> = {
   original: 'الأصلي',
   'blue-ink': 'حبر أزرق',
@@ -89,6 +150,27 @@ export const INK_MODE_LABELS: Record<InkMode, string> = {
   'ballpoint-medium-blue': 'أزرق قلم متوسط',
   'royal-blue': 'أزرق ملكي',
   'blue-violet-ink': 'أزرق بنفسجي',
+  // ── Professional Ink Set v1 ────────────────────────────────────────────────
+  'ink-sky': 'الحبر السماوي',
+  'ink-light-blue': 'الحبر الأزرق الفاتح',
+  'ink-classic': 'الحبر الكلاسيكي',
+  'ink-bic': 'حبر Bic',
+  'ink-standard': 'الحبر القياسي',
+  'ink-executive': 'الحبر التنفيذي',
+  'ink-official': 'الحبر الرسمي',
+  'ink-regal': 'الحبر الملكي',
+  'ink-marine': 'الحبر البحري',
+  'ink-dark': 'الحبر الداكن',
+  'ink-professional': 'الحبر الاحترافي',
+  'ink-velvet': 'الحبر المخملي',
+  'ink-navy': 'الحبر الكحلي',
+  'ink-vintage': 'الحبر العتيق',
+  'ink-archival': 'الحبر الأرشيفي',
+  'ink-documentary': 'الحبر الوثائقي',
+  'ink-night': 'الحبر الليلي',
+  'ink-deep': 'الحبر العميق',
+  'ink-imperial': 'الحبر الإمبراطوري',
+  'ink-blue-black': 'الحبر الأسود المزرق',
 };
 
 const STORAGE_KEY = 'manar.inkMode';

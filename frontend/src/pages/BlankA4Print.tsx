@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useT } from '../lib/i18n';
 import { printCurrentView, printCurrentViewWithResult, type PrintResult } from '../utils/print';
@@ -14,16 +14,29 @@ import { PrintWorkspace } from '../components/print-workspace';
 import { useFormPreviewInitialZoom } from '../forms/shared/formOpenIntent';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import A4Ruler, { A4_RULER_THICKNESS } from '../forms/shared/A4Ruler';
-import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
+import FormQRCode, { type QRData } from '../forms/shared/FormQRCode';
+import { ALMANAR_COMPANY } from '../print-templates/adapters/companyData';
+import { useCompanyBranding, type BarcodeContent } from '../print-templates/hooks/useCompanyBranding';
+import BarcodeContentDialog from '../print-templates/components/BarcodeContentDialog';
 import { useBrandingSelection } from '../print-templates/hooks/useBrandingSelection';
 import BrandingAssetPicker from '../print-templates/components/BrandingAssetPicker';
 import { useBrandingDesigner } from '../print-templates/hooks/useBrandingDesigner';
 import BrandingDesignerPanel from '../print-templates/components/BrandingDesignerPanel';
 import DesignableBrandingImage from '../print-templates/designer/DesignableBrandingImage';
-import { getBrandingLayoutForDocument } from '../print-templates/utils/brandingLayout';
+import { getBrandingLayoutForDocument, resolveBrandingElement } from '../print-templates/utils/brandingLayout';
+import type { ElementType } from '../print-templates/hooks/useBrandingDesigner';
 import type { BrandingDocKey, PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 
 const FORM_KEY: BrandingDocKey = 'blank-a4-print';
+
+/**
+ * The three elements this sheet draws. The barcode is listed HERE, not inside the
+ * designer, because the roster is a property of the document: every other surface omits
+ * it and therefore keeps exactly the signature/stamp pair it has always had. Declaring it
+ * is the whole wiring — the tab, the properties, the reset button and «↺ الكل» are all
+ * derived from this list by the shared panel.
+ */
+const BLANK_A4_ELEMENTS: readonly ElementType[] = ['signature', 'stamp', 'barcode'];
 
 /**
  * THE ONE PAGE GEOMETRY, shared verbatim by all four paths.
@@ -59,14 +72,34 @@ const SIGNATURE_ANCHOR_MM = { x: 68, y: 210 };
 const STAMP_ANCHOR_MM = { x: 142, y: 210 };
 
 /**
- * A genuinely blank A4 sheet — no header, no title, no form number, no QR, no
- * approval block. The only printable content is a company signature and/or stamp,
- * chosen from the SAME central Multi-Signature & Stamp system every other
- * administrative form uses, positioned with the SAME Design Mode (drag, resize
- * handle, sliders, undo/redo, save/reset) under the SAME shared envelope
- * (`BRANDING_LAYOUT_BOUNDS`). Intended use: print over an external, already
- * pre-printed sheet loaded in the printer, so only the signature/stamp ink lands
- * on the physical page.
+ * The barcode's identity centre — the sheet's horizontal midpoint (210 / 2), on the same
+ * 210 mm baseline as its two siblings.
+ *
+ * CHOSEN SO THE ENVELOPE NEED NOT MOVE, which is the point: `BLANK_A4_LAYOUT_BOUNDS` is
+ * derived (see `brandingLayout.ts`) as the union of what each anchor needs to reach any
+ * point of the sheet. A centre at (105, 210) needs x ∈ [0−105, 210−105] = ±105 mm, which
+ * the existing ±142 mm already contains, and y ∈ [0−210, 297−210] — the existing range
+ * exactly. So the barcode reaches every corner of the paper under the SAME envelope the
+ * signature and stamp are clamped to; no third limit exists to drift out of step.
+ */
+const BARCODE_ANCHOR_MM = { x: 105, y: 210 };
+
+/** The barcode's drawn size, in px — the same 80px QR every administrative form prints. */
+const BARCODE_SIZE_PX = 80;
+
+/**
+ * A genuinely blank A4 sheet — no header, no title, no form number, no approval block.
+ * The only printable content is a company signature, a stamp and/or a barcode, each
+ * opt-in: the first two are chosen from the SAME central Multi-Signature & Stamp system
+ * every other administrative form uses, and all THREE are positioned with the SAME Design
+ * Mode (drag, resize handle, sliders, undo/redo, save/reset) under the SAME shared
+ * envelope (`BLANK_A4_LAYOUT_BOUNDS`). Intended use: print over an external, already
+ * pre-printed sheet loaded in the printer, so only that ink lands on the physical page.
+ *
+ * The barcode is a THIRD element of that one system, not a system of its own — same
+ * `BrandingElementLayout`, same clamp, same `DesignableBrandingImage`, same
+ * `print.brandingLayout` record, same print/PDF/preview path. What differs is only what
+ * it paints (a `FormQRCode` instead of an uploaded bitmap) and that it defaults to off.
  *
  * Deliberately does NOT go through `FormLayout`/`ApprovalSection`: both always
  * render a title, a form-number line, a QR code and an approval label, none of
@@ -92,6 +125,7 @@ export default function BlankA4Print() {
     docType: FORM_KEY,
     initialLayout: savedLayout ?? branding.brandingLayout,
     onSaved: setSavedLayout,
+    elements: BLANK_A4_ELEMENTS,
   });
   const effectiveLayout = getBrandingLayoutForDocument(
     designer.isActive ? designer.localLayout : (savedLayout ?? branding.brandingLayout),
@@ -99,7 +133,39 @@ export default function BlankA4Print() {
   );
   const canDesign =
     selection.ready &&
-    ((selection.showSignature && !!selection.signatureUrl) || (selection.showStamp && !!selection.stampUrl));
+    ((selection.showSignature && !!selection.signatureUrl) ||
+      (selection.showStamp && !!selection.stampUrl) ||
+      selection.showBarcode);
+
+  /**
+   * The barcode's text, as the operator typed it.
+   *
+   * NOTHING IS GENERATED HERE — no counter, no sequence, no random number. The reference
+   * is whatever was last saved in the settings dialog, and an empty one stays empty (the
+   * QR then simply carries no reference line, and no caption is printed beneath it).
+   *
+   * Seeded from the settings the page already loads, then held locally so a save shows
+   * immediately without re-fetching — the same `savedLayout` pattern the branding
+   * designer above uses for its own record.
+   */
+  const [savedBarcode, setSavedBarcode] = useState<BarcodeContent | undefined>(undefined);
+  const [barcodeDialogOpen, setBarcodeDialogOpen] = useState(false);
+  const barcodeContent = savedBarcode ?? branding.barcodeContent;
+
+  /**
+   * Memoised because `FormQRCode` re-encodes whenever the `data` object's identity
+   * changes — a fresh object on every render would redraw the QR on every render.
+   */
+  const barcodeData = useMemo<QRData>(
+    () => ({
+      formType: FORM_KEY,
+      formNumber: barcodeContent.reference,
+      entityName: lang === 'en' ? ALMANAR_COMPANY.nameEn : ALMANAR_COMPANY.nameAr,
+      subject: barcodeContent.subject,
+      details: barcodeContent.details,
+    }),
+    [barcodeContent, lang],
+  );
 
   const formPageRef = useRef<HTMLDivElement>(null);
 
@@ -190,7 +256,16 @@ export default function BlankA4Print() {
       {accurate.button}
       {selection.ready && (
         <div className="pw-toolbar-group">
-          <BrandingAssetPicker selection={selection} />
+          <BrandingAssetPicker selection={selection} withBarcode />
+          {/* Content, not geometry — deliberately its own control beside the picker, so
+              «إظهار الباركود» answers *whether* and this answers *what it says*. */}
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => setBarcodeDialogOpen(true)}
+          >
+            {t('btn.barcode_content')}
+          </button>
           {canDesign && (
             <button
               type="button"
@@ -224,7 +299,9 @@ export default function BlankA4Print() {
       <div className="pw-sidebar-section">
         <span className="pw-sidebar-label">{lang === 'en' ? 'Content' : 'المحتوى'}</span>
         <div className="pw-readonly-field">
-          <span>{lang === 'en' ? 'Signature & stamp only' : 'التوقيع والختم فقط'}</span>
+          <span>
+            {lang === 'en' ? 'Signature, stamp & barcode only' : 'التوقيع والختم والباركود فقط'}
+          </span>
         </div>
       </div>
     </>
@@ -362,12 +439,40 @@ export default function BlankA4Print() {
                 }}
               />
             )}
+            {/* The barcode — the same component and props as any other element on this
+                sheet, differing only in that its content is drawn (`FormQRCode`) rather
+                than loaded from a URL. It therefore inherits the drag, the selection
+                outline, the saved (x, y, scale, rotation) and the print/PDF/preview
+                path without a line of element-specific logic. */}
+            {selection.showBarcode && (
+              <DesignableBrandingImage
+                kind="barcode"
+                layout={resolveBrandingElement(effectiveLayout, 'barcode')}
+                designer={designer}
+                transformPrefix="translate(-50%, -50%)"
+                baseStyle={{
+                  position: 'absolute',
+                  left: `${BARCODE_ANCHOR_MM.x}mm`,
+                  top: `${BARCODE_ANCHOR_MM.y}mm`,
+                }}
+              >
+                <FormQRCode data={barcodeData} size={BARCODE_SIZE_PX} />
+              </DesignableBrandingImage>
+            )}
           </div>
         </div>
       </PrintWorkspace>
 
       {designer.isActive && (
         <BrandingDesignerPanel designer={designer} docLabel={title} onClose={designer.deactivate} />
+      )}
+
+      {barcodeDialogOpen && (
+        <BarcodeContentDialog
+          content={barcodeContent}
+          onSaved={setSavedBarcode}
+          onClose={() => setBarcodeDialogOpen(false)}
+        />
       )}
     </>
   );

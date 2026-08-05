@@ -37,6 +37,18 @@ export interface BrandingSelection {
   showStamp: boolean;
   setShowSignature: (show: boolean) => void;
   setShowStamp: (show: boolean) => void;
+  /**
+   * Whether to print the barcode, on the documents that draw one (Blank A4 today).
+   *
+   * The third answer to the same "whether to print it" question `showSignature`/
+   * `showStamp` answer, held in the same place so the picker's three checkboxes are one
+   * group. It has no *which asset* counterpart because a barcode is GENERATED from the
+   * document, not chosen from Settings — and no company default either, which is why it
+   * starts off rather than being seeded below: a sheet that was blank before this
+   * feature existed stays blank until it is asked for.
+   */
+  showBarcode: boolean;
+  setShowBarcode: (show: boolean) => void;
   /** Image of the currently selected signature, or `undefined` for "none". */
   signatureUrl: string | undefined;
   /** Image of the currently selected stamp, or `undefined` for "none". */
@@ -50,6 +62,7 @@ export function useBrandingSelection(branding: CompanyBranding): BrandingSelecti
   const [stampId, setStampId] = useState(NO_ASSET);
   const [showSignature, setShowSignature] = useState(true);
   const [showStamp, setShowStamp] = useState(true);
+  const [showBarcode, setShowBarcode] = useState(false);
   const [ready, setReady] = useState(false);
 
   // Seed from the company defaults once, then leave the user's choice alone.
@@ -83,6 +96,8 @@ export function useBrandingSelection(branding: CompanyBranding): BrandingSelecti
     showStamp,
     setShowSignature,
     setShowStamp,
+    showBarcode,
+    setShowBarcode,
     signatureUrl: signature?.imageUrl,
     stampUrl: stamp?.imageUrl,
     ready,

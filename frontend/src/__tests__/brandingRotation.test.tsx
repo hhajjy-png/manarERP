@@ -434,6 +434,26 @@ describe('أدوات الدوران تظهر في وضع التصميم فقط',
     expect(handle.getAttribute('aria-valuemax')).toBe('180');
   });
 
+  /**
+   * REGRESSION — محور الدوران يقرأ من مرجع العنصر المرسوم.
+   *
+   * منذ أن صار `DesignableBrandingImage` يرسم إمّا <img> (توقيع/ختم) أو <div> (باركود)،
+   * صار المرجع يُمرَّر ضمن نشر الخصائص المشترك. لو سقط المرجع في هذا النشر لعاد
+   * `getBoundingClientRect()` بلا شيء و**لتوقّف الدوران صامتًا لكل العناصر** — لا خطأ
+   * ولا استثناء، فقط مقبض لا يفعل شيئًا. هذا الاختبار يُثبت أنه ما زال موصولًا.
+   */
+  it('المقبض يمسك محور الدوران من الصورة نفسها — المرجع باقٍ بعد توحيد العقدة المرسومة', () => {
+    const startRotate = vi.fn();
+    const { container } = render(
+      <ApprovalSection signatureUrl={SIG} designer={fakeDesigner({ startRotate })} />,
+    );
+    const handle = container.querySelector('[aria-label^="تدوير"]') as HTMLElement;
+    fireEvent.pointerDown(handle, { clientX: 10, clientY: 20 });
+    // لو كان المرجع مفقودًا لخرجت الدالة قبل النداء (`if (!rect) return`).
+    expect(startRotate).toHaveBeenCalledTimes(1);
+    expect(startRotate.mock.calls[0][0]).toBe('signature');
+  });
+
   it('المقبضان شقيقان للصورة لا أبناء لها — وإلا فسد قياس مقياس العرض', () => {
     const { container } = render(
       <ApprovalSection signatureUrl={SIG} designer={fakeDesigner()} />,

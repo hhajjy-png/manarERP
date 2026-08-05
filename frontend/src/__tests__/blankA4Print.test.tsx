@@ -20,7 +20,7 @@
  *  4. The vertical ruler sat on the wrong edge. Guarded by its anchoring rule.
  */
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup, waitFor, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
@@ -42,14 +42,25 @@ const settingsPayload = {
   ],
 };
 
+/** Barcode content settings, appended per-test — absent by default (never configured). */
+function withBarcodeSettings(rows: Array<{ key: string; value: string }>) {
+  return { settings: [...settingsPayload.settings, ...rows] };
+}
+
+// `vi.hoisted` because `vi.mock`'s factory is hoisted above these declarations.
+const { apiGet, apiPut } = vi.hoisted(() => ({ apiGet: vi.fn(), apiPut: vi.fn() }));
+
 vi.mock('../api/client', () => ({
-  api: {
-    get: vi.fn(() => Promise.resolve({ data: { data: settingsPayload } })),
-    post: vi.fn(),
-    put: vi.fn(),
-  },
+  api: { get: apiGet, post: vi.fn(), put: apiPut },
   errorMessage: (e: unknown) => String(e),
 }));
+
+beforeEach(() => {
+  apiGet.mockReset();
+  apiPut.mockReset();
+  apiGet.mockResolvedValue({ data: { data: settingsPayload } });
+  apiPut.mockResolvedValue({ data: { data: {} } });
+});
 
 import { FORM_CARDS } from '../forms/shared/formsRegistry';
 import { FORM_BRANDING_DOC_KEYS } from '../print-templates/engine/types';
@@ -59,6 +70,8 @@ import {
   getBrandingLayoutBounds,
   clampBrandingElementLayout,
   brandingElementTransform,
+  parseBrandingLayout,
+  resolveBrandingElement,
   DEFAULT_ELEMENT_LAYOUT,
 } from '../print-templates/utils/brandingLayout';
 import BlankA4Print from '../pages/BlankA4Print';
@@ -184,6 +197,376 @@ describe('REGRESSION — one A4 page geometry, shared by all four paths', () => 
       expect(img.style.left).toMatch(/mm$/);
       expect(img.style.top).toMatch(/mm$/);
     }
+  });
+});
+
+/**
+ * Administrative Forms Barcode Designer v1 — the barcode is a THIRD element of the SAME
+ * branding system, not a system beside it. These pin exactly that: it is opt-in, it is
+ * drawn by the same component with the same designer hooks, it is clamped by the same
+ * per-document envelope, it is stored in the same record, and it is invisible to every
+ * document that does not declare it.
+ */
+describe('Barcode — a third element of the one branding system', () => {
+  async function enableBarcode() {
+    const utils = renderPage();
+    await waitFor(() => expect(screen.getByLabelText('إظهار الباركود')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('إظهار الباركود'));
+    return utils;
+  }
+
+  it('is OFF by default — the sheet stays exactly as blank as it was before it existed', async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('img[data-bd-type="signature"]')).toBeTruthy());
+    expect(container.querySelector('[data-bd-type="barcode"]')).toBeNull();
+    // The show/hide switch sits in the SAME group as the other two, not in a panel of its own.
+    expect(screen.getByLabelText('إظهار الباركود')).toBeInTheDocument();
+  });
+
+  it('draws the QR on the sheet once enabled, anchored in mm like its siblings', async () => {
+    const { container } = await enableBarcode();
+
+    const sheet = container.querySelector('.form-page') as HTMLElement;
+    const barcode = await waitFor(() => {
+      const node = sheet.querySelector('[data-bd-type="barcode"]') as HTMLElement | null;
+      expect(node).toBeTruthy();
+      return node as HTMLElement;
+    });
+    // Same coordinate system as the signature and the stamp — mm from the sheet corner.
+    expect(barcode.style.position).toBe('absolute');
+    expect(barcode.style.left).toMatch(/mm$/);
+    expect(barcode.style.top).toMatch(/mm$/);
+    await waitFor(() => expect(barcode.querySelector('img[alt="QR Code"]')).toBeTruthy());
+  });
+
+  /**
+   * REGRESSION — no number is invented, ever.
+   *
+   * The first cut of this feature seeded the caption with `generateFormNumber`, so every
+   * printed sheet carried a clock-derived `FRM-2026-XXXX` that resolved to no record at
+   * all. The rule now is the opposite: the caption is the operator's reference or
+   * nothing.
+   */
+  it('prints NO caption and generates NO number when the reference was never set', async () => {
+    const { container } = await enableBarcode();
+    const barcode = await waitFor(() => {
+      const node = container.querySelector('[data-bd-type="barcode"]') as HTMLElement | null;
+      expect(node?.querySelector('img[alt="QR Code"]')).toBeTruthy();
+      return node as HTMLElement;
+    });
+
+    expect(barcode.textContent).toBe('');
+    expect(barcode.textContent).not.toMatch(/FRM-/);
+    // The whole page, not just the element — no generated number leaks anywhere.
+    expect(container.textContent).not.toMatch(/FRM-\d{4}-\d+/);
+  });
+
+  it('prints the SAVED reference as the caption, verbatim', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'MN-2026-00125' }]) },
+    });
+    const { container } = await enableBarcode();
+
+    await waitFor(() => {
+      const barcode = container.querySelector('[data-bd-type="barcode"]') as HTMLElement | null;
+      expect(barcode?.textContent).toBe('MN-2026-00125');
+    });
+  });
+
+
+  it('carries the same designer hooks as the other elements, so it is selectable and draggable', async () => {
+    const { container } = await enableBarcode();
+    const barcode = await waitFor(() => {
+      const node = container.querySelector('[data-bd-type="barcode"]') as HTMLElement | null;
+      expect(node).toBeTruthy();
+      return node as HTMLElement;
+    });
+    // `DesignableBrandingImage` locates every element by these two attributes — the
+    // barcode answers to them identically, which is what makes it need no own designer.
+    expect(barcode.getAttribute('data-designer-type')).toBe('branding');
+    expect(barcode.getAttribute('data-designer-id')).toBe('barcode');
+  });
+
+  it('reaches every point of the sheet under the EXISTING envelope — no third limit', () => {
+    // The barcode's anchor centre is (105, 210)mm, so it needs x ∈ ±105mm and
+    // y ∈ [−210, +87]mm. Both are inside the envelope already derived for the other two,
+    // which is why `BLANK_A4_LAYOUT_BOUNDS` does not move.
+    const b = BLANK_A4_LAYOUT_BOUNDS;
+    expect(b.minX).toBeLessThanOrEqual(-mm(105));
+    expect(b.maxX).toBeGreaterThanOrEqual(mm(105));
+    expect(b.minY).toBeLessThanOrEqual(-mm(210));
+    expect(b.maxY).toBeGreaterThanOrEqual(mm(87));
+  });
+
+  it('is stored in the same record and is OPTIONAL — a pre-barcode layout still parses', () => {
+    const legacy = JSON.stringify({
+      invoice: { signature: DEFAULT_ELEMENT_LAYOUT, stamp: DEFAULT_ELEMENT_LAYOUT },
+      quotation: { signature: DEFAULT_ELEMENT_LAYOUT, stamp: DEFAULT_ELEMENT_LAYOUT },
+      'blank-a4-print': { signature: { ...DEFAULT_ELEMENT_LAYOUT, x: 40 }, stamp: DEFAULT_ELEMENT_LAYOUT },
+    });
+    const parsed = parseBrandingLayout(legacy);
+    // The entry survives whole — a missing barcode must never invalidate a saved design…
+    expect(parsed['blank-a4-print']?.signature.x).toBe(40);
+    expect(parsed['blank-a4-print']?.barcode).toBeUndefined();
+    // …and reads back as the identity layout, i.e. exactly the template's own anchor.
+    expect(resolveBrandingElement(parsed['blank-a4-print']!, 'barcode')).toEqual(DEFAULT_ELEMENT_LAYOUT);
+
+    // A designed barcode round-trips through the same parser.
+    const withBarcode = JSON.stringify({
+      invoice: { signature: DEFAULT_ELEMENT_LAYOUT, stamp: DEFAULT_ELEMENT_LAYOUT },
+      quotation: { signature: DEFAULT_ELEMENT_LAYOUT, stamp: DEFAULT_ELEMENT_LAYOUT },
+      'blank-a4-print': {
+        signature: DEFAULT_ELEMENT_LAYOUT,
+        stamp: DEFAULT_ELEMENT_LAYOUT,
+        barcode: { ...DEFAULT_ELEMENT_LAYOUT, x: -70, y: 30 },
+      },
+    });
+    expect(parseBrandingLayout(withBarcode)['blank-a4-print']?.barcode).toEqual({
+      ...DEFAULT_ELEMENT_LAYOUT, x: -70, y: 30,
+    });
+  });
+
+  it('reaches print, PDF and preview through the one existing pipeline — no special casing', async () => {
+    let exported: string | undefined;
+    (window as unknown as { manar: Record<string, unknown> }).manar = {
+      exportPdfFromHtml: vi.fn((html: string) => { exported = html; return Promise.resolve(); }),
+    };
+
+    const { container } = await enableBarcode();
+    await waitFor(() => expect(container.querySelector('[data-bd-type="barcode"] img')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /حفظ PDF/ }));
+    await waitFor(() => expect(exported).toBeTruthy());
+
+    // The exported document is composed from the sheet node alone; the barcode is inside
+    // it and is NOT `.no-print`, so it travels with the signature and stamp untouched.
+    const doc = new DOMParser().parseFromString(exported as string, 'text/html');
+    const node = doc.querySelector('[data-bd-type="barcode"]');
+    expect(node).toBeTruthy();
+    expect(node?.closest('.no-print')).toBeNull();
+    expect(node?.querySelector('img')).toBeTruthy();
+  });
+});
+
+/**
+ * Barcode Content Settings v1 — the barcode says what the operator typed, and nothing
+ * else. These pin the three rules that make it useful for filing: the reference is the
+ * caption, the next one is SUGGESTED (not reserved) from the last saved value, and the
+ * whole thing rides the settings endpoint the page already writes to.
+ */
+describe('Barcode content — operator-authored, saved through the existing settings', () => {
+  async function openDialog() {
+    const utils = renderPage();
+    await waitFor(() => expect(screen.getByRole('button', { name: /إعدادات الباركود/ })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole('button', { name: /إعدادات الباركود/ }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+    return utils;
+  }
+
+  const referenceBox = () => screen.getByLabelText('رقم المرجع') as HTMLInputElement;
+  const subjectBox = () => screen.getByLabelText('عنوان / موضوع المستند') as HTMLInputElement;
+  const detailsBox = () => screen.getByLabelText('بيانات إضافية') as HTMLTextAreaElement;
+  /** Scoped to the dialog — the page toolbar also carries a «حفظ PDF» button. */
+  const clickSave = () =>
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /حفظ/ }));
+
+  /** The `settings` rows the last PUT carried, as a key → value map. */
+  function lastSavedRows(): Record<string, string> {
+    const [, body] = apiPut.mock.calls[apiPut.mock.calls.length - 1] as [string, { settings: Array<{ key: string; value: string; group: string }> }];
+    return Object.fromEntries(body.settings.map((r) => [r.key, r.value]));
+  }
+
+  it('opens with empty fields the first time — nothing is proposed out of thin air', async () => {
+    await openDialog();
+    expect(referenceBox().value).toBe('');
+    expect(subjectBox().value).toBe('');
+    expect(detailsBox().value).toBe('');
+  });
+
+  it('proposes the NEXT reference from the last saved one, keeping its width', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'MN-2026-00125' }]) },
+    });
+    await openDialog();
+    expect(referenceBox().value).toBe('MN-2026-00126');
+  });
+
+  it('offers a non-numeric reference back unchanged instead of guessing at it', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'قرار إداري' }]) },
+    });
+    await openDialog();
+    expect(referenceBox().value).toBe('قرار إداري');
+  });
+
+  it('stays fully editable — the operator can replace the proposal outright', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'REF0009' }]) },
+    });
+    await openDialog();
+    expect(referenceBox().value).toBe('REF0010');
+
+    fireEvent.change(referenceBox(), { target: { value: 'كتاب رقم 154/2026' } });
+    expect(referenceBox().value).toBe('كتاب رقم 154/2026');
+  });
+
+  it('saves the three fields as plain settings rows — no new endpoint, no new record shape', async () => {
+    await openDialog();
+    fireEvent.change(referenceBox(), { target: { value: '  MN-2026-00130  ' } });
+    fireEvent.change(subjectBox(), { target: { value: 'طلب تجديد إقامة' } });
+    fireEvent.change(detailsBox(), { target: { value: 'الإدارة المالية\nخاص وسري' } });
+    clickSave();
+
+    await waitFor(() => expect(apiPut).toHaveBeenCalled());
+    const [url] = apiPut.mock.calls[0] as [string, unknown];
+    expect(url).toBe('/settings');
+    expect(lastSavedRows()).toEqual({
+      // Trimmed on the way in, so what is saved is exactly what prints and exactly what
+      // the next suggestion increments.
+      'print.barcode.reference': 'MN-2026-00130',
+      'print.barcode.subject': 'طلب تجديد إقامة',
+      'print.barcode.details': 'الإدارة المالية\nخاص وسري',
+      // A real reference advances the memory alongside it.
+      'print.barcode.lastReference': 'MN-2026-00130',
+    });
+  });
+
+  it('shows the saved reference on the sheet immediately, without re-fetching settings', async () => {
+    const { container } = await openDialog();
+    fireEvent.change(referenceBox(), { target: { value: 'MN-2026-00130' } });
+    clickSave();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    const getCalls = apiGet.mock.calls.length;
+    fireEvent.click(screen.getByLabelText('إظهار الباركود'));
+    await waitFor(() => {
+      const barcode = container.querySelector('[data-bd-type="barcode"]') as HTMLElement | null;
+      expect(barcode?.textContent).toBe('MN-2026-00130');
+    });
+    expect(apiGet.mock.calls.length).toBe(getCalls);
+  });
+
+  it('carries the authored caption into the exported document — preview/print/PDF agree', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'MN-2026-00125' }]) },
+    });
+    let exported: string | undefined;
+    (window as unknown as { manar: Record<string, unknown> }).manar = {
+      exportPdfFromHtml: vi.fn((html: string) => { exported = html; return Promise.resolve(); }),
+    };
+
+    const { container } = renderPage();
+    await waitFor(() => expect(screen.getByLabelText('إظهار الباركود')).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText('إظهار الباركود'));
+    await waitFor(() =>
+      expect((container.querySelector('[data-bd-type="barcode"]') as HTMLElement | null)?.textContent)
+        .toBe('MN-2026-00125'),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /حفظ PDF/ }));
+    await waitFor(() => expect(exported).toBeTruthy());
+
+    // The export composes from the live sheet node, so the caption travels as rendered —
+    // there is no second formatting path that could disagree with the screen.
+    const doc = new DOMParser().parseFromString(exported as string, 'text/html');
+    const node = doc.querySelector('[data-bd-type="barcode"]');
+    expect(node?.textContent).toBe('MN-2026-00125');
+  });
+
+  /**
+   * Remembering the last values is what makes a run of similar documents quick: only the
+   * reference advances, the two text fields come back exactly as they were.
+   */
+  it('brings the subject and details back verbatim — remembered, never rewritten', async () => {
+    apiGet.mockResolvedValue({
+      data: {
+        data: withBarcodeSettings([
+          { key: 'print.barcode.reference', value: 'MN-2026-00125' },
+          { key: 'print.barcode.subject', value: 'طلب تجديد إقامة' },
+          { key: 'print.barcode.details', value: 'الإدارة المالية\nخاص وسري' },
+        ]),
+      },
+    });
+    await openDialog();
+
+    expect(referenceBox().value).toBe('MN-2026-00126'); // only this one advances
+    expect(subjectBox().value).toBe('طلب تجديد إقامة');
+    expect(detailsBox().value).toBe('الإدارة المالية\nخاص وسري');
+  });
+
+  it('clears the three fields on Reset — this window only', async () => {
+    apiGet.mockResolvedValue({
+      data: {
+        data: withBarcodeSettings([
+          { key: 'print.barcode.reference', value: 'MN-2026-00125' },
+          { key: 'print.barcode.subject', value: 'طلب تجديد إقامة' },
+          { key: 'print.barcode.details', value: 'خاص وسري' },
+        ]),
+      },
+    });
+    await openDialog();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /إعادة تعيين/ }));
+
+    expect(referenceBox().value).toBe('');
+    expect(subjectBox().value).toBe('');
+    expect(detailsBox().value).toBe('');
+    // Staged, not committed — nothing is written until Save.
+    expect(apiPut).not.toHaveBeenCalled();
+  });
+
+  /**
+   * REGRESSION — Reset must not restart the numbering.
+   *
+   * Folding "what prints" and "what to count from" into one stored value would make a
+   * cleared reference erase the sequence, and the next document would start from nothing.
+   */
+  it('keeps the last reference remembered after Reset + Save, and suggests from it next time', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'MN-2026-00125' }]) },
+    });
+    const { unmount } = await openDialog();
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: /إعادة تعيين/ }));
+    clickSave();
+    await waitFor(() => expect(apiPut).toHaveBeenCalled());
+
+    // Saved: an empty printed reference, but the memory advanced to nothing — it stands.
+    expect(lastSavedRows()).toEqual({
+      'print.barcode.reference': '',
+      'print.barcode.subject': '',
+      'print.barcode.details': '',
+      'print.barcode.lastReference': 'MN-2026-00125',
+    });
+
+    // Re-open against that saved state: the proposal continues the sequence.
+    unmount();
+    apiGet.mockResolvedValue({
+      data: {
+        data: withBarcodeSettings([
+          { key: 'print.barcode.reference', value: '' },
+          { key: 'print.barcode.lastReference', value: 'MN-2026-00125' },
+        ]),
+      },
+    });
+    await openDialog();
+    expect(referenceBox().value).toBe('MN-2026-00126');
+  });
+
+  it('reads a pre-Reset record (three keys, no memory key) without losing its sequence', async () => {
+    apiGet.mockResolvedValue({
+      data: { data: withBarcodeSettings([{ key: 'print.barcode.reference', value: 'REF0009' }]) },
+    });
+    await openDialog();
+    expect(referenceBox().value).toBe('REF0010');
+  });
+
+  it('leaves the barcode GEOMETRY alone — content and layout are separate records', async () => {
+    await openDialog();
+    fireEvent.change(referenceBox(), { target: { value: 'MN-2026-00130' } });
+    clickSave();
+    await waitFor(() => expect(apiPut).toHaveBeenCalled());
+
+    // The layout record is the designer's to write; a content save must never touch it.
+    expect(Object.keys(lastSavedRows())).not.toContain('print.brandingLayout');
   });
 });
 

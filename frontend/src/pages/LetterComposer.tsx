@@ -880,6 +880,11 @@ export default function LetterComposer() {
     showStamp: true,
     setShowSignature: () => {},
     setShowStamp: () => {},
+    // A letter has its own barcode system (`LetterBarcode`, driven by the template's
+    // barcode spec) and never renders the branding designer's barcode element, so this
+    // pair is inert here — present only to satisfy the shared selection shape.
+    showBarcode: false,
+    setShowBarcode: () => {},
     signatureUrl: resolvedSignature?.imageUrl,
     stampUrl: resolvedStamp?.imageUrl,
     ready: !branding.loading,

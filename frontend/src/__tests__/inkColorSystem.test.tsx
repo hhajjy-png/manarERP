@@ -24,8 +24,10 @@ import {
   getInkFilterStyle,
   resolveInkMode,
   NEW_INK_COLOR_IDS,
+  INK_COLOR_HEX,
   INK_MODE_LABELS,
   type InkMode,
+  type NewInkColorId,
 } from '../print-templates/utils/inkFilter';
 import { FORM_BRANDING_DOC_KEYS } from '../print-templates/engine/types';
 import type { BrandingLayout, PrintBrandingLayoutSettings } from '../print-templates/engine/types';
@@ -120,6 +122,75 @@ describe('New ballpoint-blue colors — SVG filter, not the old CSS approximatio
       expect(container.querySelector('feColorMatrix')).toBeTruthy();
       cleanup();
     }
+  });
+
+  /**
+   * Professional Ink Set v1 — twenty shades APPENDED to the four that existed.
+   *
+   * The colors themselves need no new machinery (the loops above already cover every id
+   * in the list), so what these pin is the part that could silently go wrong: an existing
+   * color being renamed, recolored, reordered or dropped, and two swatches becoming
+   * indistinguishable on screen.
+   */
+  describe('Professional Ink Set v1 — appended, never disturbing what exists', () => {
+    const ORIGINAL_FOUR = ['ballpoint-dark-blue', 'ballpoint-medium-blue', 'royal-blue', 'blue-violet-ink'];
+    const NEW_TWENTY: Array<[string, string, string]> = [
+      ['ink-sky', '#0062D2', 'الحبر السماوي'],
+      ['ink-light-blue', '#005DC8', 'الحبر الأزرق الفاتح'],
+      ['ink-classic', '#0058BE', 'الحبر الكلاسيكي'],
+      ['ink-bic', '#0054B5', 'حبر Bic'],
+      ['ink-standard', '#0050AC', 'الحبر القياسي'],
+      ['ink-executive', '#004CA3', 'الحبر التنفيذي'],
+      ['ink-official', '#00489B', 'الحبر الرسمي'],
+      ['ink-regal', '#004493', 'الحبر الملكي'],
+      ['ink-marine', '#00418C', 'الحبر البحري'],
+      ['ink-dark', '#003E85', 'الحبر الداكن'],
+      ['ink-professional', '#003B7E', 'الحبر الاحترافي'],
+      ['ink-velvet', '#003878', 'الحبر المخملي'],
+      ['ink-navy', '#003572', 'الحبر الكحلي'],
+      ['ink-vintage', '#00326C', 'الحبر العتيق'],
+      ['ink-archival', '#003067', 'الحبر الأرشيفي'],
+      ['ink-documentary', '#002E62', 'الحبر الوثائقي'],
+      ['ink-night', '#002C5D', 'الحبر الليلي'],
+      ['ink-deep', '#002A58', 'الحبر العميق'],
+      ['ink-imperial', '#002854', 'الحبر الإمبراطوري'],
+      ['ink-blue-black', '#002650', 'الحبر الأسود المزرق'],
+    ];
+
+    it('keeps the original four first and in their original order — no reordering, no removal', () => {
+      expect(NEW_INK_COLOR_IDS.slice(0, 4)).toEqual(ORIGINAL_FOUR);
+      for (const id of ORIGINAL_FOUR) {
+        expect(INK_COLOR_HEX[id as NewInkColorId]).toBeTruthy();
+      }
+      // The pre-existing labels are untouched — an operator's chosen color keeps its name.
+      expect(INK_MODE_LABELS['royal-blue']).toBe('أزرق ملكي');
+      expect(INK_MODE_LABELS['ballpoint-dark-blue']).toBe('أزرق قلم داكن');
+    });
+
+    it('appends all twenty with the approved hex and name', () => {
+      expect(NEW_INK_COLOR_IDS).toHaveLength(24);
+      expect(NEW_INK_COLOR_IDS.slice(4)).toEqual(NEW_TWENTY.map(([id]) => id));
+      for (const [id, hex, label] of NEW_TWENTY) {
+        expect(INK_COLOR_HEX[id as NewInkColorId]).toBe(hex);
+        expect(INK_MODE_LABELS[id as InkMode]).toBe(label);
+      }
+    });
+
+    /**
+     * The duplicate-name rule, enforced at build time rather than by a runtime
+     * de-duplicator: if a future color repeats an existing label this fails, and the fix
+     * is to number the NEW one — never to rename the old one.
+     */
+    it('gives every color a distinct label, so no two swatches read the same', () => {
+      const labels = Object.values(INK_MODE_LABELS);
+      expect(new Set(labels).size).toBe(labels.length);
+    });
+
+    it('gives every color a distinct id and hex — no shade is an unreachable duplicate', () => {
+      expect(new Set(NEW_INK_COLOR_IDS).size).toBe(NEW_INK_COLOR_IDS.length);
+      const hexes = Object.values(INK_COLOR_HEX);
+      expect(new Set(hexes).size).toBe(hexes.length);
+    });
   });
 
   it('the feColorMatrix preserves the alpha row (1 in the 4th column) — transparency untouched', () => {

@@ -6,6 +6,15 @@ export interface QRData {
   formNumber: string;
   entityName: string;
   entityId?: number;
+  /**
+   * Barcode Content Settings v1 — operator-authored fields, additive and optional.
+   *
+   * Absent on all twelve existing forms, whose encoded text is therefore byte-identical
+   * to what it was. Present only where the operator can type them (Blank A4), and even
+   * there an empty string is skipped rather than emitted as a dangling label.
+   */
+  subject?: string;
+  details?: string;
 }
 
 /**
@@ -29,22 +38,28 @@ const FORM_TYPE_LABEL_AR: Record<string, string> = {
   'purchase-request': 'طلب شراء',
   'receipt-voucher': 'سند قبض',
   'payment-voucher': 'سند صرف',
+  'blank-a4-print': 'ورقة A4 — طباعة حرة',
 };
 
 /**
- * يُنسّق نفس حقول QRData الأربعة (بلا إضافة أو حذف أي حقل) كنص عربي مقروء
- * بدل JSON خام — إصلاح لمشكلة ظهور `{"formType":"...",...}` حرفيًا عند مسح
- * الرمز بكاميرا الهاتف. البيانات المُعتمدة نفسها؛ التنسيق فقط تغيّر.
+ * يُنسّق حقول QRData كنص عربي مقروء بدل JSON خام — إصلاح لمشكلة ظهور
+ * `{"formType":"...",...}` حرفيًا عند مسح الرمز بكاميرا الهاتف.
+ *
+ * تحديث (Barcode Content Settings v1): الحقلان `subject` و`details` أُضيفا **بعد**
+ * الأسطر القائمة ولا يظهران إلا إذا كُتبا، والأسطر القائمة صارت تُتخطّى إن كانت
+ * قيمتها فارغة بدل طبع عنوان بلا قيمة. النماذج الاثنا عشر القائمة تمرّر دائمًا
+ * `formNumber` و`entityName` غير فارغين ولا تعرف الحقلين الجديدين، فنصّها المُرمَّز
+ * يخرج مطابقًا حرفًا بحرف لما كان — هذا هو ضمان عدم الارتداد، لا مجرّد ترتيب.
  */
 function formatQrText(data: QRData): string {
-  const lines = [
-    FORM_TYPE_LABEL_AR[data.formType] ?? data.formType,
-    `رقم المستند: ${data.formNumber}`,
-    `الاسم: ${data.entityName}`,
-  ];
-  if (data.entityId !== undefined) {
-    lines.push(`الرقم المرجعي: ${data.entityId}`);
-  }
+  const lines = [FORM_TYPE_LABEL_AR[data.formType] ?? data.formType];
+  if (data.formNumber.trim()) lines.push(`رقم المستند: ${data.formNumber.trim()}`);
+  if (data.entityName.trim()) lines.push(`الاسم: ${data.entityName.trim()}`);
+  if (data.entityId !== undefined) lines.push(`الرقم المرجعي: ${data.entityId}`);
+  if (data.subject?.trim()) lines.push(`الموضوع: ${data.subject.trim()}`);
+  // البيانات الإضافية نصّ حرّ متعدّد الأسطر — يُوضع تحت عنوانه كما كتبه المستخدم،
+  // بلا إعادة تنسيق، فما يقرأه الماسح هو ما كُتب في النافذة تمامًا.
+  if (data.details?.trim()) lines.push('البيانات:', data.details.trim());
   return lines.join('\n');
 }
 
@@ -66,7 +81,11 @@ export default function FormQRCode({ data, size = 80 }: { data: QRData; size?: n
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
       <img src={src} alt="QR Code" style={{ width: size, height: size }} />
-      <span style={{ fontSize: 9, color: '#94a3b8', direction: 'ltr' }}>{data.formNumber}</span>
+      {/* بلا رقم ⇒ بلا سطر أصلًا (لا فراغ محجوز ولا رقم مُولَّد). النماذج القائمة
+          تمرّر رقمًا دائمًا، فالسطر يظهر لها كما كان. */}
+      {data.formNumber.trim() && (
+        <span style={{ fontSize: 9, color: '#94a3b8', direction: 'ltr' }}>{data.formNumber.trim()}</span>
+      )}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import type { BrandingDesignerHandle, ElementType } from '../hooks/useBrandingDesigner';
+import { ELEMENT_ACCENT_COLOR, ELEMENT_ICON, ELEMENT_LABEL_AR } from '../hooks/useBrandingDesigner';
+import type { BrandingDesignerHandle } from '../hooks/useBrandingDesigner';
 import type { TextStyleDesignerHandle, TextAreaKey } from '../designer/useTextStyleDesigner';
 import type { StaticTextDesignerHandle } from '../designer/useStaticTextDesigner';
 import type { DesignerElement } from '../designer/designerTypes';
 import { isBrandingElement, isTextElement } from '../designer/designerTypes';
 import { formatUnit, GRID_PRESETS, type GridSizeOption } from '../utils/designerUtils';
-import { ROTATION_MAX, ROTATION_MIN } from '../utils/brandingLayout';
+import { ROTATION_MAX, ROTATION_MIN, resolveBrandingElement } from '../utils/brandingLayout';
 import { INK_MODE_LABELS, INK_COLOR_HEX, NEW_INK_COLOR_IDS, resolveInkMode, type InkMode } from '../utils/inkFilter';
 import type { PrintDocumentType } from '../engine/types';
 import type {
@@ -268,7 +269,7 @@ export default function BrandingDesignerPanel({
   const [collapsed, setCollapsed] = useState(false);
 
   const {
-    selected, setSelected, docType, updateElement,
+    selected, setSelected, docType, updateElement, elements,
     alignCenterH, alignCenterV, bringForward, sendBackward,
     resetElement, resetDoc, resetRotation, snapEnabled, setSnapEnabled,
     gridSize, setGridSize,
@@ -279,8 +280,10 @@ export default function BrandingDesignerPanel({
   // `docLayout` resolves an administrative form's entry even when it has never been
   // designed (the record holds no key for it yet) — the print templates' documents
   // resolve identically, so this replaces the old `localLayout[docType]` for both.
-  const el = docLayout[selected];
-  const accentColor = selected === 'signature' ? '#3b82f6' : '#10b981';
+  // `resolveBrandingElement` then covers the element-level equivalent: a barcode that
+  // has never been moved has no entry, and reads as the identity layout.
+  const el = resolveBrandingElement(docLayout, selected);
+  const accentColor = ELEMENT_ACCENT_COLOR[selected];
 
   const selectedTextArea = textStyleDesigner?.selectedArea ?? null;
 
@@ -403,7 +406,10 @@ export default function BrandingDesignerPanel({
 
           <SectionHeader label="العنصر" />
           <div style={{ display: 'flex', gap: 5, marginBottom: 4 }}>
-            {(['signature', 'stamp'] as ElementType[]).map((type) => (
+            {/* One tab per element the DOCUMENT declares — signature + stamp everywhere,
+                plus the barcode on the surfaces that draw one. No per-element branch:
+                adding a kind to the roster is what adds its tab. */}
+            {elements.map((type) => (
               <button
                 key={type}
                 type="button"
@@ -416,7 +422,7 @@ export default function BrandingDesignerPanel({
                   color: selected === type ? '#fff' : '#6b7280',
                 }}
               >
-                {type === 'signature' ? '✏ التوقيع' : '🔵 الختم'}
+                {ELEMENT_ICON[type]} {ELEMENT_LABEL_AR[type]}
               </button>
             ))}
           </div>
@@ -508,7 +514,7 @@ export default function BrandingDesignerPanel({
           */}
           <div style={{ marginBottom: 8 }}>
             <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 4 }}>
-              حبر {selected === 'signature' ? 'التوقيع' : 'الختم'}:
+              حبر {ELEMENT_LABEL_AR[selected]}:
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {(['original', 'black', ...NEW_INK_COLOR_IDS] as InkMode[]).map((mode) => {
@@ -587,20 +593,22 @@ export default function BrandingDesignerPanel({
 
           <SectionHeader label="إعادة ضبط" />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 4 }}>
-            <button
-              type="button"
-              onClick={() => resetElement('signature')}
-              style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #3b82f633', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#3b82f6' }}
-            >
-              ↺ التوقيع
-            </button>
-            <button
-              type="button"
-              onClick={() => resetElement('stamp')}
-              style={{ padding: '4px 0', borderRadius: 5, border: '1px solid #10b98133', background: 'transparent', cursor: 'pointer', fontSize: 11, color: '#10b981' }}
-            >
-              ↺ الختم
-            </button>
+            {/* Same roster as the tabs above, so «↺ الكل» below and these per-element
+                buttons can never disagree about which elements the document has. */}
+            {elements.map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => resetElement(type)}
+                style={{
+                  padding: '4px 0', borderRadius: 5, background: 'transparent',
+                  border: `1px solid ${ELEMENT_ACCENT_COLOR[type]}33`,
+                  cursor: 'pointer', fontSize: 11, color: ELEMENT_ACCENT_COLOR[type],
+                }}
+              >
+                ↺ {ELEMENT_LABEL_AR[type]}
+              </button>
+            ))}
             <button
               type="button"
               onClick={resetDoc}

@@ -148,6 +148,88 @@ describe('FormQRCode — human-readable formatting fix', () => {
     expect(screen.getByText('W-2026-00007')).toBeInTheDocument();
   });
 
+  /**
+   * Barcode Content Settings v1 — the two new optional fields, and the empty-reference
+   * rule. The whole point of these is that they are ADDITIVE: the thirteen forms above
+   * pass neither field and must encode exactly what they encoded before.
+   */
+  describe('operator-authored content (subject / details / empty reference)', () => {
+    it('adds nothing at all when the new fields are absent — the existing forms are untouched', async () => {
+      const base: QRData = {
+        formType: 'salary-certificate',
+        formNumber: 'F-2026-00123',
+        entityName: 'محمد أحمد العتيبي',
+        entityId: 184,
+      };
+
+      const encoded = await renderAndCapture(base);
+
+      expect(encoded).toBe(
+        ['شهادة راتب', 'رقم المستند: F-2026-00123', 'الاسم: محمد أحمد العتيبي', 'الرقم المرجعي: 184'].join('\n'),
+      );
+      expect(encoded).not.toMatch(/الموضوع/);
+      expect(encoded).not.toMatch(/البيانات/);
+    });
+
+    it('encodes the subject and the free-text details when the operator typed them', async () => {
+      const encoded = await renderAndCapture({
+        formType: 'blank-a4-print',
+        formNumber: 'MN-2026-00125',
+        entityName: 'شركة المنار الدولية',
+        subject: 'طلب تجديد إقامة',
+        details: 'الإدارة المالية\nخاص وسري',
+      });
+
+      expect(encoded).toContain('MN-2026-00125');
+      expect(encoded).toContain('الموضوع: طلب تجديد إقامة');
+      // Multi-line detail text survives verbatim — what is scanned is what was typed.
+      expect(encoded).toContain('البيانات:\nالإدارة المالية\nخاص وسري');
+    });
+
+    it('skips a label whose value is blank rather than printing a dangling one', async () => {
+      const encoded = await renderAndCapture({
+        formType: 'blank-a4-print',
+        formNumber: '   ',
+        entityName: 'شركة المنار الدولية',
+        subject: '  ',
+        details: '',
+      });
+
+      expect(encoded).not.toMatch(/رقم المستند/);
+      expect(encoded).not.toMatch(/الموضوع/);
+      expect(encoded).not.toMatch(/البيانات/);
+      expect(encoded).toContain('الاسم: شركة المنار الدولية');
+    });
+
+    it('prints NO caption beneath the code when there is no reference — and invents none', async () => {
+      render(
+        <FormQRCode
+          data={{ formType: 'blank-a4-print', formNumber: '', entityName: 'شركة المنار الدولية' }}
+          size={80}
+        />,
+      );
+      await flushAsyncUpdates();
+
+      const img = await screen.findByAltText('QR Code');
+      // The code itself still renders; only the caption line is absent.
+      expect(img).toBeInTheDocument();
+      expect(img.parentElement?.querySelector('span')).toBeNull();
+      expect(img.parentElement?.textContent).toBe('');
+    });
+
+    it('prints the reference verbatim as the caption when there is one', async () => {
+      render(
+        <FormQRCode
+          data={{ formType: 'blank-a4-print', formNumber: 'كتاب رقم 154/2026', entityName: 'شركة المنار الدولية' }}
+          size={80}
+        />,
+      );
+      await flushAsyncUpdates();
+
+      expect(screen.getByText('كتاب رقم 154/2026')).toBeInTheDocument();
+    });
+  });
+
   it('passes the same qrcode.toDataURL rendering options as before (size*2 width, margin, colors)', async () => {
     const data: QRData = {
       formType: 'receipt-voucher',

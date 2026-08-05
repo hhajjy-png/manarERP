@@ -15,6 +15,38 @@ import {
   type BrandingAsset,
 } from '../branding/brandingAssets';
 
+/** The operator-authored barcode text. Empty strings mean "never set". */
+export interface BarcodeContent {
+  reference: string;
+  subject: string;
+  details: string;
+  /**
+   * The last NON-EMPTY reference ever saved — remembered, never printed.
+   *
+   * It exists because Reset must be able to clear the printed reference WITHOUT
+   * destroying the sequence: after «إعادة تعيين» + حفظ, `reference` is empty (so the
+   * sheet carries no caption) while this still holds the number the next suggestion
+   * counts from. Folding the two into one value is what would make Reset silently
+   * restart the numbering at nothing.
+   */
+  lastReference: string;
+}
+
+/** The settings keys those fields live in — one plain string each. */
+export const BARCODE_CONTENT_KEYS = {
+  reference: 'print.barcode.reference',
+  subject: 'print.barcode.subject',
+  details: 'print.barcode.details',
+  lastReference: 'print.barcode.lastReference',
+} as const;
+
+export const EMPTY_BARCODE_CONTENT: Readonly<BarcodeContent> = {
+  reference: '',
+  subject: '',
+  details: '',
+  lastReference: '',
+};
+
 export interface CompanyBranding {
   /** Every signature the company has registered, in Settings order. */
   signatures: BrandingAsset[];
@@ -30,6 +62,21 @@ export interface CompanyBranding {
   showSignature: boolean;
   showStamp: boolean;
   brandingLayout: PrintBrandingLayoutSettings | undefined;
+  /**
+   * Barcode Content Settings v1 — what the barcode element ENCODES, as three plain
+   * strings the operator types.
+   *
+   * Deliberately three ordinary settings values (`print.barcode.*`, group `print`) and
+   * not a serialized record: they are free text with no shape to validate, so they need
+   * no parser, no schema and no migration — exactly like the string settings the
+   * Settings page already stores. They ride the ONE `/settings` request this hook
+   * already makes, so reading them costs no extra round-trip.
+   *
+   * `reference` doubles as the LAST reference used: it is what the barcode prints and
+   * what the settings dialog increments from. One value, not a value plus a counter —
+   * a separate counter is the thing that can drift out of step with what was printed.
+   */
+  barcodeContent: BarcodeContent;
   textStyleOverrides: PrintTextStyleSettings | undefined;
   staticTextOverrides: StaticTextOverrides | undefined;
   layoutOverrides: AllLayoutOverrides;
@@ -46,6 +93,7 @@ export function useCompanyBranding(): CompanyBranding {
     showSignature: true,
     showStamp: true,
     brandingLayout: undefined,
+    barcodeContent: { ...EMPTY_BARCODE_CONTENT },
     textStyleOverrides: undefined,
     staticTextOverrides: undefined,
     layoutOverrides: { invoice: {}, quotation: {} },
@@ -97,6 +145,18 @@ export function useCompanyBranding(): CompanyBranding {
 
         const layoutOverrides = parseAllLayouts(find('print.layoutOverrides'));
 
+        // Plain strings — an absent key is simply "" (never set), which is the same
+        // thing the operator sees after clearing a field. No parsing, no defaults.
+        const savedReference = find(BARCODE_CONTENT_KEYS.reference) ?? '';
+        const barcodeContent: BarcodeContent = {
+          reference: savedReference,
+          subject: find(BARCODE_CONTENT_KEYS.subject) ?? '',
+          details: find(BARCODE_CONTENT_KEYS.details) ?? '',
+          // Falls back to the reference itself, so a record saved before Reset existed
+          // (three keys, no fourth) still suggests from the number it actually holds.
+          lastReference: find(BARCODE_CONTENT_KEYS.lastReference) ?? savedReference,
+        };
+
         setBranding({
           signatures,
           stamps,
@@ -105,6 +165,7 @@ export function useCompanyBranding(): CompanyBranding {
           showSignature: defaultSignature ? defaultSignature.show : true,
           showStamp: defaultStamp ? defaultStamp.show : true,
           brandingLayout,
+          barcodeContent,
           textStyleOverrides,
           staticTextOverrides,
           layoutOverrides,
