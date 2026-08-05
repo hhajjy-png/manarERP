@@ -10,6 +10,20 @@ interface DatabaseVersionInfo {
   deviceName: string | null;
 }
 
+/**
+ * نتيجة النسخة المحلية المضمونة بعد فشل عملية سحابية
+ * (Cloud-Failure Local Backup Guarantee v1). موجودة فقط عند فشل العملية السحابية.
+ */
+interface RescueBackupOutcomeInfo {
+  ok: boolean;
+  /** مسار الإنتاج: خدمة النسخ في الخادم الخلفي، أو لقطة مباشرة حين يكون متوقفًا. */
+  via: 'BACKEND_SERVICE' | 'DIRECT_SNAPSHOT' | null;
+  fileName?: string;
+  filePath?: string;
+  sizeBytes?: number;
+  error?: string;
+}
+
 interface SyncConflictInfo {
   local: DatabaseVersionInfo;
   remote: DatabaseVersionInfo;
@@ -173,6 +187,10 @@ const api = {
     lastDownloadAt: string | null;
     lastSyncedVersion: number | null;
     lastError: string | null;
+    /** Production Hardening Pack v1 — انتهت صلاحية ربط Google ويجب إعادة الربط. */
+    needsReauth?: boolean;
+    /** سبب انقطاع الربط بالعربية — يبقى بعد إعادة تشغيل التطبيق حتى يُعاد الربط. */
+    grantDeadMessage?: string | null;
     localDb: { exists: boolean; sizeBytes: number };
     device: { deviceId: string; deviceName: string };
   }> => ipcRenderer.invoke('sync:getStatus'),
@@ -188,6 +206,11 @@ const api = {
       deviceName?: string;
       conflictResolved?: boolean;
       resolutionSelected?: 'LOCAL' | 'REMOTE';
+      /** Production Polish Pack v1 — توقيت العملية ومدّتها (تغيب في الإدخالات القديمة). */
+      startedAt?: string;
+      durationMs?: number;
+      /** الإجراء المقترح — يُحسب في العملية الرئيسية من قاعدة واحدة. */
+      suggestedAction?: 'NONE' | 'RECONNECT' | 'RETRY' | 'RESOLVE_CONFLICT' | 'CHECK_BACKUPS' | 'CHECK_NETWORK';
     }>
   > => ipcRenderer.invoke('sync:getLog'),
 
@@ -207,10 +230,24 @@ const api = {
     /** الخادم الخلفي أُعيد تشغيله تلقائيًا بعد استبدال قاعدة البيانات — الواجهة تحتاج لإعادة تحميل نفسها فقط، لا إعادة تشغيل التطبيق. */
     backendRestarted?: boolean;
     conflict?: SyncConflictInfo;
+    /** النسخة المحلية المضمونة — تُملأ عند فشل العملية السحابية فقط. */
+    rescueBackup?: RescueBackupOutcomeInfo;
+    /** المنحة ميتة — الإجراء المطلوب إعادة ربط الحساب لا إعادة المحاولة. */
+    needsReauth?: boolean;
+    /** رُفضت العملية لوجود مزامنة أخرى جارية. */
+    busy?: boolean;
   }> => ipcRenderer.invoke('sync:now'),
 
   /** رفع يدوي إجباري لقاعدة البيانات المحلية إلى Google Drive. */
-  syncUpload: (): Promise<{ ok: boolean; error?: string }> => ipcRenderer.invoke('sync:upload'),
+  syncUpload: (): Promise<{
+    ok: boolean;
+    error?: string;
+    rescueBackup?: RescueBackupOutcomeInfo;
+    /** رُفض الرفع لأن النسخة السحابية تغيّرت من جهاز آخر — يلزم قرار المستخدم. */
+    conflict?: SyncConflictInfo;
+    needsReauth?: boolean;
+    busy?: boolean;
+  }> => ipcRenderer.invoke('sync:upload'),
 
   /** تنزيل يدوي إجباري من Google Drive مع استبدال آمن (ذرّي) لقاعدة البيانات المحلية. */
   syncDownload: (): Promise<{
@@ -218,6 +255,9 @@ const api = {
     error?: string;
     requiresRestart?: boolean;
     backendRestarted?: boolean;
+    rescueBackup?: RescueBackupOutcomeInfo;
+    needsReauth?: boolean;
+    busy?: boolean;
   }> => ipcRenderer.invoke('sync:download'),
 
   // ─── Google Drive Conflict Resolution Pack v1 ────────────────────────────────
@@ -231,7 +271,68 @@ const api = {
     error?: string;
     requiresRestart?: boolean;
     backendRestarted?: boolean;
+    rescueBackup?: RescueBackupOutcomeInfo;
+    /** رُفض «الاحتفاظ بالمحلي» لأن النسخة السحابية تغيّرت أثناء فتح الحوار. */
+    conflict?: SyncConflictInfo;
+    needsReauth?: boolean;
+    busy?: boolean;
   }> => ipcRenderer.invoke('sync:resolveConflict', choice),
+
+  // ─── Production UX & Diagnostics Pack v1 ─────────────────────────────────────
+
+  /** تشخيص سلبي كامل — بلا شبكة وبلا استعلام Google (§9). */
+  syncGetDiagnostics: (): Promise<{
+    items: Array<{ key: string; status: string; tone: string; icon: string; value: string | null }>;
+    health: { score: number; grade: 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL'; reasons: string[] };
+    /** §5 — متى تغيّرت الصحة ومتى انخفضت آخر مرة. */
+    trend: {
+      lastChangeAt: string | null;
+      previousScore: number | null;
+      lastDropAt: string | null;
+      lastDropDelta: number | null;
+    };
+    /** §3 — آخر مرة حدث فيها كل نوع من أحداث التشخيص. */
+    history: Array<{ key: string; at: string | null; icon: string; tone: string }>;
+    /** تقرير نصّي جاهز للنسخ — بلا أي رمز أو سرّ. */
+    report: string;
+    /** كتلة دعم فني مختصرة — بلا أي رمز أو سرّ. */
+    supportInfo: string;
+    /** لقطة الحقائق الخام — تستخدمها الواجهة لقسم «معلومات المحرّك» والتصدير. */
+    snapshot: {
+      appVersion: string;
+      platform: string;
+      deviceName: string;
+      engine: {
+        engineVersion: string;
+        engineUpdatedAt: string;
+        oauthModel: string;
+        driveApi: string;
+        localStorage: string;
+        tokenStorage: string;
+        encryptionAvailable: boolean;
+      };
+      [key: string]: unknown;
+    };
+  }> => ipcRenderer.invoke('sync:getDiagnostics'),
+
+  /** اختبار اتصال صريح بطلب المستخدم — الاستدعاء الوحيد الذي يلمس الشبكة. */
+  syncTestConnection: (): Promise<{
+    ok: boolean;
+    internet: 'ok' | 'fail' | 'unknown';
+    drive: 'ok' | 'fail' | 'unknown';
+    message?: string;
+    error?: string;
+    needsReauth?: boolean;
+    busy?: boolean;
+  }> => ipcRenderer.invoke('sync:testConnection'),
+
+  /** §4 — إصلاح الاتصال بضغطة واحدة: فصل ← إعادة ربط ← اختبار تحقّق. */
+  syncRepairConnection: (): Promise<{
+    ok: boolean;
+    email?: string;
+    message: string;
+    verified?: boolean;
+  }> => ipcRenderer.invoke('sync:repairConnection'),
 
   // ─── NBK Salary Export — Native XLS Generation v1 ────────────────────────────
   // Generates the NBK bank salary .xls through native Microsoft Excel COM automation

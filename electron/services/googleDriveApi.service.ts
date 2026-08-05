@@ -11,6 +11,19 @@ const DRIVE_FILES = 'https://www.googleapis.com/drive/v3/files';
 const DRIVE_UPLOAD = 'https://www.googleapis.com/upload/drive/v3/files';
 const SYNC_FILE_NAME = 'manar.db';
 
+/**
+ * Production Hardening Pack v1 — P0-5 · المهل الزمنية.
+ *
+ * قبل هذه الحزمة لم يكن على أي نداء Drive مهلة إطلاقًا. على شبكة تُسقط الاتصال دون
+ * إغلاق نظيف (Wi-Fi ينقطع، بوابة مؤسسية تبتلع الحزم)، كان `fetch` يبقى معلّقًا بلا
+ * نهاية: زرّ «رفع» مُعطَّل، لافتة «⏳» دائمة، ولا مخرج سوى إنهاء التطبيق.
+ *
+ * القيم مختلفة بحسب طبيعة العملية لا رقم واحد للجميع: الاستعلام عن البيانات الوصفية
+ * ردّ صغير وسريع، بينما نقل ملف قاعدة بيانات كامل على وصلة بطيئة يحتاج وقتًا حقيقيًا.
+ */
+const METADATA_TIMEOUT_MS = 30_000;
+const TRANSFER_TIMEOUT_MS = 180_000;
+
 export interface RemoteSyncFile {
   id: string;
   sha256: string | null;
@@ -30,28 +43,101 @@ export interface RemoteSyncFile {
 export class DriveApiError extends Error {
   readonly status?: number;
   readonly retryable: boolean;
+  /** زمن الانتظار الذي طلبه الخادم صراحةً عبر `Retry-After` (P0-9)، إن وُجد. */
+  readonly retryAfterMs?: number;
 
-  constructor(message: string, opts: { status?: number; retryable: boolean }) {
+  constructor(message: string, opts: { status?: number; retryable: boolean; retryAfterMs?: number }) {
     super(message);
     this.name = 'DriveApiError';
     this.status = opts.status;
     this.retryable = opts.retryable;
+    this.retryAfterMs = opts.retryAfterMs;
   }
 }
 
-function isRetryableStatus(status: number): boolean {
-  return status === 429 || (status >= 500 && status < 600);
+/**
+ * P0-9 — أسباب حدّ المعدّل التي يعيدها Google **برمز 403 لا 429**.
+ *
+ * كان `isRetryableStatus` يصنّف كل 403 كخطأ نهائي، فأي تجاوز مؤقت لحدّ الطلبات
+ * كان يُفشل المزامنة بلا إعادة محاولة واحدة. لاحظ الاستثناء الحاسم:
+ * `storageQuotaExceeded` (مساحة Drive ممتلئة) يبقى **غير قابل لإعادة المحاولة** —
+ * فهو ليس عابرًا، وإعادة المحاولة عليه إهدار محض.
+ */
+const RATE_LIMIT_REASONS = [
+  'ratelimitexceeded',
+  'userratelimitexceeded',
+  'sharingratelimitexceeded',
+  'dailylimitexceeded',
+  'backenderror',
+];
+
+function isRateLimitBody(body: string): boolean {
+  const lower = body.toLowerCase();
+  if (lower.includes('storagequotaexceeded')) return false; // القرص ممتلئ — ليس حدّ معدّل
+  return RATE_LIMIT_REASONS.some((reason) => lower.includes(reason));
+}
+
+function isRetryableStatus(status: number, body: string): boolean {
+  if (status === 429) return true;
+  if (status >= 500 && status < 600) return true;
+  if (status === 403) return isRateLimitBody(body);
+  return false;
+}
+
+/** يقرأ `Retry-After` بصيغتيه المسموحتين: عدد ثوانٍ، أو تاريخ HTTP. */
+function parseRetryAfter(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined;
+  const seconds = Number(headerValue.trim());
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, 60_000);
+  const asDate = Date.parse(headerValue);
+  if (Number.isFinite(asDate)) {
+    const delta = asDate - Date.now();
+    if (delta > 0) return Math.min(delta, 60_000);
+    return 0;
+  }
+  return undefined;
 }
 
 async function throwDriveApiError(res: Response, context: string): Promise<never> {
   const body = await res.text().catch(() => '');
-  throw new DriveApiError(`${context}: ${res.status} ${body}`, { status: res.status, retryable: isRetryableStatus(res.status) });
+  throw new DriveApiError(`${context}: ${res.status} ${body}`, {
+    status: res.status,
+    retryable: isRetryableStatus(res.status, body),
+    retryAfterMs: parseRetryAfter(res.headers.get('Retry-After')),
+  });
+}
+
+/**
+ * P0-5 — يُنفّذ `fetch` تحت `AbortController` بمهلة صريحة.
+ *
+ * الإلغاء هنا **فعلي**: `AbortController.abort()` يقطع الاتصال ويحرّر المقبس فورًا،
+ * فلا تبقى عملية معلّقة في الخلفية تستهلك الموارد بعد أن يئس المُستدعي منها.
+ * `clearTimeout` في `finally` يمنع بقاء مؤقّت حيّ يُبقي حلقة الأحداث مشغولة بعد
+ * انتهاء الطلب بنجاح — وهو ما كان سيُؤخّر إغلاق التطبيق أثناء مزامنة الإغلاق.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, context: string): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (err) {
+    // `AbortError` هنا يعني «انتهت مهلتنا نحن» لا «ألغى المستخدم» — نُعيد تسميته
+    // إلى `TimeoutError` ليصنّفه `isRetryableSyncError` كعطل عابر قابل للإعادة.
+    if (err instanceof Error && err.name === 'AbortError') {
+      const timeout = new Error(`${context}: انتهت المهلة الزمنية بعد ${Math.round(timeoutMs / 1000)} ثانية`);
+      timeout.name = 'TimeoutError';
+      throw timeout;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
  * يُصنّف أي خطأ (من fetch أو من DriveApiError) كمؤقت وقابل لإعادة المحاولة أم لا.
- * أخطاء المصادقة (401/403) والطلبات غير الصالحة (400/404) لا تُعاد محاولتها أبدًا؛
- * أخطاء الشبكة/المهلة/5xx/429 قابلة لإعادة المحاولة.
+ * أخطاء المصادقة (401) والطلبات غير الصالحة (400/404) لا تُعاد محاولتها أبدًا؛
+ * أخطاء الشبكة/المهلة/5xx/429/حدّ المعدّل (403) قابلة لإعادة المحاولة.
  */
 export function isRetryableSyncError(err: unknown): boolean {
   if (err instanceof DriveApiError) return err.retryable;
@@ -63,6 +149,14 @@ export function isRetryableSyncError(err: unknown): boolean {
     if (err.message.includes('fetch failed')) return true;
   }
   return false;
+}
+
+/** P0-9 — الزمن الذي طلبه Google صراحةً، أو التراجع الأُسّي المحسوب إن لم يطلب شيئًا. */
+export function syncRetryDelay(err: unknown, defaultDelayMs: number): number {
+  if (err instanceof DriveApiError && typeof err.retryAfterMs === 'number') {
+    return Math.max(err.retryAfterMs, defaultDelayMs);
+  }
+  return defaultDelayMs;
 }
 
 async function authHeader(client: OAuth2Client): Promise<Record<string, string>> {
@@ -80,7 +174,12 @@ export async function findRemoteSyncFile(client: OAuth2Client): Promise<RemoteSy
     fields: 'files(id,name,size,modifiedTime,appProperties)',
     pageSize: '1',
   });
-  const res = await fetch(`${DRIVE_FILES}?${params.toString()}`, { headers });
+  const res = await fetchWithTimeout(
+    `${DRIVE_FILES}?${params.toString()}`,
+    { headers },
+    METADATA_TIMEOUT_MS,
+    'الاستعلام عن ملف Drive',
+  );
   if (!res.ok) await throwDriveApiError(res, 'فشل الاستعلام عن ملف Drive');
 
   const body = (await res.json()) as {
@@ -137,27 +236,37 @@ export async function uploadDatabase(
     : `${DRIVE_UPLOAD}?uploadType=resumable`;
   const initMethod = opts.fileId ? 'PATCH' : 'POST';
 
-  const initRes = await fetch(initUrl, {
-    method: initMethod,
-    headers: {
-      ...headers,
-      'Content-Type': 'application/json; charset=UTF-8',
-      'X-Upload-Content-Type': 'application/x-sqlite3',
-      'X-Upload-Content-Length': String(stat.size),
+  const initRes = await fetchWithTimeout(
+    initUrl,
+    {
+      method: initMethod,
+      headers: {
+        ...headers,
+        'Content-Type': 'application/json; charset=UTF-8',
+        'X-Upload-Content-Type': 'application/x-sqlite3',
+        'X-Upload-Content-Length': String(stat.size),
+      },
+      body: JSON.stringify(metadata),
     },
-    body: JSON.stringify(metadata),
-  });
+    METADATA_TIMEOUT_MS,
+    'بدء الرفع القابل للاستئناف',
+  );
   if (!initRes.ok) await throwDriveApiError(initRes, 'فشل بدء الرفع القابل للاستئناف');
 
   const sessionUrl = initRes.headers.get('Location');
   if (!sessionUrl) throw new Error('لم يُستلم رابط جلسة الرفع من Google Drive');
 
   const fileBuffer = await fs.promises.readFile(filePath);
-  const putRes = await fetch(sessionUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/x-sqlite3', 'Content-Length': String(fileBuffer.byteLength) },
-    body: fileBuffer,
-  });
+  const putRes = await fetchWithTimeout(
+    sessionUrl,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/x-sqlite3', 'Content-Length': String(fileBuffer.byteLength) },
+      body: fileBuffer,
+    },
+    TRANSFER_TIMEOUT_MS,
+    'رفع محتوى قاعدة البيانات',
+  );
   if (!putRes.ok) await throwDriveApiError(putRes, 'فشل رفع محتوى قاعدة البيانات');
 
   const uploaded = (await putRes.json()) as { id: string };
@@ -175,10 +284,47 @@ export async function uploadDatabase(
 /** يُنزّل قاعدة البيانات من Drive إلى مسار محلي مؤقت (لا يستبدل الملف الفعلي). */
 export async function downloadDatabase(client: OAuth2Client, fileId: string, destPath: string): Promise<void> {
   const headers = await authHeader(client);
-  const res = await fetch(`${DRIVE_FILES}/${fileId}?alt=media`, { headers });
+  const res = await fetchWithTimeout(
+    `${DRIVE_FILES}/${fileId}?alt=media`,
+    { headers },
+    TRANSFER_TIMEOUT_MS,
+    'تنزيل قاعدة البيانات',
+  );
   if (!res.ok) await throwDriveApiError(res, 'فشل تنزيل قاعدة البيانات');
   const arrayBuffer = await res.arrayBuffer();
   await fs.promises.writeFile(destPath, Buffer.from(arrayBuffer));
+}
+
+/**
+ * Production UX & Diagnostics Pack v1 — مساحة Google Drive المستخدمة.
+ *
+ * نداء واحد خفيف (`about.get` بحقل واحد) يُستدعى **فقط** ضمن اختبار الاتصال الصريح
+ * الذي يطلبه المستخدم — لا في أي مسار دوري ولا في قراءة الحالة السلبية (§9).
+ *
+ * **أفضل جهد بحت:** أي فشل (نطاق غير كافٍ، شبكة، تغيّر في الواجهة) يُعيد `null`
+ * ولا يرمي أبدًا. المساحة معلومة مساعِدة في التشخيص — لا يجوز أن يُفشل غيابُها
+ * اختبارَ اتصال نجحت بقيّة خطواته.
+ */
+export async function fetchDriveStorage(
+  client: OAuth2Client,
+): Promise<{ usedBytes: number; limitBytes: number | null } | null> {
+  try {
+    const headers = await authHeader(client);
+    const res = await fetchWithTimeout(
+      'https://www.googleapis.com/drive/v3/about?fields=storageQuota',
+      { headers },
+      METADATA_TIMEOUT_MS,
+      'قراءة مساحة Drive',
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as { storageQuota?: { usage?: string; limit?: string } };
+    const usage = Number(body.storageQuota?.usage);
+    if (!Number.isFinite(usage)) return null;
+    const limit = Number(body.storageQuota?.limit);
+    return { usedBytes: usage, limitBytes: Number.isFinite(limit) ? limit : null };
+  } catch {
+    return null;
+  }
 }
 
 /** فحص اتصال خفيف وبلا مصادقة — نفس النقطة التي يستخدمها Chromium لكشف Captive Portal. */

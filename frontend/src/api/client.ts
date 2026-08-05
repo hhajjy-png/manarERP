@@ -12,6 +12,20 @@ interface DatabaseVersionInfo {
   deviceName: string | null;
 }
 
+/**
+ * نتيجة النسخة المحلية المضمونة بعد فشل عملية سحابية
+ * (Cloud-Failure Local Backup Guarantee v1). اختيارية: تغيب على بناء preload أقدم،
+ * وتغيب أيضًا عند نجاح العملية السحابية — الواجهة تتعامل مع غيابها كسلوك ما قبل الحزمة.
+ */
+interface RescueBackupOutcomeInfo {
+  ok: boolean;
+  via: 'BACKEND_SERVICE' | 'DIRECT_SNAPSHOT' | null;
+  fileName?: string;
+  filePath?: string;
+  sizeBytes?: number;
+  error?: string;
+}
+
 interface SyncConflictInfo {
   local: DatabaseVersionInfo;
   remote: DatabaseVersionInfo;
@@ -105,6 +119,11 @@ declare global {
         lastDownloadAt: string | null;
         lastSyncedVersion: number | null;
         lastError: string | null;
+        /** Production Hardening Pack v1 — انتهت صلاحية ربط Google ويجب إعادة الربط.
+         *  اختيارية: تغيب على بناء preload أقدم، وتُعامَل حينها كـ`false`. */
+        needsReauth?: boolean;
+        /** سبب انقطاع الربط بالعربية — يبقى بعد إعادة تشغيل التطبيق حتى يُعاد الربط. */
+        grantDeadMessage?: string | null;
         localDb: { exists: boolean; sizeBytes: number };
         device: { deviceId: string; deviceName: string };
       }>;
@@ -117,6 +136,10 @@ declare global {
         deviceName?: string;
         conflictResolved?: boolean;
         resolutionSelected?: 'LOCAL' | 'REMOTE';
+        /** Production Polish Pack v1 — تغيب في الإدخالات المسجّلة قبل الحزمة. */
+        startedAt?: string;
+        durationMs?: number;
+        suggestedAction?: 'NONE' | 'RECONNECT' | 'RETRY' | 'RESOLVE_CONFLICT' | 'CHECK_BACKUPS' | 'CHECK_NETWORK';
       }>>;
       syncAuthenticate?: () => Promise<{ ok: boolean; email?: string; error?: string }>;
       syncDisconnect?: () => Promise<{ ok: boolean }>;
@@ -128,13 +151,30 @@ declare global {
         /** الخادم الخلفي أُعيد تشغيله تلقائيًا — الواجهة تحتاج لإعادة تحميل نفسها فقط. */
         backendRestarted?: boolean;
         conflict?: SyncConflictInfo;
+        /** النسخة المحلية المضمونة — تُملأ عند فشل العملية السحابية فقط. */
+        rescueBackup?: RescueBackupOutcomeInfo;
+        /** المنحة ميتة — الإجراء المطلوب إعادة ربط الحساب لا إعادة المحاولة. */
+        needsReauth?: boolean;
+        /** رُفضت العملية لوجود مزامنة أخرى جارية. */
+        busy?: boolean;
       }>;
-      syncUpload?: () => Promise<{ ok: boolean; error?: string }>;
+      syncUpload?: () => Promise<{
+        ok: boolean;
+        error?: string;
+        rescueBackup?: RescueBackupOutcomeInfo;
+        /** رُفض الرفع لأن النسخة السحابية تغيّرت من جهاز آخر — يلزم قرار المستخدم. */
+        conflict?: SyncConflictInfo;
+        needsReauth?: boolean;
+        busy?: boolean;
+      }>;
       syncDownload?: () => Promise<{
         ok: boolean;
         error?: string;
         requiresRestart?: boolean;
         backendRestarted?: boolean;
+        rescueBackup?: RescueBackupOutcomeInfo;
+        needsReauth?: boolean;
+        busy?: boolean;
       }>;
       /** Optional: absent on an older preload build — every caller must guard. */
       syncGetConflict?: () => Promise<SyncConflictInfo | null>;
@@ -143,6 +183,59 @@ declare global {
         error?: string;
         requiresRestart?: boolean;
         backendRestarted?: boolean;
+        rescueBackup?: RescueBackupOutcomeInfo;
+        /** رُفض «الاحتفاظ بالمحلي» لأن النسخة السحابية تغيّرت أثناء فتح الحوار. */
+        conflict?: SyncConflictInfo;
+        needsReauth?: boolean;
+        busy?: boolean;
+      }>;
+
+      // ─── Production UX & Diagnostics Pack v1 ───────────────────────────────────
+      /** Optional: absent on an older preload build — every caller must guard. */
+      syncGetDiagnostics?: () => Promise<{
+        items: Array<{ key: string; status: string; tone: string; icon: string; value: string | null }>;
+        health: { score: number; grade: 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL'; reasons: string[] };
+        trend: {
+          lastChangeAt: string | null;
+          previousScore: number | null;
+          lastDropAt: string | null;
+          lastDropDelta: number | null;
+        };
+        history: Array<{ key: string; at: string | null; icon: string; tone: string }>;
+        report: string;
+        supportInfo: string;
+        snapshot: {
+          appVersion: string;
+          platform: string;
+          deviceName: string;
+          engine: {
+            engineVersion: string;
+            engineUpdatedAt: string;
+            oauthModel: string;
+            driveApi: string;
+            localStorage: string;
+            tokenStorage: string;
+            encryptionAvailable: boolean;
+          };
+          [key: string]: unknown;
+        };
+      }>;
+      /** Optional: absent on an older preload build — every caller must guard. */
+      syncRepairConnection?: () => Promise<{
+        ok: boolean;
+        email?: string;
+        message: string;
+        verified?: boolean;
+      }>;
+      /** Optional: absent on an older preload build — every caller must guard. */
+      syncTestConnection?: () => Promise<{
+        ok: boolean;
+        internet: 'ok' | 'fail' | 'unknown';
+        drive: 'ok' | 'fail' | 'unknown';
+        message?: string;
+        error?: string;
+        needsReauth?: boolean;
+        busy?: boolean;
       }>;
 
       // ─── NBK Salary Export — Native XLS Generation v1 ──────────────────────────

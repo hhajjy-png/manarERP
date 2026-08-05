@@ -19,6 +19,13 @@ const read = (rel: string) => fs.readFileSync(path.join(root, rel), 'utf8');
 
 const backupIpc = read('electron/ipc/backup.ipc.ts');
 const syncEngine = read('electron/services/syncEngine.service.ts');
+/**
+ * Production Hardening Pack v1 — قواعد القرار صارت في وحدة نقية مستقلة (P0-10)،
+ * وهي الآن مغطّاة سلوكيًا بالكامل في `syncDecision.pure.test.ts`. تُقرأ هنا لأن هذا
+ * الملف يحرس **ترتيب القواعد** على المصدر، وهو ضمانة بنيوية لا تلتقطها اختبارات
+ * السلوك وحدها (إعادة ترتيب فرعين قد تُبقي كل الاختبارات خضراء وتُنتج فقدان بيانات).
+ */
+const syncDecision = read('electron/services/syncDecision.pure.ts');
 const launcher = read('electron/services/backendLauncher.ts');
 const mainTs = read('electron/main.ts');
 const backupService = read('backend/src/shared/services/backup.service.ts');
@@ -89,12 +96,16 @@ describe('R3 — الرفع اليدوي يرفع لقطة متسقة لا نس�
   it('سياسة المزامنة لم تتغيّر: بدء=تنزيل · إغلاق=رفع · تعارض=حلّ صريح', () => {
     const startup = syncEngine.slice(at(syncEngine, 'export async function performStartupSync'));
     const startupBody = startup.slice(0, startup.indexOf('export async function performShutdownSync'));
-    expect(startupBody).toContain('performDownload');
-    expect(startupBody).not.toContain('performUpload');
+    expect(startupBody).toContain('downloadInternal');
+    expect(startupBody).not.toContain('uploadInternal');
 
     const shutdown = syncEngine.slice(at(syncEngine, 'export async function performShutdownSync'));
-    expect(shutdown).toContain('performUpload');
-    expect(shutdown).not.toContain('performDownload');
+    expect(shutdown).toContain('uploadInternal');
+    expect(shutdown).not.toContain('downloadInternal');
+
+    // السياسة نفسها صارت مُعبَّرًا عنها بحارسين نقيّين مُختبَرين، لا بشرط مضمَّن.
+    expect(syncDecision).toContain("return action === 'DOWNLOAD';");
+    expect(syncDecision).toContain("return action === 'UPLOAD';");
 
     // لا حلّ تلقائي للتعارض في أيٍّ من المسارين.
     expect(startupBody).toContain("decision.action === 'CONFLICT'");
@@ -237,26 +248,30 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
   });
 
   it('🔴 أول تشغيل + وجود remote ⇒ DOWNLOAD حصرًا، فلا CONFLICT ولا خيار LOCAL', () => {
-    const fn = syncEngine.slice(at(syncEngine, 'async function decide('), at(syncEngine, 'export async function checkForConflict'));
-    const guard = fn.indexOf('isPristineSeed(dataDir, localHash, getSeedTemplatePath())');
-    const conflict = fn.indexOf("action: 'CONFLICT'");
+    // `decide()` تجمع الحقيقة، و`decideSyncAction` تطبّق القاعدة — كلاهما مُلزَم.
+    expect(syncEngine).toContain('isPristineSeed: isPristineSeed(dataDir, localHash, getSeedTemplatePath())');
+
+    const rules = syncDecision.slice(at(syncDecision, 'export function decideSyncAction'));
+    const guard = rules.indexOf('if (isPristineSeed) {');
+    const conflict = rules.indexOf("action: 'CONFLICT'");
     expect(guard).toBeGreaterThan(-1);
     // الحارس يسبق فرع التعارض ⇒ لا يمكن أن يُنتَج تعارض على بذرة.
     expect(guard).toBeLessThan(conflict);
-    expect(fn.slice(guard, guard + 300)).toContain("action: 'DOWNLOAD'");
+    expect(rules.slice(guard, guard + 300)).toContain("action: 'DOWNLOAD'");
   });
 
   it('أول تشغيل بلا remote ⇒ التهيئة المحلية المعتادة تبقى كما هي', () => {
-    const fn = syncEngine.slice(at(syncEngine, 'async function decide('));
-    const noRemote = fn.indexOf('if (!remote) {');
-    const guard = fn.indexOf('isPristineSeed(dataDir, localHash, getSeedTemplatePath())');
+    const rules = syncDecision.slice(at(syncDecision, 'export function decideSyncAction'));
+    const noRemote = rules.indexOf('if (!remote) {');
+    const guard = rules.indexOf('if (isPristineSeed) {');
     // فرع «لا نسخة سحابية» يسبق حارس البذرة ⇒ لا يتدخّل الحارس أصلًا.
+    expect(noRemote).toBeGreaterThan(-1);
     expect(noRemote).toBeLessThan(guard);
-    expect(fn.slice(noRemote, guard)).toContain("action: 'UPLOAD'");
+    expect(rules.slice(noRemote, guard)).toContain("action: 'UPLOAD'");
   });
 
   it('🔴 حارس بنيوي: رفض رفع البذرة فوق نسخة سحابية قائمة (يغطّي «رفع الآن» وresolveConflict)', () => {
-    const up = syncEngine.slice(at(syncEngine, 'export async function performUpload'));
+    const up = syncEngine.slice(at(syncEngine, 'async function uploadInternal('));
     const guard = up.indexOf('remote && isPristineSeed(dataDir, localHash, getSeedTemplatePath())');
     const upload = up.indexOf('uploadDatabase(client, snapshotPath');
     expect(guard).toBeGreaterThan(-1);
@@ -265,7 +280,7 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
   });
 
   it('🔴 الترقية إلى REAL بعد نجاح التنزيل فقط — الفشل يُبقيها بذرة', () => {
-    const dl = syncEngine.slice(at(syncEngine, 'export async function performDownload'));
+    const dl = syncEngine.slice(at(syncEngine, 'async function downloadInternal('));
     const mark = dl.indexOf('markBootstrapComplete(dataDir)');
     const verified = dl.indexOf('لا تطابق البصمة المسجّلة');   // فشل مطابقة البصمة يرمي قبلها
     const rename = dl.indexOf('fs.renameSync(tempPath, dbPath)');
@@ -277,10 +292,12 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
   });
 
   it('قواعد التعارض الحقيقي لم تتغيّر: محلي حقيقي + سحابي متغيّران ⇒ CONFLICT صريح', () => {
-    const fn = syncEngine.slice(at(syncEngine, 'async function decide('));
-    expect(fn).toContain('if (remoteChanged && localChanged) {');
-    expect(fn).toContain("action: 'CONFLICT'");
-    expect(syncEngine).toContain("if (choice === 'LOCAL') return performUpload");
+    expect(syncDecision).toContain('if (remoteChanged && localChanged) {');
+    expect(syncDecision).toContain("action: 'CONFLICT'");
+    const resolve = syncEngine.slice(at(syncEngine, 'export async function resolveConflict'));
+    expect(resolve).toContain("if (choice === 'LOCAL') {");
+    expect(resolve).toContain('uploadInternal(dbPath, dataDir, { resolvesConflict: true');
+    expect(resolve).toContain('downloadInternal(dbPath, dataDir, { resolvesConflict: true });');
   });
 
   it('انحدار الهوية: البصمة المحلية تُسجَّل منفصلة عن بصمة اللقطة المرفوعة', () => {
@@ -289,7 +306,7 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
     expect(syncEngine).toContain('const localHash = await sha256File(dbPath)');
     expect(syncEngine).toContain('lastSyncedLocalHash: localHash');
     expect(syncEngine).toContain('lastSyncedLocalHash: downloadedHash');
-    expect(syncEngine).toContain('metadata.lastSyncedLocalHash ?? metadata.lastSyncedHash');
+    expect(syncDecision).toContain('metadata.lastSyncedLocalHash ?? metadata.lastSyncedHash');
   });
 });
 

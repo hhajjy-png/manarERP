@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ConfirmModal from './ConfirmModal';
 import ConflictResolutionDialog from './ConflictResolutionDialog';
+import CloudDiagnosticsCard from './CloudDiagnosticsCard';
 import { dateText } from '../config/modules';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
@@ -18,9 +19,23 @@ type StatusInfo = {
   lastUploadAt: string | null;
   lastDownloadAt: string | null;
   lastError: string | null;
+  /** Production Hardening Pack v1 — انتهت صلاحية ربط Google ويجب إعادة الربط. */
+  needsReauth?: boolean;
+  /** سبب انقطاع الربط بالعربية، جاهز للعرض كما هو. */
+  grantDeadMessage?: string | null;
   localDb: { exists: boolean; sizeBytes: number };
   device?: { deviceId: string; deviceName: string };
 } | null;
+
+/** نتيجة النسخة المحلية المضمونة بعد فشل سحابي — تصل مع كل استجابة مزامنة فاشلة. */
+type RescueBackupOutcome = {
+  ok: boolean;
+  via: 'BACKEND_SERVICE' | 'DIRECT_SNAPSHOT' | null;
+  fileName?: string;
+  filePath?: string;
+  sizeBytes?: number;
+  error?: string;
+};
 
 type LogEntry = {
   at: string;
@@ -30,6 +45,10 @@ type LogEntry = {
   deviceName?: string;
   conflictResolved?: boolean;
   resolutionSelected?: 'LOCAL' | 'REMOTE';
+  /** Production Polish Pack v1 — توقيت العملية ومدّتها والإجراء المقترح (تغيب في الإدخالات القديمة). */
+  startedAt?: string;
+  durationMs?: number;
+  suggestedAction?: 'NONE' | 'RECONNECT' | 'RETRY' | 'RESOLVE_CONFLICT' | 'CHECK_BACKUPS' | 'CHECK_NETWORK';
 };
 
 interface DatabaseVersionInfo {
@@ -58,6 +77,7 @@ function statusPillClass(status: string): string {
     case 'COMPLETED': return 'green';
     case 'FAILED': return 'red';
     case 'CONFLICT': return 'red';
+    case 'GRANT_DEAD': return 'red';
     case 'OFFLINE': return 'amber';
     case 'RETRY': return 'amber';
     case 'CHECKING': case 'DOWNLOADING': case 'UPLOADING': return 'blue';
@@ -85,7 +105,19 @@ export default function CloudSyncPanel() {
   const [disconnectConfirm, setDisconnectConfirm] = useState(false);
   const [downloadConfirm, setDownloadConfirm] = useState(false);
   const [conflict, setConflict] = useState<SyncConflictInfo | null>(null);
+  /**
+   * آخر عملية فشلت — أساس زرّ «إعادة المحاولة» (P0-11).
+   * فشل المزامنة كان يترك المستخدم أمام رسالة فقط، فيعيد البحث عن الزرّ الصحيح
+   * بين خمسة أزرار. الآن الإجراء التالي معروض بجانب سبب الفشل مباشرة.
+   */
+  const [lastFailed, setLastFailed] = useState<'SYNC' | 'UPLOAD' | 'DOWNLOAD' | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /**
+   * عدّاد يتقدّم بعد كل قراءة حالة ⇒ يُعيد بطاقة التشخيص قراءتها **مرة واحدة**.
+   * بديل متعمَّد عن أي `setInterval`: التحديث يتبع أحداثًا حقيقية لا مؤقّتًا (§9).
+   */
+  const [diagRefreshKey, setDiagRefreshKey] = useState(0);
+  const logAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const statusLabel = (status: string): string => {
     const key = `cloudsync.status.${status.toLowerCase()}`;
@@ -109,6 +141,7 @@ export default function CloudSyncPanel() {
       // يُترك info كما هو — رسالة "غير متاح" تظهر من الحالة الفارغة
     } finally {
       setLoading(false);
+      setDiagRefreshKey((n) => n + 1);
     }
   }, []);
 
@@ -149,8 +182,12 @@ export default function CloudSyncPanel() {
     toast.ok(t('msg.cloudsync.browser_opened'));
     try {
       const result = await window.manar.syncAuthenticate();
-      if (result.ok) toast.ok(t('msg.cloudsync.connected', { email: result.email ?? '' }));
-      else toast.error(result.error ?? t('msg.cloudsync.connect_fail'));
+      if (result.ok) {
+        setLastFailed(null);
+        toast.ok(t('msg.cloudsync.connected', { email: result.email ?? '' }));
+      } else {
+        toast.error(result.error ?? t('msg.cloudsync.connect_fail'));
+      }
     } finally {
       setBusy(false);
       load();
@@ -172,6 +209,50 @@ export default function CloudSyncPanel() {
     }
   }
 
+  /**
+   * تبليغ موحّد عن فشل سحابي — يعرض دائمًا **حالتين منفصلتين**: نتيجة العملية
+   * السحابية ونتيجة النسخة الاحتياطية المحلية المضمونة بعدها
+   * (Cloud-Failure Local Backup Guarantee v1). الفصل مقصود: فشل السحابة وحده لم
+   * يعد يعني ضياع النسخة، والمستخدم يجب أن يرى ذلك صراحة لا أن يستنتجه.
+   */
+  function reportCloudFailure(
+    result: { error?: string; rescueBackup?: RescueBackupOutcome; needsReauth?: boolean; busy?: boolean; conflict?: SyncConflictInfo },
+    action: 'SYNC' | 'UPLOAD' | 'DOWNLOAD',
+  ) {
+    // رفض بسبب عملية جارية ليس فشلًا ولا يستحق زرّ إعادة محاولة فوريًا —
+    // الرسالة وحدها تكفي، والمستخدم ينتظر انتهاء العملية القائمة.
+    if (result.busy) {
+      toast.warn(result.error ?? t('msg.cloudsync.busy_rejected'));
+      return;
+    }
+
+    // P0-7 — الرفع رُفض لأن النسخة السحابية تغيّرت: تعارض يقرّره المستخدم، لا فشل.
+    if (result.conflict) {
+      setConflict(result.conflict);
+      setLastFailed(null);
+      toast.warn(result.error ?? t('msg.cloudsync.remote_changed'));
+      return;
+    }
+
+    setLastFailed(action);
+
+    // P0-1 — منحة ميتة: إعادة المحاولة بلا فائدة. اللافتة الدائمة أعلى اللوحة
+    // تحمل الشرح وزرّ إعادة الربط؛ هنا نكتفي برسالة واحدة غير مكرِّرة لها.
+    const cloudMsg = result.error ?? t('msg.cloudsync.sync_fail');
+    if (result.needsReauth) {
+      toast.error(cloudMsg);
+      return;
+    }
+
+    if (result.rescueBackup?.ok) {
+      toast.warn(t('msg.cloudsync.failed_rescue_ok', { error: cloudMsg }));
+    } else if (result.rescueBackup) {
+      toast.error(t('msg.cloudsync.failed_rescue_fail', { error: cloudMsg }));
+    } else {
+      toast.error(cloudMsg);
+    }
+  }
+
   async function syncNow() {
     if (!isElectron || !window.manar?.syncNow) return;
     setBusy(true);
@@ -182,11 +263,12 @@ export default function CloudSyncPanel() {
         setConflict(result.conflict);
         toast.warn(t('msg.conflict.detected'));
       } else if (result.ok) {
+        setLastFailed(null);
         if (result.action === 'NONE') toast.ok(t('msg.cloudsync.up_to_date'));
         else toast.ok(t(result.action === 'UPLOAD' ? 'msg.cloudsync.upload_done' : 'msg.cloudsync.download_done'));
         await maybeReconnect(result.backendRestarted);
       } else {
-        toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+        reportCloudFailure(result, 'SYNC');
       }
     } finally {
       stopProgressPolling();
@@ -202,8 +284,13 @@ export default function CloudSyncPanel() {
     try {
       const result = await window.manar.syncResolveConflict('LOCAL');
       setConflict(null);
-      if (result.ok) toast.ok(t('msg.cloudsync.upload_done'));
-      else toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+      if (result.ok) {
+        setLastFailed(null);
+        toast.ok(t('msg.cloudsync.upload_done'));
+      } else {
+        // قد يُعيد تعارضًا جديدًا حين يكون جهاز آخر قد رفع أثناء فتح الحوار (P0-7).
+        reportCloudFailure(result, 'UPLOAD');
+      }
     } finally {
       stopProgressPolling();
       setBusy(false);
@@ -219,10 +306,11 @@ export default function CloudSyncPanel() {
       const result = await window.manar.syncResolveConflict('REMOTE');
       setConflict(null);
       if (result.ok) {
+        setLastFailed(null);
         toast.ok(t('msg.cloudsync.download_done'));
         await maybeReconnect(result.backendRestarted);
       } else {
-        toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+        reportCloudFailure(result, 'DOWNLOAD');
       }
     } finally {
       stopProgressPolling();
@@ -242,8 +330,12 @@ export default function CloudSyncPanel() {
     startProgressPolling();
     try {
       const result = await window.manar.syncUpload();
-      if (result.ok) toast.ok(t('msg.cloudsync.upload_done'));
-      else toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+      if (result.ok) {
+        setLastFailed(null);
+        toast.ok(t('msg.cloudsync.upload_done'));
+      } else {
+        reportCloudFailure(result, 'UPLOAD');
+      }
     } finally {
       stopProgressPolling();
       setBusy(false);
@@ -253,6 +345,16 @@ export default function CloudSyncPanel() {
 
   function download() { setDownloadConfirm(true); }
 
+  /**
+   * P0-11 — يعيد تنفيذ آخر عملية فشلت بالضبط، بلا أن يبحث المستخدم عن الزرّ الصحيح.
+   * التنزيل يمرّ بحوار التأكيد نفسه — إعادة المحاولة لا تتجاوز تأكيدًا مقصودًا.
+   */
+  function retryLastFailed() {
+    if (lastFailed === 'SYNC') { syncNow(); return; }
+    if (lastFailed === 'UPLOAD') { upload(); return; }
+    if (lastFailed === 'DOWNLOAD') setDownloadConfirm(true);
+  }
+
   async function executeDownload() {
     setDownloadConfirm(false);
     if (!isElectron || !window.manar?.syncDownload) return;
@@ -261,10 +363,11 @@ export default function CloudSyncPanel() {
     try {
       const result = await window.manar.syncDownload();
       if (result.ok) {
+        setLastFailed(null);
         toast.ok(t('msg.cloudsync.download_done'));
         await maybeReconnect(result.backendRestarted);
       } else {
-        toast.error(result.error ?? t('msg.cloudsync.sync_fail'));
+        reportCloudFailure(result, 'DOWNLOAD');
       }
     } finally {
       stopProgressPolling();
@@ -315,6 +418,62 @@ export default function CloudSyncPanel() {
           ⏳ {liveMessage || t('msg.cloudsync.busy')}
         </div>
       )}
+
+      {/*
+        P0-1 / P0-11 — لافتة إعادة الربط.
+        تظهر حين تموت المنحة (انتهاء صلاحية، إلغاء من حساب Google، تغيير كلمة المرور،
+        أو عدم تطابق عميل OAuth). تحمل ثلاثة أشياء يحتاجها المستخدم فورًا: **ماذا حدث**
+        بالعربية، **أن بياناته المحلية سليمة**، و**الإجراء الوحيد المُجدي** كزرّ واحد.
+        دائمة عبر إعادة تشغيل التطبيق حتى يُعاد الربط فعليًا — لا تختفي بمجرد إغلاق toast.
+      */}
+      {!busy && info?.needsReauth && (
+        <div className="alert error" style={{ marginBottom: 16, flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+          <div>🔑 {t('title.cloudsync.reauth')}</div>
+          <div style={{ fontWeight: 500, fontSize: 13 }}>
+            {info.grantDeadMessage ?? t('msg.cloudsync.reauth_default')}
+          </div>
+          <div style={{ fontWeight: 500, fontSize: 13 }}>{t('msg.cloudsync.local_safe')}</div>
+          {canManage && (
+            <div>
+              <button type="button" className="btn sm" onClick={connect} disabled={busy} style={{ marginTop: 6 }}>
+                🔐 {t('btn.cloudsync.reconnect')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/*
+        زرّ إعادة المحاولة — يظهر فقط بعد فشل قابل لإعادة المحاولة فعلًا. لا يظهر مع
+        موت المنحة (إعادة المحاولة هناك بلا فائدة، والإجراء الصحيح هو إعادة الربط أعلاه).
+      */}
+      {!busy && lastFailed && !info?.needsReauth && (
+        <div className="alert warn" style={{ marginBottom: 16, alignItems: 'center', gap: 12 }}>
+          <span style={{ flex: 1 }}>⚠️ {info?.lastError ?? t('msg.cloudsync.sync_fail')}</span>
+          <button type="button" className="btn secondary sm" onClick={retryLastFailed} disabled={busy}>
+            ↻ {t('btn.cloudsync.retry')}
+          </button>
+        </div>
+      )}
+
+      {/*
+        مركز التشخيص — Production UX & Diagnostics Pack v1.
+        يُعرض فوق بطاقة الحالة لأن الدعم الفني يقرأ من أعلى الصفحة إلى أسفلها.
+        طبقة عرض بحتة: لا تتخذ قرارًا ولا تنادي Google؛ الإجراءات الحقيقية تُنفَّذ
+        عبر نفس الدوال القائمة في هذه اللوحة (إعادة الربط / إعادة المحاولة).
+      */}
+      <CloudDiagnosticsCard
+        refreshKey={diagRefreshKey}
+        log={log}
+        canManage={canManage}
+        busy={busy}
+        canRetry={!!lastFailed}
+        needsReauth={!!info?.needsReauth}
+        onReconnect={connect}
+        onRetry={retryLastFailed}
+        onOpenLog={() => logAnchorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        onRepaired={() => { setLastFailed(null); load(); }}
+      />
 
       {loading ? (
         <div className="center-msg"><div className="spinner" />{t('msg.loading')}</div>
@@ -368,7 +527,7 @@ export default function CloudSyncPanel() {
             </table>
           </div>
 
-          <div className="card panel" style={{ padding: 0 }}>
+          <div className="card panel" style={{ padding: 0 }} ref={logAnchorRef}>
             <div className="table-responsive">
               <table>
                 <thead>

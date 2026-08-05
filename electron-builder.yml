@@ -30,6 +30,15 @@ extraResources:
   # خطوط عربية مُضمَّنة في قوالب HTML للتقارير
   - from: backend/assets
     to: backend/assets
+  # عميل OAuth سطح المكتب (Google Drive Deployment Pack v1) — Client ID/Secret الخاصان
+  # بتطبيق Google Cloud الموزَّع، وليسا سرًا حقيقيًا لتطبيق سطح مكتب (نموذج Google
+  # Installed App الرسمي). المستخدم النهائي لا يُنشئ أو ينسخ هذا الملف أبدًا؛ المطوّر
+  # يُنشئه مرة واحدة قبل بناء المثبّت — انسخ
+  # electron/resources/gdrive-oauth-client.example.json إلى
+  # electron/resources/gdrive-oauth-client.json وامْلأه (غير مُتتبَّع بـ git). راجع
+  # electron/resources/README.md.
+  - from: electron/resources/gdrive-oauth-client.json
+    to: gdrive-oauth-client.json
 
 win:
   target:

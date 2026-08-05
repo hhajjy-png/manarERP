@@ -369,8 +369,17 @@ export default function Backup() {
                   <td style={{ fontFamily: 'monospace', fontSize: 13 }}><strong>{b.fileName}</strong></td>
                   <td>{fmt(b.sizeBytes, t)}</td>
                   <td>
-                    <span className={`pill ${b.type === 'MANUAL' ? 'blue' : b.type === 'AUTO' ? 'gray' : 'amber'}`}>
-                      {b.type === 'MANUAL' ? t('backup.type.manual') : b.type === 'AUTO' ? t('backup.type.auto') : t('backup.type.scheduled')}
+                    {/* RESCUE — نسخة إنقاذ بعد فشل سحابي. تصنيف مستقلّ عن المجدولة
+                        (AUTO) واليدوية (MANUAL)، ولونه أحمر لأنه يدلّ على حادثة وقعت
+                        لا على روتين ناجح. */}
+                    <span className={`pill ${b.type === 'MANUAL' ? 'blue' : b.type === 'RESCUE' ? 'red' : b.type === 'AUTO' ? 'gray' : 'amber'}`}>
+                      {b.type === 'MANUAL'
+                        ? t('backup.type.manual')
+                        : b.type === 'RESCUE'
+                          ? t('backup.type.rescue')
+                          : b.type === 'AUTO'
+                            ? t('backup.type.auto')
+                            : t('backup.type.scheduled')}
                     </span>
                   </td>
                   <td>{dateText(b.createdAt)}</td>

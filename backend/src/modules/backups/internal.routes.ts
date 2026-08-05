@@ -138,4 +138,56 @@ router.post('/trigger-auto-backup', asyncHandler(async (_req, res) => {
   });
 }));
 
+// POST /api/internal/trigger-rescue-backup
+// نسخة إنقاذ (RESCUE) — تُستدعى من العملية الرئيسية بعد فشل أي عملية سحابية
+// (Cloud-Failure Local Backup Guarantee v1).
+//
+// متعمّدًا **ليست** نسخة مجدولة، والفروق كلها مقصودة:
+//   • لا يحكمها `backup.auto.enabled` — غرضها حماية البيانات بعد فشل، لا جدولة
+//     دورية عطّلها المستخدم. تعطيل النسخ المجدول لا يُلغي شبكة الأمان.
+//   • لا تُحدِّث `backup.auto.lastRunAt/lastStatus/lastError` — وإلا لبدت حالة
+//     «آخر نسخة مجدولة» ناجحة بينما الجدولة لم تعمل أصلًا.
+//   • لا تُقلّم نسخ AUTO ولا تُقلَّم بسياسة احتفاظها — حدّ احتفاظ مستقلّ.
+//   • سجلّ تدقيق باسم `RESCUE_BACKUP` لا `AUTO_BACKUP`.
+// تُعيد HTTP 200 دائمًا حتى تحصل العملية الرئيسية على استجابة نظيفة عند الفشل.
+const RESCUE_RETENTION = 30;
+
+router.post('/trigger-rescue-backup', asyncHandler(async (_req, res) => {
+  let backup = null;
+  let pruned: string[] = [];
+  let errorMsg: string | null = null;
+
+  try {
+    backup = await backupService.create('RESCUE');
+
+    await prisma.auditLog.create({
+      data: {
+        userId: null,
+        action: 'RESCUE_BACKUP',
+        module: 'system',
+        entityId: String(backup.id),
+        newValue: JSON.stringify({
+          fileName: backup.fileName,
+          fileSize: backup.sizeBytes,
+          trigger: 'CLOUD_OPERATION_FAILURE',
+        }),
+      },
+    });
+
+    pruned = await backupService.pruneAutoBackups(RESCUE_RETENTION, 'RESCUE');
+  } catch (err) {
+    errorMsg = err instanceof Error ? err.message : 'فشل إنشاء نسخة الإنقاذ';
+    await prisma.auditLog.create({
+      data: {
+        userId: null,
+        action: 'RESCUE_BACKUP',
+        module: 'system',
+        newValue: JSON.stringify({ error: errorMsg, trigger: 'CLOUD_OPERATION_FAILURE' }),
+      },
+    }).catch(() => {});
+  }
+
+  ok(res, { status: errorMsg ? 'FAILED' : 'SUCCESS', backup, pruned, error: errorMsg });
+}));
+
 export default router;
