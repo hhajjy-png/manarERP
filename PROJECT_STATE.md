@@ -43,14 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `4941b2ca` — release `stable-cloud-backup-google-drive-sync-v1` (Cloud Backup & Google Drive Sync v1: four packs delivered as one feature — the Google Drive Deployment Pack (OAuth Desktop client bundled into the installer, resolved by a pure policy layer, never touched by the end user), the Cloud-Failure Local Backup Guarantee (every failed cloud operation leaves a local backup, with a direct `VACUUM INTO` path for when the backend is stopped), the Production Hardening Pack (dead-grant detection and recovery as a distinct `GRANT_DEAD` state, OAuth client binding on stored tokens, one central Arabic error translation layer, a sync mutex, real `AbortController` timeouts on every Drive call, atomic state writes, lost-update protection, rescue-backup namespace separation, 403 rate-limit handling with `Retry-After`, and full test coverage of the decision engine), the Production UX & Diagnostics Pack (a cloud diagnostics centre with 16 status items, a 0-100 health score, smart actions, a copyable report and a support block — all from a passive read with zero network calls) and the Production Polish Pack (operation durations, an operation-details drawer, diagnostics history, one-click self repair, health history, engine information, and PDF/Excel diagnostics exports); 33 files, Electron main process + backend + frontend, no Prisma/schema/migration and no new permission key) |
-| **Previous production HEAD** | `4a672e70` — release `stable-financial-analysis-center-v1` (Financial Analysis Center v1: a new read-only executive analysis page at `#/financial-analysis` with eight table-only sections over the existing operational reporting engine — one shared filter, one request per load, per-section KPIs derived from their own table rows, cell- and row-level drill-down, an 11-worksheet Excel export and a landscape multi-page PDF export, both through the system's own engines; 32 files, backend + frontend, no Prisma/schema/permission/Electron change) |
+| **Production HEAD** | `712dad62` — release `stable-administrative-forms-barcode-enhancement-pack-v1` (Administrative Forms Barcode Enhancement Pack v1: a barcode as a THIRD element of the existing Multi-Signature & Stamp branding system on the Blank A4 administrative form — `ElementType` extended to `'signature' \| 'stamp' \| 'barcode'`, carried through the same `useBrandingDesigner`/`DesignableBrandingImage`/`BrandingDesignerPanel` clamp, transform, drag/resize/rotate gestures, undo/redo, `print.brandingLayout` save path and print/PDF/preview pipeline every element already used — no new engine, store, service or renderer. A Barcode Content Settings dialog (⚙ إعدادات الباركود, built from ExplorerKit `Dialog`/`DialogSection`/`Button`) lets the operator author reference number, subject and free-text details, extending `FormQRCode.formatQrText` additively (the thirteen existing QR consumers encode byte-identical text); the caption beneath the code is the reference verbatim or nothing — no number is ever generated. `nextReferenceNumber()` is a pure width-preserving increment of a value's trailing digit run for the suggestion; a fourth `print.barcode.lastReference` settings key remembers the last non-empty reference independently of the printed one, so the dialog's Reset button can clear its three fields without erasing what the next suggestion counts from. Professional Ink Set v1 appends 20 ballpoint-blue shades to the existing 4-color ink picker, appended (never reordered) so a saved `inkMode` keeps resolving to the same color; every element that already supported ink color — including the new barcode — gets the extended picker automatically. 21 files (19 modified, 2 added), frontend-only; no Prisma/schema/backend/Electron change, no new permission key) |
+| **Previous production HEAD** | `4941b2ca` — release `stable-cloud-backup-google-drive-sync-v1` (Cloud Backup & Google Drive Sync v1: four packs delivered as one feature — the Google Drive Deployment Pack, the Cloud-Failure Local Backup Guarantee, the Production Hardening Pack, the Production UX & Diagnostics Pack and the Production Polish Pack; 33 files, Electron main process + backend + frontend, no Prisma/schema/migration and no new permission key) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-cloud-backup-google-drive-sync-v1` (release date 2026-08-05) → merge `4941b2ca` |
-| **Previous stable tag** | `stable-financial-analysis-center-v1` (2026-08-04) → merge `4a672e70` |
-| **Total stable releases** | 408 (all merged onto `production`; window 2026-06-07 → 2026-08-05) |
-| **Latest validation** | Backend / frontend / electron `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (post-merge) · electron 354 tests ✅ · backend 2697 tests ✅ · frontend 3484 pass, 26 failures identical in count and identity to the pre-release baseline (pre-existing, unrelated to this release) · 127 new tests added · scope confirmed: exactly 33 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a `git diff --cached --name-status` scope check showing zero out-of-scope paths — the one-time backend probe scripts, the `.tmp-*.json` scratch files, the two `docs/*.xlsx` workbooks, the unreferenced font files and a leftover measurement test were deliberately left unstaged · Product Owner manual visual review — **completed & approved** (diagnostics card, activity log, details drawer, PDF and Excel reports, RTL and dark mode), release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `4941b2ca` + tags `stable-cloud-backup-google-drive-sync-v1`, `checkpoint-cloud-backup-google-drive-sync-v1` + branch `feature/cloud-backup-google-drive-sync-v1`) |
+| **Latest stable tag** | `stable-administrative-forms-barcode-enhancement-pack-v1` (release date 2026-08-05) → merge `712dad62` |
+| **Previous stable tag** | `stable-cloud-backup-google-drive-sync-v1` (2026-08-05) → merge `4941b2ca` |
+| **Total stable releases** | 409 (all merged onto `production`; window 2026-06-07 → 2026-08-05) |
+| **Latest validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · `build:front` ✅ (feature branch and post-merge) · full frontend suite 3552 tests: 3525 passing, 26 failures identical in count and identity to the pre-release baseline (confirmed via `git stash` against clean HEAD before this work began — pre-existing, unrelated to this release) · 190 new/extended tests added (barcode content dialog, reference-number increment, ink-set coverage, barcode-as-third-element regression, rotation-ref regression) · no backend/electron files touched, so backend/electron suites are unaffected by construction · scope confirmed: exactly 21 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a scope check showing zero out-of-scope paths — the one-time backend probe scripts, the `.tmp-*.json` scratch files, the two `docs/*.xlsx` workbooks, the unreferenced font files and a leftover measurement test were deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `712dad62` + tags `stable-administrative-forms-barcode-enhancement-pack-v1`, `checkpoint-administrative-forms-barcode-enhancement-pack-v1` + branch `feature/administrative-forms-barcode-enhancement-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +62,96 @@ in a table cell.
 
 ---
 
-## Latest Release — Cloud Backup & Google Drive Sync v1
+## Latest Release — Administrative Forms Barcode Enhancement Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Administrative Forms Barcode Enhancement Pack v1 — barcode as a third branding element + Barcode Content Settings dialog + reference-number memory/suggestion + non-destructive Reset + Professional Ink Set v1 (20 shades), delivered as one feature (21 files: 2 new, 19 modified; frontend-only) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-05 |
+| **Feature branch** | `feature/administrative-forms-barcode-enhancement-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `1551bd7e` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-administrative-forms-barcode-enhancement-pack-v1` → `1551bd7e` |
+| **Feature commit** | `b8095c58` |
+| **Production merge commit** | `712dad62` |
+| **Stable tag** | `stable-administrative-forms-barcode-enhancement-pack-v1` → merge `712dad62` (annotated) |
+| **Reviews** | Claude Code Review self-verified via `tsc --noEmit` (feature branch and post-merge) + `build:front` (feature branch and post-merge) + full frontend suite, iterated until clean → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Frontend `tsc --noEmit` ✅ · `build:front` ✅ (feature branch and post-merge) · full frontend suite 3552 tests: 3525 pass / 26 pre-existing baseline failures (count and identity unchanged, confirmed via `git stash` against clean HEAD) · 190 new/extended tests · no backend/electron files touched |
+
+**What it is.** The Administrative Forms Barcode Designer request asked for a barcode
+element on the Blank A4 free-print form, built entirely by reusing the existing
+Multi-Signature & Stamp branding system rather than a parallel engine — the brief was
+explicit that no `Barcode Engine`/`Service`/`Store`/`Manager`/`Designer`/`Context`/`Hook`
+could be created. `useBrandingDesigner`'s `ElementType` union gained a third member,
+`'barcode'`, and every function that already operated per-element (`patchDoc`, drag,
+resize, rotate, align, reset, undo/redo, save) needed no branching to cover it — the
+union member was the whole extension point. `DesignableBrandingImage` gained an optional
+`children` prop so it can draw composed content (a QR code) instead of an `<img src>`,
+while keeping the identical gesture handlers, outline, and `data-bd-type`/`data-designer-*`
+hooks the print/PDF/preview export paths already select by. A host document declares
+which elements it draws via an optional `elements` array on `useBrandingDesigner`'s
+config; Blank A4 is the only caller that passes `['signature', 'stamp', 'barcode']` today,
+so every other document's designer panel, reset buttons, and saved record shape are
+byte-identical to before this release.
+
+**Barcode Content Settings v1.** A follow-up request asked for the barcode to encode
+operator-authored content instead of a system-generated number, reachable from a new
+"⚙ إعدادات الباركود" button beside the existing branding picker. The dialog
+(`BarcodeContentDialog.tsx`) is built from the same ExplorerKit `Dialog`/`DialogSection`/
+`Button`/`xpl-field`/`xpl-input`/`xpl-textarea` primitives every other dialog in the
+system uses — no new dialog chrome. Three fields — reference number, document subject,
+free-text additional information — are appended to `FormQRCode.formatQrText`'s existing
+line-building logic, each skipped when blank rather than printed as a dangling label; the
+thirteen pre-existing `FormQRCode` call sites pass neither new field, so their encoded
+text is verified byte-identical to before this release. The caption printed beneath the
+QR code was previously a clock-derived `generateFormNumber()` value that resolved to no
+real record — this release removes that generation entirely: the caption is now the
+operator's reference verbatim, or no caption at all when the field is empty. Content
+persists through three new plain-string `print.barcode.*` Settings rows, written via the
+exact same `PUT /settings` call `useBrandingDesigner.save()` already makes — no new
+endpoint, no new table.
+
+**Reference memory + non-destructive Reset (a mid-conversation follow-up request).**
+`nextReferenceNumber()` (`forms/shared/formNumber.ts`) is a pure function: it matches the
+trailing digit run of a string, increments it, and pads back to the original width
+(`MN-2026-00125` → `MN-2026-00126`; `REF0009` → `REF0010`), returning the input completely
+unchanged when it has no trailing digit run (`قرار إداري` stays `قرار إداري`) rather than
+guessing. `BigInt` arithmetic (not `Number`) keeps the increment exact past the 15-digit
+safe-integer boundary. The dialog opens pre-seeded with this suggestion, while the subject
+and details fields are recalled verbatim from their last saved value — nothing about them
+is auto-generated or rewritten. A fourth settings key, `print.barcode.lastReference`,
+holds the last NON-EMPTY reference independently of the currently-printed one: the
+dialog's Reset button clears its own three fields (staged only — nothing is written until
+Save) without touching this fourth value, so printing a sheet with no reference does not
+reset the sequence the next suggestion counts from. A record saved before this key existed
+(three keys, no fourth) is read correctly by falling back to the reference field itself.
+
+**Professional Ink Set v1 (a further mid-conversation follow-up request).** Twenty
+ballpoint-blue shades (`#0062D2` down to `#002650`, named `الحبر السماوي` through `الحبر
+الأسود المزرق`) are appended to `NEW_INK_COLOR_IDS`/`INK_COLOR_HEX`/`INK_MODE_LABELS` in
+`utils/inkFilter.ts` — appended after, never inserted before or interleaved with, the four
+pre-existing shades, so a previously-saved `inkMode` value keeps resolving to the exact
+same color and a returning operator's picker muscle-memory is undisturbed. No new
+Color Picker component, no new color-application mechanism: every element that already
+rendered `getInkFilterStyle`/`InkColorFilterDefs` (signature, stamp, and now the barcode)
+gets all 24 shades automatically. A build-time test (`Set` cardinality over
+`Object.values(INK_MODE_LABELS)`) enforces every label stays distinct, so a future
+addition that repeats an existing name fails CI rather than silently producing two
+indistinguishable swatches — the brief's explicit rule ("mismatch → append `(2)` to the
+NEW name, never rename the old one") is a documented resolution path for a test failure,
+not runtime logic, since no name collision exists in the shipped 24.
+
+**Not changed.** Signature/stamp geometry, gestures, and saved layout shape for every
+document besides Blank A4; the twelve other `FormQRCode` callers' printed/encoded output;
+`generateFormNumber()` itself (still used by twelve other administrative forms —
+Blank A4 alone stopped calling it); backend, Prisma, Electron, IPC, permission keys.
+
+Scope note: the release staged exactly 21 files by explicit path. The one-time backend
+probe scripts, the `.tmp-*.json` scratch files, the two `docs/*.xlsx` workbooks, the
+unreferenced font files and a leftover measurement test were all deliberately left out of
+the release and remain uncommitted in the working tree, unrelated to this package.
+
+## Previous Release — Cloud Backup & Google Drive Sync v1
 
 | Field | Value |
 |-------|-------|

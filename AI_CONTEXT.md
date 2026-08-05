@@ -33,11 +33,11 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `4941b2ca` (merge of `feature/cloud-backup-google-drive-sync-v1` — **Cloud Backup & Google Drive Sync v1**, four release packs merged as one feature. The Drive sync engine existed before this release but was not production-safe; the audit that opened the work found three blocking defects and one structural gap. **(1) A dead OAuth grant was invisible and unrecoverable** — `isAuthenticated()` answered *"is there a string on disk?"* rather than *"is the grant valid?"*, so the UI showed a healthy connection forever while every sync failed and rescue backups piled up. Now `invalid_grant` / `unauthorized_client` / `access_denied` are classified into a distinct `GRANT_DEAD` state by one pure error module: the dead token is deleted so no later attempt can use it, the reason is persisted in `sync-metadata.json` and survives restarts, and the UI shows a permanent Arabic banner with a **one-click repair** that runs disconnect → relink → *verify with a real Drive query* before claiming success. **(2) Two devices could overwrite each other silently** — the upload read the remote file then PATCHed it with no precondition, and the `version` counter it wrote was never checked. Now uploads compare the remote against both the snapshot the decision was built on (a window that can be minutes wide while a conflict dialog waits for the user) and a re-read taken immediately before the write; any change becomes a conflict the user resolves. Drive v3 offers no write precondition for `appDataFolder`, so this narrows the race from minutes to milliseconds rather than eliminating it — stated explicitly in the code. **(3) No Drive call had a timeout** — a half-open socket hung the UI indefinitely with no cancel; every call now runs under an `AbortController` (30s metadata / 180s transfer) that aborts for real. **(4) The decision engine was untested** — the ~40 lines deciding which copy of the database lives moved into a pure module and are now covered for local-newer, remote-newer, same-hash, conflict, missing remote, missing local, empty database, seed database, startup and shutdown. Also landed: OAuth client binding on stored tokens (rejected locally, before any network call, when the client id changes — legacy tokens are treated as *unknown*, never *mismatched*, so upgrading disconnects nobody), one central Arabic translation layer so no raw Google string can reach the screen, a sync mutex serialising all seven entry points with immediate rejection instead of stale queuing, atomic temp→fsync→rename writes for the metadata and token files (a truncated metadata file used to read back as *no sync history* and produce a false conflict), 403 rate-limit handling with `Retry-After` (while `storageQuotaExceeded` correctly stays fatal), the OAuth Desktop client bundled into the installer via `extraResources` and resolved by a pure policy layer so the end user never handles a credentials file, and an unconditional local-backup guarantee after *any* cloud failure — with a direct `VACUUM INTO` path for the shutdown-sync case where the backend is already stopped, in a separate filename namespace so retention pruning can never delete a backup that is restorable from inside the system. On top of the engine, the backup page became a **cloud diagnostics centre**: sixteen status items, a 0-100 health score with hard overrides (a dead grant is always *Critical*; a pending conflict never reads better than *Warning*) and a change-only history so a stable 70% is distinguishable from a 70% that dropped from 100%, an operation log with measured durations and a details drawer carrying a suggested action derived from the entry itself, a six-row diagnostics history, engine information, and PDF/Excel diagnostics exports through the system's own print and export engines. The passive diagnostics read makes **zero network calls** — only the explicit *test connection* and *repair* actions touch Google. The whole UI is composed from existing ExplorerKit primitives inside `.xpl-scope` with zero new CSS classes and zero colours outside the system tokens, so RTL and dark mode work by inheritance. The diagnostics snapshot type carries **no field for any secret**, so the report and support block cannot leak what they cannot see. 33 files (18 new, 15 modified); no Prisma/schema/migration, no new permission key) |
-| **Current Documentation Commit** | `26ab92a7` |
-| **Current Stable Tag** | `stable-cloud-backup-google-drive-sync-v1` |
+| **Current Merge Commit** | `712dad62` (merge of `feature/administrative-forms-barcode-enhancement-pack-v1` — **Administrative Forms Barcode Enhancement Pack v1**. Adds a barcode as a THIRD element of the pre-existing Multi-Signature & Stamp branding system on the Blank A4 administrative form — no new engine, store, service, or renderer, per the brief's explicit constraint. `useBrandingDesigner`'s `ElementType` union gained a `'barcode'` member; every function that already operated per-element (`patchDoc`, drag, resize, rotate, align, reset, undo/redo, save) needed no branching to cover it — the union member was the whole extension point. `DesignableBrandingImage` gained an optional `children` prop so it can draw a composed QR code instead of an `<img src>`, while keeping the identical gesture handlers and `data-bd-type`/`data-designer-*` hooks the print/PDF/preview export paths already select by. A host document opts a third element in via `useBrandingDesigner`'s optional `elements` array; Blank A4 is the only caller today, so every other document's panel, reset buttons, and saved record shape are byte-identical to before. **Barcode Content Settings v1** adds a "⚙ إعدادات الباركود" dialog (built from existing ExplorerKit `Dialog`/`DialogSection`/`Button` primitives) where the operator authors a reference number, document subject, and free-text additional information — three fields appended to `FormQRCode.formatQrText`'s line-building logic, each skipped when blank; the thirteen pre-existing `FormQRCode` callers pass neither field, so their encoded QR text is byte-identical to before. The caption printed beneath the QR — previously a clock-derived `generateFormNumber()` value resolving to no real record — is now the operator's own reference verbatim, or nothing when the field is empty; no number is generated. Content persists through three plain-string `print.barcode.*` Settings rows via the exact `PUT /settings` call the branding designer's own `save()` already makes. A follow-up request added **reference-number memory**: `nextReferenceNumber()` is a pure function that increments a value's trailing digit run and pads back to its original width (`MN-2026-00125` → `MN-2026-00126`), returning non-numeric or absent input untouched rather than guessing; the dialog opens pre-seeded with this suggestion while the subject/details fields recall their last saved value verbatim. A fourth key, `print.barcode.lastReference`, holds the last NON-EMPTY reference independently of the printed one, so the dialog's **non-destructive Reset button** can clear its three fields (staged only, until Save) without erasing what the next suggestion counts from. A final follow-up, **Professional Ink Set v1**, appends 20 ballpoint-blue shades to the existing 4-color ink picker (`#0062D2` down to `#002650`) — appended after, never reordered among, the pre-existing four, so a previously-saved `inkMode` keeps resolving to the same color; every element that already supported ink color (signature, stamp, and now the barcode) gets all 24 shades automatically, with a build-time test enforcing every label stays distinct. 21 files (2 new, 19 modified); frontend-only, no Prisma/schema/backend/Electron change, no new permission key) |
+| **Current Documentation Commit** | `__DOC_COMMIT__` |
+| **Current Stable Tag** | `stable-administrative-forms-barcode-enhancement-pack-v1` |
 | **Current Release Date** | 2026-08-05 |
-| **Total Stable Releases** | 408 (window 2026-06-07 → 2026-08-05) |
+| **Total Stable Releases** | 409 (window 2026-06-07 → 2026-08-05) |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -407,6 +407,42 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Administrative Forms Barcode Enhancement Pack v1** (2026-08-05,
+  `stable-administrative-forms-barcode-enhancement-pack-v1`) — a barcode as a THIRD
+  element of the existing Multi-Signature & Stamp branding system on the Blank A4
+  administrative form, plus three follow-up requests delivered in the same package.
+  **Barcode as a branding element:** `useBrandingDesigner`'s `ElementType` gained a
+  `'barcode'` member — every function that already operated per-element (drag, resize,
+  rotate, align, reset, undo/redo, save) needed no branching to cover it, and
+  `DesignableBrandingImage` gained an optional `children` prop so it draws a composed QR
+  code instead of an `<img src>` while keeping the identical gesture handlers and export
+  hooks. No `Barcode Engine`/`Service`/`Store`/`Manager`/`Context`/`Hook` was created, per
+  the brief's explicit constraint; a host document opts the element in via an `elements`
+  array, so every document besides Blank A4 is untouched. **Barcode Content Settings v1:**
+  a "⚙ إعدادات الباركود" dialog (built from existing ExplorerKit primitives) lets the
+  operator author reference number, subject, and free-text details, extending
+  `FormQRCode.formatQrText` additively — the thirteen pre-existing QR consumers encode
+  byte-identical text. The printed caption was previously a clock-derived
+  `generateFormNumber()` value with no real record behind it; this release removes that
+  generation — the caption is the operator's own reference or nothing. Content persists
+  through three plain `print.barcode.*` settings rows via the same `PUT /settings` the
+  branding designer already calls. **Reference memory & non-destructive Reset:**
+  `nextReferenceNumber()` purely increments a value's trailing digit run, preserving width
+  and leaving non-numeric input untouched; a fourth `print.barcode.lastReference` key
+  remembers the last non-empty reference independently of the printed one, so Reset can
+  clear the dialog's three fields without erasing what the next suggestion counts from.
+  **Professional Ink Set v1:** 20 ballpoint-blue shades appended after the 4 pre-existing
+  ones in the shared ink-color picker, so a saved color choice never resolves differently;
+  every ink-capable element (signature, stamp, barcode) gets the extended picker
+  automatically, with a build-time test guarding every label stays distinct. 21 files (2
+  new, 19 modified), frontend-only. No Prisma/schema/backend/Electron change, no new
+  permission key. Feature commit `b8095c58`, merge `712dad62`. Validation: frontend
+  `tsc --noEmit` ✅ (feature branch and post-merge) · `build:front` ✅ (feature branch and
+  post-merge) · full suite 3552 tests, 3525 passing, 26 failures identical in count and
+  identity to the pre-existing baseline (confirmed via `git stash` against clean HEAD) ·
+  190 new/extended tests. Product Owner manual visual review: approved, release explicitly
+  requested.
 
 - **Cloud Backup & Google Drive Sync v1** (2026-08-05, `stable-cloud-backup-google-drive-sync-v1`) — four packs
   merged as one feature, turning an existing but production-unsafe Drive sync engine into a
