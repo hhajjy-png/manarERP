@@ -27,8 +27,11 @@ import {
   bulkArchiveSchema,
   cancelLetterSchema,
   createLetterSchema,
+  createCommentSchema,
+  createVersionSchema,
   listLettersQuerySchema,
   registerLetterSchema,
+  resolveCommentSchema,
   updateLetterSchema,
 } from './letters.schema';
 import * as ctrl from './letters.controller';
@@ -64,5 +67,31 @@ router.post('/:id/cancel', requirePermission('letters.cancel'), validate(cancelL
 
 // Draft-only, enforced in the service regardless of this permission.
 router.delete('/:id', requirePermission('letters.delete'), ctrl.remove);
+
+/* ── Version history and comments (Professional Document Automation v1) ────
+   NO NEW PERMISSION KEYS. Both subsystems reuse the three the module already has:
+
+     read   → `letters.read`    — seeing history and comments is seeing the letter.
+     write  → `letters.update`  — taking a version, restoring one, opening a thread.
+     delete → `letters.delete`  — removing a version or a comment.
+
+   Inventing `letters.version` and `letters.comment` would mean two more keys in
+   `constants.ts`, two more seed rows, and an administrator having to grant them
+   before anyone could use a feature that is plainly part of editing a letter. The
+   capability boundary is unchanged; only the surface it applies to is wider.
+
+   Restoring is refused on a registered letter by the SERVICE, regardless of
+   permission — a frozen document stays frozen for everyone. */
+
+router.get('/:id/versions', requirePermission('letters.read'), ctrl.listVersions);
+router.post('/:id/versions', requirePermission('letters.update'), validate(createVersionSchema), ctrl.createVersion);
+router.get('/:id/versions/:versionId', requirePermission('letters.read'), ctrl.getVersion);
+router.post('/:id/versions/:versionId/restore', requirePermission('letters.update'), ctrl.restoreVersion);
+router.delete('/:id/versions/:versionId', requirePermission('letters.delete'), ctrl.deleteVersion);
+
+router.get('/:id/comments', requirePermission('letters.read'), ctrl.listComments);
+router.post('/:id/comments', requirePermission('letters.update'), validate(createCommentSchema), ctrl.createComment);
+router.patch('/:id/comments/:commentId', requirePermission('letters.update'), validate(resolveCommentSchema), ctrl.resolveComment);
+router.delete('/:id/comments/:commentId', requirePermission('letters.delete'), ctrl.deleteComment);
 
 export default router;

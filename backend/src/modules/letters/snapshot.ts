@@ -57,6 +57,42 @@ export const renderedBrandingSchema = z
   .strict();
 
 /**
+ * One positioned layout object, exactly as it was rendered onto the issued page
+ * (Document Layout Designer v1).
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  FROZEN FOR THE SAME REASON THE SIGNATURE IMAGE IS.
+ * ══════════════════════════════════════════════════════════════════════════
+ * The positioned layer is stored in the letter's `contentJson`, which a draft may
+ * still be edited through. A registered letter's content is frozen, but the snapshot
+ * is what a REPRINT is checked against — and a reprint years later must reproduce the
+ * page that was issued, not the page today's data would produce. Recording each
+ * object's resolved rectangle here makes the layout part of the fidelity guarantee
+ * rather than something merely believed to have been stable.
+ *
+ * `payloadDigest` rather than the payload: an object may carry a base64 image, and the
+ * snapshot already caps the two branding images for the same reason. A digest is
+ * enough to prove the content is unchanged without storing a second copy of it.
+ */
+export const snapshotLayoutObjectSchema = z
+  .object({
+    id: z.string().min(1),
+    kind: z.string().min(1),
+    name: z.string(),
+    pageIndex: z.number().int().nonnegative(),
+    xMm: z.number(),
+    yMm: z.number(),
+    widthMm: z.number().positive(),
+    heightMm: z.number().positive(),
+    rotationDeg: z.number(),
+    opacity: z.number().min(0).max(1),
+    zIndex: z.number().int(),
+    /** Stable hash of the object's payload. Never the payload itself. */
+    payloadDigest: z.string(),
+  })
+  .strict();
+
+/**
  * The complete snapshot.
  *
  * `.strict()` at every level: an unrecognised key is an error, not something to
@@ -87,6 +123,38 @@ export const registrationSnapshotSchema = z
      */
     signature: renderedBrandingSchema.nullable(),
     stamp: renderedBrandingSchema.nullable(),
+    /**
+     * The positioned layer as rendered. OPTIONAL, and that is deliberate.
+     *
+     * Every other field here is required because a snapshot missing one "looks like a
+     * fidelity guarantee and is not one". This field is different in kind: a letter
+     * with no layout objects — which is every letter registered before Document Layout
+     * Designer v1, and most letters after it — has nothing to record. Requiring an
+     * empty array would break every snapshot already in the register, and defaulting
+     * one would make "no objects" and "an older build that could not report them"
+     * indistinguishable.
+     */
+    layoutObjects: z.array(snapshotLayoutObjectSchema).optional(),
+    /**
+     * The resolved variable values as rendered (Professional Document Automation v1).
+     *
+     * ══════════════════════════════════════════════════════════════════════════
+     *  THE SAME GUARANTEE THE BARCODE PAYLOAD AND THE SIGNATURE IMAGE CARRY.
+     * ══════════════════════════════════════════════════════════════════════════
+     * A letter may say «الراتب: {{Salary}}». The token is what is stored; the VALUE is
+     * what was printed. Without this field a reprint after a pay rise would show a
+     * different figure from the letter that was issued and handed over — the exact
+     * class of drift the frozen signature image exists to prevent.
+     *
+     * Only the variables the document MENTIONS are recorded, so a letter that never
+     * asked for a salary carries none. `null` records "resolved to nothing", which is
+     * distinct from absent and must survive the round trip.
+     *
+     * OPTIONAL, like `layoutObjects` and for the same reason: every snapshot already
+     * in the register was written before this field existed, and requiring it would
+     * break every one of them.
+     */
+    variables: z.record(z.string(), z.string().nullable()).optional(),
   })
   .strict();
 

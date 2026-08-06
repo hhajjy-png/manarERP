@@ -39,6 +39,8 @@ import {
   reservedElementPlacementRule,
   signatureOrphanRule,
 } from './layoutRules';
+import { LAYOUT_OBJECT_RULES } from './layoutObjectRules';
+import { AUTOMATION_RULES } from './automationRules';
 
 /** Every rule this build implements. */
 export const IMPLEMENTED_RULES = [
@@ -58,6 +60,12 @@ export const IMPLEMENTED_RULES = [
   pageCountAdvisoryRule,
   lastPageNearlyFullRule,
   documentPageCountRule,
+  // Positioned objects — Document Layout Designer v1. E16 is the blocking rule the
+  // whole positioned layer exists under; see `layoutObjectRules` for why.
+  ...LAYOUT_OBJECT_RULES,
+  // Variables and conditions — Professional Document Automation v1. E18 is what makes
+  // the variables engine safe to ship; see `automationRules` for the severity line.
+  ...AUTOMATION_RULES,
 ] as const;
 
 /**

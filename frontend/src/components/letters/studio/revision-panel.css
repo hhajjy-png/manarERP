@@ -1,0 +1,400 @@
+/**
+ * Document Automation — review rail styles.
+ *
+ * Same width, same field styling and same control sizing as `insert-panel.css` and
+ * `object-inspector.css`. The three never appear together, so they must read as one
+ * rail in three modes rather than as three different panels.
+ */
+
+.rev-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 268px;
+  width: 268px;
+  min-height: 0;
+  background: var(--surface, #fff);
+  border-inline-start: 1px solid var(--border, #e2e8f0);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 11.5px;
+  color: var(--text, #0f172a);
+}
+
+.rev-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.rev-head .material-symbols-outlined { font-size: 16px; opacity: 0.6; }
+.rev-title { flex: 1 1 auto; font-size: 12px; font-weight: 700; }
+
+.rev-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+}
+
+.rev-close:hover { background: var(--surface-2, #f1f5f9); }
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+
+.rev-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 6px 8px;
+}
+
+.rev-tab {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) ease-out, color var(--lt-fast, 130ms) ease-out;
+}
+
+.rev-tab .material-symbols-outlined { font-size: 16px; }
+.rev-tab:hover:not(.is-on) { background: var(--surface-2, #f1f5f9); color: var(--text, #0f172a); }
+.rev-tab.is-on { background: var(--accent, #1d4e6f); border-color: var(--accent, #1d4e6f); color: #fff; }
+.rev-tab:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: 1px; }
+
+.rev-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 14px;
+}
+
+/* ── Shared parts ──────────────────────────────────────────────────────── */
+
+.rev-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.rev-actions { display: flex; gap: 4px; padding-bottom: 8px; }
+
+.rev-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1 1 auto;
+  padding: 7px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rev-action .material-symbols-outlined { font-size: 15px; }
+.rev-action:hover:not(:disabled) { background: var(--surface-2, #f1f5f9); }
+.rev-action:disabled { opacity: 0.4; cursor: default; }
+.rev-action--quiet { flex: 0 0 auto; color: var(--text-muted, #64748b); }
+
+.rev-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.rev-mini .material-symbols-outlined { font-size: 13px; }
+.rev-mini:hover:not(:disabled) { background: var(--surface-2, #f1f5f9); color: var(--text, #0f172a); }
+.rev-mini:disabled { opacity: 0.35; cursor: default; }
+.rev-mini.is-on { background: var(--accent, #1d4e6f); border-color: var(--accent, #1d4e6f); color: #fff; }
+.rev-mini--danger { color: var(--lt-blocking, #dc2626); }
+.rev-mini--icon { padding: 3px; }
+.rev-mini:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: 1px; }
+
+.rev-chips { display: flex; flex-wrap: wrap; gap: 3px; padding: 6px 0; }
+
+.rev-chip {
+  padding: 3px 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.rev-chip.is-on { background: var(--accent, #1d4e6f); border-color: var(--accent, #1d4e6f); color: #fff; }
+
+.rev-muted { margin: 8px 0; font-size: 10.5px; color: var(--text-muted, #64748b); }
+
+.rev-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: var(--lt-r-md, 7px);
+  background: color-mix(in srgb, var(--lt-blocking, #dc2626) 10%, transparent);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #991b1b;
+}
+
+.rev-error .material-symbols-outlined { font-size: 14px; flex: 0 0 auto; }
+
+.rev-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--text-muted, #64748b);
+}
+
+.rev-empty .material-symbols-outlined { font-size: 22px; opacity: 0.35; }
+
+/* ── Versions ──────────────────────────────────────────────────────────── */
+
+.rev-version {
+  padding: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+}
+
+/* The version currently acting as the review baseline. Marked with the accent so the
+   Changes tab's "comparing with X" has an obvious counterpart here. */
+.rev-version.is-baseline {
+  border-color: var(--accent, #1d4e6f);
+  box-shadow: 0 0 0 1px var(--accent, #1d4e6f);
+}
+
+.rev-version-head { display: flex; align-items: center; gap: 5px; }
+
+.rev-seq {
+  min-width: 18px;
+  padding: 0 4px;
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface-2, #f1f5f9);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--text-muted, #64748b);
+}
+
+.rev-version-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rev-kind {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-2, #f1f5f9);
+  font-size: 9px;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+/* The two lifecycle snapshots are tinted: they mark moments rather than choices, and
+   `PRE_REGISTER` in particular cannot be deleted. */
+.rev-kind--NAMED { background: color-mix(in srgb, var(--accent, #1d4e6f) 16%, transparent); color: var(--accent, #1d4e6f); }
+.rev-kind--PRE_REGISTER { background: color-mix(in srgb, var(--lt-warning, #d97706) 18%, transparent); color: #92400e; }
+.rev-kind--PRE_RESTORE { background: color-mix(in srgb, var(--lt-info, #0284c7) 16%, transparent); color: #075985; }
+
+.rev-version-meta { margin-top: 3px; font-size: 9.5px; color: var(--text-muted, #64748b); }
+
+.rev-note {
+  margin: 4px 0 0;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
+  font-style: italic;
+}
+
+.rev-version-actions { display: flex; gap: 3px; margin-top: 6px; }
+
+/* ── Changes ───────────────────────────────────────────────────────────── */
+
+.rev-baseline {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-radius: var(--lt-r-md, 7px);
+  background: color-mix(in srgb, var(--accent, #1d4e6f) 8%, transparent);
+  font-size: 10.5px;
+  color: var(--text, #0f172a);
+}
+
+.rev-baseline .material-symbols-outlined { font-size: 14px; opacity: 0.7; }
+
+.rev-nav { display: flex; align-items: center; gap: 4px; padding-bottom: 6px; }
+.rev-nav-count { flex: 1 1 auto; text-align: center; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--text-muted, #64748b); }
+
+.rev-change {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 7px 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-inline-start-width: 3px;
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+}
+
+/* One colour per category, so the filter chips and the list agree without reading. */
+.rev-change--text { border-inline-start-color: var(--lt-info, #0284c7); }
+.rev-change--format { border-inline-start-color: var(--lt-warning, #d97706); }
+.rev-change--object { border-inline-start-color: var(--accent, #1d4e6f); }
+
+.rev-change.is-current { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #1d4e6f) 28%, transparent); }
+
+.rev-change-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rev-change-kind { font-size: 9.5px; font-weight: 700; color: var(--text-muted, #64748b); }
+.rev-change-summary { font-size: 10.5px; line-height: 1.5; }
+
+/* The word-level diff. Additions and deletions are marked by DECORATION and weight
+   rather than by colour alone — the composer is used on monochrome-calibrated screens
+   and a reviewer must be able to tell them apart without relying on hue. */
+.rev-runs {
+  display: block;
+  margin-top: 4px;
+  padding: 5px 6px;
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface-2, #f1f5f9);
+  font-size: 10.5px;
+  line-height: 1.7;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rev-run--same { color: var(--text-muted, #64748b); }
+
+.rev-run--added {
+  background: color-mix(in srgb, #15803d 18%, transparent);
+  color: #14532d;
+  font-weight: 600;
+}
+
+.rev-run--removed {
+  background: color-mix(in srgb, var(--lt-blocking, #dc2626) 16%, transparent);
+  color: #991b1b;
+  text-decoration: line-through;
+}
+
+/* ── Comments ──────────────────────────────────────────────────────────── */
+
+.rev-composer { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
+.rev-composer--reply { padding: 4px 0 0; padding-inline-start: 10px; }
+
+.rev-textarea {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.rev-textarea:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: 1px; }
+
+.rev-thread {
+  padding: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+}
+
+/* A resolved thread is dimmed, not hidden — the filter decides whether it is listed
+   at all, and once listed it must still be readable. */
+.rev-thread.is-resolved { opacity: 0.62; background: var(--surface-2, #f1f5f9); }
+
+.rev-comment { display: flex; flex-direction: column; gap: 3px; }
+
+.rev-comment-head { display: flex; align-items: center; gap: 4px; }
+.rev-comment-head .material-symbols-outlined { font-size: 14px; opacity: 0.5; }
+.rev-comment-author { font-weight: 600; font-size: 10.5px; }
+.rev-comment-when { flex: 1 1 auto; font-size: 9px; color: var(--text-muted, #64748b); }
+
+.rev-comment-body { margin: 0; font-size: 11px; line-height: 1.6; word-break: break-word; white-space: pre-wrap; }
+
+/* A mention. Highlighted by SPLITTING the text in the component, never by injecting
+   markup — a comment body is user input and the engine produces no HTML anywhere. */
+.rev-mention { color: var(--accent, #1d4e6f); font-weight: 600; }
+
+.rev-reply {
+  margin-top: 6px;
+  padding-inline-start: 10px;
+  border-inline-start: 2px solid var(--border, #e2e8f0);
+}
+
+.rev-thread-actions { display: flex; gap: 3px; margin-top: 6px; }
+
+.rev-anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent, #1d4e6f);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.rev-anchor .material-symbols-outlined { font-size: 13px; }

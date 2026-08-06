@@ -15,25 +15,34 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // `vi.hoisted` because `vi.mock` factories are lifted above every other statement in
 // the file; a plain `const` referenced inside one is still in its temporal dead zone
 // when the factory runs.
-const { letterRow, letterSequenceRow, letterReferenceRow, timelineRow } = vi.hoisted(() => ({
-  letterRow: {
-    findUnique: vi.fn(),
-    findMany: vi.fn(),
-    count: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  },
-  letterSequenceRow: { upsert: vi.fn(), findUnique: vi.fn() },
-  letterReferenceRow: {
-    create: vi.fn(),
-    findUnique: vi.fn(),
-    update: vi.fn(),
-    findMany: vi.fn(),
-    groupBy: vi.fn(),
-  },
-  timelineRow: { create: vi.fn(), findMany: vi.fn() },
-}));
+const { letterRow, letterSequenceRow, letterReferenceRow, timelineRow, letterVersionRow } =
+  vi.hoisted(() => ({
+    letterRow: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      count: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    letterSequenceRow: { upsert: vi.fn(), findUnique: vi.fn() },
+    letterReferenceRow: {
+      create: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+      findMany: vi.fn(),
+      groupBy: vi.fn(),
+    },
+    timelineRow: { create: vi.fn(), findMany: vi.fn() },
+    // Registration takes its PRE_REGISTER snapshot inside its own transaction, so the
+    // version table is part of the registration path whether or not a test asserts on it.
+    letterVersionRow: {
+      aggregate: vi.fn(),
+      create: vi.fn(),
+      findMany: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+  }));
 
 vi.mock('@config/database', () => ({
   prisma: {
@@ -41,6 +50,7 @@ vi.mock('@config/database', () => ({
     letterSequence: letterSequenceRow,
     letterReference: letterReferenceRow,
     letterTimelineEvent: timelineRow,
+    letterVersion: letterVersionRow,
     // Runs the callback against the same mocked client, so a rejection inside the
     // callback propagates exactly as a real aborted transaction would.
     $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
@@ -49,6 +59,7 @@ vi.mock('@config/database', () => ({
         letterSequence: letterSequenceRow,
         letterReference: letterReferenceRow,
         letterTimelineEvent: timelineRow,
+        letterVersion: letterVersionRow,
       }),
     ),
   },
@@ -111,6 +122,9 @@ beforeEach(() => {
   letterSequenceRow.upsert.mockResolvedValue({ templateKey: 'officialLetter', year: 2026, lastValue: 1 });
   letterReferenceRow.create.mockResolvedValue({});
   timelineRow.create.mockResolvedValue({});
+  letterVersionRow.aggregate.mockResolvedValue({ _max: { sequence: null } });
+  letterVersionRow.create.mockResolvedValue({ id: 1 });
+  letterVersionRow.findMany.mockResolvedValue([]);
 });
 
 /* ── Create ─────────────────────────────────────────────────────────────── */
@@ -226,6 +240,43 @@ describe('registerLetter', () => {
     expect(data.reference).toBe('OL-2026-000001');
     expect(JSON.parse(data.registrationSnapshotJson).pageCount).toBe(1);
     expect(data.registeredById).toBe(7);
+  });
+
+  it('records a PRE_REGISTER snapshot — a kind the version ROUTE cannot produce', async () => {
+    // The public route accepts only AUTO and NAMED, deliberately: a client able to mint
+    // a lifecycle kind could plant an undeletable version. So the one snapshot that
+    // matters most has to be taken here, by the code that knows a number is being
+    // issued. AUTO would not do — AUTO is the pruned kind, and this snapshot would be
+    // the first thing discarded once the author saved thirty more times.
+    letterRow.findUnique.mockResolvedValue(letter());
+    await service.registerLetter(1, SNAPSHOT, { id: 7, name: 'admin' });
+
+    expect(letterVersionRow.create).toHaveBeenCalledTimes(1);
+    const version = letterVersionRow.create.mock.calls[0][0].data;
+    expect(version.kind).toBe('PRE_REGISTER');
+    expect(version.letterId).toBe(1);
+    expect(version.createdById).toBe(7);
+    // Nothing was pruned: pruning only ever targets AUTO.
+    expect(letterVersionRow.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('takes the snapshot BEFORE the number is bound to the letter', async () => {
+    // The snapshot is meant to show the document as it stood going in. Written after
+    // the update it would show the document as it came out, which is the same thing
+    // `registrationSnapshotJson` already records.
+    letterRow.findUnique.mockResolvedValue(letter());
+    await service.registerLetter(1, SNAPSHOT);
+
+    expect(letterVersionRow.create.mock.invocationCallOrder[0])
+      .toBeLessThan(letterRow.update.mock.invocationCallOrder[0]);
+  });
+
+  it('writes NO snapshot when the registration is refused', async () => {
+    // A version row describing a registration that never happened would document a
+    // number that was never issued.
+    letterRow.findUnique.mockResolvedValue(letter({ status: 'REGISTERED', reference: 'OL-2026-000001' }));
+    await expect(service.registerLetter(1, SNAPSHOT)).rejects.toThrow();
+    expect(letterVersionRow.create).not.toHaveBeenCalled();
   });
 
   it('derives the sequence year from the ISSUE date, not from today', async () => {

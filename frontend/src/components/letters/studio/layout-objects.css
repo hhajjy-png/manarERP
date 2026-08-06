@@ -1,0 +1,130 @@
+/**
+ * Document Layout Designer — the INK layer.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  EVERYTHING IN THIS FILE PRINTS. NOTHING IN IT IS AN AFFORDANCE.
+ * ══════════════════════════════════════════════════════════════════════════
+ * Selection frames, handles, guides and hover states live in `layout-canvas.css`,
+ * which is entirely `.no-print`. The split is the reason "does this reach paper?" can
+ * be answered by which file a rule is in.
+ *
+ * NOT ONE DIMENSION IS DECLARED HERE. Position, size, padding, borders and font sizes
+ * all arrive as inline millimetres and points computed from each object's own frame and
+ * payload — INV-4 and INV-1 applied to the positioned layer exactly as they are to the
+ * sheet. What lives here is appearance: how a table's rule looks, how a placeholder
+ * reads, how an image fills its box.
+ */
+
+/* The object's own box. Positioned and sized inline; this only removes the defaults
+   that would otherwise interfere with an exact millimetre placement. */
+.lo-object {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* While a gesture runs the object must track the pointer exactly. A transition here
+   would make it lag behind the selection frame by its own duration, which reads as the
+   frame having come loose from the object. */
+.lo-object.is-interacting {
+  transition: none !important;
+}
+
+/* ── Text ──────────────────────────────────────────────────────────────── */
+
+.lo-text {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  /* Wraps and preserves the author's own line breaks, exactly as a flow paragraph
+     does — the two must read identically or a text block would be a different kind of
+     text from the letter it sits on. */
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #000;
+}
+
+/* ── Image ─────────────────────────────────────────────────────────────── */
+
+.lo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* `object-fit` arrives inline from the payload — `contain` or `cover`, never `fill`,
+     because a distorted company mark is a defect rather than a style. */
+}
+
+/* ── Divider ───────────────────────────────────────────────────────────── */
+
+/* The rule sits on the frame's centre line rather than on its top edge, so rotating
+   the object turns the line about itself instead of about a box that contains it. */
+.lo-divider {
+  display: block;
+  position: absolute;
+  inset-inline: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top-color: #000;
+}
+
+/* ── Table ─────────────────────────────────────────────────────────────── */
+
+.lo-table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  color: #000;
+}
+
+/* `--lo-table-border` is set inline in millimetres, so the rule prints at the weight
+   it was designed at rather than at whatever one device pixel happens to be. */
+.lo-table th,
+.lo-table td {
+  border: var(--lo-table-border, 0.2mm) solid #000;
+  padding: 1mm 1.5mm;
+  text-align: start;
+  vertical-align: top;
+  overflow: hidden;
+}
+
+/* A header row is distinguished by WEIGHT and a hairline wash, never by a colour fill:
+   official letters are black on pre-printed stock, and a tinted header would be the
+   first colour on the page. */
+.lo-table tr.is-header th {
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.06);
+}
+
+/* ── QR ────────────────────────────────────────────────────────────────── */
+
+.lo-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Placeholders ──────────────────────────────────────────────────────────
+   An object placed but not yet filled — an image with no file, a QR with no payload.
+   Marked `.no-print` in the markup as well, so an unfinished object never reaches
+   paper as a grey box; these rules are only how it reads on screen. */
+
+.lo-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border: 1px dashed var(--lt-guide, rgba(71, 85, 105, 0.2));
+  background: rgba(71, 85, 105, 0.04);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 10px;
+  color: var(--lt-guide-label, rgba(51, 65, 85, 0.68));
+  text-align: center;
+  -webkit-user-select: none;
+  user-select: none;
+}

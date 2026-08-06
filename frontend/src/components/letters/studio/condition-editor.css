@@ -1,0 +1,152 @@
+/**
+ * Document Automation — condition editor styles.
+ *
+ * A popover over the composer, sized to its content. Indentation and a start-edge rule
+ * carry the nesting — which is the whole reason the editor is a tree rather than an
+ * expression box: what you can see is what it means.
+ */
+
+.cnd-panel {
+  position: absolute;
+  z-index: 60;
+  min-width: 320px;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-lg, 9px);
+  background: var(--surface, #fff);
+  box-shadow: 0 10px 32px rgba(15, 23, 42, 0.18);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 11.5px;
+  color: var(--text, #0f172a);
+}
+
+.cnd-head { display: flex; align-items: center; gap: 6px; }
+.cnd-head .material-symbols-outlined { font-size: 16px; opacity: 0.6; }
+.cnd-title { flex: 1 1 auto; font-size: 12px; font-weight: 700; }
+
+.cnd-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+}
+
+.cnd-close:hover { background: var(--surface-2, #f1f5f9); }
+
+.cnd-tree { display: flex; flex-direction: column; gap: 5px; }
+
+/* A group is marked with a start-edge rule, so nesting depth is legible without
+   counting indents. */
+.cnd-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-inline-start: 8px;
+  border-inline-start: 2px solid color-mix(in srgb, var(--accent, #1d4e6f) 32%, transparent);
+}
+
+.cnd-group-head { display: flex; align-items: center; gap: 4px; }
+
+.cnd-leaf { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+
+.cnd-select,
+.cnd-value {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+}
+
+.cnd-select { min-width: 92px; cursor: pointer; }
+.cnd-select--combine { min-width: 104px; font-weight: 600; }
+.cnd-value { flex: 1 1 80px; min-width: 70px; }
+
+.cnd-select:focus-visible,
+.cnd-value:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+.cnd-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.cnd-icon .material-symbols-outlined { font-size: 14px; }
+.cnd-icon:hover:not(:disabled) { background: var(--surface-2, #f1f5f9); }
+.cnd-icon:disabled { opacity: 0.35; cursor: default; }
+
+/* The plain-language reading of the tree — the one place an author can check that what
+   they built means what they intended. */
+.cnd-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0;
+  padding: 7px 8px;
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface-2, #f1f5f9);
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--text-muted, #64748b);
+}
+
+.cnd-summary .material-symbols-outlined { font-size: 14px; flex: 0 0 auto; }
+
+.cnd-actions { display: flex; gap: 5px; }
+
+.cnd-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cnd-btn .material-symbols-outlined { font-size: 14px; }
+.cnd-btn:hover:not(:disabled) { background: var(--surface-2, #f1f5f9); }
+.cnd-btn:disabled { opacity: 0.4; cursor: default; }
+.cnd-btn--danger { color: var(--lt-blocking, #dc2626); }
+
+.cnd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+}
+
+.cnd-empty p { margin: 0; }

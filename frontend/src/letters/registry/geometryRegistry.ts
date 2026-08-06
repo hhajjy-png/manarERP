@@ -231,6 +231,83 @@ const GEOMETRY_BY_LAYOUT_VERSION: Readonly<
   1: LAYOUT_V1_GEOMETRY,
 };
 
+/* ── Paragraph measure (Document Studio Foundation v1) ─────────────────────
+   Millimetres that describe a PARAGRAPH's horizontal measure rather than the sheet's
+   bands. They live here for one reason only, and it is INV-4's: a millimetre written
+   into a component or an editor command is a millimetre that can silently disagree
+   with the one the validator enforces. This file is the single permitted home for
+   every one of them, whatever they describe.
+
+   They are values a paragraph may take, not values the page imposes — which is why
+   they are constants beside the profile table rather than fields inside `PageGeometry`.
+   A profile does not get to redefine what "one indent level" means. */
+
+/**
+ * Distance one press of "increase indent" moves a paragraph.
+ *
+ * The ruler draws a tab-stop indicator at each reachable multiple, so the indicators
+ * mark where the command will actually land rather than an arbitrary interval.
+ */
+export const INDENT_STEP_MM = 8;
+
+/** No indent. Named so an editor command never writes a bare numeric millimetre. */
+export const NO_INDENT_MM = 0;
+
+/**
+ * First-line and hanging indents the editor may set.
+ *
+ * Bounded ladders rather than free numbers, for the reason recorded in
+ * `LIFTED_TOOLBAR_PROHIBITIONS`: a bounded set is a bounded validation surface, and
+ * every rung is measured by the hidden mirror rather than modelled by the paginator.
+ * The two are mutually exclusive on a block — see `setBlockIndentation`.
+ */
+export const FIRST_LINE_INDENT_LADDER_MM: readonly number[] = [NO_INDENT_MM, 5, 10, 15];
+export const HANGING_INDENT_LADDER_MM: readonly number[] = [NO_INDENT_MM, 5, 10, 15];
+
+/* ── Layout objects (Document Layout Designer v1) ──────────────────────────
+   The positioned layer's own millimetres. They describe an OBJECT rather than the
+   sheet, and they live here for the reason every other millimetre does: INV-4 makes
+   this file the single home of one, whatever it measures, and
+   `noHardcodedGeometry.test.ts` enforces that mechanically rather than by convention. */
+
+/**
+ * The sheet's origin, and a zero measurement generally.
+ *
+ * Named so that arithmetic in the layout layer never writes a bare `0` against a
+ * millimetre field. That reads as pedantry until you notice it is the same rule that
+ * keeps a stray `40` from meaning "the reserved header" in a file that has no business
+ * knowing what 40 means.
+ */
+export const ORIGIN_MM = 0;
+
+/**
+ * Smallest object the designer will produce.
+ *
+ * Below this a frame has no grab area and a resize handle covers the whole object, so
+ * it becomes impossible to select or resize by pointer.
+ */
+export const MIN_OBJECT_SIZE_MM = 3;
+
+/** Size a newly placed object of each kind takes, before the author resizes it. */
+export const DEFAULT_OBJECT_SIZE_MM: Readonly<
+  Record<'textBlock' | 'image' | 'divider' | 'table' | 'qrCode', { widthMm: number; heightMm: number }>
+> = {
+  textBlock: { widthMm: 60, heightMm: 20 },
+  image: { widthMm: 40, heightMm: 40 },
+  divider: { widthMm: 80, heightMm: 1 },
+  table: { widthMm: 120, heightMm: 40 },
+  qrCode: { widthMm: 25, heightMm: 25 },
+};
+
+/** Inner padding between a text object's frame and its text. */
+export const DEFAULT_TEXT_PADDING_MM = 2;
+
+/** A new divider's rule weight. */
+export const DEFAULT_DIVIDER_THICKNESS_MM = 0.4;
+
+/** A new table's border weight. */
+export const DEFAULT_TABLE_BORDER_MM = 0.2;
+
 /* ── Queries ────────────────────────────────────────────────────────────── */
 
 /**

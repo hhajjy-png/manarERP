@@ -1,0 +1,317 @@
+/**
+ * Document Automation — Quick Insert panel styles.
+ *
+ * A right-hand rail on the app surface, matching `object-inspector.css` in width, field
+ * styling and control sizing: the two never appear together, so they must read as the
+ * same rail in a different mode rather than as two different panels.
+ */
+
+.ins-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 250px;
+  width: 250px;
+  min-height: 0;
+  background: var(--surface, #fff);
+  border-inline-start: 1px solid var(--border, #e2e8f0);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 11.5px;
+  color: var(--text, #0f172a);
+}
+
+.ins-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.ins-head .material-symbols-outlined { font-size: 16px; opacity: 0.6; }
+.ins-title { flex: 1 1 auto; font-size: 12px; font-weight: 700; }
+
+.ins-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+}
+
+.ins-close:hover { background: var(--surface-2, #f1f5f9); }
+
+/* ── Search ────────────────────────────────────────────────────────────── */
+
+.ins-search {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 8px;
+  padding: 0 8px;
+  height: 28px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+}
+
+.ins-search:focus-within {
+  border-color: var(--lt-focus, #1d4e6f);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lt-focus, #1d4e6f) 16%, transparent);
+}
+
+.ins-search .material-symbols-outlined { font-size: 15px; color: var(--text-muted, #64748b); }
+
+.ins-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+}
+
+.ins-search button {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+}
+
+/* ── Tabs ──────────────────────────────────────────────────────────────── */
+
+.ins-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  padding: 0 8px 6px;
+}
+
+.ins-tab {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 2px;
+  border: 1px solid transparent;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 9.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) ease-out, color var(--lt-fast, 130ms) ease-out;
+}
+
+.ins-tab .material-symbols-outlined { font-size: 16px; }
+.ins-tab:hover:not(.is-on) { background: var(--surface-2, #f1f5f9); color: var(--text, #0f172a); }
+.ins-tab.is-on { background: var(--accent, #1d4e6f); border-color: var(--accent, #1d4e6f); color: #fff; }
+.ins-tab:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: 1px; }
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+
+.ins-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 8px 14px;
+}
+
+.ins-group-title {
+  margin: 10px 0 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-muted, #64748b);
+}
+
+.ins-chips { display: flex; flex-wrap: wrap; gap: 3px; padding-bottom: 8px; }
+
+.ins-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.ins-chip .material-symbols-outlined { font-size: 12px; }
+.ins-chip.is-on { background: var(--accent, #1d4e6f); border-color: var(--accent, #1d4e6f); color: #fff; }
+
+.ins-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border-radius: var(--lt-r-md, 7px);
+  background: color-mix(in srgb, var(--lt-info, #0284c7) 10%, transparent);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
+}
+
+.ins-hint .material-symbols-outlined { font-size: 14px; flex: 0 0 auto; }
+
+/* ── Rows ──────────────────────────────────────────────────────────────── */
+
+.ins-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+
+.ins-row { display: flex; align-items: center; gap: 2px; }
+
+.ins-row-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) ease-out;
+}
+
+.ins-row-main:hover:not(:disabled) { background: var(--surface-2, #f1f5f9); }
+.ins-row-main:disabled { opacity: 0.42; cursor: default; }
+.ins-row-main > .material-symbols-outlined { font-size: 15px; opacity: 0.6; flex: 0 0 auto; }
+.ins-row-main:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: -2px; }
+
+/* The token, shown LTR — a token read right-to-left is not a token. */
+.ins-token {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface-2, #f1f5f9);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 9.5px;
+  color: var(--accent, #1d4e6f);
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ins-row-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.ins-row-label { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.ins-row-sub {
+  font-size: 10px;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A variable with no data source in this ERP. Struck through so "not available" reads
+   before the tooltip is opened. */
+.ins-row.is-unavailable .ins-row-label { text-decoration: line-through; opacity: 0.7; }
+.ins-row.is-unavailable .ins-token { opacity: 0.5; }
+
+.ins-fav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.ins-fav .material-symbols-outlined { font-size: 15px; }
+.ins-fav.is-on { color: #d97706; }
+.ins-fav:hover { background: var(--surface-2, #f1f5f9); }
+.ins-fav:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: 1px; }
+
+/* ── Tiles ─────────────────────────────────────────────────────────────── */
+
+.ins-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+
+.ins-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition: border-color var(--lt-fast, 130ms) ease-out;
+}
+
+.ins-tile:hover:not(:disabled) { border-color: var(--accent, #1d4e6f); }
+.ins-tile:disabled { opacity: 0.42; cursor: default; }
+.ins-tile img { width: 100%; height: 42px; object-fit: contain; }
+.ins-tile span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ins-tile .ins-fav { position: absolute; top: 2px; inset-inline-end: 2px; }
+.ins-tile:focus-visible { outline: 2px solid var(--lt-focus, #1d4e6f); outline-offset: 1px; }
+
+/* ── Actions and empties ───────────────────────────────────────────────── */
+
+.ins-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 7px;
+  border: 1px dashed var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ins-action:hover:not(:disabled) { background: var(--surface-2, #f1f5f9); color: var(--text, #0f172a); }
+.ins-action:disabled { opacity: 0.4; cursor: default; }
+.ins-action .material-symbols-outlined { font-size: 15px; }
+
+.ins-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 10.5px;
+  line-height: 1.6;
+  color: var(--text-muted, #64748b);
+}
+
+.ins-empty .material-symbols-outlined { font-size: 22px; opacity: 0.35; }

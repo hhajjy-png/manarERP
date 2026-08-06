@@ -1,0 +1,336 @@
+/**
+ * Document Layout Designer — Object Inspector styles.
+ *
+ * A right-hand rail on the app surface rather than on the canvas: unlike the Layers
+ * panel, this is a form. Forms belong on the application's own surface, where the
+ * ERP's field, label and control styling already reads correctly.
+ */
+
+.obi-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 232px;
+  width: 232px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface, #fff);
+  border-inline-start: 1px solid var(--border, #e2e8f0);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 11.5px;
+  color: var(--text, #0f172a);
+}
+
+.obi-panel--empty {
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  color: var(--text-muted, #64748b);
+  text-align: center;
+}
+
+.obi-panel--empty .material-symbols-outlined {
+  font-size: 26px;
+  opacity: 0.35;
+}
+
+.obi-panel--empty p {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* ── Head ──────────────────────────────────────────────────────────────── */
+
+.obi-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.obi-head .material-symbols-outlined {
+  font-size: 16px;
+  opacity: 0.6;
+}
+
+.obi-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.obi-kind {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-2, #f1f5f9);
+  font-size: 9.5px;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────── */
+
+.obi-section {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 60%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.obi-section:last-child {
+  border-bottom: 0;
+}
+
+.obi-section-title {
+  margin: 0;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── Numeric grid ──────────────────────────────────────────────────────────
+   Two columns: X beside Y, width beside height, rotation beside opacity. Pairs read
+   as pairs, which is how a designer thinks about them. */
+
+.obi-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.obi-grid--two {
+  grid-template-columns: 1fr 1fr;
+}
+
+.obi-num {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.obi-num-label {
+  font-size: 9.5px;
+  color: var(--text-muted, #64748b);
+}
+
+.obi-num-input {
+  display: flex;
+  align-items: center;
+  height: 26px;
+  padding-inline-end: 5px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface, #fff);
+  transition: border-color var(--lt-fast, 130ms) ease-out;
+}
+
+.obi-num-input:focus-within {
+  border-color: var(--lt-focus, #1d4e6f);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lt-focus, #1d4e6f) 16%, transparent);
+}
+
+.obi-num-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 5px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The spinners are removed: these fields are typed and dragged, and a spinner in a
+   26px control is a mis-click waiting to happen. */
+.obi-num-input input::-webkit-outer-spin-button,
+.obi-num-input input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.obi-num-input input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.obi-unit {
+  flex: 0 0 auto;
+  font-size: 9.5px;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── Fields ────────────────────────────────────────────────────────────── */
+
+.obi-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.obi-field > span {
+  flex: 0 0 auto;
+  font-size: 10.5px;
+  color: var(--text-muted, #64748b);
+}
+
+.obi-field--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+}
+
+.obi-field--checkbox {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.obi-field select,
+.obi-field input[type='text'] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+}
+
+.obi-field input[type='file'] {
+  font-size: 10px;
+  max-width: 100%;
+}
+
+.obi-textarea {
+  width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.obi-font-picker {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.obi-note {
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 60%, transparent);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.obi-buttons {
+  display: flex;
+  gap: 3px;
+}
+
+.obi-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) ease-out;
+}
+
+.obi-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.obi-btn:hover:not(:disabled) {
+  background: var(--surface-2, #f1f5f9);
+}
+
+.obi-btn.is-on {
+  background: var(--accent, #1d4e6f);
+  border-color: var(--accent, #1d4e6f);
+  color: #fff;
+}
+
+.obi-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.obi-btn:focus-visible,
+.obi-field select:focus-visible,
+.obi-field input:focus-visible,
+.obi-textarea:focus-visible,
+.obi-cell:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+/* ── Table cells ───────────────────────────────────────────────────────────
+   A miniature of the table itself, so editing content is spatial rather than a list of
+   numbered fields. Scrolls horizontally past four columns rather than shrinking the
+   cells to illegibility. */
+
+.obi-cells {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 4px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-sm, 3px);
+  background: var(--surface-2, #f1f5f9);
+}
+
+.obi-cell-row {
+  display: flex;
+  gap: 2px;
+}
+
+.obi-cell {
+  flex: 1 1 0;
+  min-width: 44px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 2px;
+  background: var(--surface, #fff);
+  color: inherit;
+  font: inherit;
+  font-size: 10.5px;
+}

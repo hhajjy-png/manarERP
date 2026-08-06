@@ -60,19 +60,84 @@
      chrome fails in the safe direction — a new chrome element shows up in review
      rather than being invisibly excluded from the letter. */
 
-  .lc-bars,                  /* toolbar + view controls + page navigator */
+  .lc-bars,                  /* toolbar + view controls + find panel */
   .lc-notice,                /* the frozen-content banner */
   .lc-save-state,            /* save indicator */
   .xpl-exec-header,          /* the composer's page header */
   .vp-panel,                 /* validation panel */
   .lp-measure-layer,         /* the hidden measurement mirror */
   .lp-ruler,                 /* all four rulers, on every page */
+  .lp-ruler-overlay,         /* margin, band and tab-stop indicators */
   .lp-grid,                  /* grid overlay */
   .lp-zone,                  /* reserved-zone bands (guides, not ink) */
   .lp-page-caption,          /* "صفحة 1 من 2" and the break hint */
-  .ls-section-label {        /* per-section labels and their validation markers */
+  .ls-section-label,         /* per-section labels and their validation markers */
+  /* ── Document Studio chrome ─────────────────────────────────────────────
+     Added with the studio. Every one of these is interface: the rail navigates the
+     document, the status bar reports on it, the find strip searches it and the
+     shortcut dialogue explains it. None of them is ink. */
+  .dnv-rail,                 /* navigation rail — mini map, outline, quick jump */
+  .dsb-bar,                  /* status bar */
+  .frp-bar,                  /* find and replace strip */
+  .dt-menu-panel,            /* the spacing popover, if left open */
+  .sdg-scrim,                /* keyboard-shortcut dialogue */
+  /* ── Document Layout Designer chrome ────────────────────────────────────
+     The INK of the positioned layer — `.lo-object` and everything inside it — is
+     NOT here, deliberately: a layout object is part of the letter and must print.
+     What is listed is the designer's own furniture. `.lc-canvas` already carries
+     `.no-print` in its markup; naming it here as well is the belt to that braces,
+     because it is the single element whose accidental printing would put selection
+     handles and red zone warnings onto an official letter. */
+  .lc-modes,                 /* the Compose / Design tab strip */
+  .ltb-bar,                  /* the designer toolbar */
+  .lc-canvas,                /* selection frames, handles, guides, marquee */
+  .obi-panel,                /* the Object Inspector */
+  /* ── Document Automation chrome ─────────────────────────────────────────
+     Every one of these is a rail or a popover. What they OPERATE ON — a variable's
+     resolved value, a conditional block's content, an inserted asset — is ordinary
+     document content rendered by the components above, and prints normally. */
+  .ins-panel,                /* Quick Insert rail */
+  .dpp-panel,                /* Document Properties rail */
+  .cnd-panel,                /* the condition editor popover */
+  .rev-panel,                /* version history, track changes and comments */
+  .lc-export-select {        /* the export menu */
     display: none !important;
   }
+
+  /* An object placed but not yet filled — an image with no file, a QR with no
+     payload. It carries `.no-print` in its markup too; a dashed grey box on an
+     official letter would be worse than the missing content it stands for. */
+  .lo-placeholder {
+    display: none !important;
+  }
+
+  /* Objects print at full strength regardless of what the screen was showing. The
+     opacity an author SET is applied inline from the object's own value and is
+     untouched here; what is neutralised is the interaction state, which is a screen
+     affordance and would otherwise fade an object that happened to be mid-drag when
+     the print dialogue opened. */
+  .lo-object {
+    transition: none !important;
+  }
+
+  /* The workspace is a flex row on screen so the rail can sit beside the paper. A flex
+     container fragments far less predictably across pages than a plain block, and with
+     the rail hidden there is nothing left to lay out in a row — so it is neutralised
+     for the same reason `.lc-page` and `.lc-paper-area` already are. */
+  .lc-workspace {
+    display: block !important;
+    min-height: 0 !important;
+  }
+
+  .lc-condition-anchor {
+    display: none !important;
+  }
+
+  /* A list marker is generated chrome, but it IS part of the printed line — a numbered
+     list that prints without its numbers is not the document the author approved. It is
+     therefore deliberately NOT hidden here; only its selection behaviour is screen-only.
+     Recorded explicitly because "marker" reads like chrome and the next person to edit
+     this list will reach for it. */
 
   /* ── The paper ─────────────────────────────────────────────────────────
      Scroll containers, backgrounds and the zoom transform are screen affordances;

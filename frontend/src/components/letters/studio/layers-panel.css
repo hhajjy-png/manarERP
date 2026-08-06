@@ -1,0 +1,288 @@
+/**
+ * Document Layout Designer — Layers panel styles.
+ *
+ * Sits in the navigation rail beside the paper, on the canvas rather than on the app
+ * surface — the same choice the page thumbnails make, and for the same reason: it is
+ * part of the document workspace, not part of the application chrome.
+ */
+
+.lyp-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+  color: var(--lt-on-canvas, rgba(255, 255, 255, 0.62));
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+}
+
+/* ── Head ──────────────────────────────────────────────────────────────── */
+
+.lyp-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 8px 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  border-bottom: 1px solid var(--lt-on-canvas-rule, rgba(255, 255, 255, 0.22));
+}
+
+.lyp-head .material-symbols-outlined {
+  font-size: 15px;
+  opacity: 0.7;
+}
+
+.lyp-title {
+  flex: 1 1 auto;
+}
+
+.lyp-count {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ── Search ────────────────────────────────────────────────────────────── */
+
+.lyp-search {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px;
+  padding: 0 6px;
+  height: 26px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--lt-r-sm, 3px);
+  background: rgba(0, 0, 0, 0.24);
+}
+
+.lyp-search .material-symbols-outlined {
+  font-size: 14px;
+  opacity: 0.55;
+}
+
+.lyp-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+}
+
+.lyp-search input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.lyp-search button {
+  display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ── List ──────────────────────────────────────────────────────────────── */
+
+.lyp-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 12px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.lyp-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.lyp-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.lyp-empty {
+  padding: 14px 10px;
+  font-size: 10.5px;
+  line-height: 1.6;
+  opacity: 0.55;
+  text-align: center;
+}
+
+/* ── Rows ──────────────────────────────────────────────────────────────── */
+
+.lyp-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 26px;
+  padding-inline-end: 4px;
+  font-size: 11px;
+  transition: background-color var(--lt-fast, 130ms) ease-out;
+}
+
+.lyp-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lyp-row.is-selected {
+  background: color-mix(in srgb, var(--accent, #1d4e6f) 55%, transparent);
+  color: #fff;
+}
+
+/* The row being dragged fades so the drop target beneath it stays readable. */
+.lyp-row.is-dragging {
+  opacity: 0.4;
+}
+
+/* The pre-printed letterhead rows. Present so the structure is honest, and
+   unmistakably not operable: dimmed, italic, and cursor-default throughout. */
+.lyp-row--fixed {
+  opacity: 0.42;
+  font-style: italic;
+  cursor: default;
+  padding-inline-start: 8px;
+}
+
+.lyp-row--fixed:hover {
+  background: transparent;
+}
+
+.lyp-row--group {
+  font-weight: 600;
+}
+
+.lyp-row > .material-symbols-outlined {
+  font-size: 14px;
+  opacity: 0.62;
+  flex: 0 0 auto;
+}
+
+.lyp-twisty {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.lyp-twisty .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.lyp-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lyp-name--button {
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lyp-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--accent, #1d4e6f);
+  border-radius: var(--lt-r-sm, 3px);
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+}
+
+/* Which sheet the object sits on. Tucked to the end and quiet — useful when hunting a
+   stray object, invisible the rest of the time. */
+.lyp-page {
+  flex: 0 0 auto;
+  min-width: 12px;
+  text-align: center;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.42;
+}
+
+/* ── Row actions ───────────────────────────────────────────────────────────
+   Hidden until the row is hovered or the toggle is ON — a permanently visible pair of
+   icons on every row turns the panel into a wall of buttons. An active toggle stays
+   visible because it is reporting state, not offering an action. */
+
+.lyp-actions {
+  display: inline-flex;
+  gap: 1px;
+  flex: 0 0 auto;
+}
+
+.lyp-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--lt-fast, 130ms) ease-out, background-color var(--lt-fast, 130ms) ease-out;
+}
+
+.lyp-icon-btn .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.lyp-row:hover .lyp-icon-btn,
+.lyp-row.is-selected .lyp-icon-btn,
+.lyp-icon-btn.is-on,
+.lyp-icon-btn:focus-visible {
+  opacity: 1;
+}
+
+.lyp-icon-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.lyp-icon-btn:disabled {
+  cursor: default;
+}
+
+/* A state inherited from a group is shown but not togglable — see the component for
+   why unhiding a member of a hidden group would read as a broken button. */
+.lyp-icon-btn.is-inherited {
+  opacity: 0.45;
+}
+
+.lyp-icon-btn:focus-visible,
+.lyp-twisty:focus-visible,
+.lyp-name--button:focus-visible,
+.lyp-search input:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}

@@ -1,0 +1,136 @@
+/**
+ * Document Layout Designer — designer toolbar styles.
+ *
+ * Deliberately built on the same shapes as `document-toolbar.css`: 30px buttons, the
+ * short centred group rule, the filled accent chip for an active tool. The two strips
+ * are never on screen at the same time, so they must be recognisably the SAME toolbar
+ * in a different mode rather than two different designs.
+ */
+
+.ltb-bar {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+  padding: 3px 8px;
+  background: var(--surface, #fff);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.ltb-bar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.ltb-bar::-webkit-scrollbar-thumb {
+  background: var(--border, #e2e8f0);
+  border-radius: 6px;
+}
+
+.ltb-group {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding-inline-end: 8px;
+  margin-inline-end: 4px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ltb-group::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 20px;
+  background: var(--border, #e2e8f0);
+}
+
+.ltb-group--last::after,
+.ltb-group:last-of-type::after {
+  display: none;
+}
+
+.ltb-group-items {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ltb-group-label {
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  color: var(--text-muted, #64748b);
+  opacity: 0.65;
+  padding-inline-start: 3px;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (max-width: 1280px) {
+  .ltb-group-label {
+    display: none;
+  }
+}
+
+.ltb-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+.ltb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  transition:
+    background-color var(--lt-fast, 130ms) ease-out,
+    border-color var(--lt-fast, 130ms) ease-out,
+    color var(--lt-fast, 130ms) ease-out;
+}
+
+.ltb-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.ltb-btn:hover:not(:disabled) {
+  background: var(--surface-2, #f1f5f9);
+  border-color: var(--border, #e2e8f0);
+}
+
+.ltb-btn:active:not(:disabled) {
+  background: var(--border, #e2e8f0);
+  transform: translateY(0.5px);
+}
+
+.ltb-btn:disabled {
+  opacity: 0.32;
+  cursor: default;
+  background: transparent;
+  border-color: transparent;
+}
+
+.ltb-btn.is-on {
+  background: var(--accent, #1d4e6f);
+  border-color: var(--accent, #1d4e6f);
+  color: #fff;
+}
+
+.ltb-btn:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}

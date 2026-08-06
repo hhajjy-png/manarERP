@@ -66,6 +66,29 @@ export interface LetterValidationContext {
   };
   readonly content: BlockDocument;
 
+  /**
+   * The resolved variable map the RENDERER painted with (Professional Document
+   * Automation v1).
+   *
+   * Carried on the context rather than re-derived by the rules, for the reason this
+   * file's header states about geometry: there is one implementation of every fact in
+   * the engine, so a rule can never disagree with the page it is judging. A rule that
+   * resolved variables independently could pass a letter the renderer had drawn with a
+   * hole in it — exactly the divergence the single-renderer discipline exists to
+   * prevent.
+   *
+   * Optional so every existing test context keeps compiling; absent means "no
+   * variables", which is what every letter written before this pack has.
+   */
+  readonly resolvedVariables?: Readonly<Record<string, string | null>>;
+  /**
+   * Bindings the composer could not load — a deleted employee, an unreachable API.
+   *
+   * The composer knows this because it did the fetching; a rule cannot, because rules
+   * are pure. Reported by `W12_bindingUnresolved`.
+   */
+  readonly unresolvedBindings?: readonly ('employee' | 'contract' | 'project')[];
+
   /** The layout the paginator produced for this exact content. */
   readonly pagination: PaginationResult;
 

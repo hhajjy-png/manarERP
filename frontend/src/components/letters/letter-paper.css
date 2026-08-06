@@ -20,12 +20,38 @@
    the author can actually use. */
 .lp-viewport {
   display: flex;
-  justify-content: center;
+  /* `safe center` rather than plain `center`: once the scaled stack is WIDER than the
+     viewport — which happens at 150% and 200% — a plain centred flex item overflows
+     equally in both directions, and the overflow on the scroll-start side becomes
+     unreachable because a scroll container cannot scroll to a negative offset. `safe`
+     falls back to start alignment in exactly that case, which is what makes the two
+     new high zoom rungs usable at all. */
+  justify-content: safe center;
   padding: 14px 8px 32px;
   overflow: auto;
   background: var(--lt-canvas);
   /* Keeps the sheet visually anchored while the surround scrolls behind it. */
   background-image: linear-gradient(180deg, var(--lt-canvas-fade), transparent 140px);
+  /* Smooth scrolling for programmatic jumps — the page navigator, the outline and the
+     validation panel all call `scrollIntoView`, and an instant jump between sheets
+     gives the reader no sense of which direction they moved. A wheel or a drag is
+     unaffected: `scroll-behavior` governs scripted scrolling only. */
+  scroll-behavior: smooth;
+  /* Snap gently to sheet tops so a flick lands on a page rather than between two.
+     `proximity`, not `mandatory`: mandatory snapping fights the author who is reading
+     across a page boundary, which is most of what reading a letter is. */
+  scroll-snap-type: y proximity;
+  /* The canvas is a fixed workspace; a rubber-band scroll here would drag the page
+     behind it on a trackpad. */
+  overscroll-behavior: contain;
+}
+
+/* Honour the OS setting: a smooth scroll is motion, and someone who has asked for less
+   of it should get an instant jump instead. */
+@media (prefers-reduced-motion: reduce) {
+  .lp-viewport {
+    scroll-behavior: auto;
+  }
 }
 
 /* The viewport is the scroll container, so its scrollbar is the document's. Styled
@@ -67,6 +93,9 @@
 .lp-page-slot {
   position: relative;
   scroll-margin-top: 16px;
+  /* Pairs with the viewport's `proximity` snapping: the sheet's TOP is the snap
+     target, which is where "go to page 3" should leave the reader. */
+  scroll-snap-align: start;
 }
 
 /* The sheet in view is lifted — enough to locate yourself in a long document without
@@ -181,6 +210,47 @@
 .lp-ruler--start,
 .lp-ruler--end {
   top: 0;
+}
+
+/* ── Ruler overlays ────────────────────────────────────────────────────────
+   Margin, band and tab-stop indicators drawn ON TOP of the shared `A4Ruler`.
+
+   `A4Ruler` is used by every printable form in the ERP, so it is not touched: this
+   overlay is a sibling layer inside the letter's own ruler wrapper, positioned in the
+   same millimetres the sheet uses. Nothing here changes a measurement — it marks
+   where existing ones fall. */
+.lp-ruler-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The shaded ends: reserved territory, in the same neutral the reserved bands use so
+   the ruler and the page agree about what is out of bounds. */
+.lp-ruler-margin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(71, 85, 105, 0.30);
+}
+
+.lp-ruler-overlay--vertical .lp-ruler-margin {
+  inset-inline: 0;
+  top: auto;
+  bottom: auto;
+}
+
+/* A tab stop. A small downward notch on the ruler's lower edge — the shape Word uses,
+   and small enough that two of them do not compete with the tick labels. */
+.lp-ruler-tab {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  border-inline-start: 3px solid transparent;
+  border-inline-end: 3px solid transparent;
+  border-bottom: 4px solid var(--lt-guide-label, rgba(51, 65, 85, 0.68));
+  transform: translateX(-3px);
 }
 
 /* The physical sheet. Zero padding: the coordinate origin is the paper's true corner,

@@ -40,7 +40,7 @@ const { toastMock } = vi.hoisted(() => ({
 vi.mock('../../stores/toastStore', () => ({ useToast: () => toastMock }));
 
 import LetterComposer from '../../pages/LetterComposer';
-import { IMPLEMENTED_COMMANDS } from '../../components/letters/ComposerToolbar';
+import { IMPLEMENTED_COMMANDS } from '../../components/letters/studio/DocumentToolbar';
 import {
   getPageGeometry,
   contentTopForPageMm,
@@ -256,10 +256,13 @@ describe('The paper is the Geometry Registry, rendered', () => {
   });
 
   it('offers the full zoom ladder plus both fitted modes', async () => {
+    // Extended by Document Studio Foundation v1 from five rungs to seven: 25% is what
+    // makes a ten-page letter legible as a SHAPE, and 200% is what makes a 14 pt line
+    // readable on a high-density display.
     renderComposer();
     const select = (await screen.findByLabelText('التكبير')) as HTMLSelectElement;
     const values = Array.from(select.options).map((o) => o.value);
-    expect(values).toEqual(['0.5', '0.75', '1', '1.25', '1.5', 'fitWidth', 'fitPage']);
+    expect(values).toEqual(['0.25', '0.5', '0.75', '1', '1.25', '1.5', '2', 'fitWidth', 'fitPage']);
   });
 });
 
@@ -307,11 +310,12 @@ describe('The document is a sequence of physical pages', () => {
 describe('Page navigation', () => {
   it('shows the current page and the total', async () => {
     renderComposer();
+    // The quick-jump field moved into the navigation rail with Document Studio; the
+    // page/total readout now lives in the status bar beside the word count.
     const input = (await screen.findByLabelText('الانتقال إلى صفحة')) as HTMLInputElement;
     expect(input.value).toBe('1');
-    // Scoped to the navigator — each sheet also captions itself "صفحة N من M".
-    const navigator = screen.getByRole('group', { name: 'التنقّل بين الصفحات والتكبير' });
-    expect(within(navigator).getByText(/من \d+/)).toBeInTheDocument();
+    const status = screen.getByRole('status', { name: 'شريط الحالة' });
+    expect(within(status).getByText(/صفحة 1 من \d+/)).toBeInTheDocument();
   });
 
   it('bounds the go-to-page control to the document', async () => {
@@ -321,9 +325,13 @@ describe('Page navigation', () => {
     expect(Number(input.max)).toBeGreaterThanOrEqual(1);
   });
 
-  it('disables previous on the first page', async () => {
+  it('marks the first sheet as current in the mini map', async () => {
+    // Replaces the previous "previous is disabled" assertion: the prev/next buttons
+    // were retired with `PageNavigator`, and the rail answers the same question —
+    // "where am I" — by marking the current thumbnail instead.
     renderComposer();
-    expect(await screen.findByLabelText('الصفحة السابقة')).toBeDisabled();
+    const first = await screen.findByLabelText('الصفحة 1');
+    expect(first).toHaveAttribute('aria-current', 'page');
   });
 });
 
@@ -445,18 +453,21 @@ describe('The toolbar is the approved minimal set', () => {
   });
 
   it('omits commands the template permits but this pack has not implemented', async () => {
-    // Lists, indent and page break are in the template's approved list. They are not
-    // implemented here, so they are absent — a later pack adds a command, not a
-    // template entry.
+    // Lists and indent SHIPPED in Document Studio Foundation v1. Page break did not:
+    // the engine's flow is still automatic only, and rule W7_sparseManualPageBreak is
+    // still deselected for exactly that reason. So the intersection mechanism is still
+    // doing its job — it is simply down to one absentee instead of five.
     renderComposer();
     await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
     const toolbar = screen.getByRole('toolbar', { name: 'أدوات التنسيق' });
 
-    for (const absent of ['قائمة مرقّمة', 'قائمة نقطية', 'زيادة الإزاحة', 'تقليل الإزاحة', 'فاصل صفحة']) {
-      expect(within(toolbar).queryByLabelText(absent)).toBeNull();
-    }
-    for (const id of ['listNumbered', 'listBulleted', 'indent', 'outdent', 'pageBreak']) {
-      expect(IMPLEMENTED_COMMANDS).not.toContain(id);
+    expect(within(toolbar).queryByLabelText('فاصل صفحة')).toBeNull();
+    expect(IMPLEMENTED_COMMANDS).not.toContain('pageBreak');
+
+    // …and the four that arrived are genuinely present, so this test cannot pass by
+    // the toolbar having quietly stopped rendering anything at all.
+    for (const present of ['قائمة مرقّمة', 'قائمة نقطية', 'زيادة الإزاحة', 'تقليل الإزاحة']) {
+      expect(within(toolbar).getByLabelText(present)).toBeInTheDocument();
     }
   });
 
@@ -620,13 +631,19 @@ describe('A registered letter is read-only', () => {
     expect(await screen.findByText(/محتوى الخطاب مُجمَّد منذ التسجيل/)).toBeInTheDocument();
     expect(paragraphs()).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'حفظ' })).toBeNull();
-    expect(screen.getByText('للقراءة فقط')).toBeInTheDocument();
+    // Said TWICE, deliberately: the header pill answers "what is this letter", the
+    // status bar's editing-mode chip answers "what can I do right now". Both are read
+    // at different moments, so the assertions are scoped rather than de-duplicated.
+    expect(screen.getAllByText('للقراءة فقط')).toHaveLength(2);
+    const status = screen.getByRole('status', { name: 'شريط الحالة' });
+    expect(within(status).getByText('للقراءة فقط')).toBeInTheDocument();
   });
 
   it('is read-only without the update permission, even for a draft', async () => {
     permissions.value = new Set(['letters.read']);
     renderComposer();
-    await screen.findByText('للقراءة فقط');
+    const status = await screen.findByRole('status', { name: 'شريط الحالة' });
+    expect(within(status).getByText('للقراءة فقط')).toBeInTheDocument();
     expect(paragraphs()).toHaveLength(0);
   });
 });
@@ -649,10 +666,15 @@ describe('P3 boundary — nothing from a later pack is present', () => {
     'src/pages/LetterComposer.tsx',
     'src/components/letters/LetterPaper.tsx',
     'src/components/letters/LetterPageStack.tsx',
-    'src/components/letters/PageNavigator.tsx',
     'src/components/letters/useLetterPagination.ts',
     'src/components/letters/LetterSections.tsx',
-    'src/components/letters/ComposerToolbar.tsx',
+    // Document Studio replaced `ComposerToolbar` and `PageNavigator` with these; the
+    // boundary they are scanned for is unchanged.
+    'src/components/letters/studio/DocumentToolbar.tsx',
+    'src/components/letters/studio/DocumentStatusBar.tsx',
+    'src/components/letters/studio/DocumentNavigator.tsx',
+    'src/components/letters/studio/FindReplacePanel.tsx',
+    'src/components/letters/studio/zoom.ts',
     'src/letters/editor/blockCommands.ts',
     'src/letters/pagination/paginate.ts',
     'src/letters/pagination/measure.ts',

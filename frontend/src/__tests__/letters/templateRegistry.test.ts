@@ -171,7 +171,11 @@ describe.each(ALL.map((t) => [t.key, t] as const))('Template "%s" — cross-regi
     const allowed = template.toolbarCommands as readonly string[];
     expect(allowed).not.toContain('italic');
     expect(allowed).not.toContain('textColor');
-    expect(allowed).not.toContain('highlight');
+    // `highlight` is NO LONGER on this list. It was lifted in Document Studio
+    // Foundation v1 and is rendered as a neutral grey wash carrying no hue, so the
+    // black-on-pre-printed-stock rule that prohibited it is untouched. `textColor`
+    // itself — the tool that would actually introduce a hue — remains prohibited above.
+    // See `LIFTED_TOOLBAR_PROHIBITIONS` for the full record.
     expect(allowed).not.toContain('insertImage');
     expect(allowed).not.toContain('insertTable');
     expect(templateAllowsCommand(template, 'bold')).toBe(true);

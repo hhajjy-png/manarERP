@@ -167,19 +167,35 @@ export const TEMPLATES = {
 
     sections: OFFICIAL_LETTER_SECTIONS,
 
+    // Document Studio Foundation v1 widened this list. `pageBreak` stays approved but
+    // unimplemented — the engine's flow is still automatic only, and rule
+    // W7_sparseManualPageBreak below is still deselected for exactly that reason.
     toolbarCommands: [
       'bold',
       'underline',
+      'highlight',
+      'superscript',
+      'subscript',
       'alignJustify',
       'alignStart',
       'alignCenter',
       'fontFamily',
       'fontSize',
+      'paragraphStyle',
+      'characterStyle',
       'listNumbered',
       'listBulleted',
       'indent',
       'outdent',
+      'lineHeight',
+      'paragraphSpacing',
+      'letterSpacing',
+      'firstLineIndent',
+      'hangingIndent',
+      'formatPainter',
+      'pastePlain',
       'pageBreak',
+      'findReplace',
       'undo',
       'redo',
       'clearFormatting',
@@ -229,6 +245,20 @@ export const TEMPLATES = {
       // is automatic only. The rule can never fire, so it withholds `readyForPrinting`
       // for ever in exchange for nothing. It returns the day the feature does.
       { ruleId: 'W8_lastPageNearlyFull', params: { nearlyFullPercent: 90 } },
+      // Positioned objects. E16 is what permits free positioning to exist at all —
+      // an object reaching the pre-printed letterhead refuses the print exactly as
+      // E4 does for flow content, and no template may downgrade either.
+      { ruleId: 'E16_objectInReservedZone', params: {} },
+      { ruleId: 'E17_objectOutsidePage', params: {} },
+      { ruleId: 'W9_objectOverlapsContent', params: {} },
+      { ruleId: 'W10_objectOffPage', params: {} },
+      // Automation. E18/E19/E20 are blocking: an official letter must never go out
+      // carrying an unanswered question or a silently-ignored rule.
+      { ruleId: 'E18_unresolvedVariable', params: {} },
+      { ruleId: 'E19_unknownVariable', params: {} },
+      { ruleId: 'E20_brokenCondition', params: {} },
+      { ruleId: 'W11_recipientMissing', params: {} },
+      { ruleId: 'W12_bindingUnresolved', params: {} },
     ],
 
     requiresApproval: false,
