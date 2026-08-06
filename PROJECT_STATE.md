@@ -43,14 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `712dad62` — release `stable-administrative-forms-barcode-enhancement-pack-v1` (Administrative Forms Barcode Enhancement Pack v1: a barcode as a THIRD element of the existing Multi-Signature & Stamp branding system on the Blank A4 administrative form — `ElementType` extended to `'signature' \| 'stamp' \| 'barcode'`, carried through the same `useBrandingDesigner`/`DesignableBrandingImage`/`BrandingDesignerPanel` clamp, transform, drag/resize/rotate gestures, undo/redo, `print.brandingLayout` save path and print/PDF/preview pipeline every element already used — no new engine, store, service or renderer. A Barcode Content Settings dialog (⚙ إعدادات الباركود, built from ExplorerKit `Dialog`/`DialogSection`/`Button`) lets the operator author reference number, subject and free-text details, extending `FormQRCode.formatQrText` additively (the thirteen existing QR consumers encode byte-identical text); the caption beneath the code is the reference verbatim or nothing — no number is ever generated. `nextReferenceNumber()` is a pure width-preserving increment of a value's trailing digit run for the suggestion; a fourth `print.barcode.lastReference` settings key remembers the last non-empty reference independently of the printed one, so the dialog's Reset button can clear its three fields without erasing what the next suggestion counts from. Professional Ink Set v1 appends 20 ballpoint-blue shades to the existing 4-color ink picker, appended (never reordered) so a saved `inkMode` keeps resolving to the same color; every element that already supported ink color — including the new barcode — gets the extended picker automatically. 21 files (19 modified, 2 added), frontend-only; no Prisma/schema/backend/Electron change, no new permission key) |
-| **Previous production HEAD** | `4941b2ca` — release `stable-cloud-backup-google-drive-sync-v1` (Cloud Backup & Google Drive Sync v1: four packs delivered as one feature — the Google Drive Deployment Pack, the Cloud-Failure Local Backup Guarantee, the Production Hardening Pack, the Production UX & Diagnostics Pack and the Production Polish Pack; 33 files, Electron main process + backend + frontend, no Prisma/schema/migration and no new permission key) |
+| **Production HEAD** | `3e684831` — release `stable-collection-analysis-page-v1` (Collection Analysis Page v1: a hidden analytical page answering how invoices were collected across fiscal years — deliberately not an extension of the Financial Analysis Center and not a second Financial Position table, because its subject is the relation between **two** fiscal years rather than a figure inside one period. A dedicated `CollectionAnalysisEngine` — pure, one fact per invoice built in a single pass, all output derived by indexed `Map` aggregation with no nested loops — imports its business rules from `shared/services/operational.reporting` instead of re-implementing them, so its figures match the dashboard and the Financial Analysis Center by definition; `financialAnalysis` is untouched and only numeric primitives are shared. Four bounded queries per request via relation filters. Outstanding is computed from an invoice's lifetime payments, never from the collection-date window, so the window cannot invent a receivable on a fully-paid invoice; "project" has no entity in this schema, so value and collections are apportioned across `ProjectPrice` agreements by line value, with the honest consequence that an invoice spanning two projects is counted in both — stated in the UI and Excel rather than hidden. Five professional tables and no charts, including the mandatory transition matrix whose axes are derived entirely from the data. Hidden from the sidebar; reachable only from a new "تحليل التحصيلات" gateway section in the Financial Analysis Center that sits outside the print root. `AnalysisTable` gained an **optional** `expandable` prop for inline two-level row expansion rather than a second table component, with a guard test asserting byte-identical rendering without it. Shipped with a shared KPI-card overflow fix reaching all 24 `MetricCard` consumers: the card now clips and the money value's font is measured down to fit rather than ellipsised, because an ellipsised amount is a different number, not a shortened one. 38 files (27 new, 11 modified); no Prisma/schema/migration, no new permission key, no chart library) |
+| **Previous production HEAD** | `712dad62` — release `stable-administrative-forms-barcode-enhancement-pack-v1` (Administrative Forms Barcode Enhancement Pack v1: a barcode as a THIRD element of the existing Multi-Signature & Stamp branding system on the Blank A4 administrative form — `ElementType` extended to `'signature' \| 'stamp' \| 'barcode'`, carried through the same `useBrandingDesigner`/`DesignableBrandingImage`/`BrandingDesignerPanel` clamp, transform, drag/resize/rotate gestures, undo/redo, `print.brandingLayout` save path and print/PDF/preview pipeline every element already used — no new engine, store, service or renderer. A Barcode Content Settings dialog (⚙ إعدادات الباركود, built from ExplorerKit `Dialog`/`DialogSection`/`Button`) lets the operator author reference number, subject and free-text details, extending `FormQRCode.formatQrText` additively (the thirteen existing QR consumers encode byte-identical text); the caption beneath the code is the reference verbatim or nothing — no number is ever generated. `nextReferenceNumber()` is a pure width-preserving increment of a value's trailing digit run for the suggestion; a fourth `print.barcode.lastReference` settings key remembers the last non-empty reference independently of the printed one, so the dialog's Reset button can clear its three fields without erasing what the next suggestion counts from. Professional Ink Set v1 appends 20 ballpoint-blue shades to the existing 4-color ink picker, appended (never reordered) so a saved `inkMode` keeps resolving to the same color; every element that already supported ink color — including the new barcode — gets the extended picker automatically. 21 files (19 modified, 2 added), frontend-only; no Prisma/schema/backend/Electron change, no new permission key) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-administrative-forms-barcode-enhancement-pack-v1` (release date 2026-08-05) → merge `712dad62` |
-| **Previous stable tag** | `stable-cloud-backup-google-drive-sync-v1` (2026-08-05) → merge `4941b2ca` |
-| **Total stable releases** | 409 (all merged onto `production`; window 2026-06-07 → 2026-08-05) |
-| **Latest validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge on `production`) · `build:front` ✅ (feature branch and post-merge) · full frontend suite 3552 tests: 3525 passing, 26 failures identical in count and identity to the pre-release baseline (confirmed via `git stash` against clean HEAD before this work began — pre-existing, unrelated to this release) · 190 new/extended tests added (barcode content dialog, reference-number increment, ink-set coverage, barcode-as-third-element regression, rotation-ref regression) · no backend/electron files touched, so backend/electron suites are unaffected by construction · scope confirmed: exactly 21 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`), with a scope check showing zero out-of-scope paths — the one-time backend probe scripts, the `.tmp-*.json` scratch files, the two `docs/*.xlsx` workbooks, the unreferenced font files and a leftover measurement test were deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `712dad62` + tags `stable-administrative-forms-barcode-enhancement-pack-v1`, `checkpoint-administrative-forms-barcode-enhancement-pack-v1` + branch `feature/administrative-forms-barcode-enhancement-pack-v1`) |
+| **Latest stable tag** | `stable-collection-analysis-page-v1` (release date 2026-08-06) → merge `3e684831` |
+| **Previous stable tag** | `stable-administrative-forms-barcode-enhancement-pack-v1` (2026-08-05) → merge `712dad62` |
+| **Total stable releases** | 410 (all merged onto `production`; window 2026-06-07 → 2026-08-06) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ (page emits its own lazy chunk) · backend suite 2760 tests pass across 179 files · full frontend suite 3556 pass with the 26 pre-existing baseline failures unchanged in count and identity — confirmed by stashing exactly this change set and re-running those 8 files against clean HEAD, not assumed · 74 new tests added (engine incl. fiscal-year matrix/transfer/outstanding/project-weighting, dataset apportionment, Excel sheets, cross-side normalizer parity guard, `AnalysisTable` additive-expansion guard, KPI overflow contract) · the KPI overflow fix additionally measured in a real Chromium against the repository stylesheets across seven viewport widths: zero glyph overflow and zero clipped values, versus 66px of spill on the simulated pre-fix state · scope confirmed: exactly 38 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`) — the substantial pre-existing uncommitted Electron packaging/startup workstream, the one-time backend scripts, the `docs/*.xlsx` workbooks, the unreferenced font files, a leftover jsdom probe test and a stray Playwright screenshot were all deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `3e684831` + tags `stable-collection-analysis-page-v1`, `checkpoint-collection-analysis-page-v1` + branch `feature/collection-analysis-page-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +62,101 @@ in a table cell.
 
 ---
 
-## Latest Release — Administrative Forms Barcode Enhancement Pack v1
+## Latest Release — Collection Analysis Page v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Collection Analysis Page v1 — a hidden analytical page linking invoices to their collections across fiscal years (dedicated engine, five professional tables incl. the mandatory transition matrix, inline two-level row expansion, drill-down drawer, Excel/PDF export), shipped together with a shared KPI-card overflow fix reaching all 24 `MetricCard` consumers (38 files: 27 new, 11 modified; backend + frontend) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-06 |
+| **Feature branch** | `feature/collection-analysis-page-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `4c9c8bbe` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-collection-analysis-page-v1` → `4c9c8bbe` |
+| **Feature commit** | `b3da1d90` |
+| **Production merge commit** | `3e684831` |
+| **Stable tag** | `stable-collection-analysis-page-v1` → merge `3e684831` (annotated) |
+| **Reviews** | Claude Code Review self-verified via backend + frontend `tsc --noEmit`, `build:back`, `build:front`, the full backend and frontend suites, and a real-browser layout measurement of the KPI fix, iterated until clean → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · backend 2760 tests / 179 files pass · frontend 3556 pass with 26 pre-existing baseline failures unchanged in count and identity (confirmed by stashing exactly this change set and re-running those 8 files against clean HEAD) · 74 new tests · KPI overflow measured in a real Chromium across seven viewport widths: 0 glyph overflow, 0 clipped values (66px spill on the simulated pre-fix state) |
+| **Schema impact** | None — no Prisma model, migration or seed change |
+| **Permission impact** | None — guarded by the existing `reports.read` / `reports.export`, on the documented Financial Analysis Center precedent; no `constants.ts` change |
+
+**What it is.** A page that answers one question: *how were invoices collected across
+fiscal years?* It is deliberately **not** an extension of the Financial Analysis Center
+and **not** a second Financial Position table. Those answer "what is the figure inside
+this period"; this one answers "invoices of which year were collected in which year" —
+a relation between **two** fiscal years. That difference is why it carries its own
+engine rather than another section.
+
+**The engine.** `CollectionAnalysisEngine` is pure: dataset + filters in, report out,
+with no Prisma, no I/O and no implicit `new Date()`, so it is tested directly without a
+database. It builds one *fact* per invoice in a single pass, then derives all five
+tables and eight KPI cards by indexed `Map` aggregation — no nested loops, so cost stays
+linear in invoices and payments no matter how many fiscal years exist. It does **not**
+re-implement business rules: `SALES_INVOICE_ACTIVE` and the Payment-date collection
+definition are imported from `shared/services/operational.reporting`, the project's
+single operational source, so its figures match the dashboard and the Financial Analysis
+Center *by definition*. `financialAnalysis` is not imported, touched or modified; the two
+engines share only numeric primitives, and `percentOf` was added to the shared
+`reports/analysisKit` rather than copied into a second place. Fiscal year here is the
+calendar year (no shifted fiscal year), per `historicalEntry.service.ts`. The data layer
+runs **four bounded queries** per request — invoices, payments, invoice items, price
+agreements — using Prisma relation filters, so there is no `IN (…)` over thousands of
+ids and no query per table or per row.
+
+**Two accounting decisions worth recording.** First, outstanding is computed from an
+invoice's **lifetime** payments, never from the collection-date window: the window scopes
+what counts as *collected in the period*, and letting it shrink the denominator would
+invent receivables on fully-paid invoices. Second, "project" has no entity in this
+schema — the nearest real identity, `ProjectPrice`, attaches to invoice **line items**,
+not invoices. Invoice value and collections are therefore apportioned across projects by
+line value, and a project filter weights the invoice by its share. The honest consequence
+is that an invoice spanning two projects is counted in both, so the project axis'
+invoice count sums higher than the true count; this is stated in a UI footnote and in the
+Excel sheet rather than hidden.
+
+**Presentation.** Hidden from the sidebar by design, reachable only from a new
+"تحليل التحصيلات" gateway section inside the Financial Analysis Center — which sits
+**outside** the print root, because a navigation CTA is not report content. The visual
+language is inherited wholesale: same `ExecutiveHeader`, filter bar,
+`AnalysisSection`/`AnalysisTable`/`MetricCard`, and the same `.fac-*` stylesheet.
+`CollectionAnalysis.css` adds only what has no equivalent there — the wide matrix with a
+sticky first column, the two-row filter bar, and deferred-collection emphasis. Five
+tables and **no charts**: summary by invoice year, where *variance* is an identity rather
+than a coincidence (`invoice value − collected-in-year = collected-other-years +
+outstanding`); carry-over between years with the percentage computed **within** the issue
+year; the mandatory **transition matrix** whose row and column axes derive entirely from
+the data (no year hard-coded, no upper bound); outstanding analysis; and performance
+across customer / contract / project. Row expansion is inline at both levels (year →
+invoices → collection transactions) with no dialogs — `AnalysisTable` gained an
+**optional** `expandable` prop rather than a second table component, and a guard test
+asserts that without it the table renders byte-identically, since that component backs
+every Financial Analysis Center table. Exports reuse `buildExcelWorkbook` and
+`composeStyledFromNode` + the Chromium PDF bridge untouched, and the drill-down reuses
+the ExplorerKit drawer and the existing `drilldownHandoff`.
+
+**One defect found and fixed during review.** The backend search normalizer had diverged
+from the frontend's `arabicSearch.ts` (missing ئ→ي and ؤ→و), which would have shown a row
+in the table and an empty drill-down beneath it. It is now a literal mirror, with a
+permanent test diffing both files' rules.
+
+**Shared KPI-card overflow fix.** `.xpl-metric` had no overflow guard and
+`.xpl-metric-value` no width constraint, so a currency figure — a single unbreakable
+token with no line-break opportunity — rendered at natural width and painted outside the
+card, measured at **66px** of glyph spill for `999,999,999,999.999 KWD` in a 208px card.
+The card now clips; the body gets `flex: 1 1 auto` + `overflow: hidden` beside its
+existing `min-width: 0`; labels and captions take ellipsis. The money value
+**deliberately takes no `text-overflow`**: an ellipsised amount is a *different number*,
+not a shortened one, and `1,234…` reads as wrong data with no signal. Instead
+`useFitText` measures `scrollWidth` against `clientWidth` and reduces the font until the
+value fits — floor 8px, derived from the worst specified case (`999,999,999,999.999 KWD`
+in the narrowest possible card), with values that already fit left at exactly 19px so
+short values are visually unchanged. Its `ResizeObserver` reacts to **width only**,
+because shrinking changes height and reacting to that would loop forever. The fix lives
+in the shared component, so all 24 `MetricCard` consumers get it.
+
+---
+
+## Previous Release — Administrative Forms Barcode Enhancement Pack v1
 
 | Field | Value |
 |-------|-------|
