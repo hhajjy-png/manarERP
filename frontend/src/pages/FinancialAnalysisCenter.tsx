@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useFinancialPeriod } from '../context/FinancialPeriodContext';
 import { periodToReportParams } from '../lib/financialPeriod';
@@ -15,6 +16,7 @@ import {
   SkeletonRows,
   EmptyState,
   Button,
+  Icon,
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './FinancialAnalysisCenter.css';
@@ -290,6 +292,11 @@ export default function FinancialAnalysisCenter() {
           <IndicatorsSectionView report={report} />
         </div>
       )}
+
+      {/* قسم «تحليل التحصيلات» — بوّابة الصفحة التحليلية المستقلّة.
+          خارج جذر الطباعة عمدًا: هو دعوة إلى إجراء لا محتوى تقرير، ولا معنى
+          لزرّ تنقّل داخل ملف PDF. */}
+      {report && <CollectionAnalysisEntrySection />}
 
       {!loading && !errorKey && !report && (
         <EmptyState icon="query_stats" title={t('msg.empty')} message={t('fac.err.no_data')} />
@@ -930,6 +937,43 @@ function TopListsSectionView({ report, onDrill }: SectionProps) {
         </div>
       </div>
     </AnalysisSection>
+  );
+}
+
+/* ── 9. تحليل التحصيلات — بوّابة الصفحة المستقلّة ───────────────────────────── */
+
+/**
+ * القسم التاسع: مدخل «تحليل التحصيلات».
+ *
+ * لا يحسب شيئًا ولا يقرأ أي رقم من هذا التقرير — بوّابة بحتة. تحليل التحصيلات
+ * صفحة مستقلّة بمحرّكها الخاص (`CollectionAnalysisEngine`)، وهي **مخفيّة عن
+ * الشريط الجانبي** عمدًا فلا تُفتح إلا من هنا.
+ *
+ * `no-print` لأنه دعوة إلى إجراء لا محتوى تقرير — وهو خارج جذر الطباعة أصلًا،
+ * والصنف طبقة ثانية للطباعة المباشرة من المتصفح.
+ */
+function CollectionAnalysisEntrySection() {
+  const { t } = useT();
+  const navigate = useNavigate();
+
+  return (
+    <section className="fac-section fac-gateway no-print" aria-label={t('fac.section.collection_analysis')}>
+      <header className="fac-section-head">
+        <span className="fac-section-index" aria-hidden="true">9</span>
+        <h2 className="fac-section-title">
+          <Icon name="account_balance" />
+          {t('fac.section.collection_analysis')}
+        </h2>
+        <div className="fac-section-actions">
+          <Button variant="primary" icon="open_in_new" onClick={() => navigate('/collection-analysis')}>
+            {t('fac.action.open_collection_analysis')}
+          </Button>
+        </div>
+      </header>
+      <div className="fac-section-body">
+        <p className="fac-gateway-text">{t('fac.gateway.collection_analysis')}</p>
+      </div>
+    </section>
   );
 }
 

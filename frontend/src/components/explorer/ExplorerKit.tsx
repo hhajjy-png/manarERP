@@ -19,6 +19,7 @@ import {
 import { useT } from '../../lib/i18n';
 import { useUI } from '../../stores/uiStore';
 import { lockScroll, unlockScroll } from '../../lib/scrollLock';
+import { useFitText } from './useFitText';
 
 export type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
@@ -179,12 +180,19 @@ export function MetricCard({
 }) {
   const cls = `xpl-metric xpl-metric--${tone}${onClick ? ' xpl-metric--click' : ''}${active ? ' xpl-metric--active' : ''}`;
   const trendTone = trend ? (trend.invert ? (trend.dir === 'up' ? 'down' : 'up') : trend.dir) : null;
+  /**
+   * القيمة وحدها تُصغَّر ولا تُقصّ.
+   *
+   * التسمية والوصف نصٌّ وصفي يحتمل «…» عند الضيق، أمّا المبلغ فقصُّه يجعله رقمًا
+   * **مختلفًا** لا رقمًا مختصرًا — فيُصغَّر خطّه حتى يتّسع كاملًا. انظر `useFitText`.
+   */
+  const valueRef = useFitText<HTMLSpanElement>();
   const inner = (
     <>
       <div className="xpl-metric-icon"><Icon name={icon} /></div>
       <div className="xpl-metric-body">
         <span className="xpl-metric-label">{label}</span>
-        <span className="xpl-metric-value">{value}</span>
+        <span className="xpl-metric-value" ref={valueRef}>{value}</span>
         {trend && (
           <span className={`xpl-metric-trend xpl-metric-trend--${trendTone}`}>
             <span className="material-symbols-outlined" aria-hidden="true">

@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { Fragment, useMemo, type ReactNode } from 'react';
 import PrivateAmount from '../PrivateAmount';
 import { StatusChip, Icon, SearchBox } from '../explorer/ExplorerKit';
 import SortableHeader from '../SortableHeader';
@@ -46,6 +46,24 @@ function cellClass<R>(c: AnalysisColumn<R>): string {
   return `fac-al-${c.align ?? 'start'}${c.truncate ? ' fac-truncate' : ''}`;
 }
 
+/**
+ * توسيع الصفّ داخل الجدول نفسه — لا حوار ولا صفحة ثانية.
+ *
+ * إضافة **اختيارية بالكامل**: غيابها يُبقي الجدول كما كان حرفيًا (لا عمود زائد،
+ * لا صفّ زائد، لا سلوك جديد)، فلا يتأثّر أي جدول قائم. حين تُمرَّر، يُضاف عمود
+ * تحكّم واحد في المقدّمة وصفّ تفصيل تحت كل صفّ موسَّع.
+ *
+ * الحالة مملوكة للمستدعي عمدًا: التوسيع يبقى حيًّا عبر الفرز والبحث وإعادة رسم
+ * القسم، ويمكن للصفحة أن تطوي الكل عند تغيّر الفلتر.
+ */
+export interface RowExpansion<R> {
+  isExpanded: (row: R, index: number) => boolean;
+  onToggle: (row: R, index: number) => void;
+  render: (row: R, index: number) => ReactNode;
+  /** تسمية زرّ التوسيع لقارئ الشاشة. */
+  label?: string;
+}
+
 interface AnalysisTableProps<R> {
   columns: AnalysisColumn<R>[];
   rows: R[];
@@ -75,6 +93,8 @@ interface AnalysisTableProps<R> {
   /** نصّ البحث — مملوك للمستدعي كي ينجو من إعادة رسم القسم. */
   search?: string;
   onSearchChange?: (value: string) => void;
+  /** توسيع الصفّ داخل الجدول (اختياري) — انظر {@link RowExpansion}. */
+  expandable?: RowExpansion<R>;
 }
 
 export default function AnalysisTable<R>({
@@ -95,6 +115,7 @@ export default function AnalysisTable<R>({
   onRowClick,
   search = '',
   onSearchChange,
+  expandable,
 }: AnalysisTableProps<R>) {
   const { t } = useT();
   // الخطّاف يُستدعى دائمًا (قواعد الخطّافات)؛ `sortKey` الغائب يعني مفتاحًا خاملًا.
@@ -162,6 +183,11 @@ export default function AnalysisTable<R>({
         <table className={tableClass}>
           <thead>
             <tr>
+              {expandable && (
+                // عمود التحكّم بلا عنوان مرئي: العنوان هنا ضجيج بصري، والتسمية
+                // الحقيقية تعيش على زرّ كل صفّ حيث يقرؤها قارئ الشاشة.
+                <th className="fac-al-center fac-expand-col" scope="col" aria-label={expandable.label ?? t('action.expand')} />
+              )}
               {columns.map((c) =>
                 // عمود قابل للفرز فقط حين يعلن قيمة خامًا **و** الجدول مفعَّل الفرز.
                 sortKey && c.sortValue ? (
@@ -182,35 +208,61 @@ export default function AnalysisTable<R>({
             </tr>
           </thead>
           <tbody>
-            {limited.map((row, i) => (
-              <tr
-                key={rowKey(row, i)}
-                className={onRowClick ? 'xpl-row--click' : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                role={onRowClick ? 'button' : undefined}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-                onKeyDown={
-                  onRowClick
-                    ? (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          onRowClick(row);
-                        }
-                      }
-                    : undefined
-                }
-              >
-                {columns.map((c) => (
-                  <td key={c.key} className={cellClass(c)} title={c.title?.(row)}>
-                    {c.render(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {limited.map((row, i) => {
+              const key = rowKey(row, i);
+              const open = expandable?.isExpanded(row, i) ?? false;
+              return (
+                <Fragment key={key}>
+                  <tr
+                    className={onRowClick ? 'xpl-row--click' : undefined}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    role={onRowClick ? 'button' : undefined}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                    onKeyDown={
+                      onRowClick
+                        ? (e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              onRowClick(row);
+                            }
+                          }
+                        : undefined
+                    }
+                  >
+                    {expandable && (
+                      <td className="fac-al-center fac-expand-col">
+                        <button
+                          type="button"
+                          className="fac-row-toggle"
+                          aria-expanded={open}
+                          aria-label={expandable.label ?? t('action.expand')}
+                          // إيقاف الانتشار إلزامي: داخل صفّ قابل للضغط كان النقر
+                          // على زرّ التوسيع يفتح تفصيل الصفّ ويوسّعه معًا.
+                          onClick={(e) => { e.stopPropagation(); expandable.onToggle(row, i); }}
+                        >
+                          <Icon name={open ? 'expand_more' : 'chevron_left'} />
+                        </button>
+                      </td>
+                    )}
+                    {columns.map((c) => (
+                      <td key={c.key} className={cellClass(c)} title={c.title?.(row)}>
+                        {c.render(row)}
+                      </td>
+                    ))}
+                  </tr>
+                  {expandable && open && (
+                    <tr className="fac-row-detail">
+                      <td colSpan={columns.length + 1}>{expandable.render(row, i)}</td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
           </tbody>
           {showTotals && (
             <tfoot>
               <tr className="fac-totals-row">
+                {expandable && <td className="fac-al-center fac-expand-col" />}
                 {columns.map((c, i) => (
                   <td key={c.key} className={cellClass(c)}>
                     {i === 0 ? (totalsLabel ?? t('msg.total')) : c.total ?? null}

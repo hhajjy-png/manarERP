@@ -37,6 +37,8 @@ export const ReportName = {
   WorkAnalysis: 'WorkAnalysis',
   // مركز التحليل المالي — تصدير الصفحة كاملة (PDF) أو جداولها (Excel).
   FinancialAnalysis: 'FinancialAnalysis',
+  // تحليل التحصيلات — ربط سنة إصدار الفاتورة بسنة تحصيلها.
+  CollectionAnalysis: 'CollectionAnalysis',
   // Generic data-module (ResourcePage) list exports:
   Customers: 'Customers',
   Suppliers: 'Suppliers',

@@ -74,7 +74,7 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     expect(appSrc).not.toContain('createHashRouter');
     expect(appSrc).not.toContain('RouterProvider');
     expect(appSrc).toContain('<Suspense fallback={<PageLoader />}>');
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(54); // +1: FinancialAnalysisCenter (Financial Analysis Center v1) — still lazy, still HashRouter
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(55); // +1: CollectionAnalysis (Collection Analysis Page v1) — still lazy, still HashRouter
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });
