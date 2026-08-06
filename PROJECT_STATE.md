@@ -43,14 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `3e684831` — release `stable-collection-analysis-page-v1` (Collection Analysis Page v1: a hidden analytical page answering how invoices were collected across fiscal years — deliberately not an extension of the Financial Analysis Center and not a second Financial Position table, because its subject is the relation between **two** fiscal years rather than a figure inside one period. A dedicated `CollectionAnalysisEngine` — pure, one fact per invoice built in a single pass, all output derived by indexed `Map` aggregation with no nested loops — imports its business rules from `shared/services/operational.reporting` instead of re-implementing them, so its figures match the dashboard and the Financial Analysis Center by definition; `financialAnalysis` is untouched and only numeric primitives are shared. Four bounded queries per request via relation filters. Outstanding is computed from an invoice's lifetime payments, never from the collection-date window, so the window cannot invent a receivable on a fully-paid invoice; "project" has no entity in this schema, so value and collections are apportioned across `ProjectPrice` agreements by line value, with the honest consequence that an invoice spanning two projects is counted in both — stated in the UI and Excel rather than hidden. Five professional tables and no charts, including the mandatory transition matrix whose axes are derived entirely from the data. Hidden from the sidebar; reachable only from a new "تحليل التحصيلات" gateway section in the Financial Analysis Center that sits outside the print root. `AnalysisTable` gained an **optional** `expandable` prop for inline two-level row expansion rather than a second table component, with a guard test asserting byte-identical rendering without it. Shipped with a shared KPI-card overflow fix reaching all 24 `MetricCard` consumers: the card now clips and the money value's font is measured down to fit rather than ellipsised, because an ellipsised amount is a different number, not a shortened one. 38 files (27 new, 11 modified); no Prisma/schema/migration, no new permission key, no chart library) |
-| **Previous production HEAD** | `712dad62` — release `stable-administrative-forms-barcode-enhancement-pack-v1` (Administrative Forms Barcode Enhancement Pack v1: a barcode as a THIRD element of the existing Multi-Signature & Stamp branding system on the Blank A4 administrative form — `ElementType` extended to `'signature' \| 'stamp' \| 'barcode'`, carried through the same `useBrandingDesigner`/`DesignableBrandingImage`/`BrandingDesignerPanel` clamp, transform, drag/resize/rotate gestures, undo/redo, `print.brandingLayout` save path and print/PDF/preview pipeline every element already used — no new engine, store, service or renderer. A Barcode Content Settings dialog (⚙ إعدادات الباركود, built from ExplorerKit `Dialog`/`DialogSection`/`Button`) lets the operator author reference number, subject and free-text details, extending `FormQRCode.formatQrText` additively (the thirteen existing QR consumers encode byte-identical text); the caption beneath the code is the reference verbatim or nothing — no number is ever generated. `nextReferenceNumber()` is a pure width-preserving increment of a value's trailing digit run for the suggestion; a fourth `print.barcode.lastReference` settings key remembers the last non-empty reference independently of the printed one, so the dialog's Reset button can clear its three fields without erasing what the next suggestion counts from. Professional Ink Set v1 appends 20 ballpoint-blue shades to the existing 4-color ink picker, appended (never reordered) so a saved `inkMode` keeps resolving to the same color; every element that already supported ink color — including the new barcode — gets the extended picker automatically. 21 files (19 modified, 2 added), frontend-only; no Prisma/schema/backend/Electron change, no new permission key) |
+| **Production HEAD** | `c197e834` — release `stable-document-studio-v1` (Document Studio v1: transforms the Official Letter page from a basic rich-text editor into a professional enterprise Document Studio, in three additive layers merged as one release. **Foundation v1** — canvas experience, grouped toolbar, rich text (paragraph/character styles, format painter, line/letter/paragraph spacing, first-line/hanging indent), find & replace, document stats, mini navigator, zoom presets, keyboard shortcuts. **Layout Designer v1** — a drag/resize/rotate/lock/group object layer over the flow document, layers panel, object inspector, snapping, smart guides, alignment/distribution; the letterhead's reserved zones stay a blocking validation rule (E16) regardless of object placement. **Professional Document Automation v1** — an 18-variable engine resolved live on a DRAFT and frozen everywhere else, visual-only conditional content, asset/block/template/header-footer/signature/stamp libraries, document properties, version history (`AUTO`/`NAMED`/`PRE_RESTORE`/`PRE_REGISTER`, capped and pruned — never the two lifecycle kinds), track changes (word-level LCS diff, blocks matched by id, reject-only by construction since accept is a no-op), threaded comments (one level deep), auto-save, and Smart Export routed through the existing print/compose pipeline and its validation gate. Content model version 1→4, each step a purely additive re-stamp so stored drafts keep opening. Two new tables (`LetterVersion`, `LetterComment`) via a hand-written, dependency-reviewed migration; 9 new routes reuse the existing `letters.*` permission keys — no new key. No change to the print engine, preview pipeline, business logic or public APIs beyond the letters module, and no change to any page outside Official Letter. 100 files (66 new, 30 modified, 4 deleted); backend + frontend) |
+| **Previous production HEAD** | `3e684831` — release `stable-collection-analysis-page-v1` (Collection Analysis Page v1: a hidden analytical page answering how invoices were collected across fiscal years — deliberately not an extension of the Financial Analysis Center and not a second Financial Position table, because its subject is the relation between **two** fiscal years rather than a figure inside one period. A dedicated `CollectionAnalysisEngine` — pure, one fact per invoice built in a single pass, all output derived by indexed `Map` aggregation with no nested loops — imports its business rules from `shared/services/operational.reporting` instead of re-implementing them, so its figures match the dashboard and the Financial Analysis Center by definition; `financialAnalysis` is untouched and only numeric primitives are shared. Four bounded queries per request via relation filters. Outstanding is computed from an invoice's lifetime payments, never from the collection-date window, so the window cannot invent a receivable on a fully-paid invoice; "project" has no entity in this schema, so value and collections are apportioned across `ProjectPrice` agreements by line value, with the honest consequence that an invoice spanning two projects is counted in both — stated in the UI and Excel rather than hidden. Five professional tables and no charts, including the mandatory transition matrix whose axes are derived entirely from the data. Hidden from the sidebar; reachable only from a new "تحليل التحصيلات" gateway section in the Financial Analysis Center that sits outside the print root. `AnalysisTable` gained an **optional** `expandable` prop for inline two-level row expansion rather than a second table component, with a guard test asserting byte-identical rendering without it. Shipped with a shared KPI-card overflow fix reaching all 24 `MetricCard` consumers: the card now clips and the money value's font is measured down to fit rather than ellipsised, because an ellipsised amount is a different number, not a shortened one. 38 files (27 new, 11 modified); no Prisma/schema/migration, no new permission key, no chart library) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-collection-analysis-page-v1` (release date 2026-08-06) → merge `3e684831` |
-| **Previous stable tag** | `stable-administrative-forms-barcode-enhancement-pack-v1` (2026-08-05) → merge `712dad62` |
-| **Total stable releases** | 410 (all merged onto `production`; window 2026-06-07 → 2026-08-06) |
-| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ (page emits its own lazy chunk) · backend suite 2760 tests pass across 179 files · full frontend suite 3556 pass with the 26 pre-existing baseline failures unchanged in count and identity — confirmed by stashing exactly this change set and re-running those 8 files against clean HEAD, not assumed · 74 new tests added (engine incl. fiscal-year matrix/transfer/outstanding/project-weighting, dataset apportionment, Excel sheets, cross-side normalizer parity guard, `AnalysisTable` additive-expansion guard, KPI overflow contract) · the KPI overflow fix additionally measured in a real Chromium against the repository stylesheets across seven viewport widths: zero glyph overflow and zero clipped values, versus 66px of spill on the simulated pre-fix state · scope confirmed: exactly 38 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`) — the substantial pre-existing uncommitted Electron packaging/startup workstream, the one-time backend scripts, the `docs/*.xlsx` workbooks, the unreferenced font files, a leftover jsdom probe test and a stray Playwright screenshot were all deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `3e684831` + tags `stable-collection-analysis-page-v1`, `checkpoint-collection-analysis-page-v1` + branch `feature/collection-analysis-page-v1`) |
+| **Latest stable tag** | `stable-document-studio-v1` (release date 2026-08-06) → merge `c197e834` |
+| **Previous stable tag** | `stable-collection-analysis-page-v1` (2026-08-06) → merge `3e684831` |
+| **Total stable releases** | 411 (all merged onto `production`; window 2026-06-07 → 2026-08-06) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · backend suite 2783 tests pass across 180 files · full frontend suite 3740 pass with the 26 pre-existing baseline failures unchanged in count and identity (same 8 files as the pre-existing baseline) · 49 new tests added (25 in the track-changes diff engine incl. a round-trip property — rejecting every change reproduces the baseline document — 20 in the version/comment service, 4 pinning that the pre-registration snapshot is taken server-side, inside the registration transaction, as an unprunable `PRE_REGISTER` kind) · scope confirmed: exactly 100 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`) — a substantial pre-existing uncommitted Electron packaging/startup-window/migration-performance workstream, five one-time backend scripts, two `docs/*.xlsx` workbooks, two unreferenced font files, a leftover jsdom probe test and a stray screenshot were all deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `c197e834` + tags `stable-document-studio-v1`, `checkpoint-document-studio-v1` + branch `feature/document-studio-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +62,88 @@ in a table cell.
 
 ---
 
-## Latest Release — Collection Analysis Page v1
+## Latest Release — Document Studio v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Document Studio v1 — the Official Letter page, transformed from a basic rich-text editor into a professional Document Studio across three packs merged as one release: Foundation v1 (canvas, rich text, productivity, navigation), Layout Designer v1 (object layer, layers panel, smart guides, alignment), and Professional Document Automation v1 (variables, libraries, version history, track changes, comments, Smart Export) (100 files: 66 new, 30 modified, 4 deleted; backend + frontend) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-06 |
+| **Feature branch** | `feature/document-studio-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `aef1a12e` (previous release's final documentation commit) |
+| **Checkpoint tag** | `checkpoint-document-studio-v1` → `aef1a12e` |
+| **Feature commit** | `5016fd7a` |
+| **Production merge commit** | `c197e834` |
+| **Stable tag** | `stable-document-studio-v1` → merge `c197e834` (annotated) |
+| **Reviews** | Claude Code Review self-verified via backend + frontend `tsc --noEmit`, `build:back`, `build:front`, and the full backend and frontend suites, iterated until clean — including a scope-separation audit that isolated this release's 100 files from a large, unrelated, pre-existing uncommitted Electron packaging/startup-window workstream sitting in the same working tree — plus a targeted fix to an ownership defect found during that audit (below) → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · backend suite 2783 tests pass across 180 files · full frontend suite 3740 pass with the 26 pre-existing baseline failures unchanged in count and identity · 49 new tests (25 track-changes diff engine incl. a round-trip property, 20 version/comment service, 4 pinning the `PRE_REGISTER` ownership fix) |
+| **Schema impact** | Two new tables — `LetterVersion`, `LetterComment` (migration `20260806120000_add_letter_versions_and_comments`, hand-written after `prisma migrate diff` surfaced unrelated pre-existing dev-DB drift; reviewed, applied and re-verified as a clean diff for both tables) |
+| **Permission impact** | None — the 9 new version/comment routes reuse the existing `letters.read` / `letters.update` / `letters.delete` keys; no `constants.ts` change |
+
+**What it is.** Three packs, delivered sequentially and released together. **Foundation v1**
+rebuilds the editor's architecture (Toolbar/Canvas/Viewport/StatusBar/History/Selection/
+Shortcuts) around a grouped toolbar and real rich text — paragraph styles, Heading 1–6,
+character styles, format painter, line/letter/paragraph spacing and indent, all on bounded
+ladders rather than free values, with a hidden measurement mirror so pagination renders the
+same resolved values the screen shows. **Layout Designer v1** adds a free object layer —
+drag, resize, rotate, lock, hide, duplicate, group/ungroup, a layers panel, an object
+inspector, snapping to grid/objects/margins, smart guides and distribution — layered on top
+of the flow document rather than replacing it (a hybrid chosen explicitly over a full
+canvas rewrite); the letterhead's reserved bands remain a **blocking** validation rule
+(`E16`) no matter how objects are placed, so a locked letterhead cannot be silently
+overridden. **Professional Document Automation v1** adds an 18-variable engine — two of the
+eighteen (`Manager`, `Project`) are marked unavailable rather than shipped as silent traps,
+since the schema has no data source for either — resolved live while a document is DRAFT
+and frozen everywhere else via `resolveForStatus`, so a printed letter never silently
+re-resolves after issue; visual-only conditional content (ten operators, no scripting);
+asset/block/template/header-footer/signature/stamp libraries backed by the existing
+`Setting` key/value table (zero schema change); document properties; version history;
+track changes; threaded comments; auto-save; and Smart Export through the print engine's
+own compose/validation pipeline.
+
+**Version history's four kinds, and why one of them cannot come from the API.**
+`AUTO` snapshots are periodic and capped at 30, pruned oldest-first; `NAMED` is an author's
+deliberate marker and is never pruned; `PRE_RESTORE` and `PRE_REGISTER` are lifecycle
+snapshots — taken automatically at a restore or a registration — and neither is ever
+pruned or deletable. The public version route accepts only `AUTO` and `NAMED` by design: a
+client able to mint a lifecycle kind could plant an undeletable version. So a lifecycle
+snapshot can only ever be produced by the server code for that lifecycle event itself,
+inside its own transaction — never by a client request.
+
+**Track changes.** A pure diff module (`documentDiff.ts`) matches blocks by id rather than
+position, then runs a word-level LCS inside each matched block — ten change kinds in total.
+Accept is a no-op by construction, because an accepted change is already sitting in the
+document; only reject is a real operation, reverting the block against the baseline. A
+round-trip property test asserts the invariant this design depends on: rejecting every
+reported change reproduces the baseline document exactly.
+
+**One defect found and fixed during this release's review, before merge.** The composer was
+recording its pre-registration snapshot client-side, tagged `kind: 'AUTO'`. Since pruning
+only ever targets `AUTO`, the single most consequential snapshot in a letter's life — the
+one taken the instant before an irreversible reference number is issued — was both prunable
+and deletable, and would have been the first thing discarded once an author saved past the
+cap. Widening the version route's schema to accept `PRE_REGISTER` was the wrong fix, since
+that would let any client mint an undeletable version. The correct fix moved the snapshot
+server-side: `registerLetter` now takes it itself, via a new `createVersionInTransaction`,
+inside the same transaction that allocates the reference number — so the snapshot lives or
+dies with the registration, and a rolled-back registration leaves no version describing a
+number that was never issued. Four tests pin the corrected behaviour: the version carries
+the right kind and actor, it is written before the letter is updated, nothing is pruned by
+writing it, and nothing is written at all when registration is refused.
+
+**Scope discipline.** The working tree held a second, larger, entirely unrelated body of
+uncommitted work — an Electron packaging/startup-window/migration-performance initiative —
+mixed into the same files this session had to commit from. No feature branch existed for
+either body of work at the start of this release; one was created retroactively from the
+pre-release production baseline, and every file that entered it was verified by explicit
+path, not by `git add -A`/`git add .`/`git commit -a`. The unrelated workstream, five
+one-time backend scripts, two `docs/*.xlsx` workbooks, two unreferenced font files, a
+leftover jsdom probe test and a stray screenshot were all confirmed out of scope and left
+exactly as they were, uncommitted, in the working tree.
+
+---
+
+## Previous Release — Collection Analysis Page v1
 
 | Field | Value |
 |-------|-------|
