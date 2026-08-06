@@ -1,0 +1,124 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   تحليل التحصيلات — أنماط الصفحة (`.ca-*`).
+
+   ورقة **صغيرة عمدًا**: كل اللغة البصرية (الأقسام، البطاقات، الجداول، المحاذاة،
+   صفّ المجاميع، خلايا الضغط، قواعد الطباعة) مستوردة كما هي من
+   `FinancialAnalysisCenter.css`، وهذا الملف لا يضيف إلا ما لا وجود له هناك:
+   المصفوفة العريضة، وشريط الفلاتر ذو الصفَّين، والتمييز البصري للتحصيل المُرحَّل.
+
+   لا لون ولا ظلّ ولا حافّة جديدة — كل القيم من توكنات `--xpl-*` القائمة، فتتبع
+   الوضعين الفاتح والداكن تلقائيًا.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── شريط الفلاتر ─────────────────────────────────────────────────────────── */
+
+/* الصفّ الثاني يفصله خطّ خفيف عن الأول: أحد عشر حقلًا في صفّ واحد غير مقروء،
+   وصفّان بلا فاصل يبدوان صفًّا واحدًا ملتفًّا. */
+.ca-page .fac-filter .xpl-toolbar-row + .xpl-toolbar-row {
+  padding-top: 10px;
+  margin-top: 4px;
+  border-top: 1px solid var(--xpl-border);
+}
+
+/* حقول الكيانات (عميل/عقد/مشروع) أطول: أسماؤها جُمل لا كلمات. */
+.ca-filter-wide { min-width: 200px; }
+
+.ca-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* بطاقة المدَيين — نظير «الفترة المختارة»، لكنها تحمل مدىً زمنيًا ثانيًا. */
+.ca-range-card { min-width: 220px; }
+.ca-range-card .fac-period-card-head:not(:first-child) { margin-top: 4px; }
+
+/* ── المصفوفة ─────────────────────────────────────────────────────────────── */
+
+/* عمود لكل سنة تحصيل ⇒ العرض ينمو مع البيانات. التمرير الأفقي محصور في حاوية
+   الجدول (سلوك `.xpl-table-wrap` القائم)، وعمود سنة الفاتورة يبقى مثبَّتًا فلا
+   يفقد القارئ الصفّ الذي ينظر إليه. */
+.ca-matrix .xpl-table-wrap { overflow-x: auto; }
+
+.ca-matrix .fac-table th:first-child,
+.ca-matrix .fac-table td:first-child {
+  position: sticky;
+  /* `inset-inline-start` لا `left`: الصفحة عربية، والتثبيت يجب أن يتبع الاتجاه. */
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--xpl-surface);
+}
+/* الرأس مثبَّت أفقيًا **ورأسيًا** عند تقاطع الأول مع الأول. */
+.ca-matrix .fac-table thead th:first-child { z-index: 2; }
+.ca-matrix .fac-table tfoot td:first-child { background: var(--xpl-faint-2); }
+/* الصفوف المخطَّطة تفقد خلفيتها تحت الخليّة المثبَّتة ما لم تُورَّث صراحةً. */
+.ca-matrix .fac-table--zebra tbody tr:nth-child(even) td:first-child { background: var(--xpl-faint-2); }
+
+.ca-matrix-head { font-weight: 800; }
+
+/* القُطر = حُصِّل داخل سنته. تمييزه هو جوهر ما تقيسه الصفحة. */
+.ca-matrix-diagonal .fac-money { color: var(--xpl-green); }
+
+/* ── التحصيل المُرحَّل ────────────────────────────────────────────────────── */
+
+.ca-deferred { color: var(--xpl-orange); }
+.ca-transfer-arrow { display: inline-flex; color: var(--xpl-muted); }
+.ca-transfer-arrow .material-symbols-outlined { font-size: 17px !important; }
+
+/* ── التوسيع داخل الصفوف ──────────────────────────────────────────────────── */
+
+.ca-inline-list { display: flex; flex-direction: column; gap: 8px; }
+
+.ca-timeline { display: flex; flex-direction: column; gap: 6px; }
+.ca-timeline-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--xpl-text);
+}
+.ca-timeline-meta {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+}
+
+/* ── الدرج ────────────────────────────────────────────────────────────────── */
+
+.ca-drawer-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+/* ── استجابة الشاشات الضيّقة ──────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .ca-range-card { margin-inline-start: 0; width: 100%; }
+  .ca-filter-wide { min-width: 150px; flex: 1 1 150px; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   الطباعة / تصدير PDF
+
+   القواعد العامة (فواصل الصفحات، تكرار الرؤوس، إلغاء الاقتطاع، إخفاء العناصر
+   التفاعلية) ترثها الصفحة من `.fac-page` في ورقة مركز التحليل المالي — لا تُكرَّر
+   هنا. ما يخصّ هذه الصفحة وحدها هو المصفوفة: التثبيت لا معنى له على الورق.
+   **لا `@page` هنا إطلاقًا**: قاعدة عالمية على مستوى المستند كانت ستغيّر هندسة
+   طباعة كل شاشة أخرى في النظام.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  .ca-page .ca-matrix .xpl-table-wrap { overflow: visible; }
+  .ca-page .ca-matrix .fac-table th:first-child,
+  .ca-page .ca-matrix .fac-table td:first-child { position: static; }
+
+  /* صفوف التفصيل الموسَّعة تُطبع كما هي — لكن زرّ التوسيع نفسه لا معنى له على
+     الورق. يُخفى **الزرّ وحده** لا عمود التحكّم: إخفاء العمود يُسقط خليّة من كل
+     صفّ بينما يبقى `colSpan` صفّ التفصيل محسوبًا عليها، فينحرف الجدول كلّه. */
+  .ca-page .fac-row-toggle { visibility: hidden; }
+}

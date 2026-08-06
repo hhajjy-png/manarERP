@@ -146,6 +146,12 @@
   box-shadow: var(--xpl-shadow-sm);
   transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
   text-align: start;
+  /* الحدّ الصلب: لا محرف يتجاوز حدود البطاقة مهما طال.
+     مبلغ مثل `9,999,999,999.999` رمزٌ واحد بلا موضع التفاف، فكان يُرسم بعرضه
+     الطبيعي ويسيل خارج الإطار (البطاقة لم تكن تقصّ شيئًا). هذا السطر هو الضمان
+     البنيوي؛ وتصغير الخطّ أدناه هو ما يجعل الضمان غير مكلِّف — فلا يصل رقمٌ إلى
+     حافّة القصّ أصلًا. */
+  overflow: hidden;
 }
 .xpl-metric--click { cursor: pointer; }
 .xpl-metric--click:hover,
@@ -168,13 +174,29 @@
   flex-shrink: 0;
 }
 .xpl-metric-icon .material-symbols-outlined { font-size: 21px !important; color: var(--xpl-primary); }
-.xpl-metric-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.xpl-metric-label { font-size: 11.5px; color: var(--xpl-muted); }
-.xpl-metric-value { font-size: 19px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.3px; font-variant-numeric: tabular-nums; }
-.xpl-metric-sub   { font-size: 10.5px; color: var(--xpl-muted); }
+/* الجسم يتقلّص، والأيقونة لا (`flex-shrink: 0` أعلاه). `min-width: 0` يُبطل
+   العرض الأدنى الضمني للمحتوى — وبدونه يرفض الجسم النزول تحت عرض أطول رمز فيه
+   فيدفع البطاقة كلّها. `flex: 1 1 auto` يجعله يملأ ما تبقّى بعد الأيقونة صراحةً
+   بدل الاعتماد على الحساب الضمني. */
+.xpl-metric-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+
+/* نصّ وصفي: «…» عند الضيق مقبولة — المعنى يبقى مفهومًا من أوّله. */
+.xpl-metric-label { font-size: 11.5px; color: var(--xpl-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* القيمة المالية: `nowrap` + `overflow: hidden` **بلا `text-overflow`** عمدًا.
+   «…» على مبلغ تصنع رقمًا مختلفًا لا رقمًا مختصرًا — و«1,234…» تُقرأ خطأً بلا أي
+   إشارة إلى ذلك. القصّ هنا شبكة أمان لا سلوكًا متوقَّعًا: `useFitText` يُصغّر
+   الخطّ حتى يتّسع الرقم كاملًا قبل أن تُستعمل الشبكة أصلًا.
+   `nowrap` شرطٌ للقياس نفسه: بدونه يلتفّ النصّ ويصبح `scrollWidth` مساويًا
+   للعرض المتاح دائمًا، فلا يكتشف الخطّاف أي فيض. */
+.xpl-metric-value { font-size: 19px; font-weight: 800; color: var(--xpl-text); letter-spacing: -.3px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+
+.xpl-metric-sub   { font-size: 10.5px; color: var(--xpl-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Optional month-on-month trend indicator (arrow = real direction, colour = good/bad) */
-.xpl-metric-trend { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; margin-top: 1px; font-variant-numeric: tabular-nums; }
+/* حاوية مرنة، فلا تعمل عليها `text-overflow`؛ `max-width` + `min-width: 0`
+   يبقيانها داخل الجسم، و`nowrap` يمنع كسر السهم عن نسبته إلى سطرين. */
+.xpl-metric-trend { display: inline-flex; align-items: center; gap: 3px; font-size: 10.5px; font-weight: 700; margin-top: 1px; font-variant-numeric: tabular-nums; max-width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; }
 .xpl-metric-trend .material-symbols-outlined { font-size: 13px !important; }
 .xpl-metric-trend--up   { color: var(--xpl-green); }
 .xpl-metric-trend--down { color: var(--xpl-red); }

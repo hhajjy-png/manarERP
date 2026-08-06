@@ -31,6 +31,17 @@ export function monthLabel(key: string, withYear: boolean): string {
 }
 
 /**
+ * نسبة مئوية بمنزلتين، أو `null` عند مقام غير موجب.
+ *
+ * `null` لا صفر: «لا أساس للنسبة» و«النسبة صفر» حالتان مختلفتان، ودمجهما يعرض
+ * `0%` على جدول لا إيراد فيه أصلًا. الواجهة تعرض شرطة خافتة للأولى.
+ */
+export function percentOf(part: number, total: number): number | null {
+  if (!(total > 0)) return null;
+  return Math.round((part / total) * 10000) / 100;
+}
+
+/**
  * توزيع النسب المئوية بطريقة **أكبر البواقي** (Hamilton) على منزلة عشرية واحدة.
  *
  * التقريب المستقل لكل نسبة لا يجمع إلى 100% بالضرورة (33.3×3 = 99.9). هذه الطريقة

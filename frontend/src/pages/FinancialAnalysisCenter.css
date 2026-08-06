@@ -191,6 +191,43 @@
 .fac-mono { font-family: var(--app-font-mono); font-variant-numeric: tabular-nums; }
 .fac-muted { color: var(--xpl-muted); }
 
+/* ── توسيع الصفّ داخل الجدول ──────────────────────────────────────────────
+   عمود تحكّم واحد بعرض محتواه، وصفّ تفصيل يمتدّ على عرض الجدول كاملًا. لا يظهر
+   أيّ منهما إلا حين يمرّر الجدول `expandable`، فلا يتغيّر أي جدول قائم. */
+
+.fac-expand-col { width: 1%; padding-inline: 6px !important; }
+
+.fac-row-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--xpl-muted);
+  cursor: pointer;
+  transition: background .15s ease, color .15s ease;
+}
+.fac-row-toggle:hover,
+.fac-row-toggle:focus-visible {
+  background: var(--xpl-faint);
+  color: var(--xpl-primary);
+  outline: none;
+}
+.fac-row-toggle .material-symbols-outlined { font-size: 18px !important; }
+
+/* صفّ التفصيل: مساحة عمل داخلية بخلفية خافتة تفصله بصريًا عن صفوف البيانات،
+   ومسافة بادئة من جهة البداية تدلّ على أنه تابع للصفّ فوقه. */
+.fac-row-detail > td {
+  background: var(--xpl-faint-2);
+  padding: 10px 12px !important;
+  border-inline-start: 3px solid var(--xpl-primary);
+  white-space: normal;
+}
+
 /* صفّ المجاميع — أثقل بصريًا وثابت أسفل الجدول. */
 .fac-totals-row td {
   background: var(--xpl-faint-2);
@@ -301,6 +338,19 @@
   color: var(--xpl-text);
 }
 .fac-top-card-title .material-symbols-outlined { font-size: 17px !important; color: var(--xpl-primary); }
+
+/* ── قسم البوّابة ──────────────────────────────────────────────────────────────
+   قسم لا جدول له: عنوان + وصف + زرّ واحد. يرث غلاف `.fac-section` كاملًا فلا
+   يبدو غريبًا بين الأقسام، ويضيف حدًّا ملوّنًا خفيفًا يميّزه كمدخل لا كتقرير. */
+
+.fac-gateway { border-inline-start: 3px solid var(--xpl-primary); }
+.fac-gateway-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--xpl-muted);
+  max-width: 88ch;
+}
 
 /* ── ملاحظات ونافذة التفصيل ───────────────────────────────────────────────── */
 
