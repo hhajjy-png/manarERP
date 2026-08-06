@@ -53,6 +53,7 @@ import {
   serialiseSnapshot,
   withAllocatedReference,
 } from './snapshot';
+import { createVersionInTransaction } from './revisions.service';
 
 /** Who is acting. A text snapshot, never a foreign key. */
 export interface Actor {
@@ -345,6 +346,19 @@ export async function registerLetter(
   const year = letter.issueDate.getFullYear();
 
   return prisma.$transaction(async (tx) => {
+    // Before the number exists — so the history holds the document exactly as it stood
+    // when it was issued, and inside this transaction so a rolled-back registration
+    // leaves no snapshot behind. The version route cannot produce this kind; only
+    // registration knows a registration is happening.
+    await createVersionInTransaction(tx, {
+      letterId: id,
+      kind: 'PRE_REGISTER',
+      note: 'لقطة تلقائية عند التسجيل',
+      pageCount: snapshot.pageCount,
+      actorId: actor.id ?? null,
+      actorName: actor.name ?? null,
+    });
+
     const allocated = await allocateReferenceInTransaction(tx, letter.templateKey, year, id, actor);
     const registered = await repo.markRegistered(tx, id, {
       reference: allocated.reference,

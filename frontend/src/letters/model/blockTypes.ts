@@ -35,6 +35,8 @@
 
 import { type FontId } from '../../styles/fontRegistry';
 import { type TextAlignment } from '../registry/typographyPresets';
+import { type DocumentLayout } from './layoutTypes';
+import { type Condition } from '../variables/conditions';
 
 /**
  * Version of the block model's own shape, stored with every document.
@@ -44,18 +46,84 @@ import { type TextAlignment } from '../registry/typographyPresets';
  * one so that a later change to the model is an explicit migration decision rather
  * than a silent coercion of stored drafts.
  */
-export const CONTENT_MODEL_VERSION = 1;
+/**
+ * ── VERSION 2 — Document Studio Foundation v1 ────────────────────────────
+ * Version 2 is a PURELY ADDITIVE widening of version 1:
+ *
+ *   · three new inline marks   (highlight, superscript, subscript)
+ *   · one new block kind       (heading)
+ *   · seven new OPTIONAL block attributes
+ *
+ * Nothing was removed, narrowed or renamed, so every version-1 document is already a
+ * structurally valid version-2 document. The migration in
+ * `blockCommands.parseDocument` therefore re-stamps the version and changes not one
+ * byte of content — which is what makes it safe to run on stored drafts.
+ *
+ * Every new attribute is optional, and every reader treats `undefined` as "the
+ * engine's historical behaviour". That is deliberate: a required field with a default
+ * would make an untouched v1 paragraph and a deliberately-reset v2 paragraph
+ * indistinguishable in storage.
+ *
+ * ── VERSION 3 — Document Layout Designer v1 ─────────────────────────────
+ * Additive again, and for the same reason: version 3 adds ONE optional field,
+ * `layout`, carrying the positioned-object layer (see `model/layoutTypes`). A
+ * version-2 document has no layout layer, which is indistinguishable from a version-3
+ * document whose author placed no objects — so the migration is a re-stamp for the
+ * second time, and a version-1 document still arrives at the same place through it.
+ *
+ * The layer lives INSIDE `contentJson` deliberately. That column is a free-form string
+ * the backend stores verbatim and never parses, so the entire designer needs no
+ * schema change, no migration and no new endpoint — and the document stays ONE value
+ * that saves, loads and versions atomically. A second column would have made it
+ * possible to save a layout whose blocks did not arrive.
+ *
+ * ── VERSION 4 — Professional Document Automation v1 ─────────────────────
+ * Additive for the third time: an optional `condition` on a block's attributes, and an
+ * optional `bindings` field on the document carrying which employee, contract and
+ * project its variables resolve against. Nothing removed, nothing narrowed — so the
+ * migration is a re-stamp again, and a version-1 draft still arrives here in one step.
+ *
+ * Variable TOKENS need no model change at all: they are ordinary characters in
+ * ordinary block text (`{{Employee}}`), and substitution happens on the way to the
+ * screen and the paper, never on the way to storage. See `variables/variableSyntax`.
+ */
+export const CONTENT_MODEL_VERSION = 4;
+
+/** Versions of the model this build can read. Older ones are migrated, never coerced. */
+export const SUPPORTED_CONTENT_MODEL_VERSIONS: readonly number[] = [1, 2, 3, 4];
 
 /**
- * Inline marks. Exactly two, and the pair is closed.
+ * Inline marks. Five, and the set is closed.
  *
- * Italic is absent by registry evidence, not by taste — see
- * `PROHIBITED_TOOLBAR_COMMANDS`. Colour and highlight are absent because official
- * letters are black on pre-printed stock.
+ * Italic is still absent by registry evidence, not by taste — no approved Arabic face
+ * ships one, so the browser would synthesise a slant. Colour is still absent because
+ * official letters are black on pre-printed stock.
+ *
+ * `highlight` joined in v2 and is rendered as a NEUTRAL GREY WASH rather than a hue,
+ * so the black-on-stock rule survives the addition intact. `superscript` and
+ * `subscript` joined with it; both are whole-paragraph marks like the rest, so a
+ * paragraph is raised or lowered entirely or not at all.
  */
-export type InlineMark = 'bold' | 'underline';
+export type InlineMark = 'bold' | 'underline' | 'highlight' | 'superscript' | 'subscript';
 
-export const INLINE_MARKS: readonly InlineMark[] = ['bold', 'underline'];
+export const INLINE_MARKS: readonly InlineMark[] = [
+  'bold',
+  'underline',
+  'highlight',
+  'superscript',
+  'subscript',
+];
+
+/**
+ * Marks that cannot coexist on the same block.
+ *
+ * Raised and lowered text is a contradiction rather than a combination, and letting
+ * both sit in the array would leave the renderer to pick a winner silently.
+ * `toggleBlockMark` drops the opposite member when one is applied.
+ */
+export const MUTUALLY_EXCLUSIVE_MARKS: readonly (readonly [InlineMark, InlineMark])[] = [
+  ['superscript', 'subscript'],
+];
 
 /**
  * A run of text sharing the same marks. The smallest addressable unit of content.
@@ -77,9 +145,24 @@ export interface InlineSpan {
  * change the serialised shape and force a `CONTENT_MODEL_VERSION` bump for documents
  * already in the field — which INV-14 exists to avoid.
  */
-export type BlockKind = 'paragraph' | 'listItem' | 'pageBreak';
+export type BlockKind = 'paragraph' | 'listItem' | 'heading' | 'pageBreak';
 
-export const BLOCK_KINDS: readonly BlockKind[] = ['paragraph', 'listItem', 'pageBreak'];
+export const BLOCK_KINDS: readonly BlockKind[] = ['paragraph', 'listItem', 'heading', 'pageBreak'];
+
+/**
+ * Heading depth. Six levels, matching the six the Document Studio toolbar offers.
+ *
+ * A heading is a BLOCK KIND rather than a font size, so the document outline can be
+ * derived from structure instead of guessed from typography — which is the whole
+ * reason a "Heading 1" that is merely 22 pt bold is not good enough.
+ */
+export type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+
+export const HEADING_LEVELS: readonly HeadingLevel[] = [1, 2, 3, 4, 5, 6];
+
+export function isHeadingLevel(value: unknown): value is HeadingLevel {
+  return typeof value === 'number' && (HEADING_LEVELS as readonly number[]).includes(value);
+}
 
 /** List rendering style. Present only on a `listItem`. */
 export type ListType = 'numbered' | 'bulleted';
@@ -113,6 +196,46 @@ export interface BlockAttributes {
   readonly indentLevel: number;
   /** Present if and only if `kind === 'listItem'`. */
   readonly listType?: ListType;
+
+  /* ── Version 2 additions. Every one optional; see CONTENT_MODEL_VERSION ──
+     `undefined` means "the engine's historical behaviour", never "zero" — the two
+     are different facts and storing them identically would lose one of them. */
+
+  /** Present if and only if `kind === 'heading'`. */
+  readonly headingLevel?: HeadingLevel;
+  /**
+   * The named paragraph style this block was last set from, for the toolbar to
+   * reflect. Presentational bookkeeping: the concrete type is always in the
+   * attributes themselves, so a style id this build no longer knows changes nothing
+   * about how the block renders.
+   */
+  readonly paragraphStyleId?: string;
+  /** As `paragraphStyleId`, for the named character style. */
+  readonly characterStyleId?: string;
+  /** Multiplier. A rung of `LINE_HEIGHT_LADDER`; `undefined` = the renderer's default. */
+  readonly lineHeight?: number;
+  /** Space after the block, in points. A rung of `PARAGRAPH_SPACING_LADDER_PT`. */
+  readonly paragraphSpacingPt?: number;
+  /** Tracking, in points. A rung of `LETTER_SPACING_LADDER_PT`. Never negative. */
+  readonly letterSpacingPt?: number;
+  /**
+   * First-line indent, in millimetres. Mutually exclusive with `hangingIndentMm` —
+   * a paragraph cannot both push and pull its first line, and
+   * `setBlockIndentation` clears one when the other is set.
+   */
+  readonly firstLineIndentMm?: number;
+  /** Hanging indent, in millimetres. Mutually exclusive with `firstLineIndentMm`. */
+  readonly hangingIndentMm?: number;
+
+  /**
+   * Version 4: the block renders only when this evaluates true.
+   *
+   * Absent means "always". A block whose condition is false is not rendered, not
+   * measured and not paginated — it is as if it were not in the document, which is the
+   * only reading that keeps the page count honest. See `variables/conditions` for why
+   * every broken condition resolves to `true` rather than hiding content.
+   */
+  readonly condition?: Condition;
 }
 
 /**
@@ -140,6 +263,38 @@ export interface Block {
 export interface BlockDocument {
   readonly contentModelVersion: number;
   readonly blocks: readonly Block[];
+  /**
+   * The positioned-object layer (version 3).
+   *
+   * Optional: absent means the author placed no objects, which is the state of every
+   * letter written before this pack and of most letters written after it. Absent and
+   * empty are treated identically by every reader, so nothing has to decide which one
+   * a document "really" is.
+   */
+  readonly layout?: DocumentLayout;
+  /**
+   * Which records this letter's variables resolve against (version 4).
+   *
+   * A BINDING IS DOCUMENT CONTENT, exactly as the recipient's name is — "this letter
+   * is about employee 42" is a fact the letter asserts. Storing it here rather than as
+   * a foreign key on the `Letter` table is what lets the whole variables engine ship
+   * with no schema change, and it keeps the letter one value that saves, undoes and
+   * versions atomically.
+   */
+  readonly bindings?: DocumentBindings;
+}
+
+/**
+ * The records a letter's variables read from.
+ *
+ * Ids only, never copies of the records. Values are resolved live while the letter is
+ * a draft and frozen into the registration snapshot when it is issued — see
+ * `variables/variableResolver` for why both halves are necessary.
+ */
+export interface DocumentBindings {
+  readonly employeeId?: number | null;
+  readonly contractId?: number | null;
+  readonly projectId?: number | null;
 }
 
 /* ── Type guards ────────────────────────────────────────────────────────── */
@@ -158,7 +313,12 @@ export function isListType(value: unknown): value is ListType {
 
 /** Does this block carry text? `pageBreak` does not. */
 export function isTextBlock(block: Block): boolean {
-  return block.kind === 'paragraph' || block.kind === 'listItem';
+  return block.kind === 'paragraph' || block.kind === 'listItem' || block.kind === 'heading';
+}
+
+/** Is this a heading, and therefore an outline entry? */
+export function isHeadingBlock(block: Block): boolean {
+  return block.kind === 'heading';
 }
 
 /* ── Construction helpers ───────────────────────────────────────────────────

@@ -1,0 +1,255 @@
+/**
+ * Document Studio — toolbar styles.
+ *
+ * One row, six named groups, no ribbon. Built on the composer's own tokens
+ * (`letter-tokens.css`) so it follows the app's light and dark modes without a second
+ * palette, and scoped under `.lc-page` by those tokens so nothing here can reach
+ * another screen.
+ */
+
+.dt-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  flex-wrap: wrap;
+  padding: 3px 8px;
+  background: var(--surface, #fff);
+  border-bottom: 0;
+  /* The toolbar is the widest element on the strip; at narrow widths it scrolls
+     horizontally rather than wrapping into a second row, because a second row costs
+     paper permanently while a scroll costs nothing until it is needed. */
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.dt-bar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.dt-bar::-webkit-scrollbar-thumb {
+  background: var(--border, #e2e8f0);
+  border-radius: 6px;
+}
+
+/* ── Groups ────────────────────────────────────────────────────────────────
+   Separated by a SHORT centred rule rather than a full-height one: a divider that
+   spans the whole bar chops it into boxes, whereas an 18px rule reads as a grouping
+   hint. This is the detail that most distinguishes a word processor's toolbar from a
+   row of buttons, and it is inherited unchanged from the previous composer. */
+.dt-group {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  padding-inline-end: 8px;
+  margin-inline-end: 4px;
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.dt-group::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 20px;
+  background: var(--border, #e2e8f0);
+}
+
+.dt-group--last::after,
+.dt-group:last-of-type::after {
+  display: none;
+}
+
+.dt-group-items {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* The group name. Present for the eye and for the accessibility tree, but it must not
+   cost a row of height — so it is a 8.5px caption tucked above the controls, and it
+   disappears entirely below 1200px where every pixel of width is contested. */
+.dt-group-label {
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  color: var(--text-muted, #64748b);
+  opacity: 0.65;
+  padding-inline-start: 3px;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@media (max-width: 1200px) {
+  .dt-group-label {
+    display: none;
+  }
+}
+
+.dt-spacer {
+  flex: 1 1 auto;
+  min-width: 8px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.dt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  transition:
+    background-color var(--lt-fast, 130ms) ease-out,
+    border-color var(--lt-fast, 130ms) ease-out,
+    color var(--lt-fast, 130ms) ease-out;
+}
+
+.dt-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+/* Hover gains a hairline as well as a fill. A fill alone makes a button look pressed;
+   the border is what makes it read as raised and clickable. */
+.dt-btn:hover:not(:disabled) {
+  background: var(--surface-2, #f1f5f9);
+  border-color: var(--border, #e2e8f0);
+}
+
+/* A distinct pressed state. Without it a click gives no acknowledgement until the
+   document changes, which on a slow paragraph feels like the button missed. */
+.dt-btn:active:not(:disabled) {
+  background: var(--border, #e2e8f0);
+  transform: translateY(0.5px);
+}
+
+/* Disabled is dimmed AND flattened — opacity alone still invites a click. */
+.dt-btn:disabled {
+  opacity: 0.32;
+  cursor: default;
+  background: transparent;
+  border-color: transparent;
+}
+
+/* An active tool is a filled chip, not a subtle tint — at 18px an icon needs the
+   contrast to read as "on" at a glance. */
+.dt-btn.is-on {
+  background: var(--accent, #1d4e6f);
+  border-color: var(--accent, #1d4e6f);
+  color: #fff;
+}
+
+.dt-btn:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+/* ── Selects ───────────────────────────────────────────────────────────── */
+
+.dt-select {
+  height: 30px;
+  min-width: 62px;
+  padding: 0 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.dt-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dt-select:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+.dt-select--style {
+  min-width: 96px;
+}
+
+.dt-select--charstyle {
+  min-width: 88px;
+}
+
+.dt-select--size {
+  min-width: 56px;
+}
+
+.dt-font-picker {
+  min-width: 170px;
+}
+
+/* ── The spacing popover ───────────────────────────────────────────────── */
+
+.dt-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.dt-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  z-index: 40;
+  min-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-lg, 9px);
+  background: var(--surface, #fff);
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.16);
+}
+
+.dt-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text, #0f172a);
+}
+
+.dt-field-label {
+  white-space: nowrap;
+}
+
+.dt-field .dt-select {
+  min-width: 104px;
+}
+
+.dt-menu-note {
+  margin: 2px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted, #64748b);
+}
+
+/* ── View controls ─────────────────────────────────────────────────────── */
+
+.dt-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

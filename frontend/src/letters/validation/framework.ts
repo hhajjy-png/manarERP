@@ -47,6 +47,15 @@ export interface ValidationLocation {
   /** Which section — the panel focuses this part of the document when clicked. */
   readonly sectionKind?: string;
   /**
+   * Which layout object (Document Layout Designer v1).
+   *
+   * Distinct from `blockId`: a block is flow content the paginator placed, an object
+   * is positioned content the author placed. Sharing one field would make the
+   * validation panel guess which of the two to navigate to, and it would guess wrong
+   * for whichever id space happened to collide first.
+   */
+  readonly objectId?: string;
+  /**
    * Overshoot in millimetres, for geometric findings (INV-1 — never pixels).
    *
    * The reason a message can say "page 2, 6 mm past the band" instead of "content

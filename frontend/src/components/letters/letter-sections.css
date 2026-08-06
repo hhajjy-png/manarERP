@@ -160,6 +160,64 @@
   cursor: default;
 }
 
+/* ── Paragraph rows, headings and lists (Document Studio Foundation v1) ────
+   A paragraph is now wrapped in a row so a list marker can sit beside it. For every
+   NON-list block the row is transparent scaffolding: `display: contents` would be
+   tempting here, but it would drop the row from the box tree and the measurement
+   mirror measures rows — so the row is a plain block with no box of its own instead.
+
+   NOT ONE MILLIMETRE IS DECLARED IN THIS SECTION. Line height, paragraph spacing,
+   letter spacing and both indents all arrive as inline styles computed from the block's
+   own attributes (see `blockStyle`), which is what lets the measurement mirror measure
+   them and the paginator stay ignorant of them. */
+.ls-para-row {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+/* A list row puts the marker in the inline-start gutter and lets the text fill the
+   rest. `align-items: baseline` so the bullet sits on the text's baseline rather than
+   floating at the top of a multi-line item. */
+.ls-para-row--list {
+  display: flex;
+  align-items: baseline;
+  gap: 2mm;
+}
+
+.ls-para-row--list .ls-paragraph {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The marker inherits the item's own type through an inline style, so a numbered item
+   set in 18 pt gets an 18 pt number. It is `aria-hidden` and never selectable: it is
+   generated chrome, and letting it be copied would put "1." into the clipboard as if
+   it were part of the author's text. */
+.ls-list-marker {
+  flex: 0 0 auto;
+  min-width: 6mm;
+  text-align: start;
+  -webkit-user-select: none;
+  user-select: none;
+  /* The marker must never take the item's own indents — those belong to the text. */
+  text-indent: 0 !important;
+  padding-inline-start: 0 !important;
+  margin-inline-start: 0 !important;
+  margin-block-end: 0 !important;
+}
+
+/* Headings need no size or weight here: both arrive from the block's attributes and
+   its `bold` mark. What this rule adds is the one thing typography cannot express —
+   that a heading should not be stranded at the foot of a page away from the text it
+   introduces. */
+.ls-paragraph--heading {
+  break-after: avoid;
+  page-break-after: avoid;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
 /* ── Signature and stamp ───────────────────────────────────────────────────
    Real content now: these ARE the letter's authority, so they print. No dimension is
    declared here — the image heights arrive as inline millimetres from the Geometry

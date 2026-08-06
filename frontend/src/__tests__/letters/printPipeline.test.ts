@@ -414,6 +414,19 @@ describe('letter-print.css', () => {
     const sources = ['LetterPaper.tsx', 'LetterPageStack.tsx', 'LetterSections.tsx', 'ValidationPanel.tsx']
       .map((f) => readFileSync(join(COMPONENTS, f), 'utf8'))
       .concat(
+        // Document Studio chrome. Every one of these renders interface rather than
+        // ink, so every one of them must be in the deny-list — and this scan is what
+        // proves the deny-list still names something real.
+        [
+          'DocumentToolbar.tsx', 'DocumentStatusBar.tsx', 'DocumentNavigator.tsx',
+          'FindReplacePanel.tsx', 'ShortcutsDialog.tsx',
+          // Document Layout Designer v1. `LayoutObjectView` is included even though
+          // its `.lo-object` rule is NOT a deny-list entry — the stylesheet also
+          // suppresses `.lo-placeholder`, which that component renders.
+          'LayoutToolbar.tsx', 'LayoutCanvas.tsx', 'ObjectInspector.tsx', 'LayoutObjectView.tsx',
+          // Professional Document Automation v1.
+          'InsertPanel.tsx', 'DocumentPropertiesPanel.tsx', 'ConditionEditor.tsx', 'RevisionPanel.tsx',
+        ].map((f) => readFileSync(join(COMPONENTS, 'studio', f), 'utf8')),
         ['LetterComposer.tsx', 'LetterComposer.css'].map((f) =>
           readFileSync(join(process.cwd(), 'src', 'pages', f), 'utf8'),
         ),

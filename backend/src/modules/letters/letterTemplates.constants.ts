@@ -127,8 +127,26 @@ export const BARCODE_VERSION_LATEST = 1;
 /** The one print profile enabled in v1. */
 export const DEFAULT_PRINT_PROFILE_ID = 'companyLetterhead';
 
-/** Version of the block model's serialised shape, mirrored from the frontend. */
-export const CONTENT_MODEL_VERSION = 1;
+/**
+ * Version of the block model's serialised shape, mirrored from the frontend.
+ *
+ * ── 1 → 2 → 3 → 4, EVERY STEP PURELY ADDITIVE ────────────────────────────
+ *   2 — Document Studio Foundation v1: three inline marks, the `heading` block kind,
+ *       seven optional block attributes.
+ *   3 — Document Layout Designer v1: one optional field, `layout`, carrying the
+ *       positioned-object layer.
+ *   4 — Professional Document Automation v1: an optional `condition` on a block's
+ *       attributes, and an optional `bindings` field naming the employee, contract and
+ *       project the document's variables resolve against. Variable TOKENS need no
+ *       model change at all — they are ordinary characters in ordinary block text.
+ *
+ * The backend still stores `contentJson` verbatim and parses none of it — this
+ * constant is a LABEL the mirror test pins against the frontend, not a shape the
+ * server understands. Keeping it accurate is what makes that test able to catch a
+ * frontend model change that the backend's stored version stamp would otherwise
+ * silently misdescribe.
+ */
+export const CONTENT_MODEL_VERSION = 4;
 
 /**
  * Does this string have the shape of a reference this engine has EVER issued?

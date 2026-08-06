@@ -76,6 +76,13 @@ export type ValidationRuleId =
   | 'E13_impossibleGeometry'
   | 'E14_oversizedParagraph'
   | 'E15_reservedElementPlacement'
+  // ── Layout objects (Document Layout Designer v1) ──────────────────────
+  | 'E16_objectInReservedZone'
+  | 'E17_objectOutsidePage'
+  // ── Automation (Professional Document Automation v1) ──────────────────
+  | 'E18_unresolvedVariable'
+  | 'E19_unknownVariable'
+  | 'E20_brokenCondition'
   // ── information ───────────────────────────────────────────────────────
   | 'I1_documentPageCount'
   // ── warnings ──────────────────────────────────────────────────────────
@@ -86,7 +93,11 @@ export type ValidationRuleId =
   | 'W5_typographyDeviation'
   | 'W6_issueDateOutOfRange'
   | 'W7_sparseManualPageBreak'
-  | 'W8_lastPageNearlyFull';
+  | 'W8_lastPageNearlyFull'
+  | 'W9_objectOverlapsContent'
+  | 'W10_objectOffPage'
+  | 'W11_recipientMissing'
+  | 'W12_bindingUnresolved';
 
 /**
  * Names of the numeric parameters a rule accepts. A template supplies a value for
@@ -109,7 +120,7 @@ export interface ValidationRuleDescriptor {
    * The pack that will implement this rule. Documentation only — no code reads it —
    * but it makes the P0 boundary auditable at a glance.
    */
-  readonly implementedIn: 'P4' | 'P6' | 'P7' | 'P8';
+  readonly implementedIn: 'P4' | 'P6' | 'P7' | 'P8' | 'P9';
 }
 
 export const VALIDATION_RULES = {
@@ -239,6 +250,73 @@ export const VALIDATION_RULES = {
     implementedIn: 'P4',
   },
 
+  /* ── Blocking — layout objects ─────────────────────────────────────────
+     THE RULE THE POSITIONED LAYER EXISTS UNDER.
+
+     `insertTextBox` was prohibited because "absolutely-positioned content cannot be
+     pagination-validated, so it can silently enter a reserved zone". E16 is the
+     answer: a layout object declares its own rectangle, so its geometry is KNOWN
+     rather than measured, and an object reaching the pre-printed letterhead refuses
+     the print exactly as E4 does for flow content. `silently` was the word that
+     mattered, and it no longer applies. */
+
+  E16_objectInReservedZone: {
+    id: 'E16_objectInReservedZone',
+    severity: 'blocking',
+    description:
+      'No layout object may intersect the reserved header or footer band of the active print ' +
+      'profile (INV-2, INV-3). Judged on the object’s true rotated corners, never on its ' +
+      'axis-aligned bounding box, which is larger than the object and would refuse prints for ' +
+      'overlaps that do not exist.',
+    paramNames: [],
+    implementedIn: 'P8',
+  },
+  E17_objectOutsidePage: {
+    id: 'E17_objectOutsidePage',
+    severity: 'blocking',
+    description:
+      'A layout object extends past the physical edge of the sheet. Beyond a reserved-zone ' +
+      'overlap: this is content that will not be printed at all.',
+    paramNames: [],
+    implementedIn: 'P8',
+  },
+
+  /* ── Blocking — automation ────────────────────────────────────────────
+     E18 is what makes a variables engine safe to ship. Without it the feature turns
+     from one that saves typing into a mechanism for posting an official letter that
+     reads «المحترم {{Employee}}». */
+
+  E18_unresolvedVariable: {
+    id: 'E18_unresolvedVariable',
+    severity: 'blocking',
+    description:
+      'Every variable the document uses must resolve to a value. Judged against the SAME ' +
+      'resolved map the renderer painted with, never re-resolved, so the rule cannot pass a ' +
+      'letter the page rendered with a hole in it.',
+    paramNames: [],
+    implementedIn: 'P9',
+  },
+  E19_unknownVariable: {
+    id: 'E19_unknownVariable',
+    severity: 'blocking',
+    description:
+      'A {{token}} naming a variable the catalogue does not declare. Separate from E18 because ' +
+      'the fix is different: an unresolved variable needs data, an unknown one needs the text ' +
+      'corrected.',
+    paramNames: [],
+    implementedIn: 'P9',
+  },
+  E20_brokenCondition: {
+    id: 'E20_brokenCondition',
+    severity: 'blocking',
+    description:
+      'A conditional block whose condition cannot be evaluated. Blocking even though nothing ' +
+      'looks wrong: a broken condition renders its content, so the letter LOOKS right while ' +
+      'the rule the author wrote is silently ignored.',
+    paramNames: [],
+    implementedIn: 'P9',
+  },
+
   /* ── Information ───────────────────────────────────────────────────── */
 
   I1_documentPageCount: {
@@ -314,6 +392,49 @@ export const VALIDATION_RULES = {
       'font-rendering difference between machines could tip it into an E4 violation.',
     paramNames: ['nearlyFullPercent'],
     implementedIn: 'P4',
+  },
+
+  /* ── Advisory — layout objects ─────────────────────────────────────── */
+
+  W9_objectOverlapsContent: {
+    id: 'W9_objectOverlapsContent',
+    severity: 'warning',
+    description:
+      'Advises when a layout object covers part of the flowing text band. Legitimate — a ' +
+      'watermark-style block or a margin note is deliberately over the measure — so advisory ' +
+      'rather than blocking. The engine does not decide what an author meant to overlap.',
+    paramNames: [],
+    implementedIn: 'P8',
+  },
+  W11_recipientMissing: {
+    id: 'W11_recipientMissing',
+    severity: 'warning',
+    description:
+      'Advises when no addressee is named. Advisory because the template declares the recipient ' +
+      'section optional — a circular or a general notice is legitimately unaddressed, and ' +
+      'blocking would make the engine contradict its own registry.',
+    paramNames: [],
+    implementedIn: 'P9',
+  },
+  W12_bindingUnresolved: {
+    id: 'W12_bindingUnresolved',
+    severity: 'warning',
+    description:
+      'Advises when a variable binding points at a record that no longer loads. Advisory because ' +
+      'E18 already refuses the print for every variable that consequently has no value; this ' +
+      'names the CAUSE so the author fixes one binding instead of chasing six variables.',
+    paramNames: [],
+    implementedIn: 'P9',
+  },
+  W10_objectOffPage: {
+    id: 'W10_objectOffPage',
+    severity: 'warning',
+    description:
+      'Advises when a layout object sits on a page index the document no longer has — the ' +
+      'content shortened after the object was placed. The object is not printed and not lost; ' +
+      'it returns when the document grows again.',
+    paramNames: [],
+    implementedIn: 'P8',
   },
 } as const satisfies Record<ValidationRuleId, ValidationRuleDescriptor>;
 

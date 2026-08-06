@@ -1,0 +1,330 @@
+/**
+ * Document Studio — navigation rail styles.
+ *
+ * Sits beside the paper, never over it. The rail is on the canvas rather than on the
+ * app surface, so it reads as part of the document workspace — the same choice Acrobat
+ * and Word make for their page-thumbnail panes.
+ */
+
+.dnv-rail {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 172px;
+  width: 172px;
+  min-height: 0;
+  background: color-mix(in srgb, var(--lt-canvas, #4b5563) 88%, #000);
+  border-inline-end: 1px solid rgba(0, 0, 0, 0.28);
+  color: var(--lt-on-canvas, rgba(255, 255, 255, 0.62));
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+}
+
+/* ── Head ──────────────────────────────────────────────────────────────── */
+
+.dnv-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 4px;
+  border-bottom: 1px solid var(--lt-on-canvas-rule, rgba(255, 255, 255, 0.22));
+}
+
+.dnv-tabs {
+  display: inline-flex;
+  gap: 2px;
+  flex: 1 1 auto;
+}
+
+.dnv-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--lt-on-canvas-dim, rgba(255, 255, 255, 0.42));
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) ease-out, color var(--lt-fast, 130ms) ease-out;
+}
+
+.dnv-tab .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.dnv-tab:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dnv-tab.is-on {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+}
+
+.dnv-tab:focus-visible,
+.dnv-close:focus-visible,
+.dnv-thumb:focus-visible,
+.dnv-entry:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.dnv-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--lt-on-canvas-dim, rgba(255, 255, 255, 0.42));
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.dnv-close .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.dnv-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Quick jump ────────────────────────────────────────────────────────── */
+
+.dnv-jump {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  font-size: 10.5px;
+  color: var(--lt-on-canvas-dim, rgba(255, 255, 255, 0.42));
+  border-bottom: 1px solid var(--lt-on-canvas-rule, rgba(255, 255, 255, 0.22));
+}
+
+.dnv-jump input {
+  width: 46px;
+  height: 22px;
+  padding: 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: var(--lt-r-sm, 3px);
+  background: rgba(0, 0, 0, 0.24);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.dnv-jump input:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 0;
+}
+
+.dnv-jump-of {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+
+.dnv-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dnv-body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.dnv-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ── Thumbnails ────────────────────────────────────────────────────────── */
+
+.dnv-thumbs {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.dnv-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+/* The sheet. White, with a real shadow — the mini map has to read as paper for the
+   bands inside it to read as content on paper. */
+.dnv-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 6px;
+  background: #fff;
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3), 0 2px 5px rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+  transition: box-shadow var(--lt-fast, 130ms) ease-out, transform var(--lt-fast, 130ms) ease-out;
+}
+
+.dnv-thumb:hover .dnv-sheet {
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.34), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* The sheet in view gets the accent ring — the same "which page am I on" answer the
+   page stack gives with depth, expressed here where depth alone is too small to read. */
+.dnv-thumb.is-current .dnv-sheet {
+  box-shadow: 0 0 0 2px var(--accent, #1d4e6f), 0 3px 9px rgba(0, 0, 0, 0.4);
+}
+
+.dnv-thumb.is-current .dnv-thumb-label {
+  color: #fff;
+  font-weight: 700;
+}
+
+.dnv-thumb-label {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lt-on-canvas-dim, rgba(255, 255, 255, 0.42));
+}
+
+/* Bands. Grey by default; the two authority blocks are tinted so the eye can find the
+   signature and the barcode without reading anything. */
+.dnv-band {
+  display: block;
+  width: 100%;
+  border-radius: 1px;
+  background: rgba(15, 23, 42, 0.16);
+  flex: 0 0 auto;
+}
+
+.dnv-band--head {
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.dnv-band--content {
+  background: rgba(15, 23, 42, 0.14);
+}
+
+.dnv-band--signature {
+  background: color-mix(in srgb, var(--accent, #1d4e6f) 42%, transparent);
+}
+
+.dnv-band--barcode {
+  background: rgba(15, 23, 42, 0.42);
+}
+
+/* ── Outline ───────────────────────────────────────────────────────────── */
+
+.dnv-outline {
+  list-style: none;
+  margin: 0;
+  padding: 6px 4px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dnv-entry {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  padding: 5px 6px;
+  border: 0;
+  border-radius: var(--lt-r-sm, 3px);
+  background: transparent;
+  color: var(--lt-on-canvas, rgba(255, 255, 255, 0.62));
+  font: inherit;
+  font-size: 11px;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) ease-out;
+}
+
+.dnv-entry:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.dnv-entry .material-symbols-outlined {
+  font-size: 13px;
+  opacity: 0.5;
+  flex: 0 0 auto;
+}
+
+/* An entry with nothing in it yet is dimmed rather than hidden — it is exactly the
+   entry an author needs to click on to go and write it. */
+.dnv-entry.is-empty {
+  opacity: 0.45;
+  font-style: normal;
+}
+
+.dnv-entry-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.dnv-entry-label {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dnv-entry-preview {
+  font-size: 10px;
+  opacity: 0.62;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dnv-entry-page {
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.5;
+}
+
+/* Heading depth, expressed as indent. Six steps of 9px — enough to read as hierarchy,
+   small enough that a level-6 heading still has room for its text in a 172px rail. */
+.dnv-entry--d1 { padding-inline-start: 15px; }
+.dnv-entry--d2 { padding-inline-start: 24px; }
+.dnv-entry--d3 { padding-inline-start: 33px; }
+.dnv-entry--d4 { padding-inline-start: 42px; }
+.dnv-entry--d5 { padding-inline-start: 51px; }
+.dnv-entry--d6 { padding-inline-start: 60px; }
+
+.dnv-entry--d1 .dnv-entry-label { font-size: 11px; }
+.dnv-entry--d2 .dnv-entry-label,
+.dnv-entry--d3 .dnv-entry-label { font-size: 10.5px; font-weight: 500; }
+.dnv-entry--d4 .dnv-entry-label,
+.dnv-entry--d5 .dnv-entry-label,
+.dnv-entry--d6 .dnv-entry-label { font-size: 10px; font-weight: 400; }

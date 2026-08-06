@@ -24,11 +24,20 @@
 import { findFont } from '../../styles/fontRegistry';
 import { FONT_SIZE_LADDER_PT, TEXT_ALIGNMENTS } from '../registry/typographyPresets';
 import {
+  isLadderFirstLineIndentMm,
+  isLadderHangingIndentMm,
+  isLadderLetterSpacingPt,
+  isLadderLineHeight,
+  isLadderParagraphSpacingPt,
+} from '../registry/toolbarCommands';
+import {
   type Block,
   type BlockDocument,
   CONTENT_MODEL_VERSION,
   MAX_INDENT_LEVEL,
+  MUTUALLY_EXCLUSIVE_MARKS,
   isBlockKind,
+  isHeadingLevel,
   isInlineMark,
   isListType,
 } from './blockTypes';
@@ -141,6 +150,14 @@ function validateBlock(block: Block, index: number, seenIds: Set<string>): Block
         if (new Set(span.marks).size !== span.marks.length) {
           defects.push(at(`Span ${spanIndex} repeats a mark.`));
         }
+        /* Raised AND lowered is a contradiction, not a combination. Caught here so a
+           document written by some other tool cannot leave the renderer to pick a
+           winner silently. */
+        for (const [a, b] of MUTUALLY_EXCLUSIVE_MARKS) {
+          if (span.marks.includes(a) && span.marks.includes(b)) {
+            defects.push(at(`Span ${spanIndex} carries both "${a}" and "${b}", which cannot coexist.`));
+          }
+        }
       }
     });
   }
@@ -193,7 +210,7 @@ function validateAttributes(
   }
 
   /* `listType` present exactly when the block is a list item — the structural
-     invariant that keeps the single block shape honest about its three kinds. */
+     invariant that keeps the single block shape honest about its kinds. */
   const hasListType = attributes.listType !== undefined;
   if (block.kind === 'listItem') {
     if (!hasListType) {
@@ -203,6 +220,81 @@ function validateAttributes(
     }
   } else if (hasListType) {
     defects.push(at(`Only a listItem block may declare \`listType\` (kind is "${block.kind}").`));
+  }
+
+  /* `headingLevel` present exactly when the block is a heading — the same invariant,
+     applied to the kind version 2 added. Without it a paragraph could carry a level
+     the outline would then list as a heading it is not. */
+  const hasHeadingLevel = attributes.headingLevel !== undefined;
+  if (block.kind === 'heading') {
+    if (!hasHeadingLevel) {
+      defects.push(at('A heading block must declare `headingLevel`.'));
+    } else if (!isHeadingLevel(attributes.headingLevel)) {
+      defects.push(at(`Heading level ${String(attributes.headingLevel)} is outside 1…6.`));
+    }
+  } else if (hasHeadingLevel) {
+    defects.push(at(`Only a heading block may declare \`headingLevel\` (kind is "${block.kind}").`));
+  }
+
+  defects.push(...validateVersion2Attributes(attributes, at));
+
+  return defects;
+}
+
+/**
+ * The optional attributes version 2 added.
+ *
+ * Each is checked ONLY when present. `undefined` means "the engine's historical
+ * behaviour" and is always valid — including on a version-1 document that has just been
+ * migrated, which is precisely why the migration needs to change no content.
+ *
+ * Every one is checked against its LADDER rather than against a numeric range. That is
+ * the structural half of lifting the four spacing prohibitions: an off-ladder value is
+ * a defect the load path reports, not a number the renderer quietly accepts.
+ */
+function validateVersion2Attributes(
+  attributes: Block['attributes'],
+  at: (message: string) => BlockModelDefect,
+): BlockModelDefect[] {
+  const defects: BlockModelDefect[] = [];
+
+  const ladders: readonly {
+    readonly key: 'lineHeight' | 'paragraphSpacingPt' | 'letterSpacingPt' | 'firstLineIndentMm' | 'hangingIndentMm';
+    readonly isRung: (value: number) => boolean;
+    readonly what: string;
+  }[] = [
+    { key: 'lineHeight', isRung: isLadderLineHeight, what: "the line-height ladder" },
+    { key: 'paragraphSpacingPt', isRung: isLadderParagraphSpacingPt, what: 'the paragraph-spacing ladder (pt)' },
+    { key: 'letterSpacingPt', isRung: isLadderLetterSpacingPt, what: 'the letter-spacing ladder (pt)' },
+    { key: 'firstLineIndentMm', isRung: isLadderFirstLineIndentMm, what: 'the first-line-indent ladder (mm)' },
+    { key: 'hangingIndentMm', isRung: isLadderHangingIndentMm, what: 'the hanging-indent ladder (mm)' },
+  ];
+
+  for (const { key, isRung, what } of ladders) {
+    const value = attributes[key];
+    if (value === undefined) continue;
+    if (typeof value !== 'number' || !isRung(value)) {
+      defects.push(at(`\`${key}\` ${String(value)} is not a rung of ${what}.`));
+    }
+  }
+
+  /* A paragraph cannot both push and pull its first line. Both at zero is not a
+     contradiction — it is two explicit "none"s — so only non-zero pairs are a defect. */
+  if ((attributes.firstLineIndentMm ?? 0) > 0 && (attributes.hangingIndentMm ?? 0) > 0) {
+    defects.push(
+      at('`firstLineIndentMm` and `hangingIndentMm` are mutually exclusive; only one may be non-zero.'),
+    );
+  }
+
+  /* Style ids are presentational bookkeeping and are NOT validated against the style
+     registry. An id this build no longer declares degrades to "custom" in the picker
+     and changes nothing about how the block renders — so rejecting it would fail a
+     document over a label. */
+  for (const key of ['paragraphStyleId', 'characterStyleId'] as const) {
+    const value = attributes[key];
+    if (value !== undefined && typeof value !== 'string') {
+      defects.push(at(`\`${key}\` must be a string when present.`));
+    }
   }
 
   return defects;

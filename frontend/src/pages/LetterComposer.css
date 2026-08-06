@@ -90,14 +90,153 @@
   min-width: 0;
 }
 
+/* ── Mode switch ───────────────────────────────────────────────────────────
+   Two named modes over one document: Compose writes the letter, Design arranges what
+   sits on top of it. Rendered as tabs rather than as a toggle because a toggle would
+   have to be read to know which state it is in, whereas a selected tab says so.
+
+   Slim by design — this is the third row of chrome on the page, and every row is a row
+   of paper the author cannot see. */
+.lc-modes {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 4px 10px 0;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.lc-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--lt-r-md, 7px) var(--lt-r-md, 7px) 0 0;
+  background: transparent;
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  /* Pulls the selected tab down over the strip's own border, which is what makes it
+     read as continuous with the toolbar beneath rather than as a floating chip. */
+  margin-bottom: -1px;
+  transition:
+    background-color var(--lt-fast, 130ms) ease-out,
+    color var(--lt-fast, 130ms) ease-out;
+}
+
+.lc-mode .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.lc-mode:hover:not(.is-on) {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+.lc-mode.is-on {
+  background: var(--surface, #fff);
+  border-color: var(--border, #e2e8f0);
+  color: var(--accent, #1d4e6f);
+}
+
+.lc-mode:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: -2px;
+}
+
+/* How many objects the letter carries. Present only when there are any, so a letter
+   that has never used the designer shows no badge at all. */
+.lc-mode-count {
+  min-width: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent, #1d4e6f);
+  color: #fff;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ── Design mode ───────────────────────────────────────────────────────────
+   The text surfaces stop accepting the pointer so a click lands on the design canvas
+   instead of placing a caret. Done in CSS rather than by unmounting the editors:
+   unmounting would lose the caret, the scroll position and the auto-grown heights, and
+   would re-measure the whole document on every mode switch. */
+.lc-page.is-designing .ls-paragraph,
+.lc-page.is-designing .ls-line-input,
+.lc-page.is-designing .ls-date-input {
+  pointer-events: none;
+}
+
+/* The section labels are Compose-mode chrome; in Design mode they compete with the
+   object outlines for the same edges. */
+.lc-page.is-designing .ls-section-label {
+  opacity: 0.35;
+}
+
+/* The condition editor's anchor. Fixed near the command strip rather than tethered to
+   the paragraph: a paragraph can be anywhere on a scrolling page, and a popover that
+   chased it would be off screen as often as on. */
+.lc-condition-anchor {
+  position: fixed;
+  top: 132px;
+  inset-inline-end: 24px;
+  z-index: 60;
+}
+
+/* ── The workspace ─────────────────────────────────────────────────────────
+   The navigation rail beside the paper, both filling the height between the command
+   strip and the status bar.
+
+   A row rather than an overlay: a rail that floated over the canvas would cover the
+   sheet at the exact zoom levels where the sheet is widest, and an author looking at
+   a thumbnail is usually comparing it to the page beside it. */
+.lc-workspace {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 /* Containing block for the measurement layer, which is absolutely positioned so it
    occupies no space in the flow while still being laid out. */
 .lc-paper-area {
   position: relative;
   flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* The export menu. A select rather than a button-with-popover: it carries four
+   destinations, one of them permanently disabled with a reason, and a native select
+   gives the disabled option, its tooltip and full keyboard access for nothing. */
+.lc-export-select {
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.lc-export-select:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.lc-export-select:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
 }
 
 /* ── Save state ────────────────────────────────────────────────────────── */
@@ -123,6 +262,13 @@
 
 .lc-save-state .is-saved {
   color: #15803d;
+}
+
+/* A failed save. Amber rather than red: the work is not lost — the recovery draft
+   holds it — so this is a warning about where the document is, not an error about
+   what happened to it. */
+.lc-save-state .is-failed {
+  color: #92400e;
 }
 
 .lc-readonly-pill {

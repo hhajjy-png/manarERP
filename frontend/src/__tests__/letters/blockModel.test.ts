@@ -79,8 +79,11 @@ function defectText(document: BlockDocument): string {
 
 describe('Block Model — shape', () => {
   it('declares the closed sets the editor may use', () => {
-    expect([...INLINE_MARKS]).toEqual(['bold', 'underline']);
-    expect([...BLOCK_KINDS]).toEqual(['paragraph', 'listItem', 'pageBreak']);
+    // Widened by Document Studio Foundation v1: three marks and one block kind were
+    // ADDED. The sets are still closed and nothing was removed — which is precisely
+    // what makes the version-1 → version-2 migration a re-stamp rather than a rewrite.
+    expect([...INLINE_MARKS]).toEqual(['bold', 'underline', 'highlight', 'superscript', 'subscript']);
+    expect([...BLOCK_KINDS]).toEqual(['paragraph', 'listItem', 'heading', 'pageBreak']);
     expect([...LIST_TYPES]).toEqual(['numbered', 'bulleted']);
     expect(MAX_INDENT_LEVEL).toBe(2);
   });

@@ -49,17 +49,60 @@ export function presetStyle(preset: TypographyPreset): CSSProperties {
   };
 }
 
-/** CSS for one paragraph, from its own block attributes. */
+/**
+ * CSS for one paragraph, from its own block attributes.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  EVERY VERSION-2 ATTRIBUTE IS EXPRESSED HERE, AND THAT IS WHAT MAKES THEM SAFE.
+ * ══════════════════════════════════════════════════════════════════════════
+ * The hidden measurement mirror renders the SAME components through this same
+ * function, so a line height, a paragraph spacing or a tracking value affects the
+ * measured height exactly as it affects the painted one. The paginator never learns
+ * that these attributes exist — it measures the result. That is the structural answer
+ * to the original prohibition on all four as "unmodelled pagination inputs"
+ * (see `LIFTED_TOOLBAR_PROHIBITIONS`).
+ *
+ * `undefined` falls back to the engine's historical value rather than to zero, because
+ * throughout the model `undefined` means "historical behaviour", not "none".
+ */
 export function blockStyle(block: Block, indentStepMm: number): CSSProperties {
   const marks = block.spans[0]?.marks ?? [];
+  const attributes = block.attributes;
+
+  // Raised and lowered text is rendered by shifting the baseline rather than by
+  // `vertical-align: super`, which browsers implement inconsistently against a `pt`
+  // font size and which would therefore measure differently from what it paints.
+  const shifted = marks.includes('superscript') || marks.includes('subscript');
+  const shiftEm = marks.includes('superscript') ? '0.36em' : marks.includes('subscript') ? '-0.22em' : undefined;
+
   return {
-    fontFamily: letterFontStack(block.attributes.fontId),
-    fontSize: `${block.attributes.sizePt}pt`,
-    lineHeight: 1.35,
-    textAlign: block.attributes.alignment === 'start' ? 'start' : block.attributes.alignment,
+    fontFamily: letterFontStack(attributes.fontId),
+    // A raised or lowered run is set smaller, as type has always done it. The
+    // reduction is applied to the RENDERED size only; `sizePt` in the model is
+    // untouched, so the size ladder and the integrity checker still see a valid rung.
+    fontSize: shifted ? `${attributes.sizePt * 0.72}pt` : `${attributes.sizePt}pt`,
+    lineHeight: attributes.lineHeight ?? 1.35,
+    letterSpacing: attributes.letterSpacingPt ? `${attributes.letterSpacingPt}pt` : undefined,
+    textAlign: attributes.alignment === 'start' ? 'start' : attributes.alignment,
     fontWeight: marks.includes('bold') ? 700 : 400,
     textDecoration: marks.includes('underline') ? 'underline' : 'none',
-    marginInlineStart: `${block.attributes.indentLevel * indentStepMm}mm`,
+    // A NEUTRAL GREY WASH, never a hue. Highlight was prohibited alongside text colour
+    // because official letters are black on pre-printed stock; rendering the mark
+    // without a colour keeps that rule intact while giving the author the emphasis.
+    backgroundColor: marks.includes('highlight') ? 'rgba(15, 23, 42, 0.12)' : undefined,
+    verticalAlign: shifted ? 'baseline' : undefined,
+    position: shifted ? 'relative' : undefined,
+    insetBlockEnd: shiftEm,
+    marginInlineStart: `${attributes.indentLevel * indentStepMm}mm`,
+    marginBlockEnd: attributes.paragraphSpacingPt ? `${attributes.paragraphSpacingPt}pt` : undefined,
+    // A hanging indent is a first-line indent of the opposite sign against a padded
+    // block — the standard construction, and the only one that survives justification.
+    textIndent: attributes.hangingIndentMm
+      ? `-${attributes.hangingIndentMm}mm`
+      : attributes.firstLineIndentMm
+        ? `${attributes.firstLineIndentMm}mm`
+        : undefined,
+    paddingInlineStart: attributes.hangingIndentMm ? `${attributes.hangingIndentMm}mm` : undefined,
   };
 }
 
@@ -143,6 +186,7 @@ export function RecipientSection({
   active,
   severity,
   onFocus,
+  resolveText,
 }: {
   value: RecipientValue;
   onChange: (patch: Partial<RecipientValue>) => void;
@@ -151,6 +195,8 @@ export function RecipientSection({
   active: boolean;
   severity?: ValidationSeverity | null;
   onFocus: () => void;
+  /** Substitutes variable tokens. Read-only rendering only — see `Paragraph`. */
+  resolveText?: (text: string) => string;
 }) {
   // Three fields rather than one free line: a structured recipient is searchable, is
   // reusable by a future multi-recipient section, and never has to be re-parsed out of
@@ -166,7 +212,9 @@ export function RecipientSection({
       <div className="ls-recipient" style={presetStyle(preset)}>
         {fields.map((field) =>
           readOnly ? (
-            value[field.key] ? <div key={field.key}>{value[field.key]}</div> : null
+            value[field.key] ? (
+              <div key={field.key}>{resolveText ? resolveText(value[field.key]) : value[field.key]}</div>
+            ) : null
           ) : (
             <input
               key={field.key}
@@ -194,6 +242,7 @@ export function SubjectSection({
   active,
   severity,
   onFocus,
+  resolveText,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -202,13 +251,15 @@ export function SubjectSection({
   active: boolean;
   severity?: ValidationSeverity | null;
   onFocus: () => void;
+  /** Substitutes variable tokens. Read-only rendering only — see `Paragraph`. */
+  resolveText?: (text: string) => string;
 }) {
   return (
     <SectionShell label="الموضوع" active={active} severity={severity} onFocusCapture={onFocus}>
       <div className="ls-subject" style={presetStyle(preset)}>
         <span className="ls-subject-prefix">الموضوع:</span>
         {readOnly ? (
-          <span>{value}</span>
+          <span>{resolveText ? resolveText(value) : value}</span>
         ) : (
           <input
             className="ls-line-input ls-subject-input"
@@ -231,6 +282,19 @@ export interface ParagraphHandlers {
   onEnter: (blockId: string, caretOffset: number) => void;
   onBackspaceAtStart: (blockId: string) => void;
   onFocusBlock: (blockId: string) => void;
+  /**
+   * Caret moved or selection changed.
+   *
+   * Carries the control's CURRENT text as well as the offsets, so the composer can
+   * compute line, column and selection size without reaching back into the document.
+   * That is not a convenience: deriving the text from state would mean doing it inside
+   * a state updater, and a side effect there runs twice under StrictMode.
+   *
+   * Optional, so the measurement mirror — which has nothing to report to — needs no stub.
+   */
+  onSelectionChange?: (blockId: string, text: string, selectionStart: number, selectionEnd: number) => void;
+  /** Multi-paragraph plain-text paste, to be split into blocks by the composer. */
+  onPasteMultiline?: (blockId: string, selectionStart: number, selectionEnd: number, text: string) => void;
 }
 
 /**
@@ -246,26 +310,73 @@ const Paragraph = forwardRef<HTMLTextAreaElement, {
   indentStepMm: number;
   readOnly: boolean;
   handlers: ParagraphHandlers;
-}>(function Paragraph({ block, indentStepMm, readOnly, handlers }, ref) {
-  const text = blockText(block);
+  /** Ordinal for a numbered list item, 1-based. Undefined for every other kind. */
+  listOrdinal?: number;
+  /**
+   * Substitutes `{{Variable}}` tokens for their values.
+   *
+   * ══════════════════════════════════════════════════════════════════════════
+   *  APPLIED TO THE READ-ONLY RENDERING ONLY, AND THAT ASYMMETRY IS THE DESIGN.
+   * ══════════════════════════════════════════════════════════════════════════
+   * The editable textarea shows the TOKEN, because an author must be able to edit the
+   * variable they inserted — substituting there would make `{{Employee}}` unreachable
+   * the instant it resolved, and there is no way back from "أحمد محمد" to the question
+   * that produced it.
+   *
+   * Everything else — the measurement mirror, print mode, a registered letter, the
+   * value preview — renders RESOLVED, because that is what reaches the paper. Measuring
+   * the token instead would paginate the document against text nobody will ever see.
+   */
+  resolveText?: (text: string) => string;
+}>(function Paragraph({ block, indentStepMm, readOnly, handlers, listOrdinal, resolveText }, ref) {
+  const raw = blockText(block);
+  const text = readOnly && resolveText ? resolveText(raw) : raw;
+  const style = blockStyle(block, indentStepMm);
+
+  // A list marker is CHROME AROUND the text, never part of it: putting "1. " into the
+  // block's own text would make the number searchable, replaceable and countable as a
+  // word, and renumbering the list would rewrite the document.
+  const marker =
+    block.kind === 'listItem'
+      ? block.attributes.listType === 'numbered'
+        ? `${listOrdinal ?? 1}.`
+        : '•'
+      : null;
+
+  const kindClass =
+    block.kind === 'heading'
+      ? ` ls-paragraph--heading ls-paragraph--h${block.attributes.headingLevel ?? 1}`
+      : block.kind === 'listItem'
+        ? ' ls-paragraph--list'
+        : '';
+
+  const rowClass = `ls-para-row${marker ? ' ls-para-row--list' : ''}`;
+  const markerNode = marker ? (
+    <span className="ls-list-marker" style={style} aria-hidden="true">{marker}</span>
+  ) : null;
 
   if (readOnly) {
     return (
-      <p className="ls-paragraph ls-paragraph--ro" style={blockStyle(block, indentStepMm)}>
+      <div className={rowClass}>
+      {markerNode}
+      <p className={`ls-paragraph ls-paragraph--ro${kindClass}`} style={style}>
         {text || ' '}
       </p>
+      </div>
     );
   }
 
   return (
+    <div className={rowClass}>
+    {markerNode}
     <textarea
       ref={ref}
-      className="ls-paragraph"
+      className={`ls-paragraph${kindClass}`}
       data-block-id={block.id}
-      style={blockStyle(block, indentStepMm)}
+      style={style}
       value={text}
       rows={1}
-      aria-label="فقرة"
+      aria-label={block.kind === 'heading' ? `عنوان مستوى ${block.attributes.headingLevel ?? 1}` : 'فقرة'}
       onChange={(e) => {
         handlers.onTextChange(block.id, e.target.value);
         // Auto-grow: the paper must show the real height of the paragraph, not a
@@ -277,6 +388,25 @@ const Paragraph = forwardRef<HTMLTextAreaElement, {
         handlers.onFocusBlock(block.id);
         e.target.style.height = 'auto';
         e.target.style.height = `${e.target.scrollHeight}px`;
+        handlers.onSelectionChange?.(block.id, e.target.value, e.target.selectionStart, e.target.selectionEnd);
+      }}
+      // Caret and selection reporting for the status bar. `onSelect` fires for clicks,
+      // drags and keyboard movement alike, which is why it is used instead of wiring
+      // three separate handlers that would each have to agree with the others.
+      onSelect={(e) => {
+        const target = e.currentTarget;
+        handlers.onSelectionChange?.(block.id, target.value, target.selectionStart, target.selectionEnd);
+      }}
+      // PASTE IS ALWAYS PLAIN — a textarea cannot receive HTML, so the sanitisation the
+      // block model requires is free. What is NOT free is multi-paragraph text: pasting
+      // three paragraphs would otherwise produce one block containing two newlines, a
+      // shape the model has no way to express and the paginator no way to break.
+      onPaste={(e) => {
+        const pasted = e.clipboardData.getData('text/plain');
+        if (!pasted.includes('\n') || !handlers.onPasteMultiline) return;
+        e.preventDefault();
+        const target = e.currentTarget;
+        handlers.onPasteMultiline(block.id, target.selectionStart, target.selectionEnd, pasted);
       }}
       onKeyDown={(e) => {
         const target = e.currentTarget;
@@ -293,6 +423,7 @@ const Paragraph = forwardRef<HTMLTextAreaElement, {
         }
       }}
     />
+    </div>
   );
 });
 
@@ -305,6 +436,8 @@ export function ContentSection({
   handlers,
   registerRef,
   onFocus,
+  listOrdinals,
+  resolveText,
 }: {
   document: BlockDocument;
   indentStepMm: number;
@@ -314,6 +447,17 @@ export function ContentSection({
   handlers: ParagraphHandlers;
   registerRef: (blockId: string, el: HTMLTextAreaElement | null) => void;
   onFocus: () => void;
+  /**
+   * Numbered-list ordinals by block id, computed against the WHOLE document.
+   *
+   * Supplied rather than derived here because the composer renders this section one
+   * block at a time — the paginator's unit is the block, so each paragraph arrives in
+   * its own `ContentSection` with a single-block document. Counting locally would
+   * restart every list at 1.
+   */
+  listOrdinals?: Readonly<Record<string, number>>;
+  /** Substitutes variable tokens. Applied to the read-only rendering only. */
+  resolveText?: (text: string) => string;
 }) {
   return (
     <SectionShell label="المحتوى" active={active} severity={severity} onFocusCapture={onFocus}>
@@ -326,11 +470,37 @@ export function ContentSection({
             indentStepMm={indentStepMm}
             readOnly={readOnly}
             handlers={handlers}
+            listOrdinal={listOrdinals?.[block.id]}
+            resolveText={resolveText}
           />
         ))}
       </div>
     </SectionShell>
   );
+}
+
+/**
+ * Numbered-list ordinals for a whole document.
+ *
+ * A run of consecutive numbered items shares a sequence; anything else — a paragraph, a
+ * heading, a bulleted item — ends the run and the next numbered item starts again at 1.
+ * That is what "consecutive" means to a reader, and deriving it from adjacency rather
+ * than from a stored counter means the numbering can never disagree with the page.
+ */
+export function computeListOrdinals(document: BlockDocument): Record<string, number> {
+  const ordinals: Record<string, number> = {};
+  let run = 0;
+
+  for (const block of document.blocks) {
+    if (block.kind === 'listItem' && block.attributes.listType === 'numbered') {
+      run += 1;
+      ordinals[block.id] = run;
+    } else {
+      run = 0;
+    }
+  }
+
+  return ordinals;
 }
 
 /* ── 5 & 6. Signature, stamp and barcode ─────────────────────────────────── */

@@ -1689,10 +1689,13 @@ model Letter {
   cancelledAt      DateTime?
   cancelReason     String?
 
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
   /// الخط الزمني للمستند — حدث لكل انتقال حالة ولكل أرشفة/إلغاء أرشفة.
-  timeline LetterTimelineEvent[]
+  timeline  LetterTimelineEvent[]
+  /// النسخ المحفوظة والتعليقات — Professional Document Automation v1.
+  versions  LetterVersion[]
+  comments  LetterComment[]
 
   @@index([status])
   @@index([templateKey, status])
@@ -1714,6 +1717,102 @@ model Letter {
 /// لأن الرقم المرجعي يظل محسوبًا مهما جرى للمستند. أمّا الخط الزمني فهو تاريخ المستند
 /// نفسه، والمستند الوحيد القابل للحذف هو المسودة — ومسودة لم يصدر لها رقم قط لا تترك
 /// تاريخًا يستحق الحفظ. فالحذف المتتالي هنا صحيح، ويمنع تراكم صفوف يتيمة.
+/// نسخة محفوظة من مستند الخطاب — Professional Document Automation v1.
+///
+/// ══════════════════════════════════════════════════════════════════════════
+///  جدول مستقل، لا عمود في `letters`. والسبب أن النسخة تنمو بلا حدّ.
+/// ══════════════════════════════════════════════════════════════════════════
+/// كل نسخة صورة كاملة من `contentJson`، فتخزينها داخل `contentJson` نفسه يعني أن
+/// المستند يحوي نسخًا من نفسه — ويتجاوز سقف الحقل (٢ ميغابايت) بعد نسخ قليلة.
+/// الجدول المستقل يعطي فهرسًا، وحذفًا انتقائيًا، وحدًّا أقصى قابلًا للتطبيق.
+///
+/// اللقطة نصية بالكامل: لا مفاتيح أجنبية إلى المستخدم ولا إلى القالب. النسخة سجلّ
+/// لِما كان، ويجب أن تبقى مقروءة بعد حذف المستخدم الذي أنشأها.
+model LetterVersion {
+  id       Int    @id @default(autoincrement())
+  letterId Int
+  letter   Letter @relation(fields: [letterId], references: [id], onDelete: Cascade)
+
+  /// رقم تسلسلي داخل الخطاب الواحد — يبدأ من ١ ولا يُعاد استخدامه.
+  /// فريد مع `letterId` حتى لا تتولّد نسختان بالرقم ذاته من طلبين متزامنين.
+  sequence Int
+
+  /// AUTO | NAMED | PRE_RESTORE | PRE_REGISTER
+  ///
+  /// `AUTO` لقطة دورية، و`NAMED` نسخة سمّاها المستخدم، و`PRE_RESTORE` تُلتقط قبل كل
+  /// استعادة (حتى تكون الاستعادة نفسها قابلة للتراجع)، و`PRE_REGISTER` قبل التسجيل.
+  kind String @default("AUTO")
+
+  /// اسم النسخة إن سمّاها المستخدم.
+  name String?
+  /// ملاحظة حرة يكتبها المستخدم.
+  note String?
+
+  /// صورة المستند وقت الحفظ — نموذج الكتل بصيغة JSON، كما في `letters.contentJson`.
+  contentJson           String
+  contentModelVersion   Int
+  /// حقول الأقسام وقت الحفظ، حتى تعيد الاستعادة الخطاب كاملًا لا محتواه فقط.
+  subject               String   @default("")
+  issueDate             DateTime
+  recipientName         String?
+  recipientTitle        String?
+  recipientOrganisation String?
+
+  /// إحصاءات محسوبة وقت الحفظ — تُعرض في القائمة بلا تحليل كل نسخة.
+  wordCount Int @default(0)
+  pageCount Int @default(0)
+
+  createdById   Int?
+  createdByName String?
+  createdAt     DateTime @default(now())
+
+  @@unique([letterId, sequence])
+  @@index([letterId, createdAt])
+  @@map("letter_versions")
+}
+
+/// تعليق على مستند الخطاب — Professional Document Automation v1.
+///
+/// الردود تعليقات أيضًا: `parentId` يشير إلى التعليق الأصل، فالخيط شجرة بمستوى واحد
+/// ولا يحتاج جدولًا ثانيًا. المرساة (`anchorKind` + `anchorId`) تربط التعليق بفقرة أو
+/// عنصر تصميم أو قسم، وكلها نصية — التعليق يبقى مقروءًا بعد حذف ما كان يشير إليه،
+/// وتعليق يختفي مع الفقرة يفقد أهم ما فيه: أنه قيل.
+model LetterComment {
+  id       Int    @id @default(autoincrement())
+  letterId Int
+  letter   Letter @relation(fields: [letterId], references: [id], onDelete: Cascade)
+
+  /// التعليق الأصل إن كان هذا ردًّا. `null` لتعليق في أعلى الخيط.
+  parentId Int?
+  parent   LetterComment?  @relation("LetterCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  LetterComment[] @relation("LetterCommentReplies")
+
+  /// block | object | section | document
+  anchorKind String  @default("document")
+  /// معرّف الكتلة أو عنصر التصميم أو اسم القسم. `null` لتعليق على المستند كله.
+  anchorId   String?
+
+  body String
+
+  /// أسماء المستخدمين المذكورين، مفصولة بفاصلة — لقطة نصية لا مفاتيح أجنبية.
+  mentions String @default("")
+
+  resolved       Boolean   @default(false)
+  resolvedById   Int?
+  resolvedByName String?
+  resolvedAt     DateTime?
+
+  createdById   Int?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([letterId])
+  @@index([letterId, resolved])
+  @@index([parentId])
+  @@map("letter_comments")
+}
+
 model LetterTimelineEvent {
   id       Int    @id @default(autoincrement())
   letterId Int

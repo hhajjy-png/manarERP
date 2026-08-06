@@ -174,3 +174,41 @@ export const listLettersQuerySchema = z.object({
     })
     .strip(),
 });
+
+/* ── Version history and comments (Professional Document Automation v1) ────
+   The same boundary discipline as the rest of this file: `contentJson` is never
+   accepted here — a version snapshots what the LETTER holds, read inside the
+   transaction, because a client-supplied snapshot could record something the letter
+   never contained. */
+
+/** POST /api/letters/:id/versions — take a snapshot. */
+export const createVersionSchema = z.object({
+  body: z
+    .object({
+      kind: z.enum(['AUTO', 'NAMED']).optional(),
+      name: z.string().max(120).nullable().optional(),
+      note: z.string().max(1000).nullable().optional(),
+      // Computed by the renderer — the backend cannot count words it will not parse.
+      wordCount: z.number().int().nonnegative().max(1_000_000).optional(),
+      pageCount: z.number().int().nonnegative().max(10_000).optional(),
+    })
+    .strict(),
+});
+
+/** POST /api/letters/:id/comments — open a thread or reply to one. */
+export const createCommentSchema = z.object({
+  body: z
+    .object({
+      parentId: z.number().int().positive().nullable().optional(),
+      anchorKind: z.enum(['block', 'object', 'section', 'document']).optional(),
+      anchorId: z.string().max(120).nullable().optional(),
+      body: z.string().min(1).max(4000),
+      mentions: z.array(z.string().max(120)).max(50).optional(),
+    })
+    .strict(),
+});
+
+/** PATCH /api/letters/:id/comments/:commentId — resolve or reopen. */
+export const resolveCommentSchema = z.object({
+  body: z.object({ resolved: z.boolean() }).strict(),
+});

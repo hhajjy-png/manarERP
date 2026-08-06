@@ -1,0 +1,202 @@
+/**
+ * Document Studio — find and replace strip.
+ *
+ * Docked in the command strip rather than floating over the paper. See the component
+ * header for why a modal was rejected.
+ */
+
+.frp-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--surface-2, #f1f5f9);
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.frp-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.frp-row--replace {
+  padding-inline-start: 0;
+}
+
+/* ── Fields ────────────────────────────────────────────────────────────── */
+
+.frp-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 240px;
+  flex: 0 1 300px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  transition: border-color var(--lt-fast, 130ms) ease-out;
+}
+
+.frp-field:focus-within {
+  border-color: var(--lt-focus, #1d4e6f);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lt-focus, #1d4e6f) 18%, transparent);
+}
+
+/* A query with no matches tints the FIELD rather than showing an error message: the
+   counter already says "لا نتائج", and a second announcement of the same fact is
+   noise. Amber rather than red — finding nothing is not an error. */
+.frp-field.has-no-match {
+  border-color: color-mix(in srgb, var(--lt-warning, #d97706) 55%, transparent);
+  background: color-mix(in srgb, var(--lt-warning, #d97706) 7%, var(--surface, #fff));
+}
+
+.frp-field .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--text-muted, #64748b);
+  flex: 0 0 auto;
+}
+
+.frp-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.frp-input:disabled {
+  opacity: 0.5;
+}
+
+.frp-count {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+
+.frp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text, #0f172a);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.frp-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.frp-btn:hover:not(:disabled) {
+  background: var(--surface, #fff);
+  border-color: var(--border, #e2e8f0);
+}
+
+.frp-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.frp-btn:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+/* Holds the replacement row in line with the query row above it. */
+.frp-btn--spacer {
+  pointer-events: none;
+}
+
+.frp-sep {
+  width: 1px;
+  height: 16px;
+  margin-inline: 4px;
+  background: var(--border, #e2e8f0);
+  flex: 0 0 auto;
+}
+
+.frp-spacer {
+  flex: 1 1 auto;
+}
+
+/* ── Option chips ──────────────────────────────────────────────────────── */
+
+.frp-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 7px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 0 0 auto;
+  transition:
+    background-color var(--lt-fast, 130ms) ease-out,
+    color var(--lt-fast, 130ms) ease-out;
+}
+
+.frp-chip.is-on {
+  background: var(--accent, #1d4e6f);
+  border-color: var(--accent, #1d4e6f);
+  color: #fff;
+}
+
+.frp-chip:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+/* ── Replace actions ───────────────────────────────────────────────────── */
+
+.frp-action {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.frp-action:hover:not(:disabled) {
+  background: var(--surface-2, #f1f5f9);
+}
+
+.frp-action:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.frp-action:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}

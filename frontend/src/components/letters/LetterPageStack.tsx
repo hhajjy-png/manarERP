@@ -37,13 +37,15 @@ export interface LetterPageStackProps {
   showZones: boolean;
   /** The items the paginator placed on a given page. */
   renderPage: (pageIndex: number) => ReactNode;
+  /** The positioned layer for a given page — objects plus designer chrome. */
+  renderLayoutLayer?: (pageIndex: number) => ReactNode;
   /** Registers each page element so the navigator can scroll to it. */
   pageRef: (pageIndex: number) => (el: HTMLElement | null) => void;
   currentPage: number;
 }
 
 const LetterPageStack = forwardRef<HTMLDivElement, LetterPageStackProps>(function LetterPageStack(
-  { printProfileId, layoutVersion, pageCount, zoom, showRulers, showGrid, showZones, renderPage, pageRef, currentPage },
+  { printProfileId, layoutVersion, pageCount, zoom, showRulers, showGrid, showZones, renderPage, renderLayoutLayer, pageRef, currentPage },
   viewportRef,
 ) {
   const geometry = getPageGeometry(printProfileId, layoutVersion);
@@ -72,6 +74,7 @@ const LetterPageStack = forwardRef<HTMLDivElement, LetterPageStackProps>(functio
               showZones={showZones}
               isCurrent={pageIndex === currentPage}
               elementRef={pageRef(pageIndex)}
+              layoutLayer={renderLayoutLayer?.(pageIndex)}
             >
               {renderPage(pageIndex)}
             </LetterPage>
