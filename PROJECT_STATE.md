@@ -43,14 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `c197e834` — release `stable-document-studio-v1` (Document Studio v1: transforms the Official Letter page from a basic rich-text editor into a professional enterprise Document Studio, in three additive layers merged as one release. **Foundation v1** — canvas experience, grouped toolbar, rich text (paragraph/character styles, format painter, line/letter/paragraph spacing, first-line/hanging indent), find & replace, document stats, mini navigator, zoom presets, keyboard shortcuts. **Layout Designer v1** — a drag/resize/rotate/lock/group object layer over the flow document, layers panel, object inspector, snapping, smart guides, alignment/distribution; the letterhead's reserved zones stay a blocking validation rule (E16) regardless of object placement. **Professional Document Automation v1** — an 18-variable engine resolved live on a DRAFT and frozen everywhere else, visual-only conditional content, asset/block/template/header-footer/signature/stamp libraries, document properties, version history (`AUTO`/`NAMED`/`PRE_RESTORE`/`PRE_REGISTER`, capped and pruned — never the two lifecycle kinds), track changes (word-level LCS diff, blocks matched by id, reject-only by construction since accept is a no-op), threaded comments (one level deep), auto-save, and Smart Export routed through the existing print/compose pipeline and its validation gate. Content model version 1→4, each step a purely additive re-stamp so stored drafts keep opening. Two new tables (`LetterVersion`, `LetterComment`) via a hand-written, dependency-reviewed migration; 9 new routes reuse the existing `letters.*` permission keys — no new key. No change to the print engine, preview pipeline, business logic or public APIs beyond the letters module, and no change to any page outside Official Letter. 100 files (66 new, 30 modified, 4 deleted); backend + frontend) |
-| **Previous production HEAD** | `3e684831` — release `stable-collection-analysis-page-v1` (Collection Analysis Page v1: a hidden analytical page answering how invoices were collected across fiscal years — deliberately not an extension of the Financial Analysis Center and not a second Financial Position table, because its subject is the relation between **two** fiscal years rather than a figure inside one period. A dedicated `CollectionAnalysisEngine` — pure, one fact per invoice built in a single pass, all output derived by indexed `Map` aggregation with no nested loops — imports its business rules from `shared/services/operational.reporting` instead of re-implementing them, so its figures match the dashboard and the Financial Analysis Center by definition; `financialAnalysis` is untouched and only numeric primitives are shared. Four bounded queries per request via relation filters. Outstanding is computed from an invoice's lifetime payments, never from the collection-date window, so the window cannot invent a receivable on a fully-paid invoice; "project" has no entity in this schema, so value and collections are apportioned across `ProjectPrice` agreements by line value, with the honest consequence that an invoice spanning two projects is counted in both — stated in the UI and Excel rather than hidden. Five professional tables and no charts, including the mandatory transition matrix whose axes are derived entirely from the data. Hidden from the sidebar; reachable only from a new "تحليل التحصيلات" gateway section in the Financial Analysis Center that sits outside the print root. `AnalysisTable` gained an **optional** `expandable` prop for inline two-level row expansion rather than a second table component, with a guard test asserting byte-identical rendering without it. Shipped with a shared KPI-card overflow fix reaching all 24 `MetricCard` consumers: the card now clips and the money value's font is measured down to fit rather than ellipsised, because an ellipsised amount is a different number, not a shortened one. 38 files (27 new, 11 modified); no Prisma/schema/migration, no new permission key, no chart library) |
+| **Production HEAD** | `7d7b4f99` — release `stable-document-studio-ux-polish-pack-v1` (Document Studio UX Polish Pack v1: UX/UI polish for the Official Letter page's Document Studio — no new business feature, no document-model/print-engine/pagination/backend change. A single documented z-index ladder (`--lt-z-canvas` → `--lt-z-dialog`) plus a shared `useFloatingPosition` hook that portals every floating panel to `document.body`, fixing the reported "Font dropdown hidden behind other panels": the real cause was `DocumentToolbar`'s own `overflow-x: auto` clipping FontPicker's dropdown before z-index was ever consulted, not stacking order — applied to FontPicker's dropdown, the toolbar's Spacing popover, and a new floating selection toolbar (Font/Size/Bold/Underline/Highlight/Alignment/Clear Formatting, appearing on an actual text selection, routed through the same command handlers the docked toolbar already uses). Resizable side rails (nav/layers, inspector, insert/revisions/properties slot) with a drag handle, keyboard resize and session-persisted width; collapsible Object Inspector section cards; a Layers panel drop-target indicator, selected-state edge bar and icon empty states; canvas per-object hover outline and handle/rotation hover feedback; toolbar group spacing refinement and panel entrance animation. Two defects found and fixed during a live-browser pass, not by static review: the new resize handles on Object Inspector and Document Properties were unclickable — a negative-inset handle silently clipped by that panel's own `overflow-y: auto` (which per the CSS spec also computes `overflow-x` away from `visible`) — confirmed via `document.elementFromPoint`, not assumed; and every handle had a ~45px dead zone under its panel's own sticky header from a z-index that didn't clear it. Both fixed and re-verified with a real simulated drag before merge. 33 files (6 new, 27 modified); frontend-only) |
+| **Previous production HEAD** | `c197e834` — release `stable-document-studio-v1` (Document Studio v1: transforms the Official Letter page from a basic rich-text editor into a professional enterprise Document Studio, in three additive layers merged as one release. **Foundation v1** — canvas experience, grouped toolbar, rich text (paragraph/character styles, format painter, line/letter/paragraph spacing, first-line/hanging indent), find & replace, document stats, mini navigator, zoom presets, keyboard shortcuts. **Layout Designer v1** — a drag/resize/rotate/lock/group object layer over the flow document, layers panel, object inspector, snapping, smart guides, alignment/distribution; the letterhead's reserved zones stay a blocking validation rule (E16) regardless of object placement. **Professional Document Automation v1** — an 18-variable engine resolved live on a DRAFT and frozen everywhere else, visual-only conditional content, asset/block/template/header-footer/signature/stamp libraries, document properties, version history (`AUTO`/`NAMED`/`PRE_RESTORE`/`PRE_REGISTER`, capped and pruned — never the two lifecycle kinds), track changes (word-level LCS diff, blocks matched by id, reject-only by construction since accept is a no-op), threaded comments (one level deep), auto-save, and Smart Export routed through the existing print/compose pipeline and its validation gate. Content model version 1→4, each step a purely additive re-stamp so stored drafts keep opening. Two new tables (`LetterVersion`, `LetterComment`) via a hand-written, dependency-reviewed migration; 9 new routes reuse the existing `letters.*` permission keys — no new key. No change to the print engine, preview pipeline, business logic or public APIs beyond the letters module, and no change to any page outside Official Letter. 100 files (66 new, 30 modified, 4 deleted); backend + frontend) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-document-studio-v1` (release date 2026-08-06) → merge `c197e834` |
-| **Previous stable tag** | `stable-collection-analysis-page-v1` (2026-08-06) → merge `3e684831` |
-| **Total stable releases** | 411 (all merged onto `production`; window 2026-06-07 → 2026-08-06) |
-| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · backend suite 2783 tests pass across 180 files · full frontend suite 3740 pass with the 26 pre-existing baseline failures unchanged in count and identity (same 8 files as the pre-existing baseline) · 49 new tests added (25 in the track-changes diff engine incl. a round-trip property — rejecting every change reproduces the baseline document — 20 in the version/comment service, 4 pinning that the pre-registration snapshot is taken server-side, inside the registration transaction, as an unprunable `PRE_REGISTER` kind) · scope confirmed: exactly 100 files entered the release, staged explicitly by path (never `git add -A`/`git add .`/`git commit -a`) — a substantial pre-existing uncommitted Electron packaging/startup-window/migration-performance workstream, five one-time backend scripts, two `docs/*.xlsx` workbooks, two unreferenced font files, a leftover jsdom probe test and a stray screenshot were all deliberately left unstaged · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `c197e834` + tags `stable-document-studio-v1`, `checkpoint-document-studio-v1` + branch `feature/document-studio-v1`) |
+| **Latest stable tag** | `stable-document-studio-ux-polish-pack-v1` (release date 2026-08-07) → merge `7d7b4f99` |
+| **Previous stable tag** | `stable-document-studio-v1` (2026-08-06) → merge `c197e834` |
+| **Total stable releases** | 412 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
+| **Latest validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge) · `build:front` ✅ · frontend letters suite 707 pass (704 baseline + 3 new, covering the floating toolbar's open/close-on-selection and its reuse of the docked Bold command) · full frontend suite: the same 26 pre-existing baseline failures across the same 8 files, confirmed unchanged by stashing this change set and re-running those 8 files against clean HEAD · no backend/Electron files touched, so those suites are unaffected by construction · scope confirmed: exactly 33 files entered the release, staged explicitly by path — the substantial pre-existing uncommitted Electron packaging/startup-window workstream, five one-time backend scripts, two `docs/*.xlsx` workbooks, two unreferenced font files, a leftover jsdom probe test and five review screenshots this session produced were all deliberately left unstaged · a live-browser pass (Playwright against the dev server) additionally caught and fixed two real defects neither static review nor the automated suite would have — see the release entry below · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `7d7b4f99` + tags `stable-document-studio-ux-polish-pack-v1`, `checkpoint-document-studio-ux-polish-pack-v1` + branch `feature/document-studio-ux-polish-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +62,78 @@ in a table cell.
 
 ---
 
-## Latest Release — Document Studio v1
+## Latest Release — Document Studio UX Polish Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Document Studio UX Polish Pack v1 — UX/UI polish for the Official Letter page's Document Studio: portal-based overlay system, floating selection toolbar, resizable side rails, collapsible Object Inspector, Layers panel and canvas interaction polish. No new business feature, no document-model/print-engine/pagination/backend change (33 files: 6 new, 27 modified; frontend-only) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-07 |
+| **Feature branch** | `feature/document-studio-ux-polish-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `2dc89f73` (previous release's follow-up documentation commit) |
+| **Checkpoint tag** | `checkpoint-document-studio-ux-polish-pack-v1` → `2dc89f73` |
+| **Feature commit** | `288a1ab9` |
+| **Production merge commit** | `7d7b4f99` |
+| **Stable tag** | `stable-document-studio-ux-polish-pack-v1` → merge `7d7b4f99` (annotated) |
+| **Reviews** | Claude Code Review self-verified via frontend `tsc --noEmit`, `build:front` and the frontend suite (feature branch and post-merge), plus a live-browser pass against the running dev server (Playwright: DOM/computed-style assertions, real simulated drags, `document.elementFromPoint` hit-testing) that found and fixed two defects neither static review nor the automated suite would have — see below → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Frontend `tsc --noEmit` ✅ · `build:front` ✅ · letters suite 707 pass (704 baseline + 3 new) · full suite: the same 26 pre-existing baseline failures across the same 8 files, confirmed via `git stash` against clean HEAD |
+| **Schema impact** | None |
+| **Permission impact** | None — frontend-only, no route touched |
+
+**What it is.** A UX/UI pass over the Document Studio built across the three prior
+packs, scoped explicitly to NOT touch business logic, the document model, the print
+engine, pagination or the backend.
+
+**The overlay system, and the actual bug.** The reported "Font dropdown hidden behind
+other panels" was never really about stacking order: `DocumentToolbar`'s own
+`overflow-x: auto` — there so the toolbar scrolls sideways at narrow widths instead of
+wrapping — was clipping FontPicker's dropdown before z-index was ever consulted. A new
+`useFloatingPosition` hook (viewport-clamped, portal-aware) now renders FontPicker's
+dropdown, the toolbar's Spacing popover, and a new floating selection toolbar into
+`document.body`, escaping every ancestor's overflow — governed by one documented z-index
+ladder in `letter-tokens.css` (`--lt-z-canvas` through `--lt-z-dialog`) rather than the
+ad hoc literals (2, 5, 20, 25, 40, 60, 120) the studio had accumulated one component at a
+time.
+
+**Floating selection toolbar.** Appears on an actual text selection — Font, Size, Bold,
+Underline, Highlight, Alignment, Clear Formatting; no Italic, since that mark does not
+exist in the block model and this pack does not touch the model. Routed through the
+exact same command handlers `DocumentToolbar` already calls, not a second
+implementation.
+
+**Resizable side rails.** The nav/layers rail, the Object Inspector, and the
+insert/revisions/properties slot each gained a drag handle (`useResizableRail`),
+keyboard resizing (arrow keys, WAI-ARIA `role="separator"`), and a session-persisted
+width.
+
+**Two defects a live browser pass caught, that static review did not.** First: the new
+resize handles on Object Inspector and Document Properties were positioned with a
+negative inset so they would visually straddle the panel's edge — and both panels set
+`overflow-y: auto` on that same root, which per the CSS spec also computes `overflow-x`
+away from `visible`, silently clipping the handle. `getBoundingClientRect()` still
+reported it as present; only `document.elementFromPoint()` at the handle's actual
+screen position showed the panel itself was catching the click. Second: every handle
+sat at `z-index: 1`, below each panel's own sticky header (`z-index: 30`), leaving a
+~45px dead zone wherever the header overlapped it. Both fixed — handles now sit flush
+with the edge rather than protruding, and above the sticky header
+(`calc(var(--lt-z-panel-sticky) + 1)`) — and re-verified with a real simulated
+mouse-drag before and after, not re-assumed from the code change alone.
+
+**Everything else.** Collapsible Object Inspector section cards (native
+grid-rows-collapse animation, no JS height measurement); a Layers panel drop-target
+indicator during drag, a selected-state edge bar (colour plus an edge, not colour
+alone), and icon empty states matching the rest of the studio; per-object canvas hover
+outline and resize/rotation-handle hover feedback, all on compositor-friendly
+properties (`transform`/`opacity`) so nothing costs anything during an active drag;
+toolbar group spacing and divider refinement, applied identically to both the
+Foundation toolbar and the Layout Designer's own, since the two are never on screen
+together and must read as one design; a shared panel entrance animation; trimmed
+outer chrome padding around the page (the ruler-fitted 22px stage margin itself is
+untouched — it is exactly `A4_RULER_THICKNESS`, not spare room).
+
+---
+
+## Previous Release — Document Studio v1
 
 | Field | Value |
 |-------|-------|
