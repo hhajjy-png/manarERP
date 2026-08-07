@@ -10,18 +10,23 @@ const CTX: ExportContext = { username: 'admin', generatedAt: new Date(2026, 7, 4
 
 const d = (iso: string) => new Date(`${iso}T10:00:00`);
 
+const INVOICES = [
+  { id: 1, invoiceNumber: 'INV-1', issueDate: d('2026-01-10'), total: 1000, customerId: 1, customerName: 'عميل أ' },
+  { id: 2, invoiceNumber: 'INV-2', issueDate: d('2026-02-05'), total: 1500, customerId: 2, customerName: 'عميل ب' },
+];
+const PAYMENTS = [
+  { id: 1, date: d('2026-01-18'), amount: 800, invoiceId: 1, invoiceNumber: 'INV-1', customerId: 1, customerName: 'عميل أ' },
+];
+
 const DATASET: AnalysisDataset = {
   period: { from: '2026-01-01', to: '2026-02-28', days: 59, previousFrom: '2025-11-03', previousTo: '2025-12-31' },
-  invoices: [
-    { id: 1, invoiceNumber: 'INV-1', issueDate: d('2026-01-10'), total: 1000, customerId: 1, customerName: 'عميل أ' },
-    { id: 2, invoiceNumber: 'INV-2', issueDate: d('2026-02-05'), total: 1500, customerId: 2, customerName: 'عميل ب' },
-  ],
+  invoices: INVOICES,
   expenses: [
     { id: 1, code: 'EXP-1', date: d('2026-01-15'), amount: 400, category: 'FUEL', description: 'وقود' },
   ],
-  payments: [
-    { id: 1, date: d('2026-01-18'), amount: 800, invoiceId: 1, invoiceNumber: 'INV-1', customerId: 1, customerName: 'عميل أ' },
-  ],
+  payments: PAYMENTS,
+  // بلا رصيد مرحَّل: الأستاذ = حركة الفترة، فتبقى أرقام الأوراق كما كانت.
+  ledger: { invoices: INVOICES, payments: PAYMENTS },
   previous: { revenue: 2000, expenses: 1000, profit: 1000 },
 };
 

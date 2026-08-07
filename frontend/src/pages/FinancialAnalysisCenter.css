@@ -409,12 +409,47 @@
     font-variant-numeric: tabular-nums;
   }
 
+  /* غلاف التصدير (`printShell`) يحمل `.xpl-page`، ومعه حشوه وعرضه الأقصى —
+     وكلاهما مصمَّم لنافذة تطبيق لا لورقة. يُحيَّدان هنا وحدهما: على الشاشة لا
+     يحمل `.fac-page` سمة `data-print-root` إطلاقًا، فلا تمسّ هذه القاعدة الصفحة. */
+  .fac-page[data-print-root] { padding: 0; max-width: none; }
+
   /* لا حاوية قصّ ولا تمرير — كل صفّ يجب أن يصل إلى الورق. */
   .fac-page .xpl-table-wrap {
     max-height: none;
     overflow: visible;
     border-radius: 0;
   }
+
+  /* ── بطاقات المؤشّرات: لا قصّ على الورق ──────────────────────────────────
+     البطاقة على الشاشة تتّكئ على ضمانَين لا يصمد أيٌّ منهما في ملف PDF:
+
+     1) `useFitText` يقيس عرض البطاقة **الحيّ** ويكتب `font-size` سطريًّا على
+        القيمة. الملف مستند ساكن بلا JavaScript، فالحجم المخبوز يصل كما هو بينما
+        عرض البطاقة على A4 أفقي مختلف — فإن ضاقت البطاقة لم يعد الرقم يتّسع.
+     2) الشبكة الاحتياطية عندئذٍ هي `overflow: hidden` **بلا `text-overflow`**
+        (اختيار مقصود: «…» على مبلغ تصنع رقمًا مختلفًا). فيُقصّ المبلغ صامتًا
+        بلا أي إشارة — وهو ما كان يظهر في الملف.
+
+     العلاج: إعادة القيمة إلى حجم ورقة الأنماط (`!important` وحدها تتجاوز النمط
+     السطري)، وإطلاق الالتفاف بدل القصّ. `overflow-wrap: anywhere` هي ما يسمح
+     بكسر مبلغ طويل لا موضع التفاف فيه، فيصير «لا شيء مخفيّ» ضمانًا لا رجاءً. */
+  .fac-page .xpl-metric-body,
+  .fac-page .xpl-metric-value,
+  .fac-page .xpl-metric-label,
+  .fac-page .xpl-metric-sub,
+  .fac-page .xpl-metric-trend {
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+  .fac-page .xpl-metric-value {
+    font-size: 19px !important;
+    letter-spacing: 0;
+  }
+  /* البطاقة تنمو بارتفاعها حين تلتفّ القيمة بدل أن تحبسها. */
+  .fac-page .xpl-metric { align-items: flex-start; overflow: visible; }
 
   /* على الورق لا وجود لـ Hover ولا لتلميح، فالاقتطاع يُخفي بيانات. تُلغى كل
      قيود سطر واحد فتلتفّ الأسماء الطويلة وتظهر كاملة. */

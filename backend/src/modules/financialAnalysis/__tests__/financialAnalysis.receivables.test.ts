@@ -11,15 +11,21 @@ import type { AnalysisDataset } from '../financialAnalysis.types';
 
 const d = (iso: string) => new Date(`${iso}T10:00:00`);
 
+/**
+ * الافتراضي: **بلا رصيد مرحَّل** — الأستاذ يساوي حركة الفترة، فتبقى كل تأكيدات
+ * هذا الملف معبّرة عمّا وُضعت له. اختبارات الترحيل أدناه تُمرّر `ledger` صراحةً.
+ */
 function dataset(over: Partial<AnalysisDataset> = {}): AnalysisDataset {
-  return {
+  const ds: AnalysisDataset = {
     period: { from: '2026-01-01', to: '2026-06-30', days: 181, previousFrom: '2025-07-04', previousTo: '2025-12-31' },
     invoices: [],
     expenses: [],
     payments: [],
+    ledger: { invoices: [], payments: [] },
     previous: { revenue: 0, expenses: 0, profit: 0 },
     ...over,
   };
+  return over.ledger ? ds : { ...ds, ledger: { invoices: ds.invoices, payments: ds.payments } };
 }
 
 const inv = (id: number, date: string, total: number, customerId: number, name: string) => ({
@@ -198,6 +204,113 @@ describe('receivables — reconciliation with the collections section', () => {
     // §4 الصافي: 1000 − 900 = 100 ؛ §5 الذمم القائمة: 1000 (الرصيد السالب لا يخصم)
     expect(report.collections.kpis.outstanding).toBe(100);
     expect(report.receivables.kpis.totalOutstanding).toBe(1000);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+   الرصيد المرحَّل بين الفترات.
+
+   §5 رصيدٌ **كما في تاريخ**، فمصدره الأستاذ حتى نهاية الفترة لا حركة الفترة. كل
+   حالة هنا كانت تخرج برقم خاطئ حين كان القسم يقرأ فواتير الفترة ودفعاتها وحدها.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+describe('receivables — carry-over across periods', () => {
+  it('counts a debtor whose only invoice predates the period', () => {
+    const older = inv(1, '2025-11-10', 700, 1, 'مدين قديم');
+    const r = receivables(dataset({
+      invoices: [],
+      payments: [],
+      ledger: { invoices: [older], payments: [] },
+    }));
+    // قبل الإصلاح: لا صفّ إطلاقًا وإجمالي ذمم صفر — دينٌ قائم اختفى من التقرير.
+    expect(r.rows.map((x) => x.customerName)).toEqual(['مدين قديم']);
+    expect(r.kpis.totalOutstanding).toBe(700);
+  });
+
+  it('ages the debt from the real invoice date, not from the period start', () => {
+    const older = inv(1, '2025-11-10', 700, 1, 'مدين قديم');
+    const r = receivables(dataset({
+      invoices: [],
+      payments: [],
+      ledger: { invoices: [older], payments: [] },
+    }));
+    expect(r.rows[0].oldestOpenInvoiceDate).toBe('2025-11-10');
+    expect(r.rows[0].oldestOpenInvoiceNumber).toBe('INV-1');
+    expect(r.rows[0].status).toBe('critical'); // 10/11/2025 → 30/06/2026 = 232 يومًا
+  });
+
+  it('applies an in-period payment to the older invoice it actually settles', () => {
+    const older = inv(1, '2025-12-01', 500, 1, 'عميل');
+    const current = inv(2, '2026-02-01', 300, 1, 'عميل');
+    const payment = pay(1, '2026-03-01', 500, 1, 1, 'عميل');
+    const r = receivables(dataset({
+      invoices: [current],
+      payments: [payment],
+      ledger: { invoices: [older, current], payments: [payment] },
+    }));
+    // قبل الإصلاح: 300 − 500 = −200 ⇒ الصفّ يُستبعد ويختفي دين قدره 300.
+    expect(r.kpis.totalOutstanding).toBe(300);
+    expect(r.rows[0].oldestOpenInvoiceNumber).toBe('INV-2');
+  });
+
+  it('states invoiced and collected cumulatively so the row arithmetic holds', () => {
+    const older = inv(1, '2025-12-01', 500, 1, 'عميل');
+    const current = inv(2, '2026-02-01', 300, 1, 'عميل');
+    const payment = pay(1, '2026-03-01', 500, 1, 1, 'عميل');
+    const row = receivables(dataset({
+      invoices: [current],
+      payments: [payment],
+      ledger: { invoices: [older, current], payments: [payment] },
+    })).rows[0];
+    expect(row.invoiced).toBe(800);
+    expect(row.collected).toBe(500);
+    expect(row.outstanding).toBe(row.invoiced - row.collected);
+    expect(row.collectionRate).toBe(62.5);
+  });
+
+  it('never reports a collection rate above 100% or below zero', () => {
+    const older = inv(1, '2025-10-01', 900, 1, 'مسدِّد متأخّر');
+    const current = inv(2, '2026-01-05', 100, 1, 'مسدِّد متأخّر');
+    const payment = pay(1, '2026-04-01', 900, 1, 1, 'مسدِّد متأخّر');
+    const row = receivables(dataset({
+      invoices: [current],
+      payments: [payment],
+      ledger: { invoices: [older, current], payments: [payment] },
+    })).rows[0];
+    // §4 (حركة الفترة) يعطي 900/100 = 900% ؛ §5 التراكمي يعطي 900/1000 = 90%.
+    expect(row.collectionRate).toBe(90);
+    expect(row.outstanding).toBe(100);
+  });
+
+  it('reports a last payment that predates the period', () => {
+    const older = inv(1, '2025-09-01', 1000, 1, 'عميل');
+    const oldPayment = pay(1, '2025-10-15', 400, 1, 1, 'عميل');
+    const row = receivables(dataset({
+      invoices: [],
+      payments: [],
+      ledger: { invoices: [older], payments: [oldPayment] },
+    })).rows[0];
+    expect(row.lastPaymentDate).toBe('2025-10-15');
+    expect(row.outstanding).toBe(600);
+  });
+});
+
+describe('indicators — days sales outstanding reads the §5 balance', () => {
+  it('stays positive when period collections exceed period invoicing', () => {
+    const older = inv(1, '2025-11-01', 400, 1, 'مدين');
+    const current = inv(2, '2026-01-10', 100, 2, 'عميل جديد');
+    const payment = pay(1, '2026-02-01', 900, 9, 3, 'مسدِّد عن فواتير أقدم');
+    const report = computeFinancialAnalysis(dataset({
+      invoices: [current],
+      payments: [payment],
+      ledger: { invoices: [older, current], payments: [payment] },
+    }));
+    // §4 صافي الحركة سالب (100 − 900 = −800) — وكان بسط المؤشّر، فيخرج بالسالب.
+    expect(report.collections.kpis.outstanding).toBeLessThan(0);
+    const dso = report.indicators.rows.find((r) => r.key === 'daysSalesOutstanding')!;
+    expect(dso.value).toBeGreaterThan(0);
+    // (400 + 100) ÷ 100 × 181 — الرصيد الحقيقي هو البسط.
+    expect(dso.value).toBe(Math.round((report.receivables.kpis.totalOutstanding / 100) * 181));
   });
 });
 

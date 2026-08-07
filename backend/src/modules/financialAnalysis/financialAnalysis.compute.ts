@@ -6,9 +6,15 @@
 
    ثلاث قواعد تحكم هذا الملف، وهي جوهر مواصفة «مركز التحليل المالي»:
 
-   1) **مصدر واحد**: كل قسم يُشتقّ من نفس المصفوفات الثلاث (`invoices`،
-      `expenses`، `payments`). لا استعلام ثانٍ ولا إعادة حساب لمنطق الإيراد أو
-      المصروف — القواعد نفسها مطبَّقة مرّة واحدة في طبقة البيانات.
+   1) **مصدر واحد**: كل قسم يُشتقّ من `AnalysisDataset` وحدها. لا استعلام ثانٍ ولا
+      إعادة حساب لمنطق الإيراد أو المصروف — القواعد نفسها مطبَّقة مرّة واحدة في
+      طبقة البيانات.
+
+      §1–§4 و§6 تقرأ **حركة الفترة** (`invoices`/`expenses`/`payments`). §5 وحده
+      يقرأ `ledger` (كل فاتورة ودفعة حتى نهاية الفترة) لأنه رصيدٌ **كما في تاريخ**
+      لا فرقُ حركة: بدونه يسقط كل مدين لا فاتورة له داخل الفترة، وتُطرح دفعاتُ
+      الفواتير الأقدم من فواتير الفترة فتُخفي دينًا قائمًا. المصفوفتان تأتيان من
+      نفس الاستعلامَين — لا استعلام أُضيف.
 
    2) **بطاقات KPI تُشتقّ من صفوف جدولها**: `sectionKpis` في كل قسم تُحسب من
       `rows` الخاصة به حرفيًا (لا من الحقائق الخام)، فلا يمكن أن تختلف بطاقة عن
@@ -59,6 +65,18 @@ export function percentOf(part: number, total: number): number | null {
 /** متوسط نقدي آمن — مقام صفري ⇒ صفر (لا NaN يتسرّب إلى الواجهة). */
 function safeAverage(total: number, count: number): number {
   return count > 0 ? roundMoney(total / count) : 0;
+}
+
+/**
+ * `YYYY-MM-DD` → تاريخ محلي (منتصف الليل)، أو `null` لأي نص غير صالح.
+ *
+ * أداة مشتركة لا خاصة بقسم: §4 يستعملها لفصل ما قبل الفترة (الرصيد الافتتاحي)
+ * عن حركتها، و§5 لتاريخ الاحتساب.
+ */
+function parseLocalDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
 }
 
 /** التغيّر % بين قيمتين. `null` حين لا أساس للمقارنة (فترة سابقة صفرية). */
@@ -246,16 +264,40 @@ function buildExpenses(d: AnalysisDataset): ExpenseSection {
 
 /* ── 4. تحليل التحصيل ────────────────────────────────────────────────────── */
 
+/**
+ * تحليل التحصيل — **مؤشّر فاعلية التحصيل (CEI)** لا نسبة حركة إلى حركة.
+ *
+ * النسبة تُقاس إلى ما كان **قابلًا للتحصيل** فعلًا خلال الفترة:
+ *
+ *   القابل للتحصيل = رصيد أول المدة + مبيعات الفترة
+ *   نسبة التحصيل   = المحصَّل ÷ القابل للتحصيل
+ *   رصيد آخر المدة = رصيد أول المدة + مبيعات الفترة − المحصَّل
+ *
+ * الصيغة السابقة (`المحصَّل ÷ فواتير الفترة`) كانت تخلط نطاقين: البسط يشمل دفعات
+ * تخصّ فواتير **سابقة** للفترة، والمقام لا يشملها. فكانت النسبة تتجاوز 100%
+ * (900% في حالة فوترةٍ صغيرة داخل الفترة مع سدادِ دينٍ قديم كبير)، وكان «المتبقي»
+ * يخرج سالبًا لأنه فرقُ حركتين لا رصيد. لا حدّ أعلى مفروض هنا ولا قصّ للقيمة:
+ * المقام هو ما صُحِّح، والنسبة تبقى ناتج قسمةٍ صريح.
+ *
+ * رصيد أول المدة يُشتقّ من `ledger` (كل حركة قبل `period.from`) — **بلا استعلام
+ * إضافي**: المصفوفتان محمَّلتان أصلًا لأجل §5.
+ */
+/** القابل للتحصيل لصفٍّ — مقام النسبة نفسه، وأساس ترتيب الجدول. */
+const collectibleOf = (r: CollectionCustomerRow): number => r.openingAr + r.invoiced;
+
 function buildCollections(d: AnalysisDataset): CollectionsSection {
   /** مفتاح موحّد للعميل — `c:<id>` للمسجَّل، و`unassigned` لغير المرتبط. */
   const keyOf = (id: number | null) => (id == null ? 'unassigned' : `c:${id}`);
-  const buckets = new Map<string, { id: number | null; name: string; invoiced: number; collected: number }>();
+  const buckets = new Map<
+    string,
+    { id: number | null; name: string; openingAr: number; invoiced: number; collected: number }
+  >();
 
   const touch = (id: number | null, name: string | null) => {
     const k = keyOf(id);
     let b = buckets.get(k);
     if (!b) {
-      b = { id, name: name ?? UNASSIGNED_CUSTOMER, invoiced: 0, collected: 0 };
+      b = { id, name: name ?? UNASSIGNED_CUSTOMER, openingAr: 0, invoiced: 0, collected: 0 };
       buckets.set(k, b);
     } else if (b.name === UNASSIGNED_CUSTOMER && name) {
       b.name = name;
@@ -263,30 +305,56 @@ function buildCollections(d: AnalysisDataset): CollectionsSection {
     return b;
   };
 
+  // ① رصيد أول المدة — كل ما وقع **قبل** بداية الفترة. بداية مفتوحة ⇒ لا سابق
+  //    بحكم التعريف، فيبقى الرصيد صفرًا وتُختزل الصيغة إلى المحصَّل ÷ المبيعات.
+  const periodStart = parseLocalDate(d.period.from);
+  if (periodStart) {
+    for (const inv of d.ledger.invoices) {
+      if (inv.issueDate < periodStart) touch(inv.customerId, inv.customerName).openingAr += inv.total;
+    }
+    for (const pay of d.ledger.payments) {
+      if (pay.date < periodStart) touch(pay.customerId, pay.customerName).openingAr -= pay.amount;
+    }
+  }
+
+  // ② حركة الفترة وحدها — الإيراد والتحصيل يبقيان مقصورين عليها كما كانا.
   for (const inv of d.invoices) touch(inv.customerId, inv.customerName).invoiced += inv.total;
-  // الدفعات تُدرِج عملاء لا فواتير لهم داخل الفترة — يظهرون بـ invoiced صفري
-  // ورصيد سالب، وهو التمثيل الأمين للسداد عن فواتير أقدم.
   for (const pay of d.payments) touch(pay.customerId, pay.customerName).collected += pay.amount;
 
   const rows: CollectionCustomerRow[] = Array.from(buckets.values())
-    .map((b) => ({
-      customerId: b.id,
-      customerName: b.name,
-      invoiced: roundMoney(b.invoiced),
-      collected: roundMoney(b.collected),
-      outstanding: roundMoney(b.invoiced - b.collected),
-      collectionRate: percentOf(b.collected, b.invoiced),
-    }))
-    .sort((a, b) => b.invoiced - a.invoiced || b.collected - a.collected);
+    .map((b) => {
+      const openingAr = roundMoney(b.openingAr);
+      const invoiced = roundMoney(b.invoiced);
+      const collected = roundMoney(b.collected);
+      const collectible = roundMoney(openingAr + invoiced);
+      return {
+        customerId: b.id,
+        customerName: b.name,
+        openingAr,
+        invoiced,
+        collected,
+        outstanding: roundMoney(collectible - collected),
+        collectionRate: percentOf(collected, collectible),
+      };
+    })
+    // عميلٌ سُوّي حسابه قبل الفترة ولا حركة له فيها لا يضيف شيئًا لأي مجموع —
+    // إدراجه يُطيل الجدول بصفوف أصفار. حذفه لا يمسّ أي بطاقة بحكم كونه أصفارًا.
+    .filter((r) => r.openingAr !== 0 || r.invoiced !== 0 || r.collected !== 0)
+    /* الترتيب على **القابل للتحصيل** لا على فواتير الفترة وحدها.
+       كل بطاقات القسم صارت تُقاس إلى هذا الأساس، فترتيبٌ على أساسٍ آخر كان يُنزل
+       عميلًا يحمل رصيدًا افتتاحيًا كبيرًا بلا فوترة جديدة إلى ذيل الجدول — أي خارج
+       الصفوف الستّة المعروضة قبل «عرض الكل» — رغم أنه الأكبر أثرًا في النسبة. */
+    .sort((a, b) => collectibleOf(b) - collectibleOf(a) || b.collected - a.collected);
 
   const collected = roundMoney(rows.reduce((s, r) => s + r.collected, 0));
-  const invoiced = roundMoney(rows.reduce((s, r) => s + r.invoiced, 0));
+  const collectible = roundMoney(rows.reduce((s, r) => s + r.openingAr + r.invoiced, 0));
 
   return {
     kpis: {
+      openingAr: roundMoney(rows.reduce((s, r) => s + r.openingAr, 0)),
       collected,
       outstanding: roundMoney(rows.reduce((s, r) => s + r.outstanding, 0)),
-      collectionRate: percentOf(collected, invoiced),
+      collectionRate: percentOf(collected, collectible),
       averageCollection: safeAverage(collected, d.payments.length),
     },
     rows,
@@ -306,13 +374,6 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** منتصف ليل محلي — يُلغي أثر ساعة اليوم على فروق الأيام. */
 function localMidnight(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
-/** `YYYY-MM-DD` → تاريخ محلي، أو `null` لأي نص غير صالح. */
-function parseLocalDate(iso: string | null): Date | null {
-  if (!iso) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
 }
 
 function daysBetween(from: Date, to: Date): number {
@@ -340,19 +401,35 @@ function resolveAsOf(d: AnalysisDataset): Date | null {
   const consider = (date: Date) => {
     if (latest == null || date > latest) latest = date;
   };
-  for (const i of d.invoices) consider(i.issueDate);
-  for (const p of d.payments) consider(p.date);
+  for (const i of d.ledger.invoices) consider(i.issueDate);
+  for (const p of d.ledger.payments) consider(p.date);
   for (const e of d.expenses) consider(e.date);
   return latest;
 }
 
 /**
- * تحليل الذمم المدينة — **من نفس المصفوفات الثلاث، بلا استعلام واحد إضافي**.
+ * تحليل الذمم المدينة — **رصيد كما في `asOf`، لا صافي حركة الفترة**.
  *
- * أقدم فاتورة مستحقة تُحدَّد بتوزيع «الأقدم أولًا» (FIFO): دفعات العميل داخل
- * الفترة تُطبَّق على فواتيره مرتّبةً بالتاريخ، وأول فاتورة لا تُغطّى بالكامل هي
- * أقدم مستحقّ. هذا عرف تحليل الأعمار المعتمد محاسبيًا، وحتميّ لا يعتمد على أي
- * ربط مخزَّن بين الدفعة والفاتورة خارج ما تحمله البيانات.
+ * يقرأ `d.ledger` (كل فاتورة ودفعة حتى نهاية الفترة) لا `d.invoices`/`d.payments`
+ * (حركة الفترة وحدها). هذا هو الفرق بين رصيد ومجرّد فرق:
+ *
+ *   • عميل فوتِر قبل الفترة ولم يسدّد **يظهر مدينًا**؛ كان يسقط من الجدول تمامًا
+ *     لأن فواتيره خارج الفترة، فيُنقص «إجمالي الذمم» بمقدار دينه كاملًا.
+ *   • دفعة داخل الفترة عن فاتورة أقدم **تُطفئ تلك الفاتورة**، لا فواتير الفترة؛
+ *     كانت تُطرح من مفوتَر الفترة فتُظهر رصيدًا سالبًا يُستبعد الصفّ بسببه ويختفي
+ *     دينٌ قائم فعلًا.
+ *
+ * وهو نفسه تعريف الذمم المعتمد في `operational.reporting.getAccountsReceivable`
+ * (Σ فواتير ≤ التاريخ − Σ دفعات ≤ التاريخ)، فلا يبقى تعريفان للذمم في المشروع.
+ *
+ * `invoiced`/`collected` في الصفّ تراكميّان حتى `asOf` تبعًا لذلك — وهو ما يبقي
+ * `outstanding = invoiced − collected` صحيحًا أمام القارئ داخل الصفّ نفسه، ويجعل
+ * نسبة التحصيل تراكمية لا تتجاوز 100% أبدًا.
+ *
+ * أقدم فاتورة مستحقة تُحدَّد بتوزيع «الأقدم أولًا» (FIFO) على **كامل** سجلّ العميل،
+ * فيصبح عمر الدين عمر أقدم فاتورة مفتوحة حقًّا لا أقدم فاتورة داخل الفترة. هذا
+ * عرف تحليل الأعمار المعتمد محاسبيًا، وحتميّ لا يعتمد على أي ربط مخزَّن بين
+ * الدفعة والفاتورة خارج ما تحمله البيانات.
  *
  * الصفوف مقصورة على **المدينين** (رصيد موجب): جدول ذمم يعرض من لا دين عليه
  * ضجيج، وبقية الأقسام تغطّي الصورة الكاملة للعملاء أصلًا.
@@ -383,14 +460,14 @@ function buildReceivables(d: AnalysisDataset): ReceivablesSection {
     return b;
   };
 
-  for (const inv of d.invoices) {
+  for (const inv of d.ledger.invoices) {
     touch(inv.customerId, inv.customerName).invoices.push({
       date: inv.issueDate,
       total: inv.total,
       number: inv.invoiceNumber,
     });
   }
-  for (const pay of d.payments) {
+  for (const pay of d.ledger.payments) {
     const b = touch(pay.customerId, pay.customerName);
     b.collected += pay.amount;
     if (b.lastPayment == null || pay.date > b.lastPayment) b.lastPayment = pay.date;
@@ -541,6 +618,7 @@ function buildTopLists(collections: CollectionsSection, expenses: ExpenseSection
 function buildIndicators(
   profitability: ProfitabilitySection,
   collections: CollectionsSection,
+  receivables: ReceivablesSection,
   monthly: MonthlyPerformanceSection,
   periodDays: number | null,
 ): IndicatorsSection {
@@ -548,12 +626,17 @@ function buildIndicators(
   const expenseRatio = percentOf(expenses, revenue);
 
   /**
-   * متوسط فترة التحصيل — `(الرصيد غير المحصَّل ÷ الإيراد) × أيام الفترة`.
-   * يُحتسب من نفس أرقام §1/§4 حصريًا: لا استعلام رصيد ذمم إضافي، فيبقى المحرك نقيًّا.
+   * متوسط فترة التحصيل — `(رصيد الذمم ÷ الإيراد) × أيام الفترة`.
+   *
+   * البسط هو رصيد §5 (`totalOutstanding`) لا صافي §4 (`outstanding`). الأخير فرقُ
+   * حركةٍ **مُوقَّع**: حين تفوق دفعاتُ الفترة عن فواتير أقدم ما فُوتر فيها يصبح
+   * سالبًا، فيخرج «متوسط فترة تحصيل» بالسالب — رقم لا معنى له عُرض للمستخدم.
+   * ومع وجود رصيد ذمم صحيح في §5 لم يعد هناك سبب لاستعمال رقم ثانٍ مختلف عنه
+   * لنفس المفهوم على الصفحة ذاتها.
    */
   const dso =
     periodDays != null && revenue > 0
-      ? Math.round((collections.kpis.outstanding / revenue) * periodDays)
+      ? Math.round((receivables.kpis.totalOutstanding / revenue) * periodDays)
       : null;
 
   const monthCount = monthly.rows.length;
@@ -607,7 +690,7 @@ export function computeFinancialAnalysis(dataset: AnalysisDataset): FinancialAna
     receivables,
     monthlyPerformance,
     topLists: buildTopLists(collections, expenses, monthlyPerformance),
-    indicators: buildIndicators(profitability, collections, monthlyPerformance, dataset.period.days),
+    indicators: buildIndicators(profitability, collections, receivables, monthlyPerformance, dataset.period.days),
     monthAxisTruncated: axis.truncated,
   };
 }

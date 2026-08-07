@@ -141,6 +141,34 @@ export default function FinancialAnalysisCenter() {
     }
   }
 
+  /**
+   * يُعيد بناء **سياق الأسلاف** حول نسخة من جذر الطباعة قبل تسليمها للمُركِّب.
+   *
+   * `composeStyledFromNode` ينسخ العقدة المُمرَّرة **وحدها** ويضعها مباشرة داخل
+   * `<body>` مستندٍ جديد. وجذر الطباعة هنا (`.fac-report`) ابنٌ لـ
+   * `.xpl-scope .xpl-page .fac-page`، فكان يصل إلى الورق بلا أيٍّ من أسلافه —
+   * وكل انتقاء يبدأ بأحد هذه الأصناف يتوقّف عن المطابقة:
+   *
+   *   • `.xpl-scope { --xpl-* }` — كامل توكنات الطقم. بدونها `var(--xpl-border)`
+   *     و`var(--xpl-surface)` غير معرَّفة، فتسقط الحدود والخلفيات من الإعلانات
+   *     المختصرة التي تستعملها (إبطال عند احتساب القيمة).
+   *   • `.fac-page .xpl-table-wrap { max-height: none; overflow: visible }` —
+   *     الشاشة والطباعة معًا. بسقوطهما يعود `max-height: 62vh; overflow: auto`
+   *     من الطقم المشترك، فيُقصّ **كل جدول** عند حدّ النافذة ويتعذّر بلوغ بقيّته
+   *     على الورق أصلًا. هذا أكبر مصدر منفرد للمحتوى المحجوب في الملف.
+   *   • فكّ اقتطاع خلايا الجدول، وتكرار رؤوس الأعمدة، ومنع قصّ البطاقات عبر
+   *     فواصل الصفحات، وإخفاء زرّ «عرض الكل» — جميعها منتقاة بـ`.fac-page`.
+   *
+   * الغلاف يُبنى منفصلًا عن المستند الحيّ ولا يُدرج فيه، فالصفحة المعروضة لا
+   * تتأثر بحرف واحد. القواعد المنتقاة بـ`.fac-report` كانت تعمل أصلًا وتبقى.
+   */
+  function printShell(node: HTMLElement): HTMLElement {
+    const shell = document.createElement('div');
+    shell.className = 'xpl-scope xpl-page fac-page';
+    shell.appendChild(node.cloneNode(true));
+    return shell;
+  }
+
   async function handleExportPdf() {
     const node = printRootRef.current;
     // `typeof` لا `&&`: الجسر مُعرَّف كحقل مطلوب في نوع الواجهة، فالفحص المنطقي
@@ -152,7 +180,7 @@ export default function FinancialAnalysisCenter() {
     setPdfBusy(true);
     try {
       const html = composeStyledFromNode({
-        node,
+        node: printShell(node),
         // أفقي: الصفحة تحمل جداول تصل إلى ستة أعمدة، والعمودي كان يضغطها.
         pageSpec: getPageSpec('a4-landscape'),
         /**
