@@ -609,39 +609,17 @@ describe('Content model version 3 — the layout layer persists', () => {
 /* ══ Validation ════════════════════════════════════════════════════════════ */
 
 describe('E16 — the rule the positioned layer exists under', () => {
+  // Form Editor UX Rebuild v2 deleted E17/W9/W10 (and shrank the context to just
+  // geometry, content and pagination — see `LetterValidationContext`). E16 is one of
+  // the three rules that survived; this block is its specification.
   const geometry = getPageGeometry('companyLetterhead', 1);
   const template = getTemplate('officialLetter');
   const registry = createLetterValidationRegistry();
 
   function validate(layout: DocumentLayout) {
     const content = docWith(layout);
-    const pagination = paginate(
-      [{ id: 'b0', kind: 'content', heightMm: 10 }],
-      geometry,
-    );
-    return runValidation(
-      registry,
-      template.validationRules,
-      {
-        template,
-        geometry,
-        status: 'DRAFT',
-        reference: null,
-        issueDate: '2026-01-01',
-        subject: 'موضوع',
-        recipient: { name: '', title: '', organisation: '' },
-        content,
-        pagination,
-        itemHeightsMm: { b0: 10 },
-        subjectLineCount: 1,
-        signatureAssetId: null,
-        stampAssetId: null,
-        signatureResolved: false,
-        stampResolved: false,
-        barcodePayload: '',
-        now: new Date('2026-01-01'),
-      },
-    );
+    const pagination = paginate([{ id: 'b0', kind: 'content', heightMm: 10 }], geometry);
+    return runValidation(registry, template.validationRules, { geometry, content, pagination });
   }
 
   it('is declared BLOCKING and cannot be downgraded by a template', () => {
@@ -714,26 +692,15 @@ describe('E16 — the rule the positioned layer exists under', () => {
     ).toHaveLength(1);
   });
 
-  it('reports an object stranded past the last page as advisory, not blocking', () => {
-    // The content shortened after the object was placed. Deleting it would destroy
-    // work because a paragraph was trimmed; it returns when the document grows again.
-    const stranded = layoutOfObjects(object({ id: 'a', pageIndex: 9 }));
-    const issues = validate(stranded).issues.filter((i) => i.ruleId === 'W10_objectOffPage');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('warning');
+  it('a letter with NO objects reports nothing', () => {
+    expect(validate(EMPTY_LAYOUT).issues.filter((i) => i.ruleId === 'E16_objectInReservedZone')).toEqual([]);
   });
 
-  it('reports an object hanging off the sheet as blocking', () => {
+  it('an object hanging off the sheet, but clear of the reserved bands, does not fire', () => {
+    // E17 (off-the-sheet) was deleted with the rebuild — dragging an object past the
+    // paper's edge is an ordinary editing action now, not a refusal. Only the reserved
+    // bands still gate an output, and this object is nowhere near either of them.
     const off = layoutOfObjects(object({ id: 'a', frame: { xMm: 200, yMm: 100, widthMm: 40, heightMm: 10 } }));
-    const issues = validate(off).issues.filter((i) => i.ruleId === 'E17_objectOutsidePage');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('blocking');
-  });
-
-  it('a letter with NO objects reports none of the four rules', () => {
-    const clean = validate(EMPTY_LAYOUT).issues.filter((i) =>
-      ['E16_objectInReservedZone', 'E17_objectOutsidePage', 'W9_objectOverlapsContent', 'W10_objectOffPage'].includes(i.ruleId),
-    );
-    expect(clean).toEqual([]);
+    expect(validate(off).issues).toEqual([]);
   });
 });

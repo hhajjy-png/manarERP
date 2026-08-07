@@ -1,0 +1,279 @@
+/**
+ * Form Editor — the Advanced Tools menu.
+ *
+ * Appearance only; the placement maths is `useFloatingPosition`'s and the panel is
+ * portaled to `document.body`, so nothing here may assume a containing block.
+ */
+
+@import '../letter-tokens.css';
+
+/* ── The trigger ───────────────────────────────────────────────────────────
+   Quieter than a primary button and louder than a bare icon: it is the one control
+   on the strip that leads somewhere else, so it reads as a door rather than as a
+   command. */
+.atm {
+  position: relative;
+  display: inline-flex;
+}
+
+.atm-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--lt-fast, 130ms) var(--lt-ease, ease-out),
+    color var(--lt-fast, 130ms) var(--lt-ease, ease-out),
+    border-color var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+
+.atm-trigger .material-symbols-outlined {
+  font-size: 17px;
+}
+
+/* The chevron is a size below the leading icon — it is punctuation, not a second
+   symbol competing for the same attention. */
+.atm-trigger .material-symbols-outlined:last-child {
+  font-size: 15px;
+  opacity: 0.6;
+}
+
+.atm-trigger:hover,
+.atm-trigger.is-open {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+/* Advanced mode left on is a state the author chose and should be able to see at a
+   glance — otherwise "why is my toolbar full of controls" has no visible answer. */
+.atm-trigger.is-advanced {
+  border-color: color-mix(in srgb, var(--accent, #1d4e6f) 45%, transparent);
+  color: var(--accent, #1d4e6f);
+}
+
+.atm-trigger:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: 1px;
+}
+
+/* Below ~720px the label goes and the icon carries it — the title attribute and the
+   aria-haspopup still describe it fully. */
+@media (max-width: 720px) {
+  .atm-trigger-label {
+    display: none;
+  }
+}
+
+/* ── The panel ─────────────────────────────────────────────────────────── */
+
+.atm-panel {
+  position: fixed;
+  z-index: var(--lt-z-overlay, 1000);
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-lg, 9px);
+  background: var(--surface, #fff);
+  /* Matched to `.dt-menu-panel` — every floating panel in the studio casts the same
+     shadow, so a popover is recognisable as one wherever it opens. */
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.16);
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  text-align: start;
+}
+
+/* ── The master switch ─────────────────────────────────────────────────────
+   A tinted card rather than another row: it is the only control in the panel that
+   changes the editor's resting state, and it must not read as a sixth destination. */
+.atm-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 9px 10px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface-2, #f8fafc);
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background-color var(--lt-fast, 130ms) var(--lt-ease, ease-out),
+    border-color var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+
+/* Hover moves the BORDER, not the fill — the card already sits on a tinted surface,
+   and darkening that fill again reads as pressed rather than as hovered. */
+.atm-switch:hover {
+  border-color: var(--lt-rule-ink, rgba(148, 163, 184, 0.55));
+}
+
+.atm-switch.is-on {
+  border-color: color-mix(in srgb, var(--accent, #1d4e6f) 40%, transparent);
+  background: color-mix(in srgb, var(--accent, #1d4e6f) 8%, transparent);
+}
+
+.atm-switch .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 22px;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1;
+}
+
+.atm-switch.is-on .material-symbols-outlined {
+  color: var(--accent, #1d4e6f);
+}
+
+.atm-switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.atm-switch-title {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.atm-switch-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
+}
+
+.atm-switch:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: -2px;
+}
+
+/* ── Sections ──────────────────────────────────────────────────────────── */
+
+.atm-section {
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.atm-section--last {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.atm-section-title {
+  display: block;
+  padding: 6px 10px 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ── Destination rows ──────────────────────────────────────────────────── */
+
+.atm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--lt-r-md, 7px);
+  background: transparent;
+  color: var(--text, #0f172a);
+  font: inherit;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: background-color var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+
+.atm-row:hover:not(:disabled) {
+  background: var(--surface-2, #f1f5f9);
+}
+
+.atm-row:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* An open destination is marked on its icon rather than by filling the whole row —
+   several may be on at once, and five tinted rows would read as an error state. */
+.atm-row.is-on .material-symbols-outlined {
+  color: var(--accent, #1d4e6f);
+}
+
+.atm-row.is-on .atm-row-label {
+  color: var(--accent, #1d4e6f);
+  font-weight: 700;
+}
+
+.atm-row .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 19px;
+  color: var(--text-muted, #64748b);
+  line-height: 1.25;
+}
+
+.atm-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.atm-row-label {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.atm-row-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted, #64748b);
+}
+
+.atm-row-badge {
+  flex: 0 0 auto;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent, #1d4e6f);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.atm-row:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atm-trigger,
+  .atm-switch,
+  .atm-row {
+    transition: none;
+  }
+}

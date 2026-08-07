@@ -126,7 +126,7 @@ describe('The workspace is the landing surface', () => {
 
   it('resolves its title from the registered i18n key', async () => {
     renderWorkspace();
-    expect(await screen.findByRole('heading', { name: 'خطاب رسمي' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'محرر النماذج' })).toBeInTheDocument();
   });
 
   it('shows a draft as unnumbered rather than blank', async () => {

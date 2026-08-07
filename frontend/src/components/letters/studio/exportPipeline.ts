@@ -1,14 +1,16 @@
 /**
- * Letter Engine — Smart Export (Professional Document Automation v1).
+ * Letter Engine — Smart Export (Professional Document Automation v1; Word export
+ * added in Form Editor UX Rebuild v2).
  *
  * ══════════════════════════════════════════════════════════════════════════
- *  NO NEW ENGINE. THREE DESTINATIONS, ALL THROUGH MACHINERY THAT ALREADY EXISTS.
+ *  NO NEW ENGINE. FOUR DESTINATIONS, ALL THROUGH MACHINERY THAT ALREADY EXISTS.
  * ══════════════════════════════════════════════════════════════════════════
  * The specification is explicit — "Reuse existing export engines… No new print
  * engine" — and the print pipeline's own header is stricter still: composing "means
  * describing the job, not producing the artefact."
  *
- * So this file adds no renderer and no formatter. It adds a GATE and a router:
+ * So this file adds no renderer and no formatter of its own. It adds a GATE and a
+ * router, one destination reading the DOM and three reading the document model:
  *
  *   · PRINT → `runPrintPipeline`, untouched. The physical press.
  *   · PDF   → `composeStyledFromNode` (the app's existing style-capturing composer,
@@ -17,35 +19,33 @@
  *   · HTML  → the SAME composed string, written to a file. There is no second
  *             composition: the HTML export and the PDF export are byte-identical
  *             inputs, which is the only way the two can be guaranteed to agree.
- *
- * ── WORD IS NOT OFFERED, AND THAT IS A FINDING RATHER THAN AN OMISSION ───
- * The spec says "Export Word (using the existing architecture only if supported)".
- * It is not supported. `vendor-docx` is bundled for the REPORTS module, which builds
- * documents from tabular data through the `docx` library's own object model — there is
- * no path from a rendered page to a .docx, and writing one would be a second renderer
- * with a second idea of what an official letter looks like. `EXPORT_FORMATS` below
- * records that decision as data rather than leaving the absence to be rediscovered.
+ *   · WORD  → `buildLetterDocx` (`docxExport.ts`), which maps the letter's OWN Block
+ *             Model straight into `docx.Paragraph`/`docx.TextRun`. Not a page→docx
+ *             renderer — see that file's header for why a rendered-page path was
+ *             rejected and a block-model path was not.
  *
  * ── WHY THIS IS A BINDING, NOT PART OF THE ENGINE ────────────────────────
  * It lives beside `useLetterPrint` in `components/letters/studio/` rather than in
  * `letters/printing/`, and the engine's own boundary test is what says so: `src/
- * letters/` may not touch the DOM, may not import the app's printing module, and may
- * not reach outside itself. This file does all three — it clones a live node, calls
- * the shared composer, and creates a Blob.
+ * letters/` may not touch the DOM, may not import a package outside the Font Registry,
+ * and may not reach outside itself. This file does both — it clones a live node for
+ * PDF/HTML, calls the shared composer, and hands the Block Model to a package (`docx`)
+ * for Word.
  *
  * That is the same division `useLetterPrint` already embodies: the PIPELINE is pure
  * and lives in the engine, the PLATFORM binding is impure and lives here. Putting an
- * exporter in the engine would have made the engine depend on a browser.
+ * exporter in the engine would have made the engine depend on a browser or a package.
  *
  * ── EVERY DESTINATION PASSES THE SAME GATE ───────────────────────────────
- * `validateForPrint` already refuses a document with blocking findings. Export uses
- * the identical check, so a letter that cannot be printed cannot be turned into a PDF
- * either — an export path that bypassed validation would be a way to publish a
- * document the engine had refused.
+ * `validateForPrint` already refuses a document with blocking findings. Every export —
+ * PDF, HTML and now Word — uses the identical check, so a letter that cannot be
+ * printed cannot be turned into any of the three either. An export path that bypassed
+ * validation would be a way to publish a document the engine had refused.
  */
 
 import { composeStyledFromNode } from '../../../printing/composeDocument';
 import { type PageGeometry } from '../../../letters/registry/geometryRegistry';
+import { type BlockDocument } from '../../../letters/model/blockTypes';
 import {
   type PrintError,
   type PrintOutcome,
@@ -56,12 +56,13 @@ import {
   type ValidationResult,
   type ValidationSummary,
 } from '../../../letters/validation/framework';
+import { buildLetterDocx } from './docxExport';
 
 /** Where an export can go. */
-export type ExportFormat = 'print' | 'pdf' | 'html';
+export type ExportFormat = 'print' | 'pdf' | 'html' | 'docx';
 
 export interface ExportFormatDescriptor {
-  readonly id: ExportFormat | 'docx';
+  readonly id: ExportFormat;
   readonly labelAr: string;
   readonly icon: string;
   /** `false` means the button is shown disabled with `unavailableReasonAr` on it. */
@@ -69,27 +70,12 @@ export interface ExportFormatDescriptor {
   readonly unavailableReasonAr?: string;
 }
 
-/**
- * The four destinations the specification names, three of them real.
- *
- * `docx` is listed and disabled rather than omitted, for the same reason `{{Manager}}`
- * is: an author who has been told the feature exists should find out WHY it is greyed
- * rather than wonder whether they have missed a menu.
- */
+/** The four destinations the specification names, all real. */
 export const EXPORT_FORMATS: readonly ExportFormatDescriptor[] = [
   { id: 'print', labelAr: 'طباعة', icon: 'print', available: true },
   { id: 'pdf', labelAr: 'تصدير PDF', icon: 'picture_as_pdf', available: true },
   { id: 'html', labelAr: 'تصدير HTML', icon: 'code', available: true },
-  {
-    id: 'docx',
-    labelAr: 'تصدير Word',
-    icon: 'description',
-    available: false,
-    unavailableReasonAr:
-      'غير مدعوم بالمعمارية الحالية. مكتبة docx في النظام تبني مستندات من بيانات جدولية ' +
-      '(وحدة التقارير)، ولا يوجد مسار من صفحة مرسومة إلى ملف Word — وكتابته يعني محرّك ' +
-      'إخراج ثانٍ برأي مختلف في شكل الخطاب الرسمي.',
-  },
+  { id: 'docx', labelAr: 'تصدير Word', icon: 'description', available: true },
 ];
 
 /** Selectors stripped from the clone. Every one of them is chrome, never ink. */
@@ -109,7 +95,6 @@ const EXPORT_STRIP_SELECTORS: readonly string[] = [
   '.ins-panel',
   '.dpp-panel',
   '.obi-panel',
-  '.rev-panel',
   '.lo-placeholder',
 ];
 
@@ -143,10 +128,18 @@ function fail(code: PrintError['code'], message: string, cause?: string): PrintO
  * read the styles rather than producing a half-formatted page. That refusal is the
  * reason this is worth reusing instead of serialising `outerHTML` — an export missing
  * its CSS looks like a broken letter, not like a failed export.
+ *
+ * Exported rather than kept private: `useAccurateFormPreview`'s default composer
+ * assumes the shared `a4-portrait` spec's 12 mm margins, which is wrong for a letter
+ * sheet already sized in millimetres from the Geometry Registry (see below). The
+ * composer function itself must be the SAME one HTML/PDF export uses — a second one
+ * built for preview would be the exact second-idea-of-the-document this pack forbids —
+ * so `LetterComposer`'s preview wiring calls this directly instead of the hook's
+ * default.
  */
-function compose(input: ExportInput): string {
+export function composeLetter(node: HTMLElement, title: string): string {
   return composeStyledFromNode({
-    node: input.node,
+    node,
     /**
      * A4 with ZERO margins.
      *
@@ -164,11 +157,15 @@ function compose(input: ExportInput): string {
       ...PAGE_SPECS['a4-portrait'],
       margins: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
     },
-    title: input.title,
+    title,
     lang: 'ar',
     stripSelectors: [...EXPORT_STRIP_SELECTORS],
     forcePageSpec: true,
   });
+}
+
+function compose(input: ExportInput): string {
+  return composeLetter(input.node, input.title);
 }
 
 /**
@@ -187,6 +184,13 @@ export async function runExport(input: ExportInput): Promise<PrintOutcome<Export
     // render-readiness wait. Routing it through here as well would be a second print
     // path — the exact thing the pipeline forbids.
     return fail('PLATFORM_UNAVAILABLE', 'الطباعة تُنفَّذ عبر مسار الطباعة القائم.');
+  }
+
+  if (input.format === 'docx') {
+    // Handled by the caller through `runDocxExport`, which reads the Block Model
+    // directly rather than the DOM node this function composes from. Routing it
+    // through here would mean cloning a node this path never needed.
+    return fail('PLATFORM_UNAVAILABLE', 'تصدير Word يُنفَّذ عبر مسار مستقل — انظر runDocxExport.');
   }
 
   let html: string;
@@ -254,4 +258,48 @@ export function exportFilename(reference: string | null, subject: string): strin
   if (reference) return reference;
   const safe = subject.trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
   return safe.length > 0 ? safe : 'letter-draft';
+}
+
+export interface DocxExportInput {
+  /** The letter's own Block Model — `buildLetterDocx` reads nothing else. */
+  readonly document: BlockDocument;
+  /** Filename without extension. */
+  readonly filename: string;
+  readonly validation: ValidationResult;
+  readonly summary: ValidationSummary;
+}
+
+/**
+ * Export to Word.
+ *
+ * A separate function from `runExport` rather than one more branch inside it, because
+ * it reads the Block Model instead of a DOM node — the two paths have nothing in
+ * common past the validation gate and the save dialog. Same gate, same failure
+ * vocabulary (`PrintOutcome`), same cancel/error handling as PDF — only the artefact
+ * and how it is produced differ.
+ */
+export async function runDocxExport(input: DocxExportInput): Promise<PrintOutcome<ExportSuccess>> {
+  const gate = validateForPrint(input.summary, input.validation);
+  if (!gate.ok) return gate;
+
+  let bytes: Uint8Array;
+  try {
+    bytes = await buildLetterDocx(input.document);
+  } catch (error) {
+    return fail('PRINT_FAILED', error instanceof Error ? error.message : 'تعذّر إنشاء ملف Word.');
+  }
+
+  const bridge = window.manar?.exportDocxBytes;
+  if (!bridge) {
+    return fail('PLATFORM_UNAVAILABLE', 'تصدير Word غير متاح خارج تطبيق سطح المكتب.');
+  }
+
+  try {
+    const result = await bridge(bytes, `${input.filename}.docx`);
+    if (result.canceled) return fail('PRINT_CANCELLED', 'أُلغي التصدير.');
+    if (!result.success) return fail('PRINT_FAILED', result.error ?? 'تعذّر تصدير Word.');
+    return { ok: true, value: { format: 'docx', path: result.path } };
+  } catch (error) {
+    return fail('PRINT_FAILED', 'تعذّر تصدير Word.', error instanceof Error ? error.message : String(error));
+  }
 }

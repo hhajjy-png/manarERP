@@ -511,22 +511,21 @@ describe('Find and replace — Arabic normalisation', () => {
 /* ══ Outline ═══════════════════════════════════════════════════════════════ */
 
 describe('The document outline', () => {
+  // Form Editor UX Rebuild v2 removed date, recipient and subject as fixed sections —
+  // the document is generic now, and the outline's fixed skeleton shrank to match.
   const values = {
-    date: '2026-01-01',
-    recipient: 'وزارة الأشغال',
-    subject: 'طلب صيانة',
     hasSignature: true,
     reference: 'OL-2026-000001',
   };
 
-  it('always lists the six sections, empty ones included', () => {
-    // An outline that hid the subject until it had text would be missing exactly the
-    // entry the author needs to click on to go and write it.
-    const entries = buildDocumentOutline(doc(''), { ...values, subject: '' }, null);
+  it('always lists the three sections, empty ones included', () => {
+    // An outline that hid an empty section until it had content would be missing
+    // exactly the entry the author needs to click on to go and write it.
+    const entries = buildDocumentOutline(doc(''), { ...values, hasSignature: false }, null);
     expect(entries.filter((e) => e.kind === 'section').map((e) => e.sectionKind)).toEqual([
-      'date', 'recipient', 'subject', 'content', 'signature', 'barcode',
+      'content', 'signature', 'barcode',
     ]);
-    expect(entries.find((e) => e.sectionKind === 'subject')!.empty).toBe(true);
+    expect(entries.find((e) => e.sectionKind === 'signature')!.empty).toBe(true);
   });
 
   it('nests heading blocks under content at their declared level', () => {

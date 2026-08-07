@@ -107,9 +107,10 @@ export function toToken(name: string): string {
  * question the letter is asking and knows it has not been answered yet.
  *
  * `blank` erases it, which is right for MEASUREMENT and for a preview of the finished
- * page — but never for print, because a letter that silently drops a value is worse
- * than one that visibly still has a hole in it. Printing an unresolved letter is
- * refused by `E18_unresolvedVariable` before this choice can matter.
+ * page — but never for print, because a document that silently drops a value is worse
+ * than one that visibly still has a hole in it. Nothing refuses to print an unresolved
+ * document any more (Form Editor UX Rebuild v2 deleted the rule that used to); the
+ * choice between the two modes is what stands in for that guarantee now.
  */
 export type UnresolvedMode = 'pending' | 'blank';
 

@@ -90,8 +90,18 @@ describe('Section kinds and page scopes', () => {
 describe('Section lookup', () => {
   it('finds a spec by kind within a template', () => {
     const template = getTemplate('officialLetter');
-    expect(findSectionSpec(template.sections, 'subject')?.required).toBe(true);
-    expect(findSectionSpec(template.sections, 'recipient')?.required).toBe(false);
+    expect(findSectionSpec(template.sections, 'content')?.required).toBe(true);
+    expect(findSectionSpec(template.sections, 'signature')?.required).toBe(false);
+  });
+
+  it('returns undefined for a kind this template no longer declares', () => {
+    // `date`, `recipient` and `subject` stay valid `SectionKind`s the engine knows
+    // (see the describe block above), but Form Editor UX Rebuild v2 removed all three
+    // from the shipped template's own section list.
+    const template = getTemplate('officialLetter');
+    expect(findSectionSpec(template.sections, 'subject')).toBeUndefined();
+    expect(findSectionSpec(template.sections, 'recipient')).toBeUndefined();
+    expect(findSectionSpec(template.sections, 'date')).toBeUndefined();
   });
 
   it('finds an instance by kind within a document', () => {

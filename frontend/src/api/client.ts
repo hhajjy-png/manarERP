@@ -72,6 +72,11 @@ declare global {
       exportPdfFromHtml: (html: string, suggestedName: string) => Promise<{
         success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
       }>;
+      // ─── Word Export IPC (Form Editor UX Rebuild v2) ───────────────────────────
+      /** Optional: absent on an older preload build — every caller must guard. */
+      exportDocxBytes?: (bytes: Uint8Array, suggestedName: string) => Promise<{
+        success: boolean; canceled?: boolean; path?: string; sizeBytes?: number; error?: string;
+      }>;
       // ─── Attachments IPC ────────────────────────────────────────────────────────
       openFileDialog: () => Promise<string | null>;
       openAttachment: (filePath: string) => Promise<string | null>;

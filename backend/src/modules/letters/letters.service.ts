@@ -53,7 +53,6 @@ import {
   serialiseSnapshot,
   withAllocatedReference,
 } from './snapshot';
-import { createVersionInTransaction } from './revisions.service';
 
 /** Who is acting. A text snapshot, never a foreign key. */
 export interface Actor {
@@ -346,19 +345,12 @@ export async function registerLetter(
   const year = letter.issueDate.getFullYear();
 
   return prisma.$transaction(async (tx) => {
-    // Before the number exists — so the history holds the document exactly as it stood
-    // when it was issued, and inside this transaction so a rolled-back registration
-    // leaves no snapshot behind. The version route cannot produce this kind; only
-    // registration knows a registration is happening.
-    await createVersionInTransaction(tx, {
-      letterId: id,
-      kind: 'PRE_REGISTER',
-      note: 'لقطة تلقائية عند التسجيل',
-      pageCount: snapshot.pageCount,
-      actorId: actor.id ?? null,
-      actorName: actor.name ?? null,
-    });
-
+    // The PRE_REGISTER version snapshot that used to be taken here went with version
+    // history (Form Editor UX Rebuild Pack v2). Fidelity is unaffected: the
+    // REGISTRATION SNAPSHOT below is what a reprint is reproduced from, it is still
+    // written inside this same transaction, and it is still the only record any output
+    // path reads. What was lost is the ability to browse the document's earlier drafts,
+    // which was never part of the register.
     const allocated = await allocateReferenceInTransaction(tx, letter.templateKey, year, id, actor);
     const registered = await repo.markRegistered(tx, id, {
       reference: allocated.reference,

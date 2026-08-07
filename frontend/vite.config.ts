@@ -38,7 +38,14 @@ export default defineConfig({
           if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'vendor-react';
           if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) return 'vendor-charts';
           if (id.includes('xlsx')) return 'vendor-xlsx';
-          if (id.includes('mammoth')) return 'vendor-docx';
+          // Two unrelated Word libraries live here: `mammoth` reads .docx (Template
+          // Studio's import path) and `docx` writes it (the Letter Engine's Word
+          // export, Form Editor UX Rebuild v2). Named and split apart on purpose — an
+          // ambiguous shared 'vendor-docx' name previously let Rollup's own automatic
+          // chunking, which names an unclaimed vendor chunk after its package, collide
+          // with this one and silently merge both libraries into a single chunk.
+          if (id.includes('mammoth')) return 'vendor-mammoth';
+          if (/[\\/]node_modules[\\/]docx[\\/]/.test(id)) return 'vendor-docx-writer';
           if (id.includes('jszip')) return 'vendor-zip';
           if (id.includes('qrcode')) return 'vendor-qrcode';
           return undefined;

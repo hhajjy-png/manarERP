@@ -63,7 +63,6 @@
    No border, no background, no padding: on the sheet these ARE the letter's text,
    and any chrome would print-preview as something the paper will not have. */
 
-.ls-line-input,
 .ls-paragraph {
   width: 100%;
   border: 0;
@@ -74,7 +73,6 @@
   outline: none;
 }
 
-.ls-line-input:focus-visible,
 .ls-paragraph:focus-visible {
   /* A soft tint rather than an outline — an outline at paper scale looks like a
      printed rule. */
@@ -82,57 +80,8 @@
   border-radius: 2px;
 }
 
-.ls-line-input::placeholder,
 .ls-paragraph::placeholder {
   color: #cbd5e1;
-}
-
-/* ── Date ──────────────────────────────────────────────────────────────── */
-
-.ls-date {
-  display: flex;
-  align-items: baseline;
-  gap: 2mm;
-  color: #000;
-}
-
-.ls-date-prefix {
-  font-weight: 600;
-}
-
-.ls-date-input {
-  font: inherit !important;
-}
-
-/* ── Recipient ─────────────────────────────────────────────────────────── */
-
-.ls-recipient {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5mm;
-  color: #000;
-  margin-top: 3mm;
-}
-
-/* ── Subject ───────────────────────────────────────────────────────────── */
-
-.ls-subject {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 2mm;
-  margin-top: 5mm;
-  margin-bottom: 4mm;
-  color: #000;
-}
-
-.ls-subject-prefix {
-  flex: 0 0 auto;
-}
-
-.ls-subject-input {
-  flex: 1 1 auto;
-  max-width: 70%;
 }
 
 /* ── Content ───────────────────────────────────────────────────────────── */

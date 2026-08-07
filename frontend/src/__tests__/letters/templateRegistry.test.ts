@@ -33,7 +33,7 @@ import {
   isReservedReferencePrefix,
   templateAllowsCommand,
 } from '../../letters/registry/templateRegistry';
-import { SECTION_KINDS, isSectionKind, isSectionPageScope } from '../../letters/model/sectionTypes';
+import { isSectionKind, isSectionPageScope } from '../../letters/model/sectionTypes';
 import {
   isToolbarCommandId,
   isProhibitedToolbarCommand,
@@ -119,18 +119,18 @@ describe.each(ALL.map((t) => [t.key, t] as const))('Template "%s" — cross-regi
     }
   });
 
-  it('declares every section kind the engine knows (v1 Official Letter uses all six)', () => {
-    expect(getUnusedSectionKinds(template)).toEqual([]);
-    expect(getTemplateSectionKinds(template)).toEqual([...SECTION_KINDS]);
+  it('declares exactly content, signature and barcode — Form Editor UX Rebuild v2 removed the fixed identity sections', () => {
+    // `date`, `recipient` and `subject` remain valid `SectionKind`s the engine knows
+    // about (see `sectionTypes.ts`), but no shipped template declares them any more —
+    // the document is generic now, and none of the three is assumed.
+    expect(getTemplateSectionKinds(template)).toEqual(['content', 'signature', 'barcode']);
+    expect(getUnusedSectionKinds(template)).toEqual(['date', 'recipient', 'subject']);
   });
 
   it('places sections in the approved page scopes', () => {
     const scope = (kind: string) => template.sections.find((s) => s.kind === kind)?.pageScope;
-    // Identity sections on page 1; only the body flows; signature and barcode
-    // authorise the document as a whole and therefore sit on the last page only.
-    expect(scope('date')).toBe('firstPage');
-    expect(scope('recipient')).toBe('firstPage');
-    expect(scope('subject')).toBe('firstPage');
+    // Only the body flows; signature and barcode authorise the document as a whole
+    // and therefore sit on the last page only.
     expect(scope('content')).toBe('flow');
     expect(scope('signature')).toBe('lastPage');
     expect(scope('barcode')).toBe('lastPage');
@@ -215,18 +215,29 @@ describe.each(ALL.map((t) => [t.key, t] as const))('Template "%s" — cross-regi
     }
   });
 
-  it('selects every blocking rule — a template may not opt out of one', () => {
-    // A template chooses thresholds, never severity. Skipping a blocking rule would be
-    // an override of INV-2/INV-3 by omission.
+  it('selects the two reserved-zone rules — the one restriction the editor keeps', () => {
+    // Form Editor UX Rebuild v2 deselected every other blocking rule: the editor
+    // assists rather than refuses, and the author decides whether a document is fit to
+    // send. What a template still may NOT do is opt out of protecting the pre-printed
+    // paper, because that is the only thing an author cannot see going wrong.
+    //
+    // A template chooses thresholds and membership, never severity — so these two stay
+    // blocking wherever they are selected.
     const selected = new Set(template.validationRules.map((r) => r.ruleId));
-    for (const id of ['E1_subjectRequired', 'E2_contentRequired', 'E3_referenceRequiredForOutput', 'E4_reservedZoneOverlap']) {
-      expect(selected.has(id as never), `blocking rule "${id}" is not selected`).toBe(true);
+    for (const id of ['E4_reservedZoneOverlap', 'E16_objectInReservedZone']) {
+      expect(selected.has(id as never), `reserved-zone rule "${id}" is not selected`).toBe(true);
     }
   });
 
-  it('keeps its page cap and rule E10’s threshold in agreement', () => {
-    const e10 = template.validationRules.find((r) => r.ruleId === 'E10_pageCapExceeded');
-    expect(e10?.params.maxPages).toBe(template.pageCap);
+  it('selects no rule that would refuse an ordinary editing action', () => {
+    // The rebuild's promise, asserted against the shipped metadata rather than against
+    // a screen: nothing outside the reserved-zone pair and the geometry stability guard
+    // may carry a severity that stops an output.
+    const stoppers = template.validationRules
+      .map((r) => r.ruleId)
+      .filter((id) => getValidationRule(id).severity === 'blocking')
+      .filter((id) => !['E4_reservedZoneOverlap', 'E16_objectInReservedZone', 'E13_impossibleGeometry'].includes(id));
+    expect(stoppers).toEqual([]);
   });
 
   it('declares signature slots without owning any asset (INV-12)', () => {
@@ -254,8 +265,7 @@ describe('Official Letter — approved specifics', () => {
     expect(template.typographyPresetSetId).toBe('officialArabic');
   });
 
-  it('has no approval gate, and a ten-page cap', () => {
+  it('has no approval gate', () => {
     expect(template.requiresApproval).toBe(false);
-    expect(template.pageCap).toBe(10);
   });
 });

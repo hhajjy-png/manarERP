@@ -165,7 +165,7 @@ describe('validateForPrint — the gate', () => {
 
   it('refuses when a blocking error exists, and returns the findings themselves', () => {
     const result: ValidationResult = {
-      issues: [issue('blocking', 'E14_oversizedParagraph'), issue('warning', 'W1_pageCountAdvisory')],
+      issues: [issue('blocking', 'E4_reservedZoneOverlap'), issue('warning', 'E13_impossibleGeometry')],
       unimplementedRuleIds: [],
     };
     const outcome = validateForPrint(summarise(result), result);
@@ -177,12 +177,12 @@ describe('validateForPrint — the gate', () => {
     // The refusal carries the reason, so the caller never has to re-run validation
     // to find out what was wrong.
     expect(outcome.error.blockingIssues).toHaveLength(1);
-    expect(outcome.error.blockingIssues?.[0].ruleId).toBe('E14_oversizedParagraph');
+    expect(outcome.error.blockingIssues?.[0].ruleId).toBe('E4_reservedZoneOverlap');
   });
 
   it('lets warnings and information through — only blocking errors stop printing', () => {
     const result: ValidationResult = {
-      issues: [issue('warning', 'W1_pageCountAdvisory'), issue('info', 'I1_documentPageCount')],
+      issues: [issue('warning', 'E13_impossibleGeometry'), issue('info', 'E16_objectInReservedZone')],
       unimplementedRuleIds: [],
     };
     const outcome = validateForPrint(summarise(result), result);
@@ -190,7 +190,7 @@ describe('validateForPrint — the gate', () => {
   });
 
   it('refuses an INCOMPLETE check separately from a failed one', () => {
-    const result: ValidationResult = { issues: [], unimplementedRuleIds: ['E7_barcodePayloadCapacity'] };
+    const result: ValidationResult = { issues: [], unimplementedRuleIds: ['E16_objectInReservedZone'] };
     const outcome = validateForPrint(summarise(result), result);
 
     expect(outcome.ok).toBe(false);
@@ -202,8 +202,8 @@ describe('validateForPrint — the gate', () => {
 
   it('reports a blocking error ahead of an incomplete check when both are present', () => {
     const result: ValidationResult = {
-      issues: [issue('blocking', 'E2_contentRequired')],
-      unimplementedRuleIds: ['E7_barcodePayloadCapacity'],
+      issues: [issue('blocking', 'E4_reservedZoneOverlap')],
+      unimplementedRuleIds: ['E16_objectInReservedZone'],
     };
     const outcome = validateForPrint(summarise(result), result);
 
@@ -338,7 +338,7 @@ describe('runPrintPipeline', () => {
 
   it('never reaches the platform when the document has a blocking error', async () => {
     const validation: ValidationResult = {
-      issues: [issue('blocking', 'E1_subjectRequired')],
+      issues: [issue('blocking', 'E4_reservedZoneOverlap')],
       unimplementedRuleIds: [],
     };
     const target = OK_PLATFORM();
@@ -425,7 +425,12 @@ describe('letter-print.css', () => {
           // suppresses `.lo-placeholder`, which that component renders.
           'LayoutToolbar.tsx', 'LayoutCanvas.tsx', 'ObjectInspector.tsx', 'LayoutObjectView.tsx',
           // Professional Document Automation v1.
-          'InsertPanel.tsx', 'DocumentPropertiesPanel.tsx', 'ConditionEditor.tsx', 'RevisionPanel.tsx',
+          'InsertPanel.tsx', 'DocumentPropertiesPanel.tsx', 'ConditionEditor.tsx',
+          // Form Editor UX Simplification Pack v1. The menu is portaled to
+          // `document.body`, so it is the one piece of chrome the export pipeline's
+          // subtree strip can never reach — the deny-list is its only protection, and
+          // this scan is what keeps that entry honest.
+          'AdvancedToolsMenu.tsx',
         ].map((f) => readFileSync(join(COMPONENTS, 'studio', f), 'utf8')),
         ['LetterComposer.tsx', 'LetterComposer.css'].map((f) =>
           readFileSync(join(process.cwd(), 'src', 'pages', f), 'utf8'),
