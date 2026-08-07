@@ -4,6 +4,13 @@ import fs from 'fs';
 import { fork, ChildProcess } from 'child_process';
 import { randomBytes, randomUUID } from 'crypto';
 import { markSeeded, sha256FileSync } from './dbBootstrapState';
+import { ensureDataLayout, seedCompanionFiles } from './dataDirBootstrap';
+import {
+  BackendStartupError as BackendStartupErrorImpl,
+  appendStderrTail,
+  readBackendErrorLogTail,
+  waitForHealth as waitForHealthImpl,
+} from './backendReadiness.pure';
 
 let backendProcess: ChildProcess | null = null;
 let appQuitting = false;
@@ -54,8 +61,30 @@ export function getUserDataPaths() {
 
   const backupDir = path.join(dataDir, 'backups');
   const dbPath = path.join(dataDir, 'manar.db');
-  fs.mkdirSync(backupDir, { recursive: true });
-  fs.mkdirSync(path.join(dataDir, 'logs'), { recursive: true });
+  const attachmentsDir = path.join(dataDir, 'attachments');
+
+  // التهيئة **مرة واحدة لعمر العملية**. هذه الدالة تُستدعى من كل نداء IPC
+  // (حالة المزامنة، النسخ الاحتياطي، المرفقات) — أي عشرات المرات في الدقيقة
+  // أثناء فتح صفحة المزامنة. تكرار إنشاء المجلدات وفحص البذر مع كل نداء عملٌ
+  // قرصي بلا أي أثر بعد المرة الأولى، ويحوّل تحذير نسخٍ فاشل إلى فيضان سجلّ.
+  if (!bootstrapDone) {
+    bootstrapDone = true;
+    bootstrapDataDir(isDev, backendCwd, dataDir, dbPath);
+  }
+
+  return { isDev, backendCwd, dataDir, dbPath, backupDir, attachmentsDir };
+}
+
+/** صحيح بعد أول تهيئة ناجحة لمجلد البيانات — انظر التعليق في `getUserDataPaths`. */
+let bootstrapDone = false;
+
+/**
+ * تهيئة مجلد البيانات عند أول تشغيل: المجلدات، ثم قاعدة البيانات المبدئية، ثم
+ * ملفات الحالة المرافقة. كل خطوة **إضافية بحتة** — لا تستبدل شيئًا موجودًا.
+ */
+function bootstrapDataDir(isDev: boolean, backendCwd: string, dataDir: string, dbPath: string): void {
+  // كل مجلدات البيانات دفعةً واحدة — إضافية بحتة، لا تمسّ موجودًا.
+  ensureDataLayout(dataDir);
 
   // في الإنتاج: انسخ قاعدة البيانات المبدئية المُهيّأة عند أول تشغيل
   if (!isDev && !fs.existsSync(dbPath)) {
@@ -80,7 +109,19 @@ export function getUserDataPaths() {
     }
   }
 
-  return { isDev, backendCwd, dataDir, dbPath, backupDir };
+  // ملفات الحالة المرافقة (سجلّ المزامنة وربط ملف Drive) — الناقصة فقط، في
+  // الإنتاج وحده. في التطوير `dataDir` هو مجلد عمل المطوّر ولا يُبذَر أبدًا.
+  if (!isDev) {
+    const seeded = seedCompanionFiles(dataDir, path.join(resourcesPath, 'seed-data'));
+    if (seeded.copied.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log(`[Bootstrap] نُسخت ملفات الحالة المبدئية: ${seeded.copied.join(', ')}`);
+    }
+    for (const f of seeded.failed) {
+      // eslint-disable-next-line no-console
+      console.warn(`[Bootstrap] تعذّر نسخ ${f.file}: ${f.error} — يُنشأ تلقائيًا عند الحاجة.`);
+    }
+  }
 }
 
 /**
@@ -153,8 +194,16 @@ function getOrCreateJwtSecret(dataDir: string): string {
 /**
  * تشغيل الخدمة الخلفية (Express) كعملية فرعية مع تمرير متغيرات البيئة.
  */
-export function startBackend(internalSecret = ''): Promise<void> {
-  const { isDev, backendCwd, dataDir, dbPath, backupDir } = getUserDataPaths();
+export function startBackend(
+  internalSecret = '',
+  /**
+   * يُستدعى بالثواني المنقضية أثناء انتظار جاهزية الخدمة. اختياري تمامًا —
+   * الإقلاع يعمل بدونه؛ وجوده يجعل الانتظار مرئيًا في نافذة بدء التشغيل بدل
+   * أن يكون صمتًا.
+   */
+  onProgress?: (elapsedSeconds: number) => void,
+): Promise<void> {
+  const { isDev, backendCwd, dataDir, dbPath, backupDir, attachmentsDir } = getUserDataPaths();
 
   const databaseUrl = toFileUrl(dbPath);
 
@@ -178,6 +227,15 @@ export function startBackend(internalSecret = ''): Promise<void> {
     DATABASE_URL: databaseUrl,
     BACKUP_DIR: backupDir,
     DATA_DIR: dataDir,
+    /**
+     * حاسم في الإنتاج: الخدمة الخلفية تحلّ `ATTACHMENTS_DIR` نسبةً إلى
+     * `process.cwd()` — وهو مجلد التثبيت هناك. بلا هذا السطر كانت المرفقات
+     * تُكتب **داخل مجلد التثبيت** (يُمحى مع إلغاء التثبيت أو الترقية، وقد يكون
+     * غير قابل للكتابة أصلًا)، بينما تبحث عنها طبقة Electron في
+     * `userData/data/attachments` — فلا يُفتح أي مرفق أبدًا. تمرير مسار مطلق
+     * هنا يجعل الطرفين يشيران إلى المجلد نفسه تحت `%AppData%`.
+     */
+    ATTACHMENTS_DIR: attachmentsDir,
     PORT: '48211',
     HOST: '127.0.0.1',
     JWT_SECRET: getOrCreateJwtSecret(dataDir),
@@ -185,49 +243,125 @@ export function startBackend(internalSecret = ''): Promise<void> {
   };
 
   return new Promise((resolve, reject) => {
-    backendProcess = fork(entry, [], {
+    const child = fork(entry, [], {
       cwd: backendCwd,
       env,
       execArgv: isDev ? ['--import', 'tsx', '--watch', '--watch-preserve-output'] : [],
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
+    backendProcess = child;
 
-    backendProcess.stdout?.on('data', (d) => process.stdout.write(`[backend] ${d}`));
-    backendProcess.stderr?.on('data', (d) => process.stderr.write(`[backend] ${d}`));
-    backendProcess.on('error', reject);
+    // آخر أسطر الخطأ تُحتفظ للتشخيص: في التطبيق المُعبَّأ لا يصل stderr إلى أي
+    // طرفية، فبلا هذا يضيع السبب الحقيقي لأي انهيار مبكر ولا يبقى إلا «تعذّر
+    // التشغيل». تُعرض في حوار الفشل وتُكتب في السجلّ.
+    const stderrTail: string[] = [];
 
-    waitForHealth().then(() => {
-      backendProcess?.on('exit', (code, signal) => {
-        if (appQuitting || restartingBackend) return;
-        // eslint-disable-next-line no-console
-        console.error(`[backend] توقفت الخدمة بشكل غير متوقع — code=${code} signal=${signal}`);
-        dialog.showMessageBoxSync({
-          type: 'error',
-          title: 'خطأ في نظام المنار',
-          message: 'توقفت الخدمة الخلفية بشكل غير متوقع.',
-          detail: 'سيتم إغلاق التطبيق. يرجى إعادة تشغيله.',
-          buttons: ['حسناً'],
+    child.stdout?.on('data', (d) => process.stdout.write(`[backend] ${d}`));
+    child.stderr?.on('data', (d) => {
+      const text = String(d);
+      appendStderrTail(stderrTail, text);
+      process.stderr.write(`[backend] ${text}`);
+    });
+
+    /**
+     * خروج مبكر = فشل **نهائي ومعروف السبب**. لا معنى لانتظار المهلة كاملة بعده:
+     * العملية ماتت ولن تستجيب أبدًا. الانتظار كان يحوّل انهيارًا فوريًا واضحًا إلى
+     * «مهلة» غامضة بعد عشرات الثواني، ويُخفي رمز الخروج ورسالة الخطأ الحقيقية.
+     */
+    let settled = false;
+    const finishOnce = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    /**
+     * السبب الحقيقي في الإنتاج يعيش في `error.log` لا في stderr (منقل طرفية
+     * winston معطَّل في الإنتاج). يُقرأ **لحظة الفشل** لا قبله، فيلتقط ما كتبته
+     * الخدمة قبل موتها مباشرة.
+     */
+    const logTailNow = () => readBackendErrorLogTail(dataDir, (p) => fs.readFileSync(p, 'utf8'));
+
+    const onEarlyExit = (code: number | null, signal: NodeJS.Signals | null) => {
+      finishOnce(() =>
+        reject(
+          new BackendStartupErrorImpl('توقفت الخدمة الخلفية أثناء بدء التشغيل.', {
+            exitCode: code,
+            signal,
+            stderrTail: [...stderrTail],
+            logTail: logTailNow(),
+            dataDir,
+          }),
+        ),
+      );
+    };
+
+    child.on('error', (err) =>
+      finishOnce(() =>
+        reject(
+          new BackendStartupErrorImpl('تعذّر تشغيل عملية الخدمة الخلفية.', {
+            exitCode: null,
+            signal: null,
+            stderrTail: [...stderrTail, err.message],
+            logTail: logTailNow(),
+            dataDir,
+          }),
+        ),
+      ),
+    );
+    child.once('exit', onEarlyExit);
+
+    waitForHealthImpl({
+      isChildAlive: () => !child.killed && child.exitCode === null,
+      onProgress,
+    })
+      .then(() => {
+        finishOnce(() => {
+          // انتهت مرحلة البدء: يُنزع حارس الخروج المبكر ويحلّ محلّه معالج
+          // «توقّف غير متوقع» الذي يخصّ ما بعد الإقلاع.
+          child.off('exit', onEarlyExit);
+          child.on('exit', (code, signal) => {
+            if (appQuitting || restartingBackend) return;
+            // eslint-disable-next-line no-console
+            console.error(`[backend] توقفت الخدمة بشكل غير متوقع — code=${code} signal=${signal}`);
+            dialog.showMessageBoxSync({
+              type: 'error',
+              title: 'خطأ في نظام المنار',
+              message: 'توقفت الخدمة الخلفية بشكل غير متوقع.',
+              detail: 'سيتم إغلاق التطبيق. يرجى إعادة تشغيله.',
+              buttons: ['حسناً'],
+            });
+            app.quit();
+          });
+          resolve();
         });
-        app.quit();
-      });
-      resolve();
-    }).catch(reject);
+      })
+      .catch((err: unknown) =>
+        finishOnce(() =>
+          reject(
+            err instanceof BackendStartupErrorImpl
+              ? err
+              : new BackendStartupErrorImpl('تعذّر تشغيل الخدمة الخلفية.', {
+                  exitCode: null,
+                  signal: null,
+                  stderrTail: [...stderrTail],
+                  logTail: logTailNow(),
+                  dataDir,
+                }),
+          ),
+        ),
+      );
   });
 }
 
-/** انتظار جاهزية الخدمة عبر فحص /api/health. */
-async function waitForHealth(retries = 50): Promise<void> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const res = await fetch('http://127.0.0.1:48211/api/health', { signal: AbortSignal.timeout(250) });
-      if (res.ok) return;
-    } catch {
-      // لم تجهز بعد
-    }
-    await new Promise((r) => setTimeout(r, 300));
-  }
-  throw new Error('تعذّر تشغيل الخدمة الخلفية في الوقت المتوقع');
-}
+// منطق الجاهزية نفسه يعيش في `backendReadiness.pure.ts` — يُعاد تصديره هنا
+// ليبقى `backendLauncher` هو الواجهة الوحيدة التي يستوردها بقية التطبيق.
+export {
+  BackendStartupError,
+  waitForHealth,
+  type BackendStartupFailure,
+  type WaitForHealthOptions,
+} from './backendReadiness.pure';
 
 /** إيقاف الخدمة الخلفية بأمان. */
 export function stopBackend(): void {

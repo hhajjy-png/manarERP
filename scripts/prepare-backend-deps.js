@@ -27,6 +27,50 @@ function log(msg) {
   console.log(`[prepare-backend-deps] ${msg}`);
 }
 
+/**
+ * ملفات لا يجوز أن تدخل الحزمة إطلاقًا.
+ *
+ * `query_engine-windows.dll.node.tmpNNNNN`: يكتب Prisma محرّكه إلى ملف مؤقت ثم
+ * يعيد تسميته عند كل `prisma generate`؛ فشل إعادة التسمية (والملف مقفول لأن
+ * الخدمة تعمل) يترك النسخة المؤقتة خلفه — 19 ميغابايت للنسخة الواحدة. تراكمت
+ * ثلاثون منها في هذا المستودع (≈537 ميغابايت) وكانت تُنسخ حرفيًا إلى كل مثبّت.
+ * لا وظيفة لها إطلاقًا وقت التشغيل: Node يحمّل `query_engine-windows.dll.node` وحده.
+ */
+const EXCLUDED_FROM_PACKAGE = [
+  /\.tmp\d+$/i,          // بقايا إعادة تسمية محرّك Prisma
+  /\.map$/i,             // خرائط المصدر — تشخيص مطوّر لا تشغيل
+  /[\\/]\.bin[\\/]/i,    // روابط CLI — لا تُستدعى من الخدمة المُعبَّأة
+];
+
+/** مُرشِّح `fs.cpSync` — يُعيد false للملفات المستبعَدة أعلاه. */
+function packageFilter(src) {
+  return !EXCLUDED_FROM_PACKAGE.some((re) => re.test(src));
+}
+
+/** يحذف بقايا محرّك Prisma المؤقتة من مجلد مصدر (تنظيف المستودع نفسه). */
+function pruneOrphanEngines(dir) {
+  let removed = 0;
+  let bytes = 0;
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return { removed, bytes };
+  }
+  for (const e of entries) {
+    if (!e.isFile() || !/\.tmp\d+$/i.test(e.name)) continue;
+    const full = path.join(dir, e.name);
+    try {
+      bytes += fs.statSync(full).size;
+      fs.rmSync(full, { force: true });
+      removed++;
+    } catch {
+      // مقفول أو محذوف بالتوازي — تخطٍّ صامت، المُرشِّح يمنعه من الحزمة على أي حال.
+    }
+  }
+  return { removed, bytes };
+}
+
 function main() {
   log(`تجهيز مجلد التثبيت المعزول: ${STAGE_DIR}`);
   fs.rmSync(STAGE_DIR, { recursive: true, force: true });
@@ -47,6 +91,13 @@ function main() {
   // عميل Prisma المُولَّد افتراضيًا من `npm install` هو غلاف فارغ (بلا مخطط). استبداله
   // بالنسخة المُولَّدة فعليًا في جذر المستودع (نفس schema.prisma، مُختبَرة في التطوير).
   const rootNodeModules = path.join(REPO_ROOT, 'node_modules');
+
+  // تنظيف بقايا المحرّك في المصدر قبل النسخ — يحرّر المستودع أيضًا لا الحزمة فقط.
+  const pruned = pruneOrphanEngines(path.join(rootNodeModules, '.prisma', 'client'));
+  if (pruned.removed > 0) {
+    log(`حُذفت ${pruned.removed} نسخة مؤقتة يتيمة من محرّك Prisma (${(pruned.bytes / 1024 / 1024).toFixed(0)} ميغابايت).`);
+  }
+
   const overlays = [
     ['@prisma/client', path.join(rootNodeModules, '@prisma', 'client')],
     ['.prisma', path.join(rootNodeModules, '.prisma')],
@@ -58,13 +109,16 @@ function main() {
     const destDir = path.join(STAGE_DIR, 'node_modules', label);
     log(`استبدال ${label} بالنسخة المُولَّدة من جذر المستودع...`);
     fs.rmSync(destDir, { recursive: true, force: true });
-    fs.cpSync(srcDir, destDir, { recursive: true });
+    fs.cpSync(srcDir, destDir, { recursive: true, filter: packageFilter });
   }
 
   const backendNodeModules = path.join(BACKEND_DIR, 'node_modules');
   log(`نسخ node_modules المعزولة إلى ${backendNodeModules}...`);
   fs.rmSync(backendNodeModules, { recursive: true, force: true });
-  fs.cpSync(path.join(STAGE_DIR, 'node_modules'), backendNodeModules, { recursive: true });
+  fs.cpSync(path.join(STAGE_DIR, 'node_modules'), backendNodeModules, {
+    recursive: true,
+    filter: packageFilter,
+  });
 
   log('اكتمل — backend/node_modules الآن مكتفٍ ذاتيًا لأغراض التغليف.');
 }

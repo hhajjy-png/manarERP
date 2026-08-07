@@ -35,7 +35,7 @@ process.on('unhandledRejection', (reason) => crashSafely('unhandledRejection', r
  */
 async function startServer() {
   try {
-    runPendingMigrations();
+    await runPendingMigrations();
     await initDatabase();
     // محرك الخطابات — يرفع عدّادات التسلسل إلى أعلى رقم مرجعي مسجَّل فعلًا.
     // ضروري بعد استعادة نسخة احتياطية أقدم من آخر خطاب صادر: بدونه يُعاد إصدار

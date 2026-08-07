@@ -1,6 +1,12 @@
 node_modules/
 dist/
-build/
+# `build/*` لا `build/` — الأخير يستبعد المجلد نفسه فيتعذّر استثناء أي ملف بداخله.
+# أيقونة التطبيق مصدرٌ حقيقي (buildResources لـelectron-builder) لا ناتج بناء؛
+# أما seed-data و installer-prereqs.nsh و runtime-requirements.json فمولَّدة ضمن
+# `npm run dist` وتبقى مُتجاهَلة.
+build/*
+!build/icon.ico
+!build/icon.png
 out/
 electron-dist/
 release/
@@ -50,6 +56,17 @@ frontend/src/pages/index.html
 
 # One-off text dumps of Gemini/manual review output
 /review-*.txt
+
+# ── Production Deployment Pack v1 — بقايا التطوير ────────────────────────────
+# أنماط تُنتَج أثناء التشخيص وتُنسى في شجرة العمل. ليست جزءًا من المنتج أبدًا،
+# ولا تدخل حزمة التثبيت (مُستبعَدة أيضًا في electron-builder.yml). التجاهل هنا
+# يمنع عودتها إلى المستودع بعد التنظيف.
+/.tmp-*.json
+/.tmp-*.txt
+backend/__*.ts
+backend/scripts/one-time/_*.ts
+**/__probe.*
+*.tmp[0-9]*
 
 # Claude Code agent/skill tooling (mirrors .claude/ — not application source)
 .agents/

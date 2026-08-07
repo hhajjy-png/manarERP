@@ -51,3 +51,113 @@ describe('.gitignore — the real credential file is never committed', () => {
     expect(gitignore).toContain('electron/resources/gdrive-oauth-client.json');
   });
 });
+
+/**
+ * Production Deployment Pack v1 — عقد حزمة الإنتاج.
+ *
+ * كل تأكيد أدناه يحرس عطلًا **لا يظهر إلا على جهاز المستخدم النهائي**: البناء ينجح،
+ * والمثبّت يُنتَج، والاختبارات تمرّ — ثم يفشل شيء بعد التثبيت على جهاز نظيف. هذا
+ * أسوأ ما يمكن أن يمرّ من مراجعة، ولا شيء غير عقد صريح على ملف التهيئة يمنعه.
+ */
+describe('electron-builder.yml — عقد حزمة الإنتاج', () => {
+  const repoRoot = path.join(__dirname, '..', '..');
+  const config = fs.readFileSync(path.join(repoRoot, 'electron-builder.yml'), 'utf8');
+  const pkg = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
+    version: string;
+    productName?: string;
+    scripts: Record<string, string>;
+  };
+
+  it('لا يحذف بيانات المستخدم عند إلغاء التثبيت', () => {
+    // أخطر سطر في الملف كله. `deleteAppDataOnUninstall: true` يمحو
+    // %AppData%\...\data — أي قاعدة البيانات وكل النسخ الاحتياطية المحلية —
+    // بلا سؤال ولا تراجع. الافتراضي في electron-builder هو false، لكن الاعتماد
+    // على افتراضي في قرار بهذا الحجم ليس عقدًا.
+    expect(config).toMatch(/deleteAppDataOnUninstall:\s*false/);
+  });
+
+  it('يشحن قاعدة البيانات المبدئية (بيانات النظام الحالية)', () => {
+    expect(config).toMatch(/from:\s*backend\/data\/manar\.db\s*\n\s*to:\s*backend\/data\/manar\.db/);
+  });
+
+  it('يشحن ملفات الحالة المبدئية إلى seed-data (يقرأها dataDirBootstrap عند أول تشغيل)', () => {
+    // المسار الهدف `seed-data` مقروء حرفيًا في backendLauncher عبر
+    // path.join(resourcesPath, 'seed-data') — تغييره هنا يكسر البذر بصمت.
+    expect(config).toMatch(/from:\s*build\/seed-data\s*\n\s*to:\s*seed-data/);
+    const launcher = fs.readFileSync(
+      path.join(repoRoot, 'electron', 'services', 'backendLauncher.ts'),
+      'utf8',
+    );
+    expect(launcher).toContain("path.join(resourcesPath, 'seed-data')");
+  });
+
+  it('يشحن مخطط Prisma والترحيلات — بلاها يفشل migrate deploy عند بدء الخدمة', () => {
+    expect(config).toMatch(/from:\s*backend\/prisma\s*\n\s*to:\s*backend\/prisma/);
+    expect(config).toMatch(/from:\s*backend\/package\.json/);
+  });
+
+  it('لا يشحن من backend/prisma إلا المخطط والترحيلات — قائمة حصرية لا استبعادية', () => {
+    // `backend/prisma/data/manar.db` قاعدة **ثانية قديمة** (ومعها ملف `-journal`
+    // أي أنها مُتّسخة) خلّفها تشغيل Prisma بمسار نسبي. شحنها داخل المثبّت بجوار
+    // قاعدة القالب الحقيقية التباس خطر لا مجرّد حجم زائد. مُرشِّح حصري يمنع هذا
+    // النوع من التسرّب مستقبلًا: ما لم يُذكر صراحةً لا يُشحن.
+    const prismaEntry = config.slice(
+      config.indexOf('from: backend/prisma'),
+      config.indexOf('from: backend/package.json'),
+    );
+    expect(prismaEntry).toContain('filter:');
+    expect(prismaEntry).toMatch(/-\s*schema\.prisma/);
+    expect(prismaEntry).toMatch(/-\s*migrations\/\*\*\/\*/);
+    expect(prismaEntry).not.toMatch(/-\s*['"]?\*\*\/\*/); // لا شمول عام
+  });
+
+  it('يشحن أصول الخدمة الخلفية (الخط العربي وقالب NBK)', () => {
+    expect(config).toMatch(/from:\s*backend\/assets\s*\n\s*to:\s*backend\/assets/);
+  });
+
+  it('يستبعد بقايا محرّك Prisma المؤقتة من الحزمة', () => {
+    // ثلاثون نسخة × 19 ميغابايت كانت تُشحن في كل مثبّت. حاجز ثانٍ بعد مُرشِّح
+    // prepare-backend-deps — تكرار مقصود: كلاهما رخيص، وفقدان أحدهما صامت.
+    expect(config).toContain("'!**/*.tmp[0-9]*'");
+  });
+
+  it('يدمج سكربت المتطلبات المسبقة المولَّد في المثبّت', () => {
+    expect(config).toMatch(/include:\s*build\/installer-prereqs\.nsh/);
+  });
+
+  it('يبني هدف NSIS لـx64 فقط مع أيقونة التطبيق', () => {
+    expect(config).toMatch(/target:\s*nsis/);
+    expect(config).toMatch(/-\s*x64/);
+    expect(config).toMatch(/icon:\s*build\/icon\.ico/);
+    expect(fs.existsSync(path.join(repoRoot, 'build', 'icon.ico'))).toBe(true);
+  });
+
+  it('التثبيت لكل مستخدم ولا يتطلب صلاحيات مسؤول', () => {
+    expect(config).toMatch(/perMachine:\s*false/);
+  });
+
+  it('اسم المنتج وإصدار 2026.2 متسقان بين package.json و electron-builder.yml', () => {
+    expect(pkg.productName).toBe('Al Manar ERP');
+    expect(config).toMatch(/productName:\s*Al Manar ERP/);
+    expect(pkg.version).toMatch(/^2026\.2\./);
+  });
+
+  it('خط أنابيب dist يُشغّل كل خطوات التجهيز بالترتيب الصحيح', () => {
+    const dist = pkg.scripts.dist;
+    const order = [
+      'package:backend-deps',   // يملأ backend/node_modules
+      'package:seed-data',      // يتحقق من القاعدة ويجهّز seed-data
+      'package:analyze-deps',   // يفحص الثنائيات — يحتاج node_modules ممتلئًا
+      'package:nsis-prereqs',   // يولّد .nsh — يحتاج بيان التحليل
+      'package:repair-cache',   // يُصلح ذاكرة أدوات electron-builder على وندوز
+      'electron-builder',
+    ];
+    let cursor = -1;
+    for (const step of order) {
+      const at = dist.indexOf(step);
+      expect(at, `خطوة مفقودة من dist: ${step}`).toBeGreaterThan(-1);
+      expect(at, `خطوة خارج الترتيب في dist: ${step}`).toBeGreaterThan(cursor);
+      cursor = at;
+    }
+  });
+});

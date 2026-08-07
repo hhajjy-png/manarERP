@@ -118,7 +118,10 @@ describe('R1 — حارس التقاطع يسبق أي مزامنة أو كتا�
   it('🔴 القفل يُطلب قبل مزامنة البدء وقبل تشغيل الخادم', () => {
     const guard = at(mainTs, 'guardAgainstSplitBrain(bootDataDir)');
     const startupSync = at(mainTs, 'performStartupSync(dbPath, dataDir)');
-    const backend = at(mainTs, 'await startBackend(INTERNAL_SECRET)');
+    // `await startBackend(INTERNAL_SECRET` بلا قوس إغلاق: Production Startup Pack
+    // v1 أضاف وسيطًا ثانيًا (مُبلِّغ التقدّم) — والعقد المحروس هنا هو **الترتيب**
+    // لا توقيع النداء، فلا يجوز أن يكسره وسيط إضافي.
+    const backend = at(mainTs, 'await startBackend(INTERNAL_SECRET');
     expect(guard).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(startupSync);
     expect(guard).toBeLessThan(backend);
@@ -178,7 +181,8 @@ describe('HIGH-1 — البيئة المرفوضة لا تصل إلى مزامن
     const boot = mainTs.slice(at(mainTs, 'async function bootstrap'));
     const ret = boot.indexOf('      return;');           // خروج مسار الرفض
     // كل هذه تقع **بعد** نقطة الخروج ⇒ لا تُنفَّذ إطلاقًا.
-    for (const call of ['registerSyncIpc()', 'registerBackupIpc()', 'performStartupSync', 'startBackend(INTERNAL_SECRET)', 'createMainWindow()']) {
+    // `startBackend(INTERNAL_SECRET` بلا قوس إغلاق — انظر تعليق R1 أعلاه.
+    for (const call of ['registerSyncIpc()', 'registerBackupIpc()', 'performStartupSync', 'startBackend(INTERNAL_SECRET', 'createMainWindow()']) {
       expect(boot.indexOf(call)).toBeGreaterThan(ret);
     }
   });
@@ -312,11 +316,22 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
 
 describe('هوية المسارات — CURRENT_DB = sync source = download target = restore target', () => {
   it('مصدر واحد لكل المسارات: getUserDataPaths()', () => {
-    // الخادم يُشغَّل بـ DATABASE_URL/DATA_DIR من نفس التفكيك.
-    expect(launcher).toContain('const { isDev, backendCwd, dataDir, dbPath, backupDir } = getUserDataPaths()');
+    // الخادم يُشغَّل بـ DATABASE_URL/DATA_DIR من نفس التفكيك. التحقق بنمط لا بنص
+    // حرفي: إضافة مسار جديد إلى التفكيك تعزيزٌ للعقد (مصدر واحد) لا خرقٌ له،
+    // فيجب ألّا تُفشل الاختبار — المهم أن يبقى `getUserDataPaths()` هو المصدر.
+    expect(launcher).toMatch(
+      /const \{[^}]*\bisDev\b[^}]*\bbackendCwd\b[^}]*\bdataDir\b[^}]*\bdbPath\b[^}]*\bbackupDir\b[^}]*\} = getUserDataPaths\(\)/,
+    );
     expect(launcher).toContain('DATABASE_URL: databaseUrl');
     expect(launcher).toContain('DATA_DIR: dataDir');
     expect(launcher).toContain('const databaseUrl = toFileUrl(dbPath)');
+
+    // Production Deployment Pack v1 — مجلد المرفقات يجب أن يأتي من نفس المصدر.
+    // الخدمة الخلفية تحلّ ATTACHMENTS_DIR نسبةً إلى process.cwd() (مجلد التثبيت
+    // في الإنتاج)؛ بلا تمرير مسار مطلق هنا تُكتب المرفقات داخل مجلد التثبيت
+    // بينما تقرأها طبقة Electron من userData — فلا يُفتح أي مرفق أبدًا.
+    expect(launcher).toContain('ATTACHMENTS_DIR: attachmentsDir');
+    expect(launcher).toMatch(/attachmentsDir\s*=\s*path\.join\(dataDir, 'attachments'\)/);
 
     // الاستعادة المحلية ومزامنة البدء/الإغلاق تقرأ نفس الدالة.
     expect(backupIpc).toContain('getUserDataPaths()');
