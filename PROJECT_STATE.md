@@ -43,14 +43,16 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `b5d7cc8a` — release `stable-form-editor-ux-rebuild-pack-v2` (Form Editor UX Rebuild Pack v2: rebuilds the Official Letter page into a lightweight, generic Form Editor, shipped on top of Form Editor UX Simplification Pack v1 — the rename to "Form Editor", the blank-page default and the Advanced Tools menu — carried on the same branch. **Version History and Comments** removed completely, backend and frontend (9 routes, their handlers, schemas and `revisions.service.ts` deleted; the registration transaction's `PRE_REGISTER` snapshot call removed — the registration snapshot itself, which a reprint is reproduced from, is unaffected). **Validation rules** cut from 25 to exactly 3 — `E4_reservedZoneOverlap`, `E16_objectInReservedZone`, `E13_impossibleGeometry` — deleted outright (implementations, catalogue entries, `ValidationRuleId` members, tests), not deselected; the editor now assists rather than refuses a missing subject, an empty body or an unregistered draft. **Letter assumptions removed** — date, recipient and subject stopped being fixed sections rendered on the sheet, in the pagination flow or in the outline (which shrank from six sections to three: content, signature, barcode); they stay in the data model as metadata (barcode payload, registration snapshot, workspace list columns/search/sort unaffected), with no editor surface writing them yet. **Word (.docx) export** — real, via the `docx` package (new production dependency), mapping the Block Model directly into docx paragraphs/runs rather than rendering the page; a new `docx:export` Electron IPC channel opens the native save dialog. **Accurate preview** wired to the shared `useAccurateFormPreview`/`WysiwygPreviewPocDialog` infrastructure 16+ other forms already use, composing through the same `composeLetter` function HTML/PDF export use. **Header and toolbar merged** — `ExecutiveHeader`'s identity-card styling replaced by a slim `.lc-topbar` sharing one sticky shell with the formatting toolbar. **Layout rebuilt as three columns** — Insert promoted to a primary, default-open left rail (no longer an Advanced Tools destination); the Object Inspector ("خصائص العنصر")/Document Properties rail moved to a contextual right-hand slot, mode-exclusive by construction. 64 files (46 modified, 12 deleted, 6 added); backend + frontend + Electron) |
-| **Previous production HEAD** | `9ec31d16` — release `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (Financial Position Analysis Audit & PDF Fix Pack v1: two independent fixes to the Financial Analysis Center's PDF export and calculation engine, no page redesign, no workflow change. **PDF export** — `composeStyledFromNode` cloned only the print root, losing its `.xpl-scope`/`.xpl-page`/`.fac-page` ancestors and every rule/token scoped to them (the whole `--xpl-*` token set, the table-wrap's `max-height: none` override — without it the kit's own `max-height: 62vh` clipped every table on paper — cell un-truncation, repeated `<thead>`); fixed by composing a detached clone wrapped in that same ancestor chain. KPI cards separately could clip an amount with no ellipsis because `useFitText`'s inline font-size, measured against the on-screen card width, survives unchanged into the static document; new `@media print` rules release the clip and override the inline size. **Calculation engine** — `resolveAnalysisPeriod`'s day count was off by one for every period (measured start-of-day to end-of-day then +1), inflating DSO and mis-sizing the previous-period comparison window; Section 5 Receivables computed a period-movement delta instead of an as-of balance, so a debtor invoiced before the period vanished and an in-period payment against an older invoice produced a negative/excluded balance — fixed via a new `AnalysisDataset.ledger` (every invoice/payment up to `period.to`, zero added queries) matching the project's own AR definition in `operational.reporting.getAccountsReceivable`; Section 8 DSO was dividing by Section 4's signed movement delta (could go negative) and now reads Section 5's real balance. A further correction to **Section 4's collection rate**, made after initial delivery per an explicit review question about its accounting basis: the old formula divided collected-in-period (which can include settlement of pre-period invoices) by invoiced-in-period only, producing rates over 900% and a movement-delta "outstanding" that read −800 when +100 was actually owed — replaced with the Collection Effectiveness Index (`collected ÷ (openingAr + invoiced)`, `outstanding = openingAr + invoiced − collected`, `openingAr` from the same ledger), with the default row sort moved from period-invoiced to total collectible so a carried-balance customer without new invoices still sorts near the top. 11 files modified; backend + frontend) |
+| **Production HEAD** | `f12adf90` — release `stable-production-release-2026.2.0` (**Al Manar ERP 2026.2.0** — the first production release shipped as a self-contained Windows installer, and the first release whose deliverable is the `.exe` rather than the branch. Four packages that had been complete in the working tree but excluded from every prior release, now shipped together. **Production Startup Pack v1** — a startup window created before any slow work, a staged progress bus, and startup failure that is *shown* rather than swallowed: the previous `catch { console.error(); app.quit(); }` reached no terminal in a packaged app, so a failed launch produced literally nothing — no window, no error, no trace; the window now becomes a failure surface carrying the exit code, the stderr tail, the `error.log` tail and the log path, with a system dialog as a last resort, so no silent failure path remains. Backend process death during startup is now terminal-and-immediate instead of waiting out the full health timeout. `ATTACHMENTS_DIR` is passed as an absolute path — attachments were being written inside the install directory while Electron looked for them under `%AppData%`, so no attachment ever opened. **Production Deployment Pack v1** — `appId` `kw.almanar.erp`, per-user install under `%AppData%` needing no administrator rights, `deleteAppDataOnUninstall: false` so user data survives uninstall, and five new packaging scripts including `analyze-runtime-deps.js`, which reads the PE import tables of every shipped binary to derive the real runtime requirements instead of guessing; the generated NSIS prerequisite block silently installs anything missing and guards the Windows version. Orphaned Prisma engine temp files (30 copies, ≈537 MB) were being copied verbatim into every installer with no runtime function, and `backend/prisma/data/manar.db` — a stale, dirty second database — was being shipped inside the package; both are now excluded. **Backend Startup Improvements** — `runPendingMigrations` was launching the Prisma CLI in a separate process on every production boot with no prior check, paying tens of megabytes, a network version check and a cold read scanned by antivirus even when nothing was pending; first launch after install exceeded 15 s, overran `waitForHealth`, and the app closed before any window existed. It now compares `_prisma_migrations` against the migrations directory in one cheap query and launches nothing when nothing is pending, with the safety contract intact (pending ⇒ deploy · undeterminable ⇒ deploy · failure ⇒ stop the service). **Form Editor UX Simplification v1** — the product name «محرر النماذج» / "Form Editor"; the `page.officialLetter.title` key, the template and the `OL` prefix are permanent under INV-8/INV-10 and deliberately do not follow a UI name. Installer `AlManarERP-Setup-2026.2.0.exe`, 132 MB, Windows 10/11 x64, zero external prerequisites. 40 files (23 modified, 12 added, 5 deleted); Electron + backend + frontend + build tooling) | rebuilds the Official Letter page into a lightweight, generic Form Editor, shipped on top of Form Editor UX Simplification Pack v1 — the rename to "Form Editor", the blank-page default and the Advanced Tools menu — carried on the same branch. **Version History and Comments** removed completely, backend and frontend (9 routes, their handlers, schemas and `revisions.service.ts` deleted; the registration transaction's `PRE_REGISTER` snapshot call removed — the registration snapshot itself, which a reprint is reproduced from, is unaffected). **Validation rules** cut from 25 to exactly 3 — `E4_reservedZoneOverlap`, `E16_objectInReservedZone`, `E13_impossibleGeometry` — deleted outright (implementations, catalogue entries, `ValidationRuleId` members, tests), not deselected; the editor now assists rather than refuses a missing subject, an empty body or an unregistered draft. **Letter assumptions removed** — date, recipient and subject stopped being fixed sections rendered on the sheet, in the pagination flow or in the outline (which shrank from six sections to three: content, signature, barcode); they stay in the data model as metadata (barcode payload, registration snapshot, workspace list columns/search/sort unaffected), with no editor surface writing them yet. **Word (.docx) export** — real, via the `docx` package (new production dependency), mapping the Block Model directly into docx paragraphs/runs rather than rendering the page; a new `docx:export` Electron IPC channel opens the native save dialog. **Accurate preview** wired to the shared `useAccurateFormPreview`/`WysiwygPreviewPocDialog` infrastructure 16+ other forms already use, composing through the same `composeLetter` function HTML/PDF export use. **Header and toolbar merged** — `ExecutiveHeader`'s identity-card styling replaced by a slim `.lc-topbar` sharing one sticky shell with the formatting toolbar. **Layout rebuilt as three columns** — Insert promoted to a primary, default-open left rail (no longer an Advanced Tools destination); the Object Inspector ("خصائص العنصر")/Document Properties rail moved to a contextual right-hand slot, mode-exclusive by construction. 64 files (46 modified, 12 deleted, 6 added); backend + frontend + Electron) |
+| **Previous production HEAD** | `b5d7cc8a` — release `stable-form-editor-ux-rebuild-pack-v2` (Form Editor UX Rebuild Pack v2: rebuilt the Official Letter page into a lightweight, generic Form Editor — Version History and Comments removed backend and frontend, validation cut from 25 rules to exactly 3, letter assumptions (date/recipient/subject) removed from the sheet while staying in the data model, real Word `.docx` export via the `docx` package plus a `docx:export` IPC channel, accurate preview wired to the shared `useAccurateFormPreview` infrastructure, header/toolbar merged into one sticky shell, and a three-column layout with Insert promoted to a default-open left rail. 64 files; backend + frontend + Electron) |
+| **Production HEAD before that** | `9ec31d16` — release `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (Financial Position Analysis Audit & PDF Fix Pack v1: two independent fixes to the Financial Analysis Center's PDF export and calculation engine, no page redesign, no workflow change. **PDF export** — `composeStyledFromNode` cloned only the print root, losing its `.xpl-scope`/`.xpl-page`/`.fac-page` ancestors and every rule/token scoped to them (the whole `--xpl-*` token set, the table-wrap's `max-height: none` override — without it the kit's own `max-height: 62vh` clipped every table on paper — cell un-truncation, repeated `<thead>`); fixed by composing a detached clone wrapped in that same ancestor chain. KPI cards separately could clip an amount with no ellipsis because `useFitText`'s inline font-size, measured against the on-screen card width, survives unchanged into the static document; new `@media print` rules release the clip and override the inline size. **Calculation engine** — `resolveAnalysisPeriod`'s day count was off by one for every period (measured start-of-day to end-of-day then +1), inflating DSO and mis-sizing the previous-period comparison window; Section 5 Receivables computed a period-movement delta instead of an as-of balance, so a debtor invoiced before the period vanished and an in-period payment against an older invoice produced a negative/excluded balance — fixed via a new `AnalysisDataset.ledger` (every invoice/payment up to `period.to`, zero added queries) matching the project's own AR definition in `operational.reporting.getAccountsReceivable`; Section 8 DSO was dividing by Section 4's signed movement delta (could go negative) and now reads Section 5's real balance. A further correction to **Section 4's collection rate**, made after initial delivery per an explicit review question about its accounting basis: the old formula divided collected-in-period (which can include settlement of pre-period invoices) by invoiced-in-period only, producing rates over 900% and a movement-delta "outstanding" that read −800 when +100 was actually owed — replaced with the Collection Effectiveness Index (`collected ÷ (openingAr + invoiced)`, `outstanding = openingAr + invoiced − collected`, `openingAr` from the same ledger), with the default row sort moved from period-invoiced to total collectible so a carried-balance customer without new invoices still sorts near the top. 11 files modified; backend + frontend) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-form-editor-ux-rebuild-pack-v2` (release date 2026-08-07) → merge `b5d7cc8a` |
-| **Previous stable tag** | `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (2026-08-07) → merge `9ec31d16` |
-| **Total stable releases** | 414 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
-| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ (confirms the new `vendor-docx-writer` chunk split cleanly from the pre-existing `vendor-mammoth` chunk) · full backend suite 2790/2790 pass · frontend letters suite 655/655 (7 new `docxExport.test.ts` cases unzip the generated `.docx` and assert real OOXML content/bold/heading/RTL/list-numbering, not merely that the library call did not throw) · full frontend suite unchanged at its pre-existing baseline (the same 26 failures across the same 8 files — cheque printing, currency headers, forms-registry translation audit, invoice fast entry — none letters-related) · scope confirmed: exactly 64 files entered the release, staged explicitly by path — for `electron/main.ts` and `package-lock.json`, by constructing the exact intended blob via `git hash-object`/`git update-index` and a filtered patch respectively, since both files were entangled line-by-line with an unrelated, pre-existing uncommitted "Production Startup Pack"/deployment-version-bump workstream sharing the same working tree, which was left exactly as it stood, uncommitted throughout · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `b5d7cc8a` + tags `stable-form-editor-ux-rebuild-pack-v2`, `checkpoint-form-editor-ux-rebuild-pack-v2` + branch `feature/form-editor-ux-simplification-v1`) |
+| **Latest stable tag** | `stable-production-release-2026.2.0` (release date 2026-08-07) → merge `f12adf90` |
+| **Previous stable tag** | `stable-form-editor-ux-rebuild-pack-v2` (2026-08-07) → merge `b5d7cc8a` |
+| **Application version** | **`2026.2.0`** — calendar versioning, set in `package.json` (`productName: "Al Manar ERP"`). The installer artifact is `release/AlManarERP-Setup-2026.2.0.exe`. `2026.1.0` was authored but never released; the series jumped to `2026.2.0` at the Product Owner's request |
+| **Total stable releases** | 415 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · full `npm run dist` ✅ end to end (`build:back` → `build:front` → `electron:build` → `package:backend-deps` → `package:seed-data` → `package:analyze-deps` → `package:nsis-prereqs` → `package:repair-cache` → `electron-builder`) producing `release/AlManarERP-Setup-2026.2.0.exe` (132 MB; `win-unpacked` 454 MB) · dependency analysis read 10 PE binaries and reported **zero external prerequisites** — Electron, the Prisma query engine and SQLite are all bundled · seed database validated at 3.04 MB, sha256 `f65a06e3f9b860a7…` · full backend suite 2790/2790 · Electron + packaging-scripts suite 401/401 (includes the new `waitForHealth`, `dataDirBootstrap` and `analyze-runtime-deps` tests) · full frontend suite unchanged at its pre-existing baseline (the same 26 failures across the same 8 files — cheque printing, currency headers, forms-registry translation audit, invoice fast entry) — **proven pre-existing**, not assumed: the eight files were re-run on a clean detached worktree at the previous production HEAD `fbe898c5` and produced byte-identical counts (8 files / 26 tests), so none of them is attributable to this release · all suites re-run *after* `npm run dist` rewrote `backend/node_modules` to production-only dependencies, with identical results · scope confirmed: exactly 40 files entered the release, every one staged explicitly by path (no `git add -A`, no `git commit -a`); 13 development artifacts left untracked by deliberate exclusion · Product Owner manual visual review — **pending; not performed by Claude** (this release was delivered for review only) |
+| **Remote sync** | `origin/production` — pushed with this release (merge `f12adf90` + tags `stable-production-release-2026.2.0`, `checkpoint-production-release-2026.2.0` + branch `feature/production-release-2026.2.0`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +64,112 @@ in a table cell.
 
 ---
 
-## Latest Release — Form Editor UX Rebuild Pack v2
+## Latest Release — Production Release 2026.2.0
+
+| Field | Value |
+|-------|-------|
+| **Package** | Al Manar ERP 2026.2.0 — the first production release shipped as a self-contained Windows installer. Four completed-but-unreleased packages shipped together: Production Startup Pack v1, Production Deployment Pack v1, Backend Startup Improvements, Form Editor UX Simplification v1 (40 files: 23 modified, 12 added, 5 deleted; Electron + backend + frontend + build tooling) |
+| **Release status** | RELEASED — technically complete, **awaiting Product Owner visual/functional review** |
+| **Release date** | 2026-08-07 |
+| **Application version** | `2026.2.0` |
+| **Installer artifact** | `release/AlManarERP-Setup-2026.2.0.exe` — 132 MB (138,122,202 bytes) |
+| **Feature branch** | `feature/production-release-2026.2.0` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `fbe898c5` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-production-release-2026.2.0` → `fbe898c5` |
+| **Feature commit** | `0d88a50d` |
+| **Production merge commit** | `f12adf90` |
+| **Stable tag** | `stable-production-release-2026.2.0` → merge `f12adf90` (annotated) |
+| **Reviews** | Claude Code Review self-verified via backend + frontend + Electron `tsc --noEmit`, a full `npm run dist`, and all three test suites re-run before and after packaging → Product Owner manual visual review **pending** |
+| **Validation** | Backend `tsc` ✅ · Frontend `tsc` ✅ · Electron `tsc` ✅ · `npm run dist` ✅ (installer produced) · backend 2790/2790 · Electron + scripts 401/401 · frontend unchanged at its pre-existing 26-failure/8-file baseline, **proven** against a clean worktree at `fbe898c5` |
+| **Schema impact** | None — no Prisma schema change, no migration added |
+| **Permission impact** | None — no route touched, no new permission key |
+
+**Release audit — why these four packages.** The audit that opened this release
+established that every package the Product Owner listed as a candidate fell into
+one of two groups. Already released and verified by tag and merge: Cloud Backup &
+Google Drive Sync v1, Administrative Forms Barcode Enhancement Pack v1 (which
+contains both the barcode settings and the barcode designer dialog), Ink Color
+System v2, and Form Editor UX Rebuild Pack v2. Not yet released: everything sitting
+in the working tree, which the previous release had **deliberately excluded** to
+protect its own scope (recorded in that release's own "Scope discipline" note).
+No unmerged branch and no stash contained releasable work — the ten unmerged
+branches all date from June–July, predate several releases, and are explicitly WIP
+or superseded.
+
+**Production Startup Pack v1 — the failure that showed nothing.** A packaged
+Electron app has no terminal, so the old `catch { console.error(...); app.quit(); }`
+meant that when startup failed the user clicked the shortcut and *nothing happened
+at all* — no window, no error, no trace. A startup window is now created before any
+slow work and driven through named stages (environment, data dir, cloud sync,
+backend, ready) by a small progress bus; on failure it becomes a failure surface
+carrying the exit code, the captured stderr tail, the `error.log` tail and the log
+path, and it waits for the user rather than quitting under them. A system dialog
+covers the case where the window itself could not be shown, so there is no silent
+failure path left. Backend process death during startup now rejects immediately
+instead of waiting out the full health timeout, which had been converting an
+obvious instant crash into a vague timeout tens of seconds later. The readiness
+logic lives in `backendReadiness.pure.ts` — no Electron imports — so it is unit
+tested directly. Separately, `ATTACHMENTS_DIR` is now passed as an absolute path:
+the backend resolved it relative to `process.cwd()`, which in production is the
+install directory, so attachments were written there (removed on uninstall, often
+unwritable) while Electron looked for them under `%AppData%` — no attachment ever
+opened. Data-directory bootstrap also moved behind a once-per-process guard; it had
+been re-running on every IPC call.
+
+**Production Deployment Pack v1 — one installer, clean machine, no manual step.**
+`appId` `kw.almanar.erp`, `productName` "Al Manar ERP", per-user installation under
+`%AppData%` requiring no administrator rights, and `deleteAppDataOnUninstall: false`
+so user data survives uninstall. `analyze-runtime-deps.js` derives the real runtime
+requirements by reading the PE import tables of every shipped binary rather than
+guessing; this release's analysis read 10 binaries and found **zero** external
+prerequisites, because Electron, the Prisma query engine and SQLite are all bundled.
+`generate-nsis-prereqs.js` turns that manifest into the installer's prerequisite
+block — silent install of anything missing, plus a Windows-version guard — so the
+`.nsh` is generated, never hand-edited. Two real payload defects were fixed: 30
+orphaned Prisma engine temp files (`.tmpNNNNN`, ≈537 MB) were being copied verbatim
+into every installer with no runtime function, and `backend/prisma/data/manar.db` —
+a stale *second* database left by a relative-path Prisma run, with a `-journal`
+beside it, meaning it was dirty — was being shipped inside the package, which is a
+genuine confusion hazard rather than mere weight. The Prisma resource filter is now
+inclusive (`schema.prisma` + `migrations/` only) rather than exclusive.
+
+**Backend Startup Improvements — the 15-second boot.** `runPendingMigrations` was
+launching the Prisma CLI as a full separate process on every production boot with
+no prior check, paying for tens of megabytes of CLI and schema-engine code, a
+network version check (in an offline desktop app), and a cold read of thousands of
+files scanned by antivirus on first launch after install — in the 99.9% case where
+nothing was pending. Measured on real hardware, first launch exceeded 15 seconds,
+overran `waitForHealth`, and the app closed before any window existed. The fault was
+never the migrations; it was paying their cost for no reason. It now compares
+`_prisma_migrations` against the migrations directory in one cheap query and
+launches nothing when nothing is pending. The safety contract is unchanged and
+explicitly fail-safe: pending ⇒ `migrate deploy`; state undeterminable (new or
+corrupt database) ⇒ `migrate deploy`; failure ⇒ stop the service rather than run on
+an inconsistent schema. `rolled_back_at IS NULL` is part of the applied-set query,
+since a rolled-back migration counted as applied would be skipped forever.
+
+**Form Editor UX Simplification v1 — naming only.** The product reads «محرر
+النماذج» / "Form Editor". The `page.officialLetter.title` **key** is deliberately
+unchanged, as are the template and the `OL` reference prefix — both permanent under
+INV-8 and INV-10, and neither may follow a UI label.
+
+**Scope discipline.** Exactly 40 files entered the release, each staged by explicit
+path; `git add -A` and `git commit -a` were not used. Thirteen items were left
+untracked by deliberate exclusion and remain in the working tree: eight PNG
+screenshots, two `.xlsx` data workbooks under `docs/`, a throwaway
+`zz-probe.test.tsx` diagnostic, and two `.ttf` files that no code path references
+(the registry declares Tahoma as a system font with no `@font-face`, and the
+referenced `Cairo-Regular.ttf` already exists at the path the code imports).
+Generated build outputs (`build/seed-data`, `runtime-requirements.json`,
+`installer-prereqs.nsh`) are produced by `npm run dist` and correctly ignored; only
+`build/icon.ico` and `build/icon.png` are committed, as genuine build resources.
+One test was updated rather than left failing: `electronBuilderPackaging.test.ts`
+pins the release series and was moved from `2026.1` to `2026.2` with its intent
+intact.
+
+---
+
+## Previous Release — Form Editor UX Rebuild Pack v2
 
 | Field | Value |
 |-------|-------|

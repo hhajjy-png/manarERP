@@ -39,9 +39,10 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `b5d7cc8a` — merge of `feature/form-editor-ux-simplification-v1` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-form-editor-ux-rebuild-pack-v2` (merge commit `b5d7cc8a`) | High |
-| **Previous stable tag** | `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (`9ec31d16`) | High |
+| **Current HEAD** | `f12adf90` — merge of `feature/production-release-2026.2.0` (documentation commit to follow) | High |
+| **Current stable tag** | `stable-production-release-2026.2.0` (merge commit `f12adf90`) | High |
+| **Previous stable tag** | `stable-form-editor-ux-rebuild-pack-v2` (`b5d7cc8a`) | High |
+| **Application version** | `2026.2.0` — calendar versioning; installer `AlManarERP-Setup-2026.2.0.exe` (132 MB, Windows 10/11 x64, per-user install under `%AppData%`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
@@ -68,7 +69,54 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-equipment-owner-default-price-v1` (`96a970a8`, 2026-08-02)
+### Latest Release — `stable-production-release-2026.2.0` (`f12adf90`, 2026-08-07)
+
+**Al Manar ERP 2026.2.0** — the first production release whose deliverable is a
+self-contained Windows installer rather than a branch. 40 files (23 modified,
+12 added, 5 deleted), 3314 insertions / 552 deletions. No schema change, no new
+permission key, no route touched.
+
+Four packages that had been complete in the working tree but excluded from every
+prior release (the previous release excluded them explicitly to protect its own
+scope) shipped together:
+
+- **Production Startup Pack v1** — a startup window created before any slow work,
+  a staged progress bus, and startup failure that is shown rather than swallowed.
+  In a packaged app `console.error` reaches no terminal, so the old handler meant
+  a failed launch produced nothing at all — no window, no error, no trace. The
+  window now becomes a failure surface carrying the exit code, stderr tail,
+  `error.log` tail and log path, with a system dialog as last resort. Backend
+  death during startup is terminal-and-immediate instead of waiting out the health
+  timeout. `ATTACHMENTS_DIR` is now absolute — attachments had been written into
+  the install directory while Electron read from `%AppData%`, so none ever opened.
+- **Production Deployment Pack v1** — `appId` `kw.almanar.erp`, per-user install
+  under `%AppData%` with no administrator rights, user data preserved on uninstall,
+  and five packaging scripts. `analyze-runtime-deps.js` reads PE import tables of
+  every shipped binary to derive real runtime requirements (this release: 10
+  binaries, **zero** external prerequisites); `generate-nsis-prereqs.js` turns that
+  into the installer's silent-install prerequisite block. Removed from the payload:
+  30 orphaned Prisma engine temp files (≈537 MB) and a stale, dirty second database
+  (`backend/prisma/data/manar.db`) that had been shipping inside the package.
+- **Backend Startup Improvements** — `runPendingMigrations` had been launching the
+  Prisma CLI on every production boot with no prior check; first launch after
+  install exceeded 15 s, overran `waitForHealth`, and the app closed before any
+  window existed. It now checks `_prisma_migrations` in one query and launches
+  nothing when nothing is pending, keeping the fail-safe contract (pending ⇒
+  deploy · undeterminable ⇒ deploy · failure ⇒ stop the service).
+- **Form Editor UX Simplification v1** — product name «محرر النماذج» / "Form
+  Editor"; the i18n key, template and `OL` prefix are permanent under INV-8/INV-10
+  and deliberately unchanged.
+
+Validation: backend/frontend/Electron `tsc --noEmit` clean · full `npm run dist`
+green end to end producing `AlManarERP-Setup-2026.2.0.exe` (132 MB) · backend
+2790/2790 · Electron + packaging scripts 401/401 · frontend unchanged at its
+pre-existing 26-failure/8-file baseline, proven by re-running those eight files on
+a clean worktree at the prior production HEAD `fbe898c5` and obtaining identical
+counts. Product Owner visual review **pending** — delivered for review only.
+
+---
+
+### Previous Release — `stable-equipment-owner-default-price-v1` (`96a970a8`, 2026-08-02)
 
 Price Agreements + Job & Commission Analysis (first release). 34 files
 (11 modified, 23 added — 2 of the added files are test files), 3660
