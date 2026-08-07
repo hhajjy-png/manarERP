@@ -11,6 +11,7 @@ import { registerSessionIpc } from './ipc/session.ipc';
 import { registerSyncIpc } from './ipc/sync.ipc';
 import { registerContextMenuIpc } from './ipc/contextMenu.ipc';
 import { registerPdfIpc } from './ipc/pdf.ipc';
+import { registerDocxIpc } from './ipc/docx.ipc';
 import { registerAttachmentsIpc } from './ipc/attachments.ipc';
 import { registerPrintIpc } from './services/printService';
 import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
@@ -110,6 +111,9 @@ async function bootstrap() {
     registerSessionIpc();
     registerSyncIpc();
     registerPdfIpc();
+    // Form Editor UX Rebuild v2 — Word export (additive; PDF/HTML export paths above
+    // are unchanged).
+    registerDocxIpc();
     registerAttachmentsIpc();
     // NBK Salary Export — Native XLS Generation v1 (additive; other Excel exports unchanged).
     registerNbkExportIpc();

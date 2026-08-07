@@ -8,9 +8,14 @@
  * ══════════════════════════════════════════════════════════════════════════
  * Two sources, both structural:
  *
- *   1. THE TEMPLATE'S SECTIONS — date, recipient, subject, content, signature,
- *      barcode. Every Official Letter has them, in that order, by definition. They are
- *      the outline's fixed skeleton and exist even in an empty draft.
+ *   1. THE TEMPLATE'S SECTIONS — content, signature, barcode. Every document has them,
+ *      in that order, by definition. They are the outline's fixed skeleton and exist
+ *      even in an empty draft.
+ *
+ *      (Subject, date and recipient were fixed sections here too before Form Editor UX
+ *      Rebuild v2 — the document is generic now, and nothing about it is assumed to be
+ *      a letter unless the author inserts it as ordinary content.)
+ *
  *   2. HEADING BLOCKS — `kind === 'heading'`, carrying an explicit `headingLevel`.
  *      Nested under the content section, in document order.
  *
@@ -59,9 +64,6 @@ export interface OutlineEntry {
 
 /** The fixed skeleton, in the order `templateRegistry` declares the sections. */
 const SECTION_LABELS: readonly { readonly kind: string; readonly label: string }[] = [
-  { kind: 'date', label: 'التاريخ' },
-  { kind: 'recipient', label: 'الجهة المرسل إليها' },
-  { kind: 'subject', label: 'الموضوع' },
   { kind: 'content', label: 'المحتوى' },
   { kind: 'signature', label: 'التوقيع' },
   { kind: 'barcode', label: 'الباركود' },
@@ -69,9 +71,6 @@ const SECTION_LABELS: readonly { readonly kind: string; readonly label: string }
 
 /** The section values the block model does not hold, supplied by the composer. */
 export interface OutlineSectionValues {
-  readonly date: string;
-  readonly recipient: string;
-  readonly subject: string;
   readonly hasSignature: boolean;
   readonly reference: string | null;
 }
@@ -108,9 +107,6 @@ export function buildDocumentOutline(
   const entries: OutlineEntry[] = [];
 
   const sectionText: Readonly<Record<string, string>> = {
-    date: values.date,
-    recipient: values.recipient,
-    subject: values.subject,
     content: '',
     signature: values.hasSignature ? 'موقَّع' : '',
     barcode: values.reference ?? '',

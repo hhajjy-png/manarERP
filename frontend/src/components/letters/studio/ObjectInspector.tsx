@@ -79,7 +79,10 @@ export default function ObjectInspector({
     <RailResizeHandle
       handleRef={resize.handleRef}
       label="تغيير عرض لوحة الخصائص"
-      edge="after"
+      // Form Editor UX Rebuild v2 moved the inspector from the left (after the
+      // canvas in DOM order) to the right ("خصائص العنصر", before it) — the handle
+      // follows, per `RailResizeHandle`'s own before/after convention.
+      edge="before"
       onPointerDown={resize.startDrag}
       onKeyDown={resize.onHandleKeyDown}
     />

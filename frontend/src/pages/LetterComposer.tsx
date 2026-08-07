@@ -39,7 +39,7 @@ import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
 import { useToast } from '../stores/toastStore';
 import { usePersistedState } from '../hooks/usePersistedState';
-import { Button, ErrorBanner, ExecutiveHeader, Icon, SkeletonRows, StatusChip } from '../components/explorer/ExplorerKit';
+import { Button, ErrorBanner, Icon, SkeletonRows, StatusChip } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import LetterPageStack from '../components/letters/LetterPageStack';
 import {
@@ -51,6 +51,7 @@ import DocumentToolbar, {
   DocumentViewControls,
   type ToolbarState,
 } from '../components/letters/studio/DocumentToolbar';
+import AdvancedToolsMenu from '../components/letters/studio/AdvancedToolsMenu';
 import FloatingContextToolbar from '../components/letters/studio/FloatingContextToolbar';
 import { useResizableRail } from '../components/letters/studio/useResizableRail';
 import RailResizeHandle from '../components/letters/studio/RailResizeHandle';
@@ -65,17 +66,19 @@ import { useLayoutSelection } from '../components/letters/studio/useLayoutSelect
 import InsertPanel from '../components/letters/studio/InsertPanel';
 import DocumentPropertiesPanel from '../components/letters/studio/DocumentPropertiesPanel';
 import ConditionEditor from '../components/letters/studio/ConditionEditor';
-import RevisionPanel, {
-  type Baseline,
-  type RevisionTab,
-} from '../components/letters/studio/RevisionPanel';
-import { type DocumentChange, rejectChange } from '../letters/revisions/documentDiff';
 import {
   type ExportFormat,
   EXPORT_FORMATS,
+  composeLetter,
   exportFilename,
+  runDocxExport,
   runExport,
 } from '../components/letters/studio/exportPipeline';
+import {
+  useAccurateFormPreview,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
+  isFlagEnabled,
+} from '../printing';
 import { useDocumentLibrary } from '../components/letters/studio/useDocumentLibrary';
 import { useVariableBindings } from '../components/letters/studio/useVariableBindings';
 import {
@@ -149,17 +152,12 @@ function resolveBrandingAsset(assets: BrandingAsset[], id: string | null): Rende
 }
 import { type LetterValidationContext } from '../letters/validation/context';
 import { type ValidationIssue } from '../letters/validation/framework';
-import { pointsToMm } from '../letters/pagination/measure';
 import {
   BarcodeBlock,
   ContentSection,
-  DateSection,
   type ParagraphHandlers,
-  RecipientSection,
-  type RecipientValue,
   SignatureBlock,
   type RenderedBrandingAsset,
-  SubjectSection,
   computeListOrdinals,
 } from '../components/letters/LetterSections';
 import '../components/letters/letter-sections.css';
@@ -263,6 +261,16 @@ function nextBlockId(): string {
   return `b${Date.now().toString(36)}${blockIdCounter.toString(36)}`;
 }
 
+/**
+ * The recipient, kept as metadata even though Form Editor UX Rebuild v2 stopped
+ * rendering it on the paper — see the `content` items comment further down for why.
+ */
+interface RecipientValue {
+  name: string;
+  title: string;
+  organisation: string;
+}
+
 interface LoadedLetter {
   id: number;
   templateKey: string;
@@ -336,15 +344,39 @@ export default function LetterComposer() {
   const [showGrid, setShowGrid] = usePersistedState<boolean>('manarERP.letters.composer.grid', false);
   const [showZones, setShowZones] = usePersistedState<boolean>('manarERP.letters.composer.zones', true);
   const [showNavigator, setShowNavigator] = usePersistedState<boolean>('manarERP.letters.composer.navigator', true);
+
+  /* ── Advanced mode (Form Editor UX Simplification Pack v1) ────────────────
+     ══════════════════════════════════════════════════════════════════════════
+      A VISIBILITY SWITCH. IT REMOVES NO CAPABILITY AND CHANGES NO DOCUMENT.
+     ══════════════════════════════════════════════════════════════════════════
+     OFF (the default, and what a new user meets): a blank A4 sheet, the essential
+     toolbar, Save and Print. No mode tabs, no view toggles, no automation buttons, no
+     rails. Everything else is behind ONE door — `AdvancedToolsMenu`.
+
+     ON: exactly the studio that existed before this pack — the full toolbar, the
+     Compose/Design tabs and the view controls, permanently on screen.
+
+     Persisted, because "I want all the tools" is a statement about a person rather
+     than about a document, and asking them to re-declare it every time they open a
+     file is the same mistake as not remembering their zoom.
+
+     Defaults to `false` DELIBERATELY, including for someone who has used the studio
+     before. There is no migration and none is wanted: the pack's whole purpose is
+     that the editor now opens calm, and honouring an implicit preference nobody ever
+     expressed would mean most existing users never see the change they asked for. */
+  const [advancedMode, setAdvancedMode] = usePersistedState<boolean>('manarERP.letters.composer.advanced', false);
   const [navigatorTab, setNavigatorTab] = usePersistedState<NavigatorTab>('manarERP.letters.composer.navigatorTab', 'pages');
   // Shared by both rails that occupy the nav slot (LayersPanel in Design mode,
   // DocumentNavigator otherwise) — the slot remembers one width regardless of which of
   // the two is currently showing in it.
   const navRail = useResizableRail('manarERP.letters.composer.railWidth.nav', 172, 140, 340);
+  // The right-hand slot: the Object Inspector in Design mode, Document Properties
+  // otherwise — the two never show together (one is gated on `designMode`, the other
+  // on its opposite), so one remembered width serves both.
   const inspectorRail = useResizableRail('manarERP.letters.composer.railWidth.inspector', 232, 200, 420);
-  // Insert / Revisions / Properties are mutually exclusive (`sidePanel`), so they too
-  // share one remembered width for the slot they take turns occupying.
-  const sidePanelRail = useResizableRail('manarERP.letters.composer.railWidth.sidePanel', 250, 220, 460);
+  // The left-hand slot: Insert only. Its own remembered width now that it no longer
+  // shares a slot with Properties.
+  const insertRail = useResizableRail('manarERP.letters.composer.railWidth.insert', 250, 220, 460);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   /* ── Design mode ──────────────────────────────────────────────────────────
@@ -370,38 +402,49 @@ export default function LetterComposer() {
   const [showLayoutGuides, setShowLayoutGuides] = usePersistedState<boolean>('manarERP.letters.composer.layoutGuides', true);
   const layoutSelection = useLayoutSelection();
 
-  /* ── Automation state ─────────────────────────────────────────────────────
-     The Quick Insert rail, the Properties rail and the condition editor are all
-     right-hand surfaces and only one may be open at a time — two rails would leave the
-     paper a strip. `sidePanel` names which, rather than three booleans that could
-     contradict each other. */
-  const [sidePanel, setSidePanel] = usePersistedState<'none' | 'insert' | 'properties' | 'revisions'>(
-    'manarERP.letters.composer.sidePanel',
-    'none',
+  /* ── Effective page chrome ───────────────────────────────────────────────
+     DERIVED, never written. The persisted preferences above are left exactly as the
+     author set them; the simple experience merely declines to APPLY them. That is
+     what makes the master switch reversible — turning advanced mode back on restores
+     the rulers, grid and bands the author had, rather than a reset.
+
+     THE NAVIGATOR IS NOT DERIVED, and the difference is the point: rulers, grid and
+     reserved-band overlays are CHROME ABOUT the paper, so suppressing them is a view
+     decision. The navigator is a PANEL the author opens, so it obeys its own flag in
+     both modes and can be summoned from the Advanced Tools menu without first turning
+     the master switch on. What keeps it closed on arrival is the tidy-up below, not
+     this derivation.
+
+     Design mode counts as advanced here whether or not the switch is on: positioning
+     an object in millimetres without a ruler or a band overlay is the one case where
+     the chrome IS the work. */
+  const showChrome = advancedMode || designMode;
+  const rulersOn = showRulers && showChrome;
+  const gridOn = showGrid && showChrome;
+  const zonesOn = showZones && showChrome;
+
+  /* ── Side rails ────────────────────────────────────────────────────────────
+     Form Editor UX Rebuild v2 gives Insert and Properties opposite sides of the paper
+     instead of one shared slot, so the two are independent booleans rather than a
+     three-way union: both can be open together, which is exactly the three-column
+     layout the mockup asks for.
+
+     INSERT (left) is now a PRIMARY surface, not an advanced one — open by default,
+     the way the mockup's insert rail always is. PROPERTIES (right) stays the
+     document-level panel it always was — still opened on demand from Advanced Tools
+     — but no longer competes with Insert for the same slot. The Design-mode Object
+     Inspector ("خصائص العنصر") takes the SAME right-hand slot as Properties,
+     contextually, whenever an object is selected — see the `.lc-workspace` render
+     below. */
+  const [insertOpen, setInsertOpen] = usePersistedState<boolean>(
+    'manarERP.letters.composer.insertOpen',
+    true,
   );
-  const [revisionTab, setRevisionTab] = usePersistedState<RevisionTab>(
-    'manarERP.letters.composer.revisionTab',
-    'history',
+  const [propertiesOpen, setPropertiesOpen] = usePersistedState<boolean>(
+    'manarERP.letters.composer.propertiesOpen',
+    false,
   );
-  /**
-   * The version Track Changes compares against.
-   *
-   * Session state, not persisted: a baseline is a question the author is asking right
-   * now ("what changed since Tuesday?"), and reopening the letter tomorrow into a
-   * review against a version they have forgotten choosing would be the wrong first
-   * frame.
-   */
-  const [baseline, setBaseline] = useState<Baseline | null>(null);
   const [exporting, setExporting] = useState(false);
-  /**
-   * Bumped to force a reload of the letter from the server.
-   *
-   * Restoring a version rewrites the row server-side, so the composer must RE-READ it
-   * rather than trust what it holds — patching local state from the response would
-   * leave the undo stack and the recovery draft describing a document that no longer
-   * exists.
-   */
-  const [reloadToken, setReloadToken] = useState(0);
   const [conditionFor, setConditionFor] = useState<string | null>(null);
   /**
    * Show resolved VALUES in the editable paragraphs.
@@ -544,9 +587,14 @@ export default function LetterComposer() {
   );
 
   /* ── Pagination ──────────────────────────────────────────────────────────
-     The flow's item list: the fixed sections plus one item per content paragraph.
-     Signature and barcode are chained with `keepWithNext` so they travel together —
-     they authorise the document jointly and splitting them would be meaningless. */
+     The flow's item list: one item per content paragraph, plus the two fixed sections
+     that close the document. Signature and barcode are chained with `keepWithNext` so
+     they travel together — they authorise the document jointly and splitting them
+     would be meaningless.
+
+     Form Editor UX Rebuild v2 removed the three sections that used to open every
+     document — date, recipient, subject. The document is generic now: it begins with
+     whatever the author writes, not with fields assumed on its behalf. */
   const items: MeasurableItem[] = useMemo(() => {
     // Only the blocks whose CONDITION holds are flowed — see `renderedBlocks`.
     const contentItems: MeasurableItem[] = renderedBlocks.map((block) => ({
@@ -554,9 +602,6 @@ export default function LetterComposer() {
       kind: 'content' as const,
     }));
     return [
-      { id: 'date', kind: 'date' },
-      { id: 'recipient', kind: 'recipient' },
-      { id: 'subject', kind: 'subject' },
       ...contentItems,
       { id: 'signature', kind: 'signature', keepWithNext: true },
       { id: 'barcode', kind: 'barcode' },
@@ -638,41 +683,57 @@ export default function LetterComposer() {
     );
   }, [letter?.reference, letter?.registrationSnapshot, letter?.issueDate, letter?.subject, letter?.versions.barcodeVersion]);
 
+  /**
+   * ══════════════════════════════════════════════════════════════════════════
+   *  FORM EDITOR UX REBUILD v2 — THREE FIELDS, DOWN FROM SEVENTEEN.
+   * ══════════════════════════════════════════════════════════════════════════
+   * The three surviving rules (`E4_reservedZoneOverlap`, `E13_impossibleGeometry`,
+   * `E16_objectInReservedZone`) read only geometry, the content's positioned-object
+   * layer, and the paginator's own layout. Everything else this object used to carry —
+   * status, reference, subject, recipient, resolved variables, the branding selection,
+   * the barcode payload — fed a rule that no longer exists.
+   */
   const validationContext: LetterValidationContext | null = useMemo(() => {
     if (!letter || !content) return null;
-    return {
-      template,
-      geometry,
-      signatureAssetId: letter.signatureAssetId,
-      stampAssetId: letter.stampAssetId,
-      signatureResolved: resolvedSignature !== null,
-      stampResolved: resolvedStamp !== null,
-      barcodePayload,
-      status: letter.status,
-      reference: letter.reference,
-      issueDate,
-      subject,
-      recipient,
-      content,
-      // The map the RENDERER painted with, not one the rules re-derive — see
-      // `LetterValidationContext.resolvedVariables` for why that distinction matters.
-      resolvedVariables,
-      unresolvedBindings: bindingRecords.unresolved,
-      pagination,
-      itemHeightsMm,
-      // Derived from the measured height rather than counted in the DOM: the subject's
-      // line height is its preset's, so the two divide cleanly and no second
-      // measurement pass is needed.
-      subjectLineCount: Math.max(
-        1,
-        Math.round((itemHeightsMm.subject ?? 0) / pointsToMm(presets.subject.sizePt * presets.subject.lineHeight)),
-      ),
-      now: new Date(),
-    };
-  }, [letter, content, template, geometry, issueDate, subject, recipient, pagination, itemHeightsMm, presets, resolvedSignature, resolvedStamp, barcodePayload, resolvedVariables, bindingRecords.unresolved]);
+    return { geometry, content, pagination };
+  }, [letter, content, geometry, pagination]);
 
-  const { result: validation, summary: validationSummary } = useLetterValidation(validationContext);
+  const { result: validation, summary: validationSummary } = useLetterValidation(validationContext, template.validationRules);
   const [validationOpen, setValidationOpen] = usePersistedState<boolean>('manarERP.letters.composer.validationOpen', false);
+
+  /* ── Arriving in the simple experience tidies the workspace ──────────────
+     "When the user opens the page, show only a blank A4 page, a simple toolbar, a
+     save button and a print button" — which defaults alone cannot guarantee, because
+     `showNavigator` has defaulted to `true` since the studio shipped and is already
+     persisted as such for everyone who has used it. Deriving the rail away instead
+     would have hidden it while leaving its flag on, and the Advanced Tools menu's own
+     navigator row would then have appeared to do nothing.
+
+     So entering simple mode CLOSES the panels once, after which every flag means
+     exactly what it says in both modes. It fires on mount when the switch is off, and
+     on each advanced → simple transition — never while the author is already working
+     in simple mode, so a panel they open from the menu stays open.
+
+     The callback is held in a REF because `usePersistedState` returns a new setter on
+     every render (it is not memoised). Listing those setters as dependencies would
+     re-run this on every render and slam every panel shut on each keystroke — which
+     is also why the dependency array is honest at one entry rather than suppressed. */
+  const tidyForSimpleMode = useRef<() => void>(() => {});
+  tidyForSimpleMode.current = () => {
+    // `insertOpen` is deliberately NOT reset here — Insert is a primary surface now
+    // (Form Editor UX Rebuild v2), open by default in both modes, not one of the
+    // advanced panels this tidy-up exists to close.
+    setPropertiesOpen(false);
+    setShowNavigator(false);
+    setDesignMode(false);
+    setValidationOpen(false);
+    layoutSelection.clear();
+  };
+
+  useEffect(() => {
+    if (advancedMode) return;
+    tidyForSimpleMode.current();
+  }, [advancedMode]);
 
   /* ── Registration ─────────────────────────────────────────────────────────
      The button assembles the snapshot and calls the existing endpoint. It contains no
@@ -812,8 +873,39 @@ export default function LetterComposer() {
         await handlePrintRef.current();
         return;
       }
+      if (!letter) {
+        toast.error('تعذّر العثور على المستند.');
+        return;
+      }
+
+      if (format === 'docx') {
+        if (!content) {
+          toast.error('تعذّر العثور على محتوى المستند.');
+          return;
+        }
+        setExporting(true);
+        try {
+          const outcome = await runDocxExport({
+            document: content,
+            filename: exportFilename(letter.reference, subject),
+            validation,
+            summary: validationSummary,
+          });
+          if (!outcome.ok) {
+            if (outcome.error.code === 'PRINT_CANCELLED') return;
+            toast.error(outcome.error.message);
+            if (outcome.error.blockingIssues?.length) setValidationOpen(true);
+            return;
+          }
+          toast.ok('تم تصدير الملف بصيغة Word');
+        } finally {
+          setExporting(false);
+        }
+        return;
+      }
+
       const node = viewportEl.current?.querySelector<HTMLElement>('.lp-stack');
-      if (!node || !letter) {
+      if (!node) {
         toast.error('تعذّر العثور على صفحات المستند.');
         return;
       }
@@ -824,7 +916,7 @@ export default function LetterComposer() {
           format,
           node,
           geometry,
-          title: letter.reference ?? subject ?? 'خطاب رسمي',
+          title: letter.reference ?? subject ?? 'مستند',
           filename: exportFilename(letter.reference, subject),
           validation,
           summary: validationSummary,
@@ -841,12 +933,36 @@ export default function LetterComposer() {
         setExporting(false);
       }
     },
-    [letter, subject, geometry, validation, validationSummary, toast, setValidationOpen],
+    [letter, content, subject, geometry, validation, validationSummary, toast, setValidationOpen],
   );
 
   /** Held in a ref so the export router need not be declared after `handlePrint`. */
   const handlePrintRef = useRef<() => Promise<void>>(async () => {});
   handlePrintRef.current = handlePrint;
+
+  /**
+   * The shared "📄 معاينة دقيقة" preview 16+ other forms already use — Chromium's own
+   * pagination, not a simulation of it. `compose` is `composeLetter`, the SAME function
+   * `runExport` calls for HTML/PDF: one document source, not a preview-only copy of it.
+   * The hook's own default composer assumes the shared `a4-portrait` spec's 12mm
+   * margins, which is wrong for a letter sheet already sized from the Geometry
+   * Registry — see `composeLetter`'s header for why that composer must be reused
+   * rather than left to the hook's default.
+   */
+  const composeLetterPreview = useCallback((): string => {
+    const node = viewportEl.current?.querySelector<HTMLElement>('.lp-stack');
+    if (!node || !letter) throw new Error('تعذّر تجهيز الخطاب للمعاينة.');
+    return composeLetter(node, letter.reference ?? subject ?? 'مستند');
+  }, [letter, subject]);
+
+  const accuratePreview = useAccurateFormPreview({
+    enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
+    compose: composeLetterPreview,
+    onPrint: () => { void handlePrint(); },
+    title: letter?.reference ?? subject ?? 'مستند',
+    documentLabel: letter?.reference ?? subject ?? 'مستند',
+    lang: 'ar',
+  });
 
   // The refusal is shown where the user asked to print, never as a dialog they must
   // dismiss before they can see the problem the panel already lists.
@@ -895,33 +1011,20 @@ export default function LetterComposer() {
   );
 
   /**
-   * Focus a section's own control, by its accessible name.
-   *
-   * The lookup is by `aria-label` because that is the one identifier the section
-   * components already publish and the tests already assert — adding a parallel `id`
-   * scheme would be a second naming system to keep in step with the first.
-   */
-  const focusSection = useCallback((sectionKind: string) => {
-    const label =
-      sectionKind === 'subject' ? 'موضوع الخطاب'
-      : sectionKind === 'date' ? 'تاريخ الخطاب'
-      : sectionKind === 'recipient' ? 'الجهة المرسل إليها — الاسم'
-      : null;
-    if (!label) return;
-    const control = document.querySelector<HTMLElement>(`.lp-stack [aria-label="${label}"]`);
-    control?.focus();
-    control?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, []);
-
-  /**
    * Take the user to a finding.
    *
-   * The page first (so the sheet is on screen), then the offending control (so the
-   * caret lands where the fix has to be made).
+   * The page first (so the sheet is on screen), then the offending block (so the caret
+   * lands where the fix has to be made).
+   *
+   * `location.sectionKind` is no longer read: the three surviving rules
+   * (`E4_reservedZoneOverlap`, `E13_impossibleGeometry`, `E16_objectInReservedZone`,
+   * Form Editor UX Rebuild v2) report a page and, for E16, an object — never a section.
+   * The subject/date/recipient sections that used to be the reason a finding pointed at
+   * a section rather than a block are gone with the fields themselves.
    */
   const navigateToIssue = useCallback(
     (issue: ValidationIssue) => {
-      const { pageIndex, blockId, sectionKind } = issue.location ?? {};
+      const { pageIndex, blockId } = issue.location ?? {};
       if (pageIndex !== undefined) goToPage(pageIndex);
 
       if (blockId) {
@@ -929,15 +1032,10 @@ export default function LetterComposer() {
         if (el) {
           el.focus();
           el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-          return;
         }
       }
-      if (sectionKind) {
-        selection.setActiveSection(sectionKind as never);
-        focusSection(sectionKind);
-      }
     },
-    [goToPage, focusSection, selection],
+    [goToPage],
   );
 
   /** Take the user to an outline entry — a section heading or a document heading. */
@@ -962,10 +1060,12 @@ export default function LetterComposer() {
           return;
         }
       }
+      // The remaining entries — the content section with no blocks yet, or the
+      // signature/barcode entries, neither editable — have no control to focus.
+      // Marking the section active still highlights it on the paper.
       selection.setActiveSection(entry.sectionKind as never);
-      focusSection(entry.sectionKind);
     },
-    [goToPage, focusSection, selection, layoutSelection],
+    [goToPage, selection, layoutSelection],
   );
 
   /**
@@ -1119,10 +1219,9 @@ export default function LetterComposer() {
       cancelled = true;
     };
     // `bodyAttributes` is stable for a given template and must not re-trigger a load;
-    // `history.reset` is stable for the life of the hook. `reloadToken` is what makes
-    // a version restore re-read the letter the server just rewrote.
+    // `history.reset` is stable for the life of the hook.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [letterId, reloadToken]);
+  }, [letterId]);
 
   /* ── Caret restoration ───────────────────────────────────────────────── */
 
@@ -1567,7 +1666,7 @@ export default function LetterComposer() {
         toast.error('تعذّر قراءة القالب.');
         return;
       }
-      if (!window.confirm(`سيُستبدل محتوى الخطاب الحالي بقالب «${entry.name}». هل تريد المتابعة؟`)) return;
+      if (!window.confirm(`سيُستبدل محتوى المستند الحالي بقالب «${entry.name}». هل تريد المتابعة؟`)) return;
 
       apply(parsed, 'command', null);
       if (entry.subject) setSubject(entry.subject);
@@ -1758,15 +1857,12 @@ export default function LetterComposer() {
       buildDocumentOutline(
         content,
         {
-          date: issueDate,
-          recipient: [recipient.name, recipient.title, recipient.organisation].filter(Boolean).join(' — '),
-          subject,
           hasSignature: resolvedSignature !== null || resolvedStamp !== null,
           reference: letter?.reference ?? null,
         },
         pagination,
       ),
-    [content, issueDate, recipient, subject, resolvedSignature, resolvedStamp, letter?.reference, pagination],
+    [content, resolvedSignature, resolvedStamp, letter?.reference, pagination],
   );
 
   /* ── Save ────────────────────────────────────────────────────────────── */
@@ -1836,7 +1932,7 @@ export default function LetterComposer() {
       // composer must show what was actually recorded.
       setLetter((current) => (current ? { ...current, ...(registered as unknown as Partial<LoadedLetter>) } : current));
       setDirty(false);
-      toast.ok(`تم تسجيل الخطاب برقم ${registered.reference ?? ''}`);
+      toast.ok(`تم تسجيل المستند برقم ${registered.reference ?? ''}`);
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -2096,7 +2192,7 @@ export default function LetterComposer() {
   if (error || !letter || !content) {
     return (
       <div className="lc-page">
-        <ErrorBanner>{error ?? 'تعذّر تحميل الخطاب.'}</ErrorBanner>
+        <ErrorBanner>{error ?? 'تعذّر تحميل المستند.'}</ErrorBanner>
         <Button icon="arrow_forward" onClick={() => navigate('/forms/official-letter')}>العودة إلى القائمة</Button>
       </div>
     );
@@ -2116,47 +2212,6 @@ export default function LetterComposer() {
     const staticOnly = forMeasure || readOnly || printMode || previewValues;
 
     switch (itemId) {
-      case 'date':
-        return (
-          <DateSection
-            key="date"
-            value={issueDate}
-            onChange={(v) => { setIssueDate(v); setDirty(true); }}
-            preset={presets.date}
-            readOnly={staticOnly}
-            active={!forMeasure && selection.activeSection === 'date'}
-            severity={forMeasure ? null : sectionSeverity.get('date') ?? null}
-            onFocus={() => selection.setActiveSection('date')}
-          />
-        );
-      case 'recipient':
-        return (
-          <RecipientSection
-            key="recipient"
-            value={recipient}
-            onChange={(patch) => { setRecipient((r) => ({ ...r, ...patch })); setDirty(true); }}
-            preset={presets.recipient}
-            readOnly={staticOnly}
-            resolveText={resolveText}
-            active={!forMeasure && selection.activeSection === 'recipient'}
-            severity={forMeasure ? null : sectionSeverity.get('recipient') ?? null}
-            onFocus={() => selection.setActiveSection('recipient')}
-          />
-        );
-      case 'subject':
-        return (
-          <SubjectSection
-            key="subject"
-            value={subject}
-            onChange={(v) => { setSubject(v); setDirty(true); }}
-            preset={presets.subject}
-            readOnly={staticOnly}
-            resolveText={resolveText}
-            active={!forMeasure && selection.activeSection === 'subject'}
-            severity={forMeasure ? null : sectionSeverity.get('subject') ?? null}
-            onFocus={() => selection.setActiveSection('subject')}
-          />
-        );
       case 'signature':
         return <SignatureBlock key="signature" active={!forMeasure && selection.activeSection === 'signature'} severity={forMeasure ? null : sectionSeverity.get('signature') ?? null} onFocus={() => selection.setActiveSection('signature')} signature={resolvedSignature} stamp={resolvedStamp} signatureHeightMm={geometry.signatureHeightMm} stampHeightMm={geometry.stampHeightMm} />;
       case 'barcode':
@@ -2226,123 +2281,131 @@ export default function LetterComposer() {
 
   return (
     <div className={`lc-page${designMode ? ' is-designing' : ''}`} dir="rtl">
-      <ExecutiveHeader
-        icon="mail"
-        title={t('page.officialLetter.title')}
-        subtitle={letter.reference ?? 'مسودة — لم يُخصَّص رقم مرجعي بعد'}
-        onBack={() => navigate('/forms/official-letter')}
-        chips={
-          <>
-            <StatusChip tone={LETTER_STATUS_TONE[letter.status]}>{LETTER_STATUS_LABEL_AR[letter.status]}</StatusChip>
-            {letter.isArchived && <StatusChip tone="neutral" icon="inventory_2">مؤرشف</StatusChip>}
-          </>
-        }
-        aside={
-          <div className="lc-save-state">
-            {readOnly ? (
-              <span className="lc-readonly-pill"><Icon name="lock" />للقراءة فقط</span>
-            ) : saving ? (
-              <span><Icon name="sync" />جارٍ الحفظ…</span>
-            ) : autoSave.state === 'failed' ? (
-              <span className="is-failed" title={autoSave.lastError ?? undefined}>
-                <Icon name="cloud_off" />تعذّر الحفظ — التغييرات محفوظة محليًا
-              </span>
-            ) : dirty ? (
-              <span><Icon name="edit" />تغييرات غير محفوظة</span>
-            ) : savedAt ? (
-              <span className="is-saved"><Icon name="check" />محفوظ</span>
-            ) : null}
-            {!readOnly && (
-              <Button small icon="save" onClick={() => void save()} busy={saving} disabled={!dirty}>حفظ</Button>
-            )}
-            {/* HIDDEN rather than disabled, unlike Print: registration is a one-way
-                action that applies to exactly one lifecycle state. On a letter that
-                already carries a number there is nothing to offer and no useful
-                explanation to give — the reference is displayed in the header instead. */}
-            {canRegister && (
+      <div className="lc-toolbar-shell">
+        {/* ── The topbar ─────────────────────────────────────────────────────
+            Replaces `ExecutiveHeader` (Form Editor UX Rebuild v2). Same ExplorerKit
+            primitives — `Icon`, `Button`, `StatusChip` — none of the identity-card
+            styling: no logo box, no gradient, no rounded card sitting above the
+            toolbar. One row, sharing this shell's single border and shadow with the
+            formatting toolbar directly beneath it. */}
+        <div className="lc-topbar">
+          <button
+            type="button"
+            className="lc-topbar-back"
+            onClick={() => navigate('/forms/official-letter')}
+            aria-label={t('btn.inv.back')}
+          >
+            <Icon name="arrow_forward" />
+          </button>
+          <div className="lc-topbar-identity">
+            <h1 className="lc-topbar-title">{t('page.officialLetter.title')}</h1>
+            <span className="lc-topbar-subtitle">{letter.reference ?? 'مسودة — لم يُخصَّص رقم مرجعي بعد'}</span>
+            <div className="lc-topbar-chips">
+              <StatusChip tone={LETTER_STATUS_TONE[letter.status]}>{LETTER_STATUS_LABEL_AR[letter.status]}</StatusChip>
+              {letter.isArchived && <StatusChip tone="neutral" icon="inventory_2">مؤرشف</StatusChip>}
+            </div>
+          </div>
+          <div className="lc-topbar-aside">
+            <div className="lc-save-state">
+              {readOnly ? (
+                <span className="lc-readonly-pill"><Icon name="lock" />للقراءة فقط</span>
+              ) : saving ? (
+                <span><Icon name="sync" />جارٍ الحفظ…</span>
+              ) : autoSave.state === 'failed' ? (
+                <span className="is-failed" title={autoSave.lastError ?? undefined}>
+                  <Icon name="cloud_off" />تعذّر الحفظ — التغييرات محفوظة محليًا
+                </span>
+              ) : dirty ? (
+                <span><Icon name="edit" />تغييرات غير محفوظة</span>
+              ) : savedAt ? (
+                <span className="is-saved"><Icon name="check" />محفوظ</span>
+              ) : null}
+              {!readOnly && (
+                <Button small icon="save" onClick={() => void save()} busy={saving} disabled={!dirty}>حفظ</Button>
+              )}
+              {/* HIDDEN rather than disabled, unlike Print: registration is a one-way
+                  action that applies to exactly one lifecycle state. On a letter that
+                  already carries a number there is nothing to offer and no useful
+                  explanation to give — the reference is displayed in the topbar instead. */}
+              {canRegister && (
+                <Button
+                  small
+                  variant="primary"
+                  icon="verified"
+                  onClick={() => void handleRegister()}
+                  busy={registering}
+                  title="إصدار رقم مرجعي دائم وتجميد محتوى المستند"
+                >
+                  تسجيل وإصدار رقم
+                </Button>
+              )}
+              {/* Every destination behind one control, and every one of them passes the
+                  same validation gate — see `runExport`/`runDocxExport`. */}
+              <select
+                className="lc-export-select"
+                value=""
+                disabled={exporting || printing || !validationSummary.readyForPrinting}
+                onChange={(e) => {
+                  const format = e.target.value;
+                  e.currentTarget.value = '';
+                  if (format) void handleExport(format as ExportFormat);
+                }}
+                aria-label="تصدير"
+                title={
+                  validationSummary.readyForPrinting
+                    ? 'تصدير أو طباعة'
+                    : `لا يمكن التصدير: ${validationSummary.blocking} خطأ مانع`
+                }
+              >
+                <option value="" disabled>تصدير…</option>
+                {EXPORT_FORMATS.map((entry) => (
+                  <option
+                    key={entry.id}
+                    value={entry.available ? entry.id : ''}
+                    disabled={!entry.available}
+                    title={entry.unavailableReasonAr}
+                  >
+                    {entry.labelAr}{entry.available ? '' : ' — غير مدعوم'}
+                  </option>
+                ))}
+              </select>
+              {accuratePreview.button}
               <Button
                 small
-                variant="primary"
-                icon="verified"
-                onClick={() => void handleRegister()}
-                busy={registering}
-                title="إصدار رقم مرجعي دائم وتجميد محتوى الخطاب"
+                icon="print"
+                onClick={() => void handlePrint()}
+                busy={printing}
+                disabled={!validationSummary.readyForPrinting}
+                title={
+                  validationSummary.readyForPrinting
+                    ? 'طباعة المستند'
+                    : validationSummary.blocking > 0
+                      ? `لا يمكن الطباعة: ${validationSummary.blocking} خطأ مانع`
+                      : 'لا يمكن الطباعة: التحقّق غير مكتمل'
+                }
               >
-                تسجيل وإصدار رقم
+                طباعة
               </Button>
-            )}
-            {/* Disabled with the reason on it rather than hidden: a print button that
-                vanishes leaves the user wondering whether printing exists at all. */}
-            <Button
-              small
-              icon="rate_review"
-              onClick={() => setSidePanel(sidePanel === 'revisions' ? 'none' : 'revisions')}
-              title="النسخ والتغييرات والتعليقات"
-            >
-              مراجعة
-            </Button>
-            {/* Every destination behind one control, and every one of them passes the
-                same validation gate — see `runExport`. `docx` is listed disabled with
-                its reason rather than omitted. */}
-            <select
-              className="lc-export-select"
-              value=""
-              disabled={exporting || printing || !validationSummary.readyForPrinting}
-              onChange={(e) => {
-                const format = e.target.value;
-                e.currentTarget.value = '';
-                if (format) void handleExport(format as ExportFormat);
-              }}
-              aria-label="تصدير"
-              title={
-                validationSummary.readyForPrinting
-                  ? 'تصدير أو طباعة'
-                  : `لا يمكن التصدير: ${validationSummary.blocking} خطأ مانع`
-              }
-            >
-              <option value="" disabled>تصدير…</option>
-              {EXPORT_FORMATS.map((entry) => (
-                <option
-                  key={entry.id}
-                  value={entry.available ? entry.id : ''}
-                  disabled={!entry.available}
-                  title={entry.unavailableReasonAr}
-                >
-                  {entry.labelAr}{entry.available ? '' : ' — غير مدعوم'}
-                </option>
-              ))}
-            </select>
-            <Button
-              small
-              icon="print"
-              onClick={() => void handlePrint()}
-              busy={printing}
-              disabled={!validationSummary.readyForPrinting}
-              title={
-                validationSummary.readyForPrinting
-                  ? 'طباعة الخطاب'
-                  : validationSummary.blocking > 0
-                    ? `لا يمكن الطباعة: ${validationSummary.blocking} خطأ مانع`
-                    : 'لا يمكن الطباعة: التحقّق غير مكتمل'
-              }
-            >
-              طباعة
-            </Button>
+            </div>
           </div>
-        }
-      />
-
-      {readOnly && letter.status !== 'DRAFT' && (
-        <div className="lc-notice" role="status">
-          <Icon name="lock" />
-          محتوى الخطاب مُجمَّد منذ التسجيل — أي تعديل بعده يجعل النسخة المحفوظة تخالف النسخة المسلَّمة.
         </div>
-      )}
 
       {/* ── Mode switch ───────────────────────────────────────────────────
-          Two named modes rather than a hidden modifier key: Compose writes the letter,
-          Design arranges what sits on top of it. Naming them is what makes the
-          different pointer behaviour predictable instead of surprising. */}
+          Two named modes rather than a hidden modifier key: Compose writes the
+          document, Design arranges what sits on top of it. Naming them is what makes
+          the different pointer behaviour predictable instead of surprising.
+
+          HIDDEN ON ARRIVAL (Form Editor UX Simplification Pack v1). A person opening a
+          blank page to type has no use for a tab pair whose second member is a design
+          surface, and a permanently visible "Design" tab is an invitation to discover
+          a workspace they did not ask for.
+
+          But the tabs appear the moment Design mode is ENTERED, even with the master
+          switch off — because that is the moment they stop being decoration and become
+          the way back. Gating them on `advancedMode` alone would have left someone who
+          opened the designer from the Advanced Tools menu with no visible exit, which
+          is the trap progressive disclosure exists to avoid. */}
+      {(advancedMode || designMode) && (
       <div className="lc-modes" role="tablist" aria-label="وضع التحرير">
         <button
           type="button"
@@ -2371,6 +2434,7 @@ export default function LetterComposer() {
           )}
         </button>
       </div>
+      )}
 
       <div className="lc-bars">
         {designMode ? (
@@ -2414,6 +2478,11 @@ export default function LetterComposer() {
         ) : (
         <DocumentToolbar
           allowedCommands={template.toolbarCommands}
+          // Essential by default: font, size, three marks, alignment, lists, clear
+          // formatting, undo, redo. Advanced mode restores the full nineteen. See
+          // `ESSENTIAL_COMMANDS` for why this is a third term in one intersection
+          // rather than a second toolbar.
+          variant={advancedMode ? 'full' : 'essential'}
           state={toolbarState}
           disabled={readOnly}
           onToggleMark={onToggleMark}
@@ -2457,61 +2526,71 @@ export default function LetterComposer() {
             <BrandingAssetPicker selection={brandingSelection} />
           </div>
         )}
+        {/* Insert is a PRIMARY surface now (Form Editor UX Rebuild v2), not an advanced
+            one — a plain toggle on the strip rather than a row inside the menu below,
+            open by default so the left rail is there from the first frame. */}
+        {!designMode && (
+          <div className="lc-view-bar">
+            <button
+              type="button"
+              className={`lc-insert-toggle${insertOpen ? ' is-on' : ''}`}
+              onClick={() => setInsertOpen(!insertOpen)}
+              disabled={readOnly}
+              aria-pressed={insertOpen}
+              aria-label={insertOpen ? 'إغلاق لوحة الإدراج' : 'فتح لوحة الإدراج'}
+              title="متغيّرات ومقاطع محفوظة وقوالب وأصول"
+            >
+              <Icon name="add_circle" />
+              إدراج
+            </button>
+          </div>
+        )}
+        {/* ── The one door to everything else ───────────────────────────────
+            Four automation buttons, four view toggles and three rails used to live on
+            this strip permanently. They are all still here — behind one control, with
+            a hint on each row saying what it does rather than what it is called. See
+            `AdvancedToolsMenu` for why each row is a destination rather than a switch.
+
+            The VIEW controls stay on the strip in advanced mode only. Rulers, grid and
+            reserved bands are chrome about the paper, and the author who has asked for
+            the dense studio is the one who wants them a single click away. */}
         <div className="lc-view-bar">
-          {/* Automation controls. Beside the view controls rather than in the format
-              toolbar: inserting a variable and opening the properties panel are things
-              you do TO the document, not formatting you apply within it. */}
-          <Button
-            small
-            iconOnly
-            icon="add_circle"
-            onClick={() => setSidePanel(sidePanel === 'insert' ? 'none' : 'insert')}
-            title="إدراج سريع — متغيّرات ومقاطع وقوالب وأصول"
-            aria-label="إدراج سريع"
-            aria-pressed={sidePanel === 'insert'}
-          />
-          <Button
-            small
-            iconOnly
-            icon="visibility"
-            onClick={() => setPreviewValues(!previewValues)}
-            title={previewValues ? 'العودة إلى تحرير المتغيّرات' : 'معاينة قيم المتغيّرات كما ستُطبع'}
-            aria-label="معاينة القيم"
-            aria-pressed={previewValues}
-          />
-          <Button
-            small
-            iconOnly
-            icon="rule"
-            onClick={() => setConditionFor(activeBlockId)}
-            disabled={readOnly || !activeBlockId}
-            title={
-              activeBlockId
-                ? 'شرط ظهور الفقرة الحالية'
-                : 'ضع المؤشّر داخل فقرة أولًا'
-            }
-            aria-label="شرط الظهور"
-            aria-pressed={conditionFor !== null}
-          />
-          <Button
-            small
-            iconOnly
-            icon="info"
-            onClick={() => setSidePanel(sidePanel === 'properties' ? 'none' : 'properties')}
-            title="خصائص المستند"
-            aria-label="خصائص المستند"
-            aria-pressed={sidePanel === 'properties'}
-          />
-          <DocumentViewControls
-            showRulers={showRulers}
-            onToggleRulers={() => setShowRulers(!showRulers)}
-            showGrid={showGrid}
-            onToggleGrid={() => setShowGrid(!showGrid)}
-            showZones={showZones}
-            onToggleZones={() => setShowZones(!showZones)}
+          <AdvancedToolsMenu
+            advanced={advancedMode}
+            onAdvancedChange={setAdvancedMode}
+            readOnly={readOnly}
+            hasCaret={activeBlockId !== null}
+            designMode={designMode}
+            onDesignMode={(on) => {
+              setDesignMode(on);
+              if (!on) layoutSelection.clear();
+            }}
+            objectCount={designer.layout.objects.length}
+            previewValues={previewValues}
+            onPreviewValues={setPreviewValues}
+            propertiesOpen={propertiesOpen}
+            onPropertiesOpen={setPropertiesOpen}
+            onCondition={() => setConditionFor(activeBlockId)}
+            findOpen={findOpen}
+            onToggleFind={() => (findOpen ? setFindOpen(false) : openFind(false))}
+            validationOpen={validationOpen}
+            onToggleValidation={() => setValidationOpen(!validationOpen)}
+            validationCount={validationSummary.total}
             showNavigator={showNavigator}
             onToggleNavigator={() => setShowNavigator(!showNavigator)}
           />
+          {advancedMode && (
+            <DocumentViewControls
+              showRulers={showRulers}
+              onToggleRulers={() => setShowRulers(!showRulers)}
+              showGrid={showGrid}
+              onToggleGrid={() => setShowGrid(!showGrid)}
+              showZones={showZones}
+              onToggleZones={() => setShowZones(!showZones)}
+              showNavigator={showNavigator}
+              onToggleNavigator={() => setShowNavigator(!showNavigator)}
+            />
+          )}
         </div>
 
         {findOpen && (
@@ -2535,6 +2614,16 @@ export default function LetterComposer() {
           />
         )}
       </div>
+      </div>
+
+      {accuratePreview.dialog}
+
+      {readOnly && letter.status !== 'DRAFT' && (
+        <div className="lc-notice" role="status">
+          <Icon name="lock" />
+          محتوى المستند مُجمَّد منذ التسجيل — أي تعديل بعده يجعل النسخة المحفوظة تخالف النسخة المسلَّمة.
+        </div>
+      )}
 
       <div className="lc-workspace">
         {/* In Design mode the rail carries the Layers panel instead of the page
@@ -2602,6 +2691,53 @@ export default function LetterComposer() {
           />
         )}
 
+        {/* ── The right-hand panel — "خصائص العنصر" ───────────────────────
+            Contextual, not a manual toggle: in Design mode it IS the Object
+            Inspector, and its own empty state already reads "nothing selected" when
+            `designer.selected` is empty — selecting an object is what populates it,
+            exactly the appearing-on-selection behaviour the mockup asks for. Outside
+            Design mode there is no selectable object, so the same slot carries the
+            still-on-demand Document Properties rail instead. The two never compete:
+            one is gated on `designMode`, the other on its opposite. */}
+        {designMode ? (
+          <ObjectInspector
+            objects={designer.selected}
+            pageCount={pageCount}
+            readOnly={readOnly}
+            onFrame={designer.setFrame}
+            onRotate={designer.rotate}
+            onOpacity={designer.setOpacity}
+            onPage={designer.setPage}
+            onLocked={designer.setLocked}
+            onHidden={designer.setHidden}
+            onReorder={designer.reorder}
+            onPayload={designer.setPayload}
+            resize={inspectorRail}
+          />
+        ) : (
+          propertiesOpen && letter && content && (
+            <DocumentPropertiesPanel
+              reference={letter.reference}
+              statusLabel={LETTER_STATUS_LABEL_AR[letter.status]}
+              templateName={template.displayNameAr}
+              authorName={letter.createdByName ?? null}
+              createdAt={letter.createdAt ?? null}
+              updatedAt={letter.updatedAt ?? null}
+              lastSavedAt={savedAt}
+              versions={letter.versions}
+              contentModelVersion={content.contentModelVersion}
+              language={language}
+              stats={stats}
+              pageCount={pageCount}
+              objectCount={documentLayout(content).objects.length}
+              variableCount={usedVariables.length}
+              conditionCount={content.blocks.filter((b) => conditionSize(b.attributes.condition) > 0).length}
+              onClose={() => setPropertiesOpen(false)}
+              resize={inspectorRail}
+            />
+          )
+        )}
+
         <div className="lc-paper-area">
           {/* MEASUREMENT LAYER — laid out, never painted, and deliberately OUTSIDE the
               zoom wrapper so a measured height cannot depend on the zoom. Rendered at the
@@ -2625,9 +2761,11 @@ export default function LetterComposer() {
             layoutVersion={layoutVersion}
             pageCount={pageCount}
             zoom={zoom}
-            showRulers={showRulers}
-            showGrid={showGrid}
-            showZones={showZones}
+            // Derived, not the raw preferences — see `showChrome`. In the simple
+            // experience the sheet is a blank sheet: no rulers, no grid, no band tints.
+            showRulers={rulersOn}
+            showGrid={gridOn}
+            showZones={zonesOn}
             currentPage={currentPage}
             pageRef={pageRef}
             renderPage={(pageIndex) => itemsOnPage(pageIndex).map((itemId) => renderItem(itemId, false))}
@@ -2635,8 +2773,10 @@ export default function LetterComposer() {
           />
         </div>
 
-        {/* Only ONE right-hand rail at a time — two would leave the paper a strip. */}
-        {!designMode && sidePanel === 'insert' && (
+        {/* ── The left-hand panel — Insert ────────────────────────────────
+            The rail from the mockup: open by default, closed only if the author
+            closes it (or turns it off from the toolbar toggle) — see `insertOpen`. */}
+        {!designMode && insertOpen && (
           <InsertPanel
             library={libraryStore.library}
             signatures={branding.signatures}
@@ -2649,100 +2789,8 @@ export default function LetterComposer() {
             onInsertAsset={insertAssetImage}
             onSaveSelectionAsBlock={saveSelectionAsBlock}
             onSaveDocumentAsTemplate={saveDocumentAsTemplate}
-            onClose={() => setSidePanel('none')}
-            resize={sidePanelRail}
-          />
-        )}
-
-        {!designMode && sidePanel === 'revisions' && letter && content && (
-          <RevisionPanel
-            letterId={letter.id}
-            tab={revisionTab}
-            onTabChange={setRevisionTab}
-            content={content}
-            sections={{
-              subject,
-              issueDate,
-              recipientName: recipient.name,
-              recipientTitle: recipient.title,
-              recipientOrganisation: recipient.organisation,
-            }}
-            readOnly={readOnly}
-            wordCount={stats.words}
-            pageCount={pageCount}
-            baseline={baseline}
-            onBaselineChange={setBaseline}
-            onRejectChange={(change: DocumentChange) => {
-              if (!baseline) return;
-              // Through the composer's own `apply`, so rejecting a change is one undo
-              // step and one autosave — indistinguishable from an edit the author made.
-              apply(rejectChange(content, baseline.document, change), 'command', null);
-            }}
-            onNavigate={(target) => {
-              if (target.objectId) {
-                setDesignMode(true);
-                layoutSelection.select([target.objectId]);
-                return;
-              }
-              if (target.blockId) {
-                const element = paragraphRefs.current.get(target.blockId);
-                element?.focus();
-                element?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-                return;
-              }
-              if (target.sectionKind) focusSection(target.sectionKind);
-            }}
-            resize={sidePanelRail}
-            onRestored={() => {
-              // The server rewrote the letter, so the composer must re-read it rather
-              // than trust what it holds. Clearing the baseline too: it was chosen
-              // against a document that no longer exists.
-              setBaseline(null);
-              setReloadToken((token) => token + 1);
-            }}
-            onClose={() => setSidePanel('none')}
-          />
-        )}
-
-        {!designMode && sidePanel === 'properties' && letter && content && (
-          <DocumentPropertiesPanel
-            reference={letter.reference}
-            statusLabel={LETTER_STATUS_LABEL_AR[letter.status]}
-            templateName={template.displayNameAr}
-            authorName={letter.createdByName ?? null}
-            createdAt={letter.createdAt ?? null}
-            updatedAt={letter.updatedAt ?? null}
-            lastSavedAt={savedAt}
-            versions={letter.versions}
-            contentModelVersion={content.contentModelVersion}
-            language={language}
-            stats={stats}
-            pageCount={pageCount}
-            objectCount={documentLayout(content).objects.length}
-            variableCount={usedVariables.length}
-            conditionCount={content.blocks.filter((b) => conditionSize(b.attributes.condition) > 0).length}
-            onClose={() => setSidePanel('none')}
-            resize={sidePanelRail}
-          />
-        )}
-
-        {/* The Inspector sits on the APP surface rather than on the canvas, unlike the
-            Layers panel: it is a form, and forms belong where the ERP's own field and
-            control styling reads correctly. */}
-        {designMode && (
-          <ObjectInspector
-            objects={designer.selected}
-            pageCount={pageCount}
-            readOnly={readOnly}
-            onFrame={designer.setFrame}
-            onRotate={designer.rotate}
-            onOpacity={designer.setOpacity}
-            onPage={designer.setPage}
-            onLocked={designer.setLocked}
-            onHidden={designer.setHidden}
-            onReorder={designer.reorder}
-            onPayload={designer.setPayload}
-            resize={inspectorRail}
+            onClose={() => setInsertOpen(false)}
+            resize={insertRail}
           />
         )}
       </div>
@@ -2776,14 +2824,22 @@ export default function LetterComposer() {
         }
       />
 
-      {/* Beside the paper, never over it: no modal, no alert, no toast. */}
-      <ValidationPanel
-        result={validation}
-        summary={validationSummary}
-        open={validationOpen}
-        onToggle={() => setValidationOpen(!validationOpen)}
-        onNavigate={navigateToIssue}
-      />
+      {/* Beside the paper, never over it: no modal, no alert, no toast.
+
+          In the simple experience it appears only when it has something the author
+          MUST act on — a blocking finding is the reason Print is disabled, and a
+          disabled button with no visible explanation is the one thing worse than the
+          panel itself. Warnings and information wait behind the Advanced Tools menu,
+          which is where someone who wants them will look. */}
+      {(advancedMode || validationSummary.blocking > 0 || validationOpen) && (
+        <ValidationPanel
+          result={validation}
+          summary={validationSummary}
+          open={validationOpen}
+          onToggle={() => setValidationOpen(!validationOpen)}
+          onNavigate={navigateToIssue}
+        />
+      )}
 
       {conditionFor && content && (
         <div className="lc-condition-anchor">

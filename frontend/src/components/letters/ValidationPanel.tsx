@@ -157,9 +157,6 @@ function Count({ tone, value, label }: { tone: ValidationSeverity; value: number
 }
 
 const SECTION_LABELS: Readonly<Record<string, string>> = {
-  date: 'التاريخ',
-  recipient: 'الجهة',
-  subject: 'الموضوع',
   content: 'المحتوى',
   signature: 'التوقيع',
   barcode: 'الباركود',

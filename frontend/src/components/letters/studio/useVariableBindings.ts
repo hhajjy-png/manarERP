@@ -14,11 +14,11 @@
  * records. A letters-specific endpoint would be a second reader of a shape the letters
  * module does not own, and would drift the day either module changed.
  *
- * ── A FAILED FETCH IS REPORTED, NOT GUESSED ──────────────────────────────
- * A deleted employee leaves `employee` null and adds `employee` to
- * `unresolvedBindings`. The composer passes that to the validation context, where
- * `W12_bindingUnresolved` names the cause once instead of letting the author chase six
- * separately-unresolved variables. Nothing is invented and nothing falls back.
+ * ── A FAILED FETCH RESOLVES TO NOTHING, RATHER THAN GUESSING ─────────────
+ * A deleted employee, or a request that fails, leaves `employee` null. Neither is
+ * invented and neither falls back — the variables that depend on it simply resolve to
+ * nothing, which `resolveTokens` renders as an empty or pending token (see
+ * `variables/variableSyntax`).
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -29,17 +29,13 @@ import {
   type EmployeeSource,
 } from '../../../letters/variables/variableResolver';
 
-export type BindingKind = 'employee' | 'contract' | 'project';
-
 export interface ResolvedBindings {
   readonly employee: EmployeeSource | null;
   readonly contract: ContractSource | null;
-  /** Bindings that were asked for and did not come back. */
-  readonly unresolved: readonly BindingKind[];
   readonly loading: boolean;
 }
 
-const EMPTY: ResolvedBindings = { employee: null, contract: null, unresolved: [], loading: false };
+const EMPTY: ResolvedBindings = { employee: null, contract: null, loading: false };
 
 /**
  * Map an employee row onto the resolver's source shape.
@@ -90,7 +86,6 @@ export function useVariableBindings(bindings: DocumentBindings | undefined): Res
     setState((current) => ({ ...current, loading: true }));
 
     (async () => {
-      const unresolved: BindingKind[] = [];
       let employee: EmployeeSource | null = null;
       let contract: ContractSource | null = null;
 
@@ -99,11 +94,10 @@ export function useVariableBindings(bindings: DocumentBindings | undefined): Res
           const { data } = await api.get(`/employees/${employeeId}`);
           const row = (data.data ?? data) as Record<string, unknown>;
           employee = row && typeof row === 'object' ? toEmployeeSource(row) : null;
-          if (!employee) unresolved.push('employee');
         } catch {
-          // Deleted, or the request failed. Both mean "this binding does not resolve",
-          // which is a fact to report rather than a state to recover from.
-          unresolved.push('employee');
+          // Deleted, or the request failed. Either way the binding does not resolve,
+          // and `employee` stays null — a fact `resolveTokens` renders honestly rather
+          // than a state to recover from.
         }
       }
 
@@ -112,13 +106,12 @@ export function useVariableBindings(bindings: DocumentBindings | undefined): Res
           const { data } = await api.get(`/contracts/${contractId}`);
           const row = (data.data ?? data) as Record<string, unknown>;
           contract = row && typeof row === 'object' ? toContractSource(row) : null;
-          if (!contract) unresolved.push('contract');
         } catch {
-          unresolved.push('contract');
+          // Same as above.
         }
       }
 
-      if (!cancelled) setState({ employee, contract, unresolved, loading: false });
+      if (!cancelled) setState({ employee, contract, loading: false });
     })();
 
     return () => {

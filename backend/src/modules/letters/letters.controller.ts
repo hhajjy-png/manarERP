@@ -11,7 +11,6 @@ import { Request, Response } from 'express';
 import { ok, created, noContent } from '@core/utils/response';
 import { asyncHandler } from '@core/utils/asyncHandler';
 import * as service from './letters.service';
-import * as revisions from './revisions.service';
 import { listGaps } from './reference.service';
 import { OFFICIAL_LETTER_KEY } from './letterTemplates.constants';
 import { parseStoredSnapshot } from './snapshot';
@@ -178,94 +177,4 @@ export const gaps = asyncHandler(async (req: Request, res: Response) => {
   const year = Number(req.query.year) || new Date().getFullYear();
   const templateKey = (req.query.templateKey as string | undefined) ?? OFFICIAL_LETTER_KEY;
   ok(res, { templateKey, year, gaps: await listGaps(templateKey, year) });
-});
-
-/* ── Version history and comments (Professional Document Automation v1) ──── */
-
-/**
- * The actor, as a text snapshot.
- *
- * Name and id are stored, never a foreign key — the same choice the timeline already
- * makes. A version must stay readable after the user who took it is deleted, because
- * it is a record of what happened rather than a pointer to who is still employed.
- */
-function actorOf(req: Request) {
-  const user = (req as Request & { user?: { id: number; fullName?: string; username?: string } }).user;
-  return { id: user?.id ?? null, name: user?.fullName ?? user?.username ?? null };
-}
-
-export const listVersions = asyncHandler(async (req: Request, res: Response) => {
-  const versions = await revisions.listVersions(Number(req.params.id));
-  ok(res, versions);
-});
-
-export const getVersion = asyncHandler(async (req: Request, res: Response) => {
-  const version = await revisions.getVersion(Number(req.params.id), Number(req.params.versionId));
-  ok(res, version);
-});
-
-export const createVersion = asyncHandler(async (req: Request, res: Response) => {
-  const actor = actorOf(req);
-  const version = await revisions.createVersion({
-    letterId: Number(req.params.id),
-    kind: req.body.kind ?? 'AUTO',
-    name: req.body.name ?? null,
-    note: req.body.note ?? null,
-    wordCount: req.body.wordCount,
-    pageCount: req.body.pageCount,
-    actorId: actor.id,
-    actorName: actor.name,
-  });
-  created(res, version, 'تم حفظ نسخة من الخطاب');
-});
-
-export const restoreVersion = asyncHandler(async (req: Request, res: Response) => {
-  const actor = actorOf(req);
-  const letter = await revisions.restoreVersion({
-    letterId: Number(req.params.id),
-    versionId: Number(req.params.versionId),
-    actorId: actor.id,
-    actorName: actor.name,
-  });
-  ok(res, letter);
-});
-
-export const deleteVersion = asyncHandler(async (req: Request, res: Response) => {
-  await revisions.deleteVersion(Number(req.params.id), Number(req.params.versionId));
-  noContent(res);
-});
-
-export const listComments = asyncHandler(async (req: Request, res: Response) => {
-  const comments = await revisions.listComments(Number(req.params.id));
-  ok(res, comments);
-});
-
-export const createComment = asyncHandler(async (req: Request, res: Response) => {
-  const actor = actorOf(req);
-  const comment = await revisions.createComment({
-    letterId: Number(req.params.id),
-    parentId: req.body.parentId ?? null,
-    anchorKind: req.body.anchorKind,
-    anchorId: req.body.anchorId ?? null,
-    body: req.body.body,
-    mentions: req.body.mentions,
-    actorId: actor.id,
-    actorName: actor.name,
-  });
-  created(res, comment, 'تمت إضافة التعليق');
-});
-
-export const resolveComment = asyncHandler(async (req: Request, res: Response) => {
-  const comment = await revisions.setCommentResolved(
-    Number(req.params.id),
-    Number(req.params.commentId),
-    req.body.resolved,
-    actorOf(req),
-  );
-  ok(res, comment);
-});
-
-export const deleteComment = asyncHandler(async (req: Request, res: Response) => {
-  await revisions.deleteComment(Number(req.params.id), Number(req.params.commentId));
-  noContent(res);
 });

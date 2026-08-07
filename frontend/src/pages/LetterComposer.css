@@ -14,31 +14,89 @@
   min-height: 100%;
 }
 
-/* ── Header compression ────────────────────────────────────────────────────
-   SCOPED TO THIS PAGE. `ExecutiveHeader` is shared with Cheques, Settings,
-   WorkAnalysis and others; compressing it globally would restyle surfaces this pack
-   has no business touching. Overriding it from inside `.lc-page` keeps the change
-   where it was asked for.
-
-   The editor is the one screen where chrome competes directly with the work: every
-   row of header is a row of paper the author cannot see. */
-.lc-page .xpl-exec-header {
-  padding-block: 8px;
-  min-height: 0;
+/* ── The toolbar shell ──────────────────────────────────────────────────────
+   ONE sticky, single-bordered container — not the rounded, gradient-backed
+   `ExecutiveHeader` CARD stacked above a separate flat toolbar strip, which is what
+   this page rendered through Form Editor UX Simplification Pack v1. Form Editor UX
+   Rebuild v2 removes that card entirely: `.lc-topbar` below is a plain row built from
+   the same ExplorerKit primitives (`Icon`, `Button`, `StatusChip`) the card used, so
+   the page stays on the Design System without carrying `ExecutiveHeader`'s own
+   identity-banner styling (the 60px logo box, the gradient, the border-radius, the
+   shadow) — that treatment is right for a dashboard's page header and wrong for an
+   editor's command bar. The shell owns the one sticky position, one border and one
+   shadow every row inside it used to carry separately. */
+.lc-toolbar-shell {
+  position: sticky;
+  top: 0;
+  z-index: var(--lt-z-sticky, 20);
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  /* Lifts the strip off the canvas so the paper reads as sitting beneath it. */
+  box-shadow: var(--lt-chrome-shadow);
 }
 
-.lc-page .xpl-exec-header h1,
-.lc-page .xpl-exec-header .xpl-exec-title {
-  font-size: 15px;
-  line-height: 1.3;
+.lc-topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
 }
 
-/* The subtitle carries the reference number, so it stays — but at caption weight
-   rather than as a second heading. */
-.lc-page .xpl-exec-header .xpl-exec-subtitle {
-  font-size: 11.5px;
-  line-height: 1.35;
-  opacity: 0.75;
+.lc-topbar-back {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.lc-topbar-back:hover { color: var(--text, #0f172a); border-color: var(--accent, #1d4e6f); }
+.lc-topbar-back .material-symbols-outlined { font-size: 16px !important; }
+
+.lc-topbar-identity {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.lc-topbar-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-topbar-subtitle {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.lc-topbar-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.lc-topbar-aside {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
 /* ── The command strip ─────────────────────────────────────────────────────
@@ -46,25 +104,18 @@
 
    Every millimetre of vertical chrome is a millimetre of paper the author cannot
    see, and the previous layout spent three separate bars on controls that belong
-   together. Collapsing them into a single sticky strip is the single largest
-   contributor to "the paper appears immediately" — it recovers roughly 60px of
-   height before the sheet even starts.
+   together. Collapsing them into a single strip inside the shell above is the single
+   largest contributor to "the paper appears immediately".
 
    `flex-wrap` is kept so a narrow window degrades by wrapping rather than by
    clipping a control out of reach. */
 .lc-bars {
-  position: sticky;
-  top: 0;
-  z-index: var(--lt-z-sticky, 20);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 0;
   min-height: 42px;
   background: var(--surface, #fff);
-  border-bottom: 1px solid var(--border, #e2e8f0);
-  /* Lifts the strip off the canvas so the paper reads as sitting beneath it. */
-  box-shadow: var(--lt-chrome-shadow);
 }
 
 .lc-bars > :first-child {
@@ -88,6 +139,51 @@
 .lc-branding-bar {
   flex: 0 1 auto;
   min-width: 0;
+}
+
+/* Matches `AdvancedToolsMenu`'s own `.atm-trigger` — same strip, same button
+   language, so Insert being a plain toggle rather than a menu row reads as one
+   consistent family of controls, not two different idioms. */
+.lc-insert-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text-muted, #64748b);
+  font: inherit;
+  font-family: var(--app-font-ui, system-ui), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--lt-fast, 130ms) var(--lt-ease, ease-out),
+    color var(--lt-fast, 130ms) var(--lt-ease, ease-out),
+    border-color var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+
+.lc-insert-toggle .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.lc-insert-toggle:hover {
+  background: var(--surface-2, #f1f5f9);
+  color: var(--text, #0f172a);
+}
+
+.lc-insert-toggle.is-on {
+  background: var(--accent, #1d4e6f);
+  border-color: var(--accent, #1d4e6f);
+  color: #fff;
+}
+
+.lc-insert-toggle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Mode switch ───────────────────────────────────────────────────────────
@@ -167,9 +263,7 @@
    instead of placing a caret. Done in CSS rather than by unmounting the editors:
    unmounting would lose the caret, the scroll position and the auto-grown heights, and
    would re-measure the whole document on every mode switch. */
-.lc-page.is-designing .ls-paragraph,
-.lc-page.is-designing .ls-line-input,
-.lc-page.is-designing .ls-date-input {
+.lc-page.is-designing .ls-paragraph {
   pointer-events: none;
 }
 

@@ -1,10 +1,12 @@
 /**
- * Letter Engine — the six document sections.
+ * Letter Engine — the document sections.
  *
  * The document is an ordered list of INDEPENDENT sections, each owning its own
- * formatting. There is no single free editor anywhere in this file, and the sections
- * do not share a text model: the date is a date, the recipient is three fields, the
- * subject is one line, and only the content is a paragraph list.
+ * formatting. There is no single free editor anywhere in this file.
+ *
+ * Form Editor UX Rebuild v2 removed the date, recipient and subject sections — the
+ * document is generic now, and content is the only section an author writes into. Only
+ * the composed sections remain: content, signature and barcode.
  *
  * ══════════════════════════════════════════════════════════════════════════
  *  WHY EVERY EDITABLE SURFACE IS A `<textarea>` OR AN `<input>`
@@ -25,8 +27,6 @@
  */
 
 import { type CSSProperties, forwardRef } from 'react';
-import DateInput from '../DateInput';
-import { Icon } from '../explorer/ExplorerKit';
 import { type Block, type BlockDocument } from '../../letters/model/blockTypes';
 import LetterBarcode from './LetterBarcode';
 import { blockText } from '../../letters/editor/blockCommands';
@@ -137,145 +137,7 @@ function SectionShell({ label, active, severity, children, onFocusCapture }: Sec
   );
 }
 
-/* ── 1. Date ───────────────────────────────────────────────────────────── */
-
-export function DateSection({
-  value,
-  onChange,
-  preset,
-  readOnly,
-  active,
-  severity,
-  onFocus,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  preset: TypographyPreset;
-  readOnly: boolean;
-  active: boolean;
-  severity?: ValidationSeverity | null;
-  onFocus: () => void;
-}) {
-  return (
-    <SectionShell label="التاريخ" active={active} severity={severity} onFocusCapture={onFocus}>
-      <div className="ls-date" style={presetStyle(preset)}>
-        <span className="ls-date-prefix">التاريخ:</span>
-        {readOnly ? (
-          <span>{value}</span>
-        ) : (
-          <DateInput value={value} onChange={onChange} ariaLabel="تاريخ الخطاب" className="ls-date-input" />
-        )}
-      </div>
-    </SectionShell>
-  );
-}
-
-/* ── 2. Recipient — structured, never one free line ────────────────────── */
-
-export interface RecipientValue {
-  name: string;
-  title: string;
-  organisation: string;
-}
-
-export function RecipientSection({
-  value,
-  onChange,
-  preset,
-  readOnly,
-  active,
-  severity,
-  onFocus,
-  resolveText,
-}: {
-  value: RecipientValue;
-  onChange: (patch: Partial<RecipientValue>) => void;
-  preset: TypographyPreset;
-  readOnly: boolean;
-  active: boolean;
-  severity?: ValidationSeverity | null;
-  onFocus: () => void;
-  /** Substitutes variable tokens. Read-only rendering only — see `Paragraph`. */
-  resolveText?: (text: string) => string;
-}) {
-  // Three fields rather than one free line: a structured recipient is searchable, is
-  // reusable by a future multi-recipient section, and never has to be re-parsed out of
-  // prose. Every field is optional — not every letter names a person.
-  const fields: { key: keyof RecipientValue; label: string; placeholder: string }[] = [
-    { key: 'name', label: 'الاسم', placeholder: 'السادة / …' },
-    { key: 'title', label: 'الصفة', placeholder: 'المحترم / مدير الإدارة' },
-    { key: 'organisation', label: 'الجهة', placeholder: 'وزارة الأشغال العامة' },
-  ];
-
-  return (
-    <SectionShell label="الجهة المرسل إليها" active={active} severity={severity} onFocusCapture={onFocus}>
-      <div className="ls-recipient" style={presetStyle(preset)}>
-        {fields.map((field) =>
-          readOnly ? (
-            value[field.key] ? (
-              <div key={field.key}>{resolveText ? resolveText(value[field.key]) : value[field.key]}</div>
-            ) : null
-          ) : (
-            <input
-              key={field.key}
-              className="ls-line-input"
-              value={value[field.key]}
-              onChange={(e) => onChange({ [field.key]: e.target.value })}
-              placeholder={field.placeholder}
-              aria-label={`الجهة المرسل إليها — ${field.label}`}
-              style={{ font: 'inherit', textAlign: 'inherit' }}
-            />
-          ),
-        )}
-      </div>
-    </SectionShell>
-  );
-}
-
-/* ── 3. Subject ────────────────────────────────────────────────────────── */
-
-export function SubjectSection({
-  value,
-  onChange,
-  preset,
-  readOnly,
-  active,
-  severity,
-  onFocus,
-  resolveText,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  preset: TypographyPreset;
-  readOnly: boolean;
-  active: boolean;
-  severity?: ValidationSeverity | null;
-  onFocus: () => void;
-  /** Substitutes variable tokens. Read-only rendering only — see `Paragraph`. */
-  resolveText?: (text: string) => string;
-}) {
-  return (
-    <SectionShell label="الموضوع" active={active} severity={severity} onFocusCapture={onFocus}>
-      <div className="ls-subject" style={presetStyle(preset)}>
-        <span className="ls-subject-prefix">الموضوع:</span>
-        {readOnly ? (
-          <span>{resolveText ? resolveText(value) : value}</span>
-        ) : (
-          <input
-            className="ls-line-input ls-subject-input"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="موضوع الخطاب"
-            aria-label="موضوع الخطاب"
-            style={{ font: 'inherit', textAlign: 'inherit' }}
-          />
-        )}
-      </div>
-    </SectionShell>
-  );
-}
-
-/* ── 4. Content — the paragraph editor ─────────────────────────────────── */
+/* ── 1. Content — the paragraph editor ─────────────────────────────────── */
 
 export interface ParagraphHandlers {
   onTextChange: (blockId: string, text: string) => void;
@@ -503,7 +365,7 @@ export function computeListOrdinals(document: BlockDocument): Record<string, num
   return ordinals;
 }
 
-/* ── 5 & 6. Signature, stamp and barcode ─────────────────────────────────── */
+/* ── 2 & 3. Signature, stamp and barcode ─────────────────────────────────── */
 
 /**
  * The signature block — signature, stamp, or neither.

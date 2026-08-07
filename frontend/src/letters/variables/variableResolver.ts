@@ -187,14 +187,6 @@ export function freezeUsedVariables(
   return frozen;
 }
 
-/** Names that are used but have no value — what `E18_unresolvedVariable` reports. */
-export function unresolvedNames(
-  used: readonly string[],
-  resolved: ResolvedVariables,
-): string[] {
-  return used.filter((name) => findVariable(name) !== undefined && !resolved[name]);
-}
-
 /** Sample values, for the browser's preview before anything is bound. */
 export function sampleValues(): ResolvedVariables {
   const samples: Record<string, string> = {};

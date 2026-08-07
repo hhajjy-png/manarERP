@@ -129,8 +129,6 @@ export interface DocumentTemplate {
    * Official Letter is `false`.
    */
   readonly requiresApproval: boolean;
-  /** Hard ceiling on pages. Also supplied to rule E10 as its `maxPages` parameter. */
-  readonly pageCap: number;
 
   /* ── Signature slots ────────────────────────────────────────────────── */
   readonly signatureSlots: SignatureSlotDefaults;
@@ -139,9 +137,9 @@ export interface DocumentTemplate {
 /* ── Section specs for Official Letter ──────────────────────────────────── */
 
 const OFFICIAL_LETTER_SECTIONS: readonly SectionSpec[] = [
-  { kind: 'date', required: true, editable: true, pageScope: 'firstPage', typographyRole: 'date' },
-  { kind: 'recipient', required: false, editable: true, pageScope: 'firstPage', typographyRole: 'recipient' },
-  { kind: 'subject', required: true, editable: true, pageScope: 'firstPage', typographyRole: 'subject' },
+  // Form Editor UX Rebuild v2 removed date, recipient and subject as fixed sections —
+  // the document is generic now, and none of the three is assumed. An author who wants
+  // a date or a subject line types it as ordinary content, same as any other paragraph.
   { kind: 'content', required: true, editable: true, pageScope: 'flow', typographyRole: 'body' },
   // Neither of the last two is editable: both are composed by the engine — the
   // signature from the existing branding system, the barcode from the registration
@@ -168,8 +166,7 @@ export const TEMPLATES = {
     sections: OFFICIAL_LETTER_SECTIONS,
 
     // Document Studio Foundation v1 widened this list. `pageBreak` stays approved but
-    // unimplemented — the engine's flow is still automatic only, and rule
-    // W7_sparseManualPageBreak below is still deselected for exactly that reason.
+    // unimplemented — the engine's flow is still automatic only.
     toolbarCommands: [
       'bold',
       'underline',
@@ -206,63 +203,39 @@ export const TEMPLATES = {
     defaultPrintProfileId: 'companyLetterhead',
     allowedPrintProfileIds: ['companyLetterhead'],
 
+    /**
+     * ══════════════════════════════════════════════════════════════════════════
+     *  FORM EDITOR UX REBUILD v2 — THE EDITOR ASSISTS; IT DOES NOT REFUSE.
+     * ══════════════════════════════════════════════════════════════════════════
+     * The catalogue itself was cut from twenty-five rules to three. Nothing else was
+     * DESELECTED — the other twenty-two no longer exist to select. An author is now
+     * trusted to judge a missing subject, an empty body, an unregistered draft, a long
+     * document, an unresolved variable and everything else that used to refuse an
+     * output. None of that protected the paper; all of it protected an editorial
+     * convention, and the product decision is that conventions are the author's.
+     *
+     * What remains protects the one thing an author cannot see going wrong:
+     *
+     *   · E4_reservedZoneOverlap    — flow content reaching the pre-printed band
+     *   · E16_objectInReservedZone  — a positioned object reaching it
+     *   · E13_impossibleGeometry    — a profile whose numbers describe no usable page
+     *
+     * The first two are the retained document rule. They work silently — the band
+     * overlays are no longer drawn on screen, and nothing is reported until an output
+     * is actually attempted. The third is a stability guard, not a document rule: it
+     * fires only when the geometry itself cannot describe a page.
+     *
+     * All three are parameterless and all three are `blocking`, a severity fixed in
+     * the catalogue and unreachable from here — the mechanism that makes "always
+     * blocking, no override" true for INV-2/INV-3 regardless of what a template does.
+     */
     validationRules: [
-      { ruleId: 'E1_subjectRequired', params: {} },
-      { ruleId: 'E2_contentRequired', params: {} },
-      { ruleId: 'E3_referenceRequiredForOutput', params: {} },
       { ruleId: 'E4_reservedZoneOverlap', params: {} },
-      { ruleId: 'E5_signatureBlockOrphan', params: { minContentLinesWithSignature: 2 } },
-      { ruleId: 'E6_unknownFontId', params: {} },
-      { ruleId: 'E7_barcodePayloadCapacity', params: {} },
-      { ruleId: 'E8_subjectLineCount', params: { maxSubjectLines: 2 } },
-      // E9_referenceIntegrity is NOT selected. It verifies an issued reference against
-      // the official register, which lives on the server — and this validation engine
-      // is local by design (no backend, no API, no database). Selecting a rule the
-      // engine is architecturally forbidden from evaluating does not add safety; it
-      // permanently withholds `readyForPrinting` and blocks every print.
-      //
-      // The guarantee itself is not lost, and is in fact stronger where it sits: the
-      // register enforces integrity with two UNIQUE database constraints at the moment
-      // of allocation, inside the registration transaction. A client-side re-check
-      // could only ever be an opinion about data it does not own.
-      { ruleId: 'E10_pageCapExceeded', params: { maxPages: 10 } },
-      // Page-geometry rules. Parameterless: their thresholds are the registry's own
-      // dimensions, not a number a template gets to choose.
-      { ruleId: 'E11_contentOutsidePage', params: {} },
-      { ruleId: 'E12_negativePosition', params: {} },
-      { ruleId: 'E13_impossibleGeometry', params: {} },
-      { ruleId: 'E14_oversizedParagraph', params: {} },
-      { ruleId: 'E15_reservedElementPlacement', params: {} },
-      { ruleId: 'I1_documentPageCount', params: {} },
-      { ruleId: 'W1_pageCountAdvisory', params: { advisoryPageCount: 5 } },
-      { ruleId: 'W2_subjectLengthAdvisory', params: { advisorySubjectChars: 120 } },
-      { ruleId: 'W3_nonOfficialFontUsed', params: {} },
-      { ruleId: 'W4_signatureAssetMissing', params: {} },
-      { ruleId: 'W5_typographyDeviation', params: {} },
-      { ruleId: 'W6_issueDateOutOfRange', params: { backdateWarnDays: 30 } },
-      // W7_sparseManualPageBreak is NOT selected. It warns about a page left sparse by
-      // a MANUAL page break — and manual page breaks do not exist in this engine; flow
-      // is automatic only. The rule can never fire, so it withholds `readyForPrinting`
-      // for ever in exchange for nothing. It returns the day the feature does.
-      { ruleId: 'W8_lastPageNearlyFull', params: { nearlyFullPercent: 90 } },
-      // Positioned objects. E16 is what permits free positioning to exist at all —
-      // an object reaching the pre-printed letterhead refuses the print exactly as
-      // E4 does for flow content, and no template may downgrade either.
       { ruleId: 'E16_objectInReservedZone', params: {} },
-      { ruleId: 'E17_objectOutsidePage', params: {} },
-      { ruleId: 'W9_objectOverlapsContent', params: {} },
-      { ruleId: 'W10_objectOffPage', params: {} },
-      // Automation. E18/E19/E20 are blocking: an official letter must never go out
-      // carrying an unanswered question or a silently-ignored rule.
-      { ruleId: 'E18_unresolvedVariable', params: {} },
-      { ruleId: 'E19_unknownVariable', params: {} },
-      { ruleId: 'E20_brokenCondition', params: {} },
-      { ruleId: 'W11_recipientMissing', params: {} },
-      { ruleId: 'W12_bindingUnresolved', params: {} },
+      { ruleId: 'E13_impossibleGeometry', params: {} },
     ],
 
     requiresApproval: false,
-    pageCap: 10,
 
     signatureSlots: {
       hasSignature: true,

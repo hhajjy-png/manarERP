@@ -83,6 +83,29 @@ function renderComposer() {
   );
 }
 
+/**
+ * The composer with the advanced-mode master switch already on.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  THE DEFAULT EXPERIENCE IS NOW THE SIMPLE ONE (Form Editor UX
+ *  Simplification Pack v1). ADVANCED SURFACES MUST BE ASKED FOR.
+ * ══════════════════════════════════════════════════════════════════════════
+ * Rulers, the grid, the reserved-band overlays, the navigation rail, the mode tabs
+ * and the full nineteen-control toolbar are all advanced surfaces. A test that wants
+ * one of them says so HERE, which is what keeps "the page opens calm" an assertion
+ * this file can also make (see the `Form Editor` block below) rather than something
+ * every other test would silently contradict.
+ *
+ * The switch is seeded through `localStorage` rather than by clicking through the
+ * menu because it is `usePersistedState`-backed and read at mount: seeding is one
+ * line, deterministic, and does not make thirty unrelated assertions depend on the
+ * menu's own markup.
+ */
+function renderAdvancedComposer() {
+  localStorage.setItem('manarERP.letters.composer.advanced', 'true');
+  return renderComposer();
+}
+
 /** All paragraph textareas, in document order. */
 function paragraphs(): HTMLTextAreaElement[] {
   return Array.from(document.querySelectorAll('textarea.ls-paragraph'));
@@ -117,15 +140,14 @@ afterEach(cleanup);
 
 /* ── Sections ──────────────────────────────────────────────────────────── */
 
-describe('The document is six independent sections', () => {
-  it('renders all six, in order, with no single free editor', async () => {
+describe('The document is three independent sections', () => {
+  it('renders all three, in order, with no single free editor', async () => {
+    // Form Editor UX Rebuild v2 removed date, recipient and subject as fixed
+    // sections — the document begins generic, and content is the only section an
+    // author writes into directly.
     renderComposer();
-    await screen.findByLabelText('تاريخ الخطاب');
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
 
-    expect(screen.getByLabelText('تاريخ الخطاب')).toBeInTheDocument();
-    expect(screen.getByLabelText('الجهة المرسل إليها — الاسم')).toBeInTheDocument();
-    expect(screen.getByLabelText('موضوع الخطاب')).toBeInTheDocument();
-    expect(paragraphs().length).toBeGreaterThan(0);
     // Asserted structurally rather than by the blocks' prose: P7 replaced the
     // placeholder captions with real signature and barcode rendering, and a test that
     // pinned the old wording was checking the caption, not the section.
@@ -134,13 +156,6 @@ describe('The document is six independent sections', () => {
 
     // Structure, not one big box: no contenteditable anywhere.
     expect(document.querySelector('[contenteditable]')).toBeNull();
-  });
-
-  it('the recipient is structured into three fields, not one free line', async () => {
-    renderComposer();
-    await screen.findByLabelText('الجهة المرسل إليها — الاسم');
-    expect(screen.getByLabelText('الجهة المرسل إليها — الصفة')).toBeInTheDocument();
-    expect(screen.getByLabelText('الجهة المرسل إليها — الجهة')).toBeInTheDocument();
   });
 
   it('an UNREGISTERED letter reserves the signature and barcode space without filling it', async () => {
@@ -178,7 +193,7 @@ describe('The document is six independent sections', () => {
 describe('The paper is the Geometry Registry, rendered', () => {
   it('sizes the sheet to the registry’s page size in millimetres', async () => {
     renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
 
     const sheet = document.querySelector('.lp-sheet') as HTMLElement;
     const page = pageSizeOf(GEOMETRY);
@@ -187,8 +202,11 @@ describe('The paper is the Geometry Registry, rendered', () => {
   });
 
   it('draws both reserved bands at the registry’s offsets', async () => {
-    renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    // Advanced: the bands are an overlay ABOUT the paper, suppressed in the simple
+    // experience so a blank sheet reads as a blank sheet. The geometry they are drawn
+    // from is unchanged, which is what this asserts.
+    renderAdvancedComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
 
     const zones = reservedZonesMm(GEOMETRY);
     const header = document.querySelector('.lp-zone--header') as HTMLElement;
@@ -202,7 +220,7 @@ describe('The paper is the Geometry Registry, rendered', () => {
 
   it('places the content band at the registry’s content top, width and side margin', async () => {
     renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
 
     const band = document.querySelector('.lp-band') as HTMLElement;
     expect(band.style.top).toBe(`${contentTopForPageMm(GEOMETRY, 0)}mm`);
@@ -212,8 +230,8 @@ describe('The paper is the Geometry Registry, rendered', () => {
   });
 
   it('renders four millimetre rulers, and can hide them', async () => {
-    renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    renderAdvancedComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
     expect(document.querySelectorAll('.lp-ruler')).toHaveLength(4);
 
     fireEvent.click(screen.getByLabelText('المساطر'));
@@ -221,8 +239,8 @@ describe('The paper is the Geometry Registry, rendered', () => {
   });
 
   it('the grid is optional and off by default', async () => {
-    renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    renderAdvancedComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
     expect(document.querySelector('.lp-grid')).toBeNull();
 
     fireEvent.click(screen.getByLabelText('الشبكة'));
@@ -230,15 +248,15 @@ describe('The paper is the Geometry Registry, rendered', () => {
   });
 
   it('the reserved bands can be hidden — they are a view option, not a rule', async () => {
-    renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    renderAdvancedComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
     fireEvent.click(screen.getByLabelText('المناطق المحجوزة'));
     await waitFor(() => expect(document.querySelector('.lp-zone')).toBeNull());
   });
 
   it('ZOOM SCALES THE VIEWPORT AND NEVER THE DOCUMENT', async () => {
     renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
 
     const sheet = () => document.querySelector('.lp-sheet') as HTMLElement;
     const band = () => document.querySelector('.lp-band') as HTMLElement;
@@ -284,7 +302,7 @@ describe('The document is a sequence of physical pages', () => {
     // The defining change of this pack: overflow becomes another page, never a
     // scrollbar hiding content inside a sheet.
     renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
     const band = document.querySelector('.lp-band') as HTMLElement;
     const overflow = getComputedStyle(band).overflow;
     expect(overflow).not.toContain('auto');
@@ -309,7 +327,9 @@ describe('The document is a sequence of physical pages', () => {
 
 describe('Page navigation', () => {
   it('shows the current page and the total', async () => {
-    renderComposer();
+    // The quick-jump field lives in the navigation rail, which is an advanced surface;
+    // the status-bar readout below is NOT, and is asserted in both modes.
+    renderAdvancedComposer();
     // The quick-jump field moved into the navigation rail with Document Studio; the
     // page/total readout now lives in the status bar beside the word count.
     const input = (await screen.findByLabelText('الانتقال إلى صفحة')) as HTMLInputElement;
@@ -319,7 +339,7 @@ describe('Page navigation', () => {
   });
 
   it('bounds the go-to-page control to the document', async () => {
-    renderComposer();
+    renderAdvancedComposer();
     const input = (await screen.findByLabelText('الانتقال إلى صفحة')) as HTMLInputElement;
     expect(input.min).toBe('1');
     expect(Number(input.max)).toBeGreaterThanOrEqual(1);
@@ -329,24 +349,183 @@ describe('Page navigation', () => {
     // Replaces the previous "previous is disabled" assertion: the prev/next buttons
     // were retired with `PageNavigator`, and the rail answers the same question —
     // "where am I" — by marking the current thumbnail instead.
-    renderComposer();
+    renderAdvancedComposer();
     const first = await screen.findByLabelText('الصفحة 1');
     expect(first).toHaveAttribute('aria-current', 'page');
   });
 });
 
+/* ── The simple experience (Form Editor UX Simplification Pack v1) ──────── */
+
+describe('Form Editor — the page opens as a blank sheet, not as a studio', () => {
+  it('shows the paper, the essential toolbar and the insert rail — nothing else', async () => {
+    // Form Editor UX Rebuild v2 made Insert a PRIMARY surface, open by default —
+    // the left column of the mockup's three, not a studio panel to hide.
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+
+    // The paper is there and typing works — that is the whole first impression.
+    expect(stack()).not.toBeNull();
+    expect(paragraphs().length).toBeGreaterThan(0);
+    expect(document.querySelector('.ins-panel')).not.toBeNull();  // quick insert — default open
+
+    // …and none of the rest of the studio is.
+    expect(document.querySelector('.lp-ruler')).toBeNull();
+    expect(document.querySelector('.lp-grid')).toBeNull();
+    expect(document.querySelector('.lp-zone')).toBeNull();
+    expect(document.querySelector('.dnv-rail')).toBeNull();   // navigator / layers
+    expect(document.querySelector('.dpp-panel')).toBeNull();  // document properties
+    expect(document.querySelector('.obi-panel')).toBeNull();  // object inspector — Design mode only
+    expect(screen.queryByRole('tablist', { name: 'وضع التحرير' })).toBeNull();
+  });
+
+  it('keeps Save and Print on the strip — they are the whole everyday workflow', async () => {
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+
+    expect(screen.getByRole('button', { name: 'حفظ' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'طباعة' })).toBeInTheDocument();
+    expect(screen.getByLabelText('تصدير')).toBeInTheDocument();
+  });
+
+  it('the essential toolbar carries the everyday tools and drops the rest', async () => {
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    const toolbar = screen.getByRole('toolbar', { name: 'أدوات التنسيق' });
+
+    // Present: what someone writing a document actually reaches for.
+    for (const present of ['عريض', 'تسطير', 'تظليل', 'ضبط', 'توسيط', 'قائمة مرقّمة', 'قائمة نقطية', 'إزالة التنسيق', 'تراجع', 'إعادة']) {
+      expect(within(toolbar).getByLabelText(present)).toBeInTheDocument();
+    }
+
+    // Absent — but only from the DEFAULT view. Every one of these is still permitted
+    // by the template and still implemented; the advanced-mode assertion below is what
+    // proves nothing was removed.
+    for (const hidden of ['رفع', 'خفض', 'زيادة الإزاحة', 'تقليل الإزاحة', 'ناسخ التنسيق', 'لصق كنص عادي', 'التباعد والإزاحة', 'بحث واستبدال']) {
+      expect(within(toolbar).queryByLabelText(hidden)).toBeNull();
+    }
+  });
+
+  it('ADVANCED MODE RESTORES EVERY HIDDEN CONTROL — nothing was removed', async () => {
+    renderAdvancedComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    const toolbar = screen.getByRole('toolbar', { name: 'أدوات التنسيق' });
+
+    for (const restored of ['رفع', 'خفض', 'زيادة الإزاحة', 'تقليل الإزاحة', 'ناسخ التنسيق', 'لصق كنص عادي', 'التباعد والإزاحة', 'بحث واستبدال']) {
+      expect(within(toolbar).getByLabelText(restored)).toBeInTheDocument();
+    }
+    // The mode tabs come back with it.
+    expect(screen.getByRole('tablist', { name: 'وضع التحرير' })).toBeInTheDocument();
+  });
+
+  it('offers ONE door to everything advanced', async () => {
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+
+    const trigger = screen.getByRole('button', { name: /أدوات متقدّمة/ });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(trigger);
+    const menu = await screen.findByRole('menu', { name: 'أدوات متقدّمة' });
+
+    // Every surface still genuinely advanced is reachable from here, by name.
+    // Insert left with Form Editor UX Rebuild v2 — it is a primary surface now,
+    // reached from its own toggle on the strip rather than from this menu.
+    for (const destination of [
+      'تصميم التخطيط',
+      'لوحة الطبقات',
+      'شرط ظهور الفقرة',
+      'معاينة قيم المتغيّرات',
+      'بحث واستبدال',
+      'نتائج التحقّق',
+      'خصائص المستند',
+      'لوحة التنقّل',
+    ]) {
+      expect(within(menu).getByRole('menuitem', { name: new RegExp(destination) })).toBeInTheDocument();
+    }
+    expect(within(menu).getByRole('menuitemcheckbox', { name: /الوضع المتقدّم/ })).toBeInTheDocument();
+  });
+
+  it('a destination opens its surface without the master switch', async () => {
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+
+    fireEvent.click(screen.getByRole('button', { name: /أدوات متقدّمة/ }));
+    const menu = await screen.findByRole('menu', { name: 'أدوات متقدّمة' });
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /خصائص المستند/ }));
+
+    // The rail opened, the menu closed, and the toolbar stayed essential — progressive
+    // disclosure reveals ONE thing, not the whole studio.
+    await waitFor(() => expect(document.querySelector('.dpp-panel')).not.toBeNull());
+    expect(screen.queryByRole('menu', { name: 'أدوات متقدّمة' })).toBeNull();
+    const toolbar = screen.getByRole('toolbar', { name: 'أدوات التنسيق' });
+    expect(within(toolbar).queryByLabelText('ناسخ التنسيق')).toBeNull();
+  });
+
+  it('entering Design mode reveals the tabs, so there is always a way back', async () => {
+    // The one case where a hidden surface MUST appear without the master switch: a
+    // designer opened from the menu with no visible exit would be a trap.
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    expect(screen.queryByRole('tablist', { name: 'وضع التحرير' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /أدوات متقدّمة/ }));
+    const menu = await screen.findByRole('menu', { name: 'أدوات متقدّمة' });
+    fireEvent.click(within(menu).getByRole('menuitem', { name: /تصميم التخطيط/ }));
+
+    const tabs = await screen.findByRole('tablist', { name: 'وضع التحرير' });
+    const back = within(tabs).getByRole('tab', { name: /تحرير النص/ });
+    fireEvent.click(back);
+
+    // …and using it returns to the calm surface, tabs included.
+    await waitFor(() => expect(screen.queryByRole('tablist', { name: 'وضع التحرير' })).toBeNull());
+  });
+});
+
 /* ── Live validation ───────────────────────────────────────────────────── */
 
-describe('Validation is live, and never interrupts', () => {
-  it('shows a summary without opening anything', async () => {
+describe('Validation is quiet — it reports, it no longer refuses', () => {
+  /**
+   * ══════════════════════════════════════════════════════════════════════════
+   *  THE PANEL IS NOW EXCEPTIONAL, NOT AMBIENT (Form Editor UX Rebuild v2).
+   * ══════════════════════════════════════════════════════════════════════════
+   * A missing subject, an empty body and an unregistered draft used to be blocking
+   * findings, so the panel was on screen from the first frame of every document. All
+   * three are now the author's business, which leaves a normal document with nothing
+   * blocking — and a permanent panel reporting nothing is exactly the surface people
+   * learn to ignore.
+   *
+   * So in the simple experience it appears only when it has something that MUST be
+   * acted on. In advanced mode it is always mounted, which is where its own behaviour
+   * — politeness, no modal, keyboard-reachable findings — is still asserted.
+   */
+
+  it('stays away entirely on an ordinary document', async () => {
     renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    // Nothing blocking, nothing to say, nothing on screen.
+    expect(screen.queryByRole('region', { name: 'نتائج التحقّق' })).toBeNull();
+  });
+
+  it('does not refuse an empty, subject-less draft — Print stays available', async () => {
+    // Each of those was a separate blocking rule before the rebuild: E1, E2 and E3.
+    apiMock.get.mockResolvedValue({ data: { data: letterPayload({ subject: '', contentJson: '' }) } });
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+
+    expect(screen.getByRole('button', { name: 'طباعة' })).not.toBeDisabled();
+    expect(screen.getByLabelText('تصدير')).not.toBeDisabled();
+  });
+
+  it('shows a summary without opening anything, in advanced mode', async () => {
+    renderAdvancedComposer();
     const panel = await screen.findByRole('region', { name: 'نتائج التحقّق' });
     // A status line, present from the start — not a dialog that had to be dismissed.
     expect(within(panel).getByRole('button', { expanded: false })).toBeInTheDocument();
   });
 
   it('uses NO modal, alert or dialog for findings', async () => {
-    renderComposer();
+    renderAdvancedComposer();
     await screen.findByRole('region', { name: 'نتائج التحقّق' });
     // The details drawer is the only dialog the composer ever opens, and it is not here.
     expect(screen.queryByRole('alertdialog')).toBeNull();
@@ -354,64 +533,46 @@ describe('Validation is live, and never interrupts', () => {
   });
 
   it('announces status politely rather than stealing focus', async () => {
-    renderComposer();
+    renderAdvancedComposer();
     const panel = await screen.findByRole('region', { name: 'نتائج التحقّق' });
     expect(panel.querySelector('[aria-live="polite"]')).not.toBeNull();
   });
 
-  it('reports a missing subject as a blocking finding once opened', async () => {
-    apiMock.get.mockResolvedValue({ data: { data: letterPayload({ subject: '' }) } });
+  it('an unresolved {{variable}} is no longer validated at all', async () => {
+    // Form Editor UX Rebuild v2 DELETED E18/E19/E20 — not downgraded further, deleted.
+    // A document containing «{{Employee}}» is now ordinary text as far as validation is
+    // concerned: nothing reports it, and nothing about printing it is disabled.
+    apiMock.get.mockResolvedValue({
+      data: {
+        data: letterPayload({
+          contentJson: JSON.stringify({
+            contentModelVersion: 4,
+            blocks: [{
+              id: 'b1',
+              kind: 'paragraph',
+              spans: [{ text: 'السيد {{Employee}}', marks: [] }],
+              attributes: { fontId: 'traditionalArabic', sizePt: 16, alignment: 'justify', indentLevel: 0 },
+            }],
+          }),
+        }),
+      },
+    });
     renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
 
-    const panel = await screen.findByRole('region', { name: 'نتائج التحقّق' });
-    fireEvent.click(within(panel).getByRole('button', { expanded: false }));
-
-    // Findings are keyboard-reachable buttons labelled with severity AND message.
-    const finding = await within(panel).findByRole('button', { name: /خطأ مانع: لا يمكن إصدار خطاب بلا موضوع/ });
-    expect(finding).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'نتائج التحقّق' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'طباعة' })).not.toBeDisabled();
   });
 
-  it('offers a suggested fix alongside the problem', async () => {
-    apiMock.get.mockResolvedValue({ data: { data: letterPayload({ subject: '' }) } });
-    renderComposer();
-    const panel = await screen.findByRole('region', { name: 'نتائج التحقّق' });
-    fireEvent.click(within(panel).getByRole('button', { expanded: false }));
-    expect(await within(panel).findByText(/اكتب موضوع الخطاب/)).toBeInTheDocument();
-  });
-
-  it('clicking a finding focuses the offending section', async () => {
-    apiMock.get.mockResolvedValue({ data: { data: letterPayload({ subject: '' }) } });
-    renderComposer();
-    const panel = await screen.findByRole('region', { name: 'نتائج التحقّق' });
-    fireEvent.click(within(panel).getByRole('button', { expanded: false }));
-
-    const finding = await within(panel).findByRole('button', { name: /لا يمكن إصدار خطاب بلا موضوع/ });
-    fireEvent.click(finding);
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('موضوع الخطاب')));
-  });
-
-  it('no longer reports validation as incomplete — every selected rule now runs', async () => {
-    // The inverse of what this asserted before P7. The panel used to disclose that
-    // rules had never run; now there are none, so the disclosure must be absent —
-    // otherwise it would be lying in the opposite direction.
-    renderComposer();
+  it('no longer reports validation as incomplete — every selected rule runs', async () => {
+    renderAdvancedComposer();
     const panel = await screen.findByRole('region', { name: 'نتائج التحقّق' });
     fireEvent.click(within(panel).getByRole('button', { expanded: false }));
     await within(panel).findByRole('button', { expanded: true });
     expect(within(panel).queryByText(/قاعدة تحقّق تنتظر حزمًا لاحقة/)).toBeNull();
   });
-
-  it('marks the section inline, without disturbing the text', async () => {
-    apiMock.get.mockResolvedValue({ data: { data: letterPayload({ subject: '' }) } });
-    renderComposer();
-    await screen.findByLabelText('موضوع الخطاب');
-
-    // The badge rides on the section LABEL — chrome that already exists — so nothing
-    // about the paragraph being written moves or reflows.
-    await waitFor(() => expect(document.querySelector('.lp-stack .vp-marker')).not.toBeNull());
-    expect(document.querySelector('.ls-paragraph .vp-marker')).toBeNull();
-  });
 });
+
 
 /* ── Typography ────────────────────────────────────────────────────────── */
 
@@ -427,13 +588,30 @@ describe('Typography comes from the template presets', () => {
     expect(style.fontFamily).toContain('Traditional Arabic');
   });
 
-  it('the subject uses the heading face at its preset weight', async () => {
+  it('a heading block is marked distinctly from a plain paragraph', async () => {
+    // Form Editor UX Rebuild v2 removed the fixed subject section, which used to be
+    // the only surface styled with the heading face. `heading` content blocks are now
+    // the sole carrier of that distinction — see the `kindClass` handling in
+    // `LetterSections`'s `Paragraph`.
+    apiMock.get.mockResolvedValue({
+      data: {
+        data: letterPayload({
+          contentJson: JSON.stringify({
+            contentModelVersion: 4,
+            blocks: [{
+              id: 'h1',
+              kind: 'heading',
+              spans: [{ text: 'عنوان المستند', marks: [] }],
+              attributes: { fontId: 'amiri', sizePt: presets.heading.sizePt, alignment: 'center', indentLevel: 0, headingLevel: 1 },
+            }],
+          }),
+        }),
+      },
+    });
     renderComposer();
-    const subject = await screen.findByLabelText('موضوع الخطاب');
-    const container = subject.closest('.ls-subject') as HTMLElement;
-    expect(container.style.fontSize).toBe(`${presets.subject.sizePt}pt`);
-    expect(container.style.fontWeight).toBe(String(presets.subject.weight));
-    expect(container.style.fontFamily).toContain('Amiri');
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    expect(paragraphs()[0].className).toContain('ls-paragraph--heading');
+    expect(paragraphs()[0].style.fontFamily).toContain('Amiri');
   });
 });
 
@@ -457,7 +635,10 @@ describe('The toolbar is the approved minimal set', () => {
     // the engine's flow is still automatic only, and rule W7_sparseManualPageBreak is
     // still deselected for exactly that reason. So the intersection mechanism is still
     // doing its job — it is simply down to one absentee instead of five.
-    renderComposer();
+    // The FULL variant, because that is where the template/implementation
+    // intersection is visible in its entirety. The essential variant adds a third
+    // term to the same intersection and is asserted separately below.
+    renderAdvancedComposer();
     await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
     const toolbar = screen.getByRole('toolbar', { name: 'أدوات التنسيق' });
 
@@ -633,18 +814,25 @@ describe('Saving', () => {
     expect(parsed.blocks[0].spans).toHaveLength(1);
   });
 
-  it('sends the structured recipient and the subject', async () => {
+  it('still round-trips the subject and recipient kept off the paper as metadata', async () => {
+    // Form Editor UX Rebuild v2 stopped rendering these on the sheet, but they stay in
+    // the data model — the barcode payload, the registration snapshot and the
+    // workspace list's columns/search/sort all still read them (see `LetterWorkspace`).
+    // No editor surface writes them yet, so this only proves a save does not drop what
+    // was loaded.
     renderComposer();
-    const subject = await screen.findByLabelText('موضوع الخطاب');
-    fireEvent.change(subject, { target: { value: 'موضوع محدَّث' } });
-    fireEvent.change(screen.getByLabelText('الجهة المرسل إليها — الجهة'), { target: { value: 'وزارة الأشغال' } });
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    // Save is disabled until the document is dirty — an edit to the body is enough to
+    // arm it, and is the only editable surface left.
+    fireEvent.focus(paragraphs()[0]);
+    fireEvent.change(paragraphs()[0], { target: { value: 'محتوى الخطاب' } });
 
     fireEvent.click(await screen.findByRole('button', { name: 'حفظ' }));
     await waitFor(() => expect(apiMock.patch).toHaveBeenCalled());
 
     const body = apiMock.patch.mock.calls[0][1];
-    expect(body.subject).toBe('موضوع محدَّث');
-    expect(body.recipientOrganisation).toBe('وزارة الأشغال');
+    expect(body.subject).toBe(letterPayload().subject);
+    expect(body.recipientName).toBe(letterPayload().recipient.name);
   });
 
   it('starts a fresh document when stored content is unreadable', async () => {
@@ -681,7 +869,7 @@ describe('A registered letter is read-only', () => {
     });
     renderComposer();
 
-    expect(await screen.findByText(/محتوى الخطاب مُجمَّد منذ التسجيل/)).toBeInTheDocument();
+    expect(await screen.findByText(/محتوى المستند مُجمَّد منذ التسجيل/)).toBeInTheDocument();
     expect(paragraphs()).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'حفظ' })).toBeNull();
     // Said TWICE, deliberately: the header pill answers "what is this letter", the

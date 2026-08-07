@@ -53,9 +53,15 @@ function item(id: string, kind: PaginationItem['kind'], heightMm: number, keepWi
   return { id, kind, heightMm, keepWithNext };
 }
 
-/** The heading block every official letter opens with. */
+/**
+ * The fixed identity block every official letter used to open with. Form Editor UX
+ * Rebuild v2 removed date, recipient and subject as fixed sections — an author who
+ * wants them now types them as ordinary content, which is exactly what these three
+ * items simulate. The heights and the `HEADING_MM` total below are unchanged, so
+ * every page-break assertion built on them still exercises the same geometry.
+ */
 function heading(): PaginationItem[] {
-  return [item('date', 'date', 8), item('recipient', 'recipient', 14), item('subject', 'subject', 10)];
+  return [item('date', 'content', 8), item('recipient', 'content', 14), item('subject', 'content', 10)];
 }
 
 function body(count: number, heightMm: number): PaginationItem[] {
@@ -245,11 +251,14 @@ describe('document 5 — a very long paragraph', () => {
   });
 });
 
-describe('document 6 — every available section', () => {
+describe('document 6 — every remaining section kind', () => {
   const all: PaginationItem[] = [
-    item('date', 'date', 8),
-    item('recipient', 'recipient', 14),
-    item('subject', 'subject', 10),
+    // Three items standing in for the identity block Form Editor UX Rebuild v2
+    // removed — an author who wants a date or a subject now types it as content,
+    // same as the two paragraphs right after them.
+    item('date', 'content', 8),
+    item('recipient', 'content', 14),
+    item('subject', 'content', 10),
     item('body-1', 'content', 45),
     item('body-2', 'content', 38),
     item('signature', 'signature', 30, true), // held with the barcode
@@ -257,7 +266,7 @@ describe('document 6 — every available section', () => {
   ];
   const { pagination, printable } = run(all);
 
-  it('renders every section kind', () => {
+  it('renders every item in order', () => {
     const placed = printable.pages.flatMap((p) => p.itemIds);
     expect(placed).toEqual(all.map((i) => i.id));
   });

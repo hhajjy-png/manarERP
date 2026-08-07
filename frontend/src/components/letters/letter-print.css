@@ -80,6 +80,12 @@
   .dsb-bar,                  /* status bar */
   .frp-bar,                  /* find and replace strip */
   .dt-menu-panel,            /* the spacing popover, if left open */
+  /* The Advanced Tools menu (Form Editor UX Simplification Pack v1). Portaled to
+     `document.body`, so it sits OUTSIDE the page stack and cannot be caught by the
+     export pipeline's subtree strip — printing renders the live view, so it has to be
+     named here or an open menu would land on the paper. It closes on every
+     destination click, which makes this belt to that braces. */
+  .atm-panel,
   .sdg-scrim,                /* keyboard-shortcut dialogue */
   /* ── Document Layout Designer chrome ────────────────────────────────────
      The INK of the positioned layer — `.lo-object` and everything inside it — is
@@ -99,7 +105,6 @@
   .ins-panel,                /* Quick Insert rail */
   .dpp-panel,                /* Document Properties rail */
   .cnd-panel,                /* the condition editor popover */
-  .rev-panel,                /* version history, track changes and comments */
   .lc-export-select {        /* the export menu */
     display: none !important;
   }
@@ -239,7 +244,6 @@
      should reach paper at all. These rules are the second lock: if one ever did, it
      would print as plain text rather than as a widget with a box around it. */
 
-  .ls-line-input,
   .ls-paragraph {
     border: 0 !important;
     outline: none !important;

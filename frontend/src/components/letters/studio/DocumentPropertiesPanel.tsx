@@ -65,7 +65,9 @@ export default function DocumentPropertiesPanel(props: DocumentPropertiesProps) 
       <RailResizeHandle
         handleRef={resize.handleRef}
         label="تغيير عرض لوحة الخصائص"
-        edge="after"
+        // Form Editor UX Rebuild v2 moved this panel from the left to the same
+        // right-hand slot the Object Inspector now uses (they never show together).
+        edge="before"
         onPointerDown={resize.startDrag}
         onKeyDown={resize.onHandleKeyDown}
       />

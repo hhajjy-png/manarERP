@@ -123,6 +123,19 @@ const api = {
     error?: string;
   }> => ipcRenderer.invoke('pdf:exportHtml', html, suggestedName),
 
+  /** حفظ ملف Word (.docx) جاهز — يُبنى بالكامل في الواجهة عبر مكتبة docx، وهذا
+   *  يفتح حوار الحفظ ويكتب البايتات حيث اختار المستخدم (Form Editor UX Rebuild v2). */
+  exportDocxBytes: (
+    bytes: Uint8Array,
+    suggestedName: string,
+  ): Promise<{
+    success: boolean;
+    canceled?: boolean;
+    path?: string;
+    sizeBytes?: number;
+    error?: string;
+  }> => ipcRenderer.invoke('docx:export', bytes, suggestedName),
+
   /** فتح مربع حوار اختيار ملف للإرفاق — يُعيد المسار أو null إذا ألغى المستخدم. */
   openFileDialog: (): Promise<string | null> =>
     ipcRenderer.invoke('attachments:openFileDialog'),

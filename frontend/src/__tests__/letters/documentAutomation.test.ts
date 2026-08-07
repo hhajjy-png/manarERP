@@ -62,7 +62,6 @@ import {
   freezeUsedVariables,
   resolveForStatus,
   resolveVariables,
-  unresolvedNames,
   type VariableSources,
 } from '../../letters/variables/variableResolver';
 import {
@@ -89,11 +88,6 @@ import {
   toggleFavourite,
   RECENT_LIMIT,
 } from '../../letters/library/favourites';
-import { createLetterValidationRegistry } from '../../letters/validation/rules';
-import { runValidation } from '../../letters/validation/framework';
-import { getTemplate } from '../../letters/registry/templateRegistry';
-import { getPageGeometry } from '../../letters/registry/geometryRegistry';
-import { paginate } from '../../letters/pagination/paginate';
 
 /* ── Fixtures ───────────────────────────────────────────────────────────── */
 
@@ -292,10 +286,6 @@ describe('Variable resolution', () => {
     expect(frozen.Employee).toBe('أحمد محمد');
   });
 
-  it('lists the used-but-unresolved names', () => {
-    const resolved = resolveVariables({ ...SOURCES, employee: null });
-    expect(unresolvedNames(['Employee', 'Company'], resolved)).toEqual(['Employee']);
-  });
 });
 
 /* ══ Document integration ══════════════════════════════════════════════════ */
@@ -495,111 +485,5 @@ describe('Favourites and recents', () => {
     const items = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'd' }];
     const ordered = orderByPreference(items, (i) => i.id, ['d'], ['c', 'b']);
     expect(ordered.map((i) => i.id)).toEqual(['d', 'c', 'b', 'a']);
-  });
-});
-
-/* ══ Validation ════════════════════════════════════════════════════════════ */
-
-describe('The automation validation rules', () => {
-  const geometry = getPageGeometry('companyLetterhead', 1);
-  const template = getTemplate('officialLetter');
-  const registry = createLetterValidationRegistry();
-
-  function validate(content: BlockDocument, resolvedVariables: Record<string, string | null> = {}) {
-    return runValidation(registry, template.validationRules, {
-      template,
-      geometry,
-      status: 'DRAFT',
-      reference: null,
-      issueDate: '2026-01-01',
-      subject: 'موضوع',
-      recipient: { name: 'جهة', title: '', organisation: '' },
-      content,
-      resolvedVariables,
-      unresolvedBindings: [],
-      pagination: paginate([{ id: 'b0', kind: 'content', heightMm: 10 }], geometry),
-      itemHeightsMm: { b0: 10 },
-      subjectLineCount: 1,
-      signatureAssetId: null,
-      stampAssetId: null,
-      signatureResolved: false,
-      stampResolved: false,
-      barcodePayload: '',
-      now: new Date('2026-01-01'),
-    });
-  }
-
-  it('E18 BLOCKS an unresolved variable', () => {
-    // Without this rule the feature turns from one that saves typing into a mechanism
-    // for posting an official letter that reads «المحترم {{Employee}}».
-    const issues = validate(doc('السيد {{Employee}}')).issues.filter((i) => i.ruleId === 'E18_unresolvedVariable');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('blocking');
-  });
-
-  it('E18 passes once the variable has a value', () => {
-    const issues = validate(doc('السيد {{Employee}}'), { Employee: 'أحمد' })
-      .issues.filter((i) => i.ruleId === 'E18_unresolvedVariable');
-    expect(issues).toEqual([]);
-  });
-
-  it('E18 names the BINDING as the cause when one is needed', () => {
-    const issues = validate(doc('{{Salary}}')).issues.filter((i) => i.ruleId === 'E18_unresolvedVariable');
-    expect(issues[0].message).toMatch(/ربط/);
-  });
-
-  it('E19 reports an unknown token SEPARATELY from an unresolved one', () => {
-    // The fix is different: an unresolved variable needs data, an unknown one needs the
-    // text corrected. Reporting both as "unresolved" sends the author hunting for a
-    // record that was never the problem.
-    const result = validate(doc('{{Bogus}}'));
-    expect(result.issues.filter((i) => i.ruleId === 'E19_unknownVariable')).toHaveLength(1);
-    expect(result.issues.filter((i) => i.ruleId === 'E18_unresolvedVariable')).toHaveLength(0);
-  });
-
-  it('E20 BLOCKS a broken condition even though nothing looks wrong', () => {
-    // A broken condition renders its content, so the letter LOOKS right while the rule
-    // the author wrote is silently ignored. A silent wrong answer is more dangerous
-    // than a visible hole.
-    const broken = setBlockCondition(doc('نص'), 'b0', { kind: 'leaf', variable: 'Bogus', operator: 'exists' });
-    const issues = validate(broken).issues.filter((i) => i.ruleId === 'E20_brokenCondition');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('blocking');
-  });
-
-  it('W11 reports a missing recipient as ADVISORY, not blocking', () => {
-    // The template declares the recipient section optional; blocking would make the
-    // engine contradict its own registry.
-    const result = runValidation(registry, template.validationRules, {
-      template,
-      geometry,
-      status: 'DRAFT',
-      reference: null,
-      issueDate: '2026-01-01',
-      subject: 'موضوع',
-      recipient: { name: '', title: '', organisation: '' },
-      content: doc('نص'),
-      resolvedVariables: {},
-      unresolvedBindings: [],
-      pagination: paginate([{ id: 'b0', kind: 'content', heightMm: 10 }], geometry),
-      itemHeightsMm: { b0: 10 },
-      subjectLineCount: 1,
-      signatureAssetId: null,
-      stampAssetId: null,
-      signatureResolved: false,
-      stampResolved: false,
-      barcodePayload: '',
-      now: new Date('2026-01-01'),
-    });
-    const issues = result.issues.filter((i) => i.ruleId === 'W11_recipientMissing');
-    expect(issues).toHaveLength(1);
-    expect(issues[0].severity).toBe('warning');
-  });
-
-  it('a letter with no variables reports none of the automation rules', () => {
-    const clean = validate(doc('نص عادي بلا متغيّرات')).issues.filter((i) =>
-      ['E18_unresolvedVariable', 'E19_unknownVariable', 'E20_brokenCondition'].includes(i.ruleId),
-    );
-    expect(clean).toEqual([]);
   });
 });

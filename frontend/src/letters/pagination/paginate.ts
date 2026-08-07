@@ -39,7 +39,7 @@ import {
 } from '../registry/geometryRegistry';
 
 /** What a section contributes to the flow. */
-export type PaginationItemKind = 'date' | 'recipient' | 'subject' | 'content' | 'signature' | 'barcode';
+export type PaginationItemKind = 'content' | 'signature' | 'barcode';
 
 export interface PaginationItem {
   readonly id: string;

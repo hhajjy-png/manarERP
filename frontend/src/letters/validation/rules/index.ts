@@ -4,68 +4,33 @@
  * Assembles every implemented rule into a registry. One place to see what the engine
  * can currently check, and one place a future pack adds to.
  *
- * ── EVERY SELECTED RULE NOW HAS AN IMPLEMENTATION ────────────────────────
- * `E7_barcodePayloadCapacity` and `W4_signatureAssetMissing` arrived with P7, once the
- * payload builder and the branding registry existed for them to read.
+ * ══════════════════════════════════════════════════════════════════════════
+ *  FORM EDITOR UX REBUILD v2 — THREE RULES, DOWN FROM TWENTY-FIVE.
+ * ══════════════════════════════════════════════════════════════════════════
+ * The editor now assists rather than refuses. Every rule that protected an editorial
+ * convention — a missing subject, an empty body, an unresolved variable, a page count,
+ * a stray font — was deleted rather than deselected: the product decision is that none
+ * of them should exist any more, not merely that this template declines to run them.
+ * Their implementation files, their catalogue entries and their ids are gone.
  *
- * The two that remained — `E9_referenceIntegrity` and `W7_sparseManualPageBreak` — were
- * DESELECTED from the template rather than implemented, and the reasoning is recorded
- * in `templateRegistry.ts` beside the selection. In short: one requires a server
- * round-trip this engine is architecturally forbidden from making, and the other
- * checks a feature that does not exist. Neither was providing safety; both were
- * permanently withholding `readyForPrinting`.
+ * What remains protects the one thing an author cannot see going wrong: content
+ * landing on ink already printed on the paper, and a print profile whose numbers
+ * cannot describe a real page.
  *
- * The guarantee is unchanged and still load-bearing: `runValidation` reports every
- * selected rule with no implementation, and `summarise` refuses `readyForPrinting`
- * while any remain — so an unfinished engine can never present itself as a clean bill
- * of health.
+ *   · `E4_reservedZoneOverlap`   — flow content vs. the reserved bands.
+ *   · `E16_objectInReservedZone` — a positioned object vs. the reserved bands.
+ *   · `E13_impossibleGeometry`   — a stability guard, not a document rule.
  */
 
 import { type ValidationRuleRegistry, createValidationRuleRegistry } from '../framework';
-import { BRANDING_RULES } from './brandingRules';
-import { DOCUMENT_RULES } from './documentRules';
-import {
-  contentOutsidePageRule,
-  impossibleGeometryRule,
-  negativePositionRule,
-  reservedZoneOverlapRule,
-} from './geometryRules';
-import {
-  documentPageCountRule,
-  lastPageNearlyFullRule,
-  oversizedParagraphRule,
-  pageCapRule,
-  pageCountAdvisoryRule,
-  reservedElementPlacementRule,
-  signatureOrphanRule,
-} from './layoutRules';
-import { LAYOUT_OBJECT_RULES } from './layoutObjectRules';
-import { AUTOMATION_RULES } from './automationRules';
+import { impossibleGeometryRule, reservedZoneOverlapRule } from './geometryRules';
+import { objectInReservedZoneRule } from './layoutObjectRules';
 
 /** Every rule this build implements. */
 export const IMPLEMENTED_RULES = [
-  ...DOCUMENT_RULES,
-  // Barcode payload and branding selection — added with P7.
-  ...BRANDING_RULES,
-  // Safe zones and page boundaries.
   reservedZoneOverlapRule,
-  contentOutsidePageRule,
-  negativePositionRule,
   impossibleGeometryRule,
-  // Layout-derived.
-  oversizedParagraphRule,
-  signatureOrphanRule,
-  reservedElementPlacementRule,
-  pageCapRule,
-  pageCountAdvisoryRule,
-  lastPageNearlyFullRule,
-  documentPageCountRule,
-  // Positioned objects — Document Layout Designer v1. E16 is the blocking rule the
-  // whole positioned layer exists under; see `layoutObjectRules` for why.
-  ...LAYOUT_OBJECT_RULES,
-  // Variables and conditions — Professional Document Automation v1. E18 is what makes
-  // the variables engine safe to ship; see `automationRules` for the severity line.
-  ...AUTOMATION_RULES,
+  objectInReservedZoneRule,
 ] as const;
 
 /**

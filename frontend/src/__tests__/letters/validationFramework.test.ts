@@ -15,10 +15,27 @@
  *
  *  3. RE-EVALUATION IS INCREMENTAL. The runner skips rules a change cannot affect —
  *     asserted by counting how many actually ran.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  FORM EDITOR UX REBUILD v2 — THE CATALOGUE IS NOW THREE RULES, ALL BLOCKING.
+ * ══════════════════════════════════════════════════════════════════════════
+ * `summarise` and the gate functions (`getBlockingIssues`, `hasBlockingIssues`,
+ * `assertNoBlockingIssues`, …) operate on a `ValidationResult` VALUE — they never
+ * re-derive severity from the catalogue. Their tests below build that value directly,
+ * pairing a real rule id with whatever severity the assertion needs, exactly as
+ * `printPipeline.test.ts` does for the same reason: the plumbing's job is to sort,
+ * count and gate by whatever severity a finding already carries, and that job is
+ * unchanged by how many severities the shipped catalogue currently uses.
+ *
+ * Tests that exercise `runValidation` itself — where severity genuinely is stamped
+ * FROM the catalogue — use the three real ids and can only demonstrate `blocking`,
+ * since that is the only severity the catalogue declares a rule for today.
  */
 import { describe, it, expect, vi } from 'vitest';
 import {
   type ValidationFinding,
+  type ValidationIssue,
+  type ValidationResult,
   type ValidationRuleImplementation,
   assertNoBlockingIssues,
   createValidationRuleRegistry,
@@ -45,7 +62,6 @@ import {
   severityRank,
   type ValidationRuleId,
 } from '../../letters/registry/validationRuleCatalog';
-import { getTemplate } from '../../letters/registry/templateRegistry';
 import { getPageGeometry } from '../../letters/registry/geometryRegistry';
 import { paginate } from '../../letters/pagination/paginate';
 import { createEmptyBlockDocument } from '../../letters/model/blockTypes';
@@ -54,23 +70,9 @@ const GEOMETRY = getPageGeometry('companyLetterhead', 1);
 
 function context(overrides: Partial<LetterValidationContext> = {}): LetterValidationContext {
   return {
-    template: getTemplate('officialLetter'),
     geometry: GEOMETRY,
-    status: 'DRAFT',
-    reference: null,
-    issueDate: '2026-08-03',
-    subject: 'موضوع',
-    recipient: { name: '', title: '', organisation: '' },
     content: createEmptyBlockDocument(),
     pagination: paginate([], GEOMETRY),
-    itemHeightsMm: {},
-    subjectLineCount: 1,
-    signatureAssetId: null,
-    stampAssetId: null,
-    signatureResolved: false,
-    stampResolved: false,
-    barcodePayload: '',
-    now: new Date('2026-08-03T00:00:00.000Z'),
     ...overrides,
   };
 }
@@ -90,6 +92,23 @@ function stubRule(
       return findings;
     },
   };
+}
+
+/**
+ * A `ValidationResult` built DIRECTLY — no registry, no rule execution.
+ *
+ * For the summary and gate tests, which operate on the shape rather than on how it was
+ * produced. `severity` is independent of `ruleId` at the type level (a real rule and
+ * its catalogue severity happen to agree; a hand-built fixture does not have to), which
+ * is what lets these tests still exercise every severity even though the shipped
+ * catalogue currently declares only `blocking` rules.
+ */
+function resultOf(...issues: ValidationIssue[]): ValidationResult {
+  return { issues, unimplementedRuleIds: [] };
+}
+
+function issue(ruleId: ValidationRuleId, severity: ValidationIssue['severity']): ValidationIssue {
+  return { ruleId, severity, message: 'رسالة اختبار' };
 }
 
 /* ── Catalogue ──────────────────────────────────────────────────────────── */
@@ -112,10 +131,14 @@ describe('The rule catalogue', () => {
     for (const id of VALIDATION_RULE_IDS) expect(VALIDATION_RULES[id].id).toBe(id);
   });
 
-  it('names rules by severity: E blocking, W warning, I information', () => {
+  it('declares exactly the three rules the rebuild kept, all of them blocking', () => {
+    // Form Editor UX Rebuild v2. Nothing else survived deletion — not deselection, not
+    // downgrading. See `validationRuleCatalog.ts` for the reasoning.
+    expect([...VALIDATION_RULE_IDS].sort()).toEqual(
+      ['E4_reservedZoneOverlap', 'E13_impossibleGeometry', 'E16_objectInReservedZone'].sort(),
+    );
     for (const id of VALIDATION_RULE_IDS) {
-      const expected = id.startsWith('E') ? 'blocking' : id.startsWith('W') ? 'warning' : 'info';
-      expect(VALIDATION_RULES[id].severity, `${id} has the wrong severity`).toBe(expected);
+      expect(VALIDATION_RULES[id].severity, `${id} has the wrong severity`).toBe('blocking');
     }
   });
 
@@ -127,34 +150,39 @@ describe('The rule catalogue', () => {
 
   it('groups rules by severity consistently', () => {
     expect(getBlockingRules()).toEqual(getRulesBySeverity('blocking'));
-    expect(getWarningRules()).toEqual(getRulesBySeverity('warning'));
-    expect(getRulesBySeverity('info').length).toBeGreaterThan(0);
-    // `error` is declared so the engine can express it. No approved rule currently
-    // carries it, and re-classifying one to populate a level would be changing a
-    // decision to suit a taxonomy.
+    expect(getBlockingRules().length).toBe(3);
+    // No warning, error or info rule is declared today — the rebuild deleted every one.
+    // The three severities remain expressible (see the type's own header) but currently
+    // empty, which is exactly what these assert.
+    expect(getWarningRules()).toEqual([]);
+    expect(getRulesBySeverity('info')).toEqual([]);
     expect(getRulesBySeverity('error')).toEqual([]);
   });
 
-  it('every rule documents itself and declares unique parameter names', () => {
+  it('every rule documents itself and declares unique, empty parameter lists', () => {
+    // All three surviving rules are parameterless — their thresholds are the Geometry
+    // Registry's own dimensions, not a number a template gets to choose.
     for (const id of VALIDATION_RULE_IDS) {
       expect(VALIDATION_RULES[id].description.length).toBeGreaterThan(20);
-      expect(new Set(VALIDATION_RULES[id].paramNames).size).toBe(VALIDATION_RULES[id].paramNames.length);
+      expect(VALIDATION_RULES[id].paramNames).toEqual([]);
     }
   });
 
-  it('guards unknown, empty and prototype-chain rule ids', () => {
-    expect(isValidationRuleId('E1_subjectRequired')).toBe(true);
+  it('guards unknown, empty, deleted and prototype-chain rule ids', () => {
+    expect(isValidationRuleId('E4_reservedZoneOverlap')).toBe(true);
+    // A rule the rebuild deleted is now exactly as unknown as one that never existed.
+    expect(isValidationRuleId('E1_subjectRequired')).toBe(false);
     expect(isValidationRuleId('E99_nope')).toBe(false);
     expect(isValidationRuleId('')).toBe(false);
     expect(isValidationRuleId(null)).toBe(false);
     expect(isValidationRuleId('constructor')).toBe(false);
   });
 
-  it('parameter-shape matching is exact', () => {
-    expect(selectionParamsMatchShape({ ruleId: 'E10_pageCapExceeded', params: { maxPages: 10 } })).toBe(true);
-    expect(selectionParamsMatchShape({ ruleId: 'E10_pageCapExceeded', params: {} })).toBe(false);
-    expect(selectionParamsMatchShape({ ruleId: 'E10_pageCapExceeded', params: { maxPages: 10, extra: 1 } })).toBe(false);
-    expect(selectionParamsMatchShape({ ruleId: 'E1_subjectRequired', params: {} })).toBe(true);
+  it('parameter-shape matching is exact — a parameterless rule accepts no stray param', () => {
+    expect(selectionParamsMatchShape({ ruleId: 'E4_reservedZoneOverlap', params: {} })).toBe(true);
+    expect(
+      selectionParamsMatchShape({ ruleId: 'E4_reservedZoneOverlap', params: { extra: 1 } as never }),
+    ).toBe(false);
   });
 });
 
@@ -164,9 +192,9 @@ describe('Rule registry', () => {
   it('registers, finds and lists implementations', () => {
     const registry = createValidationRuleRegistry();
     expect(registry.registeredRuleIds()).toEqual([]);
-    registry.register(stubRule('E1_subjectRequired'));
-    expect(registry.has('E1_subjectRequired')).toBe(true);
-    expect(registry.registeredRuleIds()).toEqual(['E1_subjectRequired']);
+    registry.register(stubRule('E4_reservedZoneOverlap'));
+    expect(registry.has('E4_reservedZoneOverlap')).toBe(true);
+    expect(registry.registeredRuleIds()).toEqual(['E4_reservedZoneOverlap']);
   });
 
   it('refuses an implementation for an uncatalogued rule', () => {
@@ -177,8 +205,8 @@ describe('Rule registry', () => {
   it('refuses a second implementation of the same rule', () => {
     // Two implementations would make behaviour depend on module load order.
     const registry = createValidationRuleRegistry();
-    registry.register(stubRule('E1_subjectRequired'));
-    expect(() => registry.register(stubRule('E1_subjectRequired'))).toThrow(/already has an implementation/);
+    registry.register(stubRule('E4_reservedZoneOverlap'));
+    expect(() => registry.register(stubRule('E4_reservedZoneOverlap'))).toThrow(/already has an implementation/);
   });
 });
 
@@ -186,57 +214,56 @@ describe('Rule registry', () => {
 
 describe('runValidation', () => {
   it('stamps severity from the CATALOGUE, not from the rule', () => {
+    // A finding never carries its own severity to begin with (`ValidationFinding` omits
+    // it) — the runner always looks it up. With every rule blocking today, this proves
+    // the lookup happens rather than that it could disagree; `resultOf`/`issue` above
+    // cover the case where severities genuinely differ.
     const registry = createValidationRuleRegistry();
     registry.register(stubRule('E4_reservedZoneOverlap'));
-    registry.register(stubRule('W1_pageCountAdvisory'));
-    registry.register(stubRule('I1_documentPageCount'));
 
-    const result = runValidation(
-      registry,
-      [
-        { ruleId: 'E4_reservedZoneOverlap', params: {} },
-        { ruleId: 'W1_pageCountAdvisory', params: { advisoryPageCount: 5 } },
-        { ruleId: 'I1_documentPageCount', params: {} },
-      ],
-      context(),
-    );
-
-    expect(result.issues.find((i) => i.ruleId === 'E4_reservedZoneOverlap')?.severity).toBe('blocking');
-    expect(result.issues.find((i) => i.ruleId === 'W1_pageCountAdvisory')?.severity).toBe('warning');
-    expect(result.issues.find((i) => i.ruleId === 'I1_documentPageCount')?.severity).toBe('info');
+    const result = runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: {} }], context());
+    expect(result.issues[0].severity).toBe('blocking');
   });
 
-  it('sorts findings most severe first', () => {
+  it('preserves discovery order among findings of equal severity', () => {
+    // With a single-severity catalogue, "sort most severe first" has nothing left to
+    // reorder — what remains to prove is that the sort is STABLE: three blocking rules
+    // report in selection order, not in some incidental object-iteration order.
     const registry = createValidationRuleRegistry();
-    registry.register(stubRule('I1_documentPageCount'));
-    registry.register(stubRule('W1_pageCountAdvisory'));
-    registry.register(stubRule('E1_subjectRequired'));
+    registry.register(stubRule('E16_objectInReservedZone'));
+    registry.register(stubRule('E4_reservedZoneOverlap'));
+    registry.register(stubRule('E13_impossibleGeometry'));
 
     const result = runValidation(
       registry,
       [
-        { ruleId: 'I1_documentPageCount', params: {} },
-        { ruleId: 'W1_pageCountAdvisory', params: { advisoryPageCount: 5 } },
-        { ruleId: 'E1_subjectRequired', params: {} },
+        { ruleId: 'E16_objectInReservedZone', params: {} },
+        { ruleId: 'E4_reservedZoneOverlap', params: {} },
+        { ruleId: 'E13_impossibleGeometry', params: {} },
       ],
       context(),
     );
 
-    expect(result.issues.map((i) => i.severity)).toEqual(['blocking', 'warning', 'info']);
+    expect(result.issues.map((i) => i.ruleId)).toEqual([
+      'E16_objectInReservedZone',
+      'E4_reservedZoneOverlap',
+      'E13_impossibleGeometry',
+    ]);
   });
 
   it('reports selected rules that have no implementation instead of ignoring them', () => {
     const registry = createValidationRuleRegistry();
-    const result = runValidation(registry, [{ ruleId: 'E1_subjectRequired', params: {} }], context());
+    const result = runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: {} }], context());
     expect(result.issues).toEqual([]);
-    expect(result.unimplementedRuleIds).toEqual(['E1_subjectRequired']);
+    expect(result.unimplementedRuleIds).toEqual(['E4_reservedZoneOverlap']);
   });
 
   it('throws when a selection’s parameters do not match the rule’s shape', () => {
     const registry = createValidationRuleRegistry();
-    registry.register(stubRule('E10_pageCapExceeded'));
-    expect(() => runValidation(registry, [{ ruleId: 'E10_pageCapExceeded', params: {} }], context()))
-      .toThrow(/do not match its declared shape/);
+    registry.register(stubRule('E4_reservedZoneOverlap'));
+    expect(() =>
+      runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: { extra: 1 } as never }], context()),
+    ).toThrow(/do not match its declared shape/);
   });
 
   it('carries a structured location and a suggested fix through unchanged', () => {
@@ -252,9 +279,9 @@ describe('runValidation', () => {
         },
       ]),
     );
-    const issue = runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: {} }], context()).issues[0];
-    expect(issue.suggestion).toBe('اقتراح');
-    expect(issue.location).toEqual({ pageIndex: 1, overshootMm: 6, sectionKind: 'content' });
+    const found = runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: {} }], context()).issues[0];
+    expect(found.suggestion).toBe('اقتراح');
+    expect(found.location).toEqual({ pageIndex: 1, overshootMm: 6, sectionKind: 'content' });
   });
 });
 
@@ -262,39 +289,47 @@ describe('runValidation', () => {
 
 describe('The incremental runner re-evaluates only what changed', () => {
   it('declares a closed set of inputs', () => {
-    expect([...VALIDATION_INPUTS]).toEqual([
-      'subject', 'recipient', 'issueDate', 'content', 'typography', 'pagination', 'geometry', 'status',
-    ]);
+    // Shrunk with the context itself (Form Editor UX Rebuild v2) — the three surviving
+    // rules read only geometry, content and the paginator's own layout.
+    expect([...VALIDATION_INPUTS]).toEqual(['content', 'pagination', 'geometry']);
   });
 
+  /**
+   * Two stub rules with DIFFERENT declared dependencies, borrowing two of the three
+   * real ids for registration purposes. The registry only checks that an id is
+   * catalogued; it does not check that a stub's declared `dependsOn` matches what the
+   * real implementation would read.
+   */
   function twoRuleRunner() {
-    const subjectSpy = vi.fn();
+    const contentSpy = vi.fn();
     const geometrySpy = vi.fn();
     const registry = createValidationRuleRegistry();
-    registry.register(stubRule('E1_subjectRequired', ['subject'], [], subjectSpy));
+    registry.register(stubRule('E16_objectInReservedZone', ['content'], [], contentSpy));
     registry.register(stubRule('E13_impossibleGeometry', ['geometry'], [], geometrySpy));
     const selections = [
-      { ruleId: 'E1_subjectRequired' as const, params: {} },
+      { ruleId: 'E16_objectInReservedZone' as const, params: {} },
       { ruleId: 'E13_impossibleGeometry' as const, params: {} },
     ];
-    return { runner: createValidationRunner(registry), selections, subjectSpy, geometrySpy };
+    return { runner: createValidationRunner(registry), selections, contentSpy, geometrySpy };
   }
 
   it('evaluates everything on the first pass', () => {
-    const { runner, selections, subjectSpy, geometrySpy } = twoRuleRunner();
+    const { runner, selections, contentSpy, geometrySpy } = twoRuleRunner();
     runner.run(selections, context(), 'all');
-    expect(subjectSpy).toHaveBeenCalledTimes(1);
+    expect(contentSpy).toHaveBeenCalledTimes(1);
     expect(geometrySpy).toHaveBeenCalledTimes(1);
     expect(runner.lastEvaluatedCount()).toBe(2);
   });
 
   it('re-evaluates ONLY the rules whose inputs changed', () => {
-    // Typing in the subject must not re-run the geometry rules — the whole point.
-    const { runner, selections, subjectSpy, geometrySpy } = twoRuleRunner();
+    // A content edit must not re-run the geometry rule — the whole point. The runner
+    // decides purely from the `changed` list the caller passes; it does not diff the
+    // context itself, so the second call's context need not literally differ.
+    const { runner, selections, contentSpy, geometrySpy } = twoRuleRunner();
     runner.run(selections, context(), 'all');
-    runner.run(selections, context({ subject: 'موضوع جديد' }), ['subject']);
+    runner.run(selections, context(), ['content']);
 
-    expect(subjectSpy).toHaveBeenCalledTimes(2);
+    expect(contentSpy).toHaveBeenCalledTimes(2);
     expect(geometrySpy).toHaveBeenCalledTimes(1);
     expect(runner.lastEvaluatedCount()).toBe(1);
   });
@@ -302,22 +337,22 @@ describe('The incremental runner re-evaluates only what changed', () => {
   it('evaluates nothing when an unrelated input changes', () => {
     const { runner, selections } = twoRuleRunner();
     runner.run(selections, context(), 'all');
-    runner.run(selections, context(), ['recipient']);
+    runner.run(selections, context(), ['pagination']);
     expect(runner.lastEvaluatedCount()).toBe(0);
   });
 
   it('reuses cached findings for the rules it skipped', () => {
     const registry = createValidationRuleRegistry();
-    registry.register(stubRule('E1_subjectRequired', ['subject']));
+    registry.register(stubRule('E16_objectInReservedZone', ['content']));
     registry.register(stubRule('E13_impossibleGeometry', ['geometry']));
     const runner = createValidationRunner(registry);
     const selections = [
-      { ruleId: 'E1_subjectRequired' as const, params: {} },
+      { ruleId: 'E16_objectInReservedZone' as const, params: {} },
       { ruleId: 'E13_impossibleGeometry' as const, params: {} },
     ];
 
     const first = runner.run(selections, context(), 'all');
-    const second = runner.run(selections, context(), ['subject']);
+    const second = runner.run(selections, context(), ['content']);
     // Skipping a rule must not lose its findings.
     expect(second.issues).toHaveLength(first.issues.length);
     expect(second.issues.map((i) => i.ruleId).sort()).toEqual(first.issues.map((i) => i.ruleId).sort());
@@ -327,13 +362,13 @@ describe('The incremental runner re-evaluates only what changed', () => {
     const { runner, selections, geometrySpy } = twoRuleRunner();
     runner.run(selections, context(), 'all');
     runner.reset();
-    runner.run(selections, context(), ['subject']);
+    runner.run(selections, context(), ['content']);
     expect(geometrySpy).toHaveBeenCalledTimes(2);
   });
 
   it('evaluates a rule it has never seen, whatever changed', () => {
     const { runner, selections, geometrySpy } = twoRuleRunner();
-    runner.run(selections, context(), ['subject']);
+    runner.run(selections, context(), ['content']);
     expect(geometrySpy).toHaveBeenCalledTimes(1);
   });
 });
@@ -341,37 +376,33 @@ describe('The incremental runner re-evaluates only what changed', () => {
 /* ── Summary ────────────────────────────────────────────────────────────── */
 
 describe('summarise', () => {
-  function resultWith(...ids: ValidationRuleId[]) {
-    const registry = createValidationRuleRegistry();
-    for (const id of ids) registry.register(stubRule(id));
-    return runValidation(
-      registry,
-      ids.map((id) => ({
-        ruleId: id,
-        params: Object.fromEntries(getValidationRule(id).paramNames.map((n) => [n, 1])),
-      })),
-      context(),
-    );
-  }
-
   it('counts each severity', () => {
-    const summary = summarise(resultWith('E1_subjectRequired', 'W1_pageCountAdvisory', 'I1_documentPageCount'));
+    const summary = summarise(
+      resultOf(
+        issue('E4_reservedZoneOverlap', 'blocking'),
+        issue('E13_impossibleGeometry', 'warning'),
+        issue('E16_objectInReservedZone', 'info'),
+      ),
+    );
     expect(summary).toMatchObject({ blocking: 1, errors: 0, warnings: 1, info: 1, total: 3 });
   });
 
   it('is ready when nothing blocks and everything ran', () => {
-    expect(summarise(resultWith('W1_pageCountAdvisory', 'I1_documentPageCount')).readyForPrinting).toBe(true);
+    expect(
+      summarise(resultOf(issue('E13_impossibleGeometry', 'warning'), issue('E16_objectInReservedZone', 'info')))
+        .readyForPrinting,
+    ).toBe(true);
   });
 
   it('is NOT ready with a blocking finding', () => {
-    expect(summarise(resultWith('E1_subjectRequired')).readyForPrinting).toBe(false);
+    expect(summarise(resultOf(issue('E4_reservedZoneOverlap', 'blocking'))).readyForPrinting).toBe(false);
   });
 
   it('is NOT ready when a selected rule never ran', () => {
     // "We checked and found nothing" and "we never checked" must never be the same
     // answer on the way to paper.
     const registry = createValidationRuleRegistry();
-    const result = runValidation(registry, [{ ruleId: 'E1_subjectRequired', params: {} }], context());
+    const result = runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: {} }], context());
     const summary = summarise(result);
     expect(summary.blocking).toBe(0);
     expect(summary.unimplementedCount).toBe(1);
@@ -382,34 +413,32 @@ describe('summarise', () => {
 /* ── The output gate ────────────────────────────────────────────────────── */
 
 describe('The gate a future output path will consult', () => {
-  function resultWith(...ids: ValidationRuleId[]) {
-    const registry = createValidationRuleRegistry();
-    for (const id of ids) registry.register(stubRule(id));
-    return runValidation(registry, ids.map((id) => ({ ruleId: id, params: {} })), context());
-  }
-
   it('separates severities', () => {
-    const result = resultWith('E1_subjectRequired', 'W3_nonOfficialFontUsed', 'I1_documentPageCount');
+    const result = resultOf(
+      issue('E4_reservedZoneOverlap', 'blocking'),
+      issue('E13_impossibleGeometry', 'warning'),
+      issue('E16_objectInReservedZone', 'info'),
+    );
     expect(getBlockingIssues(result)).toHaveLength(1);
     expect(getWarningIssues(result)).toHaveLength(1);
     expect(issuesOfSeverity(result, 'info')).toHaveLength(1);
   });
 
   it('warnings and information never block', () => {
-    const result = resultWith('W3_nonOfficialFontUsed', 'I1_documentPageCount');
+    const result = resultOf(issue('E13_impossibleGeometry', 'warning'), issue('E16_objectInReservedZone', 'info'));
     expect(hasBlockingIssues(result)).toBe(false);
     expect(() => assertNoBlockingIssues(result)).not.toThrow();
   });
 
   it('a single blocking finding blocks', () => {
-    const result = resultWith('E2_contentRequired');
+    const result = resultOf(issue('E4_reservedZoneOverlap', 'blocking'));
     expect(hasBlockingIssues(result)).toBe(true);
     expect(() => assertNoBlockingIssues(result)).toThrow(/1 blocking validation issue/);
   });
 
   it('refuses to certify a document whose rules were never run', () => {
     const registry = createValidationRuleRegistry();
-    const result = runValidation(registry, [{ ruleId: 'E1_subjectRequired', params: {} }], context());
+    const result = runValidation(registry, [{ ruleId: 'E4_reservedZoneOverlap', params: {} }], context());
     expect(() => assertNoBlockingIssues(result)).toThrow(/no implementation/);
   });
 });

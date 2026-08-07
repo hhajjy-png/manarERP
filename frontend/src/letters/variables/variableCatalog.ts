@@ -110,10 +110,15 @@ export interface VariableDescriptor {
 /**
  * The eighteen variables, in browse order within each category.
  *
- * A CLOSED set. A template cannot introduce one and a document cannot invent one —
- * an unknown token is reported by `E18_unresolvedVariable` rather than silently
- * printed, because a letter that goes out saying "{{Salary}}" is worse than one that
- * refuses to print.
+ * A CLOSED set. A template cannot introduce one and a document cannot invent one — the
+ * insert picker only ever offers a name from this list.
+ *
+ * Nothing validates a token once it is in the document, though (Form Editor UX
+ * Rebuild v2 deleted `E18_unresolvedVariable` and `E19_unknownVariable` along with
+ * every other blocking rule): a document containing `{{Bogus}}`, or `{{Salary}}` with
+ * no employee bound, prints exactly as typed. `resolveTokens` (`variableSyntax.ts`)
+ * substitutes what it can and leaves the rest as literal text — the editor assists, it
+ * does not refuse.
  */
 export const VARIABLES = {
   /* ── Company — from the existing company settings ────────────────────── */

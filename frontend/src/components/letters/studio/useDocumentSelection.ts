@@ -23,7 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { type CaretStats, EMPTY_CARET_STATS, caretStats } from '../../../letters/editor/documentStats';
 
 /** Which document region the author is working in. Drives section highlighting. */
-export type ActiveSection = 'date' | 'recipient' | 'subject' | 'content' | 'signature' | 'barcode';
+export type ActiveSection = 'content' | 'signature' | 'barcode';
 
 export interface DocumentSelection {
   /** The focused content block, or `null` when focus is elsewhere. */

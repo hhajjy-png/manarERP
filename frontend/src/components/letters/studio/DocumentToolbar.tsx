@@ -62,6 +62,48 @@ import './document-toolbar.css';
  * The gap between this and the template's allow-list is deliberate and visible; see the
  * header. Adding a command here is how a later pack ships a tool.
  */
+/**
+ * The everyday set — what the toolbar shows in its DEFAULT, essential variant
+ * (Form Editor UX Simplification Pack v1).
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  A THIRD FILTER, NOT A SECOND TOOLBAR.
+ * ══════════════════════════════════════════════════════════════════════════
+ * `shows()` already intersects the template's allow-list with what this pack
+ * implements. The essential variant simply adds one more term to that same
+ * intersection, so there is exactly ONE render path and no possibility of the two
+ * variants drifting apart, disagreeing about a template prohibition, or offering a
+ * command that has no implementation.
+ *
+ * Nothing is removed. Everything absent from this list is one click away in the full
+ * variant, which the Advanced Tools menu turns on — see `AdvancedToolsMenu`.
+ *
+ * WHAT IS HERE AND WHY: font, size, the three marks an official letter actually uses,
+ * alignment, lists, clear formatting, undo and redo. Those are the controls a person
+ * writing a document reaches for; the rest (named styles, super/subscript, indent
+ * steps, the five spacing ladders, the format painter, paste-plain and find) are
+ * either occasional or reachable by keyboard, and each one on screen is a control the
+ * beginner has to decide to ignore.
+ */
+export const ESSENTIAL_COMMANDS: readonly ToolbarCommandId[] = [
+  'fontFamily',
+  'fontSize',
+  'bold',
+  'underline',
+  'highlight',
+  'alignJustify',
+  'alignStart',
+  'alignCenter',
+  'listBulleted',
+  'listNumbered',
+  'clearFormatting',
+  'undo',
+  'redo',
+];
+
+/** Which set the toolbar draws from. `essential` is the default experience. */
+export type ToolbarVariant = 'essential' | 'full';
+
 export const IMPLEMENTED_COMMANDS: readonly ToolbarCommandId[] = [
   'bold',
   'underline',
@@ -123,6 +165,8 @@ export interface ToolbarState {
 
 export interface DocumentToolbarProps {
   readonly allowedCommands: readonly ToolbarCommandId[];
+  /** Defaults to `essential` — the calm, everyday toolbar. */
+  readonly variant?: ToolbarVariant;
   readonly state: ToolbarState;
   readonly disabled: boolean;
   readonly onToggleMark: (mark: 'bold' | 'underline' | 'highlight' | 'superscript' | 'subscript') => void;
@@ -148,6 +192,7 @@ export interface DocumentToolbarProps {
 
 export default function DocumentToolbar({
   allowedCommands,
+  variant = 'essential',
   state,
   disabled,
   onToggleMark,
@@ -170,8 +215,14 @@ export default function DocumentToolbar({
   onUndo,
   onRedo,
 }: DocumentToolbarProps) {
+  // Three terms, one intersection: the template must permit it, this pack must
+  // implement it, and the active variant must include it. Adding the variant as a
+  // TERM rather than as a branch is what keeps a single render path — see
+  // `ESSENTIAL_COMMANDS`.
   const shows = (id: ToolbarCommandId) =>
-    allowedCommands.includes(id) && IMPLEMENTED_COMMANDS.includes(id);
+    allowedCommands.includes(id) &&
+    IMPLEMENTED_COMMANDS.includes(id) &&
+    (variant === 'full' || ESSENTIAL_COMMANDS.includes(id));
 
   // Formatting needs a paragraph to act on; history and find do not.
   const noTarget = disabled || !state.hasTarget;
