@@ -102,24 +102,40 @@ export interface ExpenseSection {
 export interface CollectionCustomerRow {
   customerId: number | null;
   customerName: string;
+  /**
+   * رصيد الذمم **أول المدة** — كل فاتورة ناقص كل دفعة قبل `period.from`.
+   *
+   * هو الجزء الغائب من المقام الذي كان يجعل نسبة التحصيل تتجاوز 100%: دفعات
+   * الفترة عن فواتير أسبق كانت تُقسَم على فواتير الفترة وحدها. صفرٌ دائمًا حين
+   * تكون بداية الفترة مفتوحة (لا «قبل» عندئذٍ).
+   */
+  openingAr: number;
   /** إجمالي الفواتير الصادرة للعميل **داخل الفترة**. */
   invoiced: number;
   /** إجمالي الدفعات المستلمة منه **داخل الفترة** (قد تخصّ فواتير أقدم). */
   collected: number;
   /**
-   * الفرق `invoiced − collected`. **قد يكون سالبًا** عمدًا: دفعة داخل الفترة عن
-   * فاتورة صدرت قبلها تُقلّل الرصيد دون أن ترفع `invoiced`. هذا رقم صحيح ومقصود،
-   * وليس خطأ حساب — وهو ما يجعل نسبة التحصيل تتجاوز 100% لدى بعض العملاء.
+   * رصيد **آخر المدة**: `openingAr + invoiced − collected`.
+   *
+   * رصيدٌ حقيقي لا فرقُ حركتين. يبقى سالبًا فقط عند سدادٍ يفوق ما استُحقّ فعلًا
+   * (رصيد دائن للعميل) — لا بسبب اختلاف نطاقٍ بين بسطٍ ومقام كما كان.
    */
   outstanding: number;
-  /** نسبة التحصيل % — `null` عند فواتير صفرية داخل الفترة. */
+  /**
+   * مؤشّر فاعلية التحصيل: `collected ÷ (openingAr + invoiced)` %.
+   * `null` عند قابلٍ للتحصيل غير موجب — لا أساس للنسبة أصلًا.
+   */
   collectionRate: number | null;
 }
 
 export interface CollectionsSection {
   kpis: {
+    /** مجموع أرصدة أول المدة — مقام النسبة مع `invoiced`. */
+    openingAr: number;
     collected: number;
+    /** مجموع أرصدة آخر المدة عبر الصفوف. */
     outstanding: number;
+    /** `collected ÷ (openingAr + Σinvoiced)` — نفس تعريف الصفّ على مستوى القسم. */
     collectionRate: number | null;
     /** متوسط الدفعة الواحدة. */
     averageCollection: number;
@@ -132,12 +148,18 @@ export interface CollectionsSection {
 export interface ReceivableCustomerRow {
   customerId: number | null;
   customerName: string;
+  /**
+   * إجمالي ما فُوتر على العميل **حتى `asOf`** — تراكمي لا حركة فترة.
+   * هذا ما يجعل `outstanding = invoiced − collected` صحيحًا داخل الصفّ نفسه.
+   */
   invoiced: number;
+  /** إجمالي ما سُدِّد **حتى `asOf`** — تراكمي بالمثل. */
   collected: number;
   /** الرصيد القائم — **موجب دائمًا** في هذا القسم (الصفوف مقصورة على المدينين). */
   outstanding: number;
+  /** نسبة التحصيل التراكمية — لا تتجاوز 100% ولا تنزل تحت الصفر بحكم البناء. */
   collectionRate: number | null;
-  /** `YYYY-MM-DD` لآخر دفعة داخل الفترة، أو `null` إن لم يدفع العميل فيها. */
+  /** `YYYY-MM-DD` لآخر دفعة حتى `asOf` (قد تسبق الفترة)، أو `null` إن لم يدفع قط. */
   lastPaymentDate: string | null;
   /** أقدم فاتورة لم تُغطَّ بعد بتوزيع الدفعات (الأقدم أولًا). */
   oldestOpenInvoiceDate: string | null;
@@ -268,6 +290,25 @@ export interface AnalysisDataset {
   invoices: InvoiceFact[];
   expenses: ExpenseFact[];
   payments: PaymentFact[];
+  /**
+   * **الأستاذ حتى نهاية الفترة** — كل فاتورة مبيعات فعّالة وكل دفعة وقعت في أو قبل
+   * `period.to`، بلا حدّ أدنى.
+   *
+   * لماذا مصفوفتان إضافيتان بدل الاكتفاء بحقائق الفترة؟ لأن «الذمم المدينة» (§5)
+   * رصيدٌ **كما في تاريخ** لا صافي حركة فترة: عميل فوتِر في يناير ولم يسدِّد لا
+   * يظهر مدينًا إطلاقًا لو حُسب الرصيد من فواتير مارس وحدها، ودفعةٌ في مارس عن
+   * فاتورة يناير كانت تُطرح من فواتير مارس فتُنقص الرصيد خطأً. هذا هو بالضبط
+   * «الرصيد المرحَّل بين الفترات»، وهو تعريف الذمم المعتمد في المشروع حرفيًا
+   * (`shared/services/operational.reporting.getAccountsReceivable`).
+   *
+   * الأقسام §1–§4 و§6 تبقى على `invoices`/`expenses`/`payments` — حركة الفترة
+   * وحدها — فلا يتسرّب أي رقم تاريخي إلى الإيراد أو التحصيل أو الأداء الشهري.
+   *
+   * الكلفة: استعلاما الفواتير والدفعات يفقدان حدّهما الأدنى، فيقرآن تاريخ المبيعات
+   * كاملًا حتى نهاية الفترة. حقولٌ قليلة لكل صفّ وقاعدة SQLite محلية، وهو الحدّ
+   * الأدنى الذي يتطلّبه رصيدٌ صحيح — لا يمكن اشتقاق التقادم FIFO من مجاميع فقط.
+   */
+  ledger: { invoices: InvoiceFact[]; payments: PaymentFact[] };
   /** أرقام الفترة السابقة المكافئة — للمقارنة فقط، لا تدخل أي جدول. */
   previous: { revenue: number; expenses: number; profit: number };
 }

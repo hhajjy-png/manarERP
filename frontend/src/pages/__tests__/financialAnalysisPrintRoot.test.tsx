@@ -17,6 +17,13 @@ import { FinancialPeriodProvider } from '../../context/FinancialPeriodContext';
 const getMock = vi.fn();
 vi.mock('../../api/client', () => ({ api: { get: (...args: unknown[]) => getMock(...args) } }));
 
+/* المُركِّب يُستبدل بجاسوس: ما يهمّ هنا هو **العقدة** التي تصله، لا الـHTML الناتج
+   (توليده يتطلّب أوراق أنماط حقيقية لا وجود لها في jsdom). */
+const composeMock = vi.fn((_opts: { node: HTMLElement }) => '<html></html>');
+vi.mock('../../printing/composeDocument', () => ({
+  composeStyledFromNode: (opts: { node: HTMLElement }) => composeMock(opts),
+}));
+
 import FinancialAnalysisCenter from '../FinancialAnalysisCenter';
 
 const REPORT = {
@@ -142,6 +149,68 @@ describe('FinancialAnalysisCenter — print root boundary', () => {
   });
 });
 
+/* ────────────────────────────────────────────────────────────────────────────
+   سياق الأسلاف في مستند التصدير.
+
+   المُركِّب ينسخ العقدة المُمرَّرة وحدها إلى `<body>` مستندٍ جديد. جذر الطباعة ابنٌ
+   لـ`.xpl-scope .xpl-page .fac-page`، فكل انتقاء يبدأ بأحدها — توكنات الطقم،
+   وفكّ `max-height: 62vh` عن حاوية الجدول، وفكّ اقتطاع الخلايا، وتكرار الرؤوس —
+   كان يتوقّف عن المطابقة على الورق. الغلاف هنا هو ما يمنع ذلك.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+describe('FinancialAnalysisCenter — PDF ancestor context', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+    getMock.mockImplementation(async () => ({ data: { data: structuredClone(REPORT) } }));
+    composeMock.mockClear();
+    composeMock.mockReturnValue('<html></html>');
+    sessionStorage.clear();
+    (window as unknown as { manar: unknown }).manar = {
+      exportPdfFromHtml: vi.fn(async () => ({ success: true, path: 'C:/out.pdf' })),
+    };
+  });
+
+  async function exportedNode(): Promise<HTMLElement> {
+    await renderPage();
+    const button = document.querySelector<HTMLButtonElement>('.fac-export button:last-of-type')!;
+    await act(async () => {
+      button.click();
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(composeMock).toHaveBeenCalledTimes(1);
+    return composeMock.mock.calls[0]![0].node;
+  }
+
+  it('hands the composer a node carrying the scope and page classes', async () => {
+    const node = await exportedNode();
+    expect(node.classList.contains('xpl-scope')).toBe(true);
+    expect(node.classList.contains('xpl-page')).toBe(true);
+    expect(node.classList.contains('fac-page')).toBe(true);
+  });
+
+  it('nests the report inside that context so descendant selectors still match', async () => {
+    const node = await exportedNode();
+    const report = node.querySelector('.fac-report')!;
+    expect(report).toBeTruthy();
+    expect(node.querySelector('.xpl-scope .fac-report')).toBeTruthy();
+    expect(node.querySelector('.fac-page .xpl-table-wrap')).toBeTruthy();
+  });
+
+  it('carries every KPI card and table into the exported node', async () => {
+    const node = await exportedNode();
+    expect(node.querySelectorAll('.xpl-metric').length).toBeGreaterThan(0);
+    expect(node.querySelectorAll('table.fac-table').length).toBeGreaterThan(0);
+  });
+
+  it('builds the wrapper detached, leaving the live page untouched', async () => {
+    const node = await exportedNode();
+    expect(node.isConnected).toBe(false);
+    // الصفحة المعروضة تبقى بجذر طباعة واحد لا نسخة ثانية معلّقة فيها.
+    expect(document.querySelectorAll('[data-print-report]')).toHaveLength(1);
+    expect(document.querySelectorAll('.xpl-scope.xpl-page.fac-page')).toHaveLength(1);
+  });
+});
+
 describe('FinancialAnalysisCenter — PDF geometry wiring', () => {
   const src = readFileSync(resolve(__dirname, '../FinancialAnalysisCenter.tsx'), 'utf-8');
 
@@ -171,5 +240,27 @@ describe('FinancialAnalysisCenter.css — print rules stay scoped', () => {
   it('protects declared print sections from being split', () => {
     expect(css).toContain('[data-print-section]');
     expect(css).toContain('break-inside: avoid');
+  });
+
+  /* بطاقة المؤشّر على الشاشة تُقصّ بـ`overflow: hidden` بلا `text-overflow`، ولا
+     يُنقذها إلا `useFitText` — وهو JavaScript لا وجود له في ملف PDF ساكن. لذلك
+     يجب أن تفكّ الطباعة القصّ صراحةً وتتجاوز الحجم السطري المخبوز. */
+  const printBlock = css.slice(css.indexOf('@media print'));
+
+  it('releases the metric value from clipping on paper', () => {
+    expect(printBlock).toContain('.fac-page .xpl-metric-value');
+    expect(printBlock).toContain('overflow-wrap: anywhere');
+    expect(printBlock).toMatch(/\.fac-page \.xpl-metric-body[\s\S]*?overflow: visible/);
+  });
+
+  it('overrides the inline font size useFitText baked in from the screen layout', () => {
+    // بلا `!important` يفوز النمط السطري دائمًا ويبقى الرقم بحجمٍ قيس لعرض آخر.
+    expect(printBlock).toMatch(/\.fac-page \.xpl-metric-value \{[\s\S]*?font-size: 19px !important/);
+  });
+
+  it('neutralises the app-window padding and max-width on the export shell only', () => {
+    expect(printBlock).toContain('.fac-page[data-print-root]');
+    // لا يجوز أن تُنتقى `.fac-page` وحدها لهذا — الشاشة تحتاج حشوها.
+    expect(css).not.toMatch(/^\s*\.fac-page \{[^}]*max-width: none/m);
   });
 });

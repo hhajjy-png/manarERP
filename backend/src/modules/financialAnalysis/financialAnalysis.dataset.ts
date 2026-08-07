@@ -14,7 +14,7 @@
 
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
-import { localDateRange, toLocalDateString } from '../../core/utils/dateWindows';
+import { endOfLocalDay, localDateRange, startOfLocalDay, toLocalDateString } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
 import {
   EXPENSE_OPERATIONAL_STATUS,
@@ -53,13 +53,24 @@ export function resolveAnalysisPeriod(input: AnalysisRangeInput): AnalysisPeriod
     return { from, to, days: null, previousFrom: null, previousTo: null };
   }
 
-  const range = localDateRange(from, to);
-  if (!range?.gte || !range.lte) {
+  // منتصف ليل **الطرفين**، لا منتصف ليل البداية مقابل نهاية يوم النهاية.
+  //
+  // الفرق ليس تجميليًا: `endOfLocalDay` هو 23:59:59.999، فالفرق بينه وبين بداية
+  // اليوم الأول يساوي (n − 0.000001) يومًا. `Math.round` يرفعه إلى n، ثم تُضاف
+  // واحدة للشمول فيخرج **n + 1**. النتيجة كانت يومًا زائدًا في كل فترة بلا استثناء:
+  // أغسطس ⇒ 32 يومًا، ويوم واحد ⇒ يومان. وذلك يضخّم «متوسط فترة التحصيل» ويمدّد
+  // نافذة المقارنة السابقة يومًا كاملًا فوق طول الفترة الحالية، فيقارَن غير المتكافئ.
+  //
+  // الفرق بين منتصفَي ليل عدد صحيح من الأيام إلا عند انزياح توقيت صيفي (±ساعة)،
+  // و`Math.round` يبتلعه — لذلك تبقى الصيغة صحيحة في أي منطقة زمنية.
+  const start = startOfLocalDay(from);
+  const end = startOfLocalDay(to);
+  if (!start || !end) {
     return { from, to, days: null, previousFrom: null, previousTo: null };
   }
 
-  const days = Math.max(1, Math.round((range.lte.getTime() - range.gte.getTime()) / MS_PER_DAY) + 1);
-  const prevEnd = new Date(range.gte.getTime() - MS_PER_DAY);
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / MS_PER_DAY) + 1);
+  const prevEnd = new Date(start.getTime() - MS_PER_DAY);
   const prevStart = new Date(prevEnd.getTime() - (days - 1) * MS_PER_DAY);
 
   return {
@@ -81,11 +92,21 @@ export function resolveAnalysisPeriod(input: AnalysisRangeInput): AnalysisPeriod
  */
 export async function loadAnalysisDataset(input: AnalysisRangeInput): Promise<AnalysisDataset> {
   const period = resolveAnalysisPeriod(input);
-  const range = localDateRange(period.from, period.to);
+  const expenseRange = localDateRange(period.from, period.to);
+
+  /**
+   * نافذة الأستاذ: **حتى نهاية الفترة فقط، بلا حدّ أدنى**.
+   *
+   * حركة الفترة تُشتقّ منها بترشيح واحد أدناه بدل استعلام ثانٍ — فعدد الاستعلامات
+   * يبقى كما كان (ثلاثة + مجاميع الفترة السابقة)، ويُكسب معه الرصيد المرحَّل الذي
+   * يحتاجه §5. المصروفات لا تُرحَّل بطبيعتها فتبقى محصورة بالفترة.
+   */
+  const ledgerEnd = endOfLocalDay(period.to);
+  const ledgerRange = ledgerEnd ? { lte: ledgerEnd } : undefined;
 
   const [invoiceRows, expenseRows, paymentRows, previous] = await Promise.all([
     prisma.invoice.findMany({
-      where: { ...SALES_INVOICE_ACTIVE, ...(range ? { issueDate: range } : {}) },
+      where: { ...SALES_INVOICE_ACTIVE, ...(ledgerRange ? { issueDate: ledgerRange } : {}) },
       select: {
         id: true,
         invoiceNumber: true,
@@ -97,13 +118,13 @@ export async function loadAnalysisDataset(input: AnalysisRangeInput): Promise<An
       orderBy: { issueDate: 'asc' },
     }),
     prisma.expense.findMany({
-      where: { status: EXPENSE_OPERATIONAL_STATUS, ...(range ? { date: range } : {}) },
+      where: { status: EXPENSE_OPERATIONAL_STATUS, ...(expenseRange ? { date: expenseRange } : {}) },
       select: { id: true, code: true, date: true, amount: true, category: true, description: true },
       orderBy: { date: 'asc' },
     }),
     prisma.payment.findMany({
       where: {
-        ...(range ? { date: range } : {}),
+        ...(ledgerRange ? { date: ledgerRange } : {}),
         invoice: SALES_INVOICE_ACTIVE,
       },
       select: {
@@ -120,16 +141,33 @@ export async function loadAnalysisDataset(input: AnalysisRangeInput): Promise<An
     loadPreviousPeriodTotals(period),
   ]);
 
+  const ledgerInvoices = invoiceRows.map((i) => ({
+    id: i.id,
+    invoiceNumber: i.invoiceNumber,
+    issueDate: i.issueDate,
+    total: roundMoney(i.total ?? 0),
+    customerId: i.customerId ?? null,
+    customerName: i.customer?.name ?? null,
+  }));
+  const ledgerPayments = paymentRows.map((p) => ({
+    id: p.id,
+    date: p.date,
+    amount: roundMoney(p.amount ?? 0),
+    invoiceId: p.invoiceId,
+    invoiceNumber: p.invoice?.invoiceNumber ?? '',
+    customerId: p.invoice?.customerId ?? null,
+    customerName: p.invoice?.customer?.name ?? null,
+  }));
+
+  // حركة الفترة = الأستاذ من بدايتها فصاعدًا. غياب `from` (مدى مفتوح) يعني أن
+  // الأستاذ **هو** حركة الفترة، فلا ترشيح ولا نسخ.
+  const periodStart = startOfLocalDay(period.from);
+  const sinceStart = <T>(rows: T[], dateOf: (row: T) => Date): T[] =>
+    periodStart ? rows.filter((row) => dateOf(row) >= periodStart) : rows;
+
   return {
     period,
-    invoices: invoiceRows.map((i) => ({
-      id: i.id,
-      invoiceNumber: i.invoiceNumber,
-      issueDate: i.issueDate,
-      total: roundMoney(i.total ?? 0),
-      customerId: i.customerId ?? null,
-      customerName: i.customer?.name ?? null,
-    })),
+    invoices: sinceStart(ledgerInvoices, (i) => i.issueDate),
     expenses: expenseRows.map((e) => ({
       id: e.id,
       code: e.code,
@@ -138,15 +176,8 @@ export async function loadAnalysisDataset(input: AnalysisRangeInput): Promise<An
       category: e.category,
       description: e.description,
     })),
-    payments: paymentRows.map((p) => ({
-      id: p.id,
-      date: p.date,
-      amount: roundMoney(p.amount ?? 0),
-      invoiceId: p.invoiceId,
-      invoiceNumber: p.invoice?.invoiceNumber ?? '',
-      customerId: p.invoice?.customerId ?? null,
-      customerName: p.invoice?.customer?.name ?? null,
-    })),
+    payments: sinceStart(ledgerPayments, (p) => p.date),
+    ledger: { invoices: ledgerInvoices, payments: ledgerPayments },
     previous,
   };
 }

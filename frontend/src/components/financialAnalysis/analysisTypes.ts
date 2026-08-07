@@ -69,14 +69,19 @@ export interface ExpenseSection {
 export interface CollectionCustomerRow {
   customerId: number | null;
   customerName: string;
+  /** رصيد الذمم أول المدة — مقام نسبة التحصيل مع `invoiced`. لا يُعرض كعمود. */
+  openingAr: number;
   invoiced: number;
   collected: number;
+  /** رصيد آخر المدة: `openingAr + invoiced − collected`. */
   outstanding: number;
+  /** `collected ÷ (openingAr + invoiced)` %. */
   collectionRate: number | null;
 }
 
 export interface CollectionsSection {
   kpis: {
+    openingAr: number;
     collected: number;
     outstanding: number;
     collectionRate: number | null;
