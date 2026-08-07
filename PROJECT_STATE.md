@@ -43,14 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `9ec31d16` — release `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (Financial Position Analysis Audit & PDF Fix Pack v1: two independent fixes to the Financial Analysis Center's PDF export and calculation engine, no page redesign, no workflow change. **PDF export** — `composeStyledFromNode` cloned only the print root, losing its `.xpl-scope`/`.xpl-page`/`.fac-page` ancestors and every rule/token scoped to them (the whole `--xpl-*` token set, the table-wrap's `max-height: none` override — without it the kit's own `max-height: 62vh` clipped every table on paper — cell un-truncation, repeated `<thead>`); fixed by composing a detached clone wrapped in that same ancestor chain. KPI cards separately could clip an amount with no ellipsis because `useFitText`'s inline font-size, measured against the on-screen card width, survives unchanged into the static document; new `@media print` rules release the clip and override the inline size. **Calculation engine** — `resolveAnalysisPeriod`'s day count was off by one for every period (measured start-of-day to end-of-day then +1), inflating DSO and mis-sizing the previous-period comparison window; Section 5 Receivables computed a period-movement delta instead of an as-of balance, so a debtor invoiced before the period vanished and an in-period payment against an older invoice produced a negative/excluded balance — fixed via a new `AnalysisDataset.ledger` (every invoice/payment up to `period.to`, zero added queries) matching the project's own AR definition in `operational.reporting.getAccountsReceivable`; Section 8 DSO was dividing by Section 4's signed movement delta (could go negative) and now reads Section 5's real balance. A further correction to **Section 4's collection rate**, made after initial delivery per an explicit review question about its accounting basis: the old formula divided collected-in-period (which can include settlement of pre-period invoices) by invoiced-in-period only, producing rates over 900% and a movement-delta "outstanding" that read −800 when +100 was actually owed — replaced with the Collection Effectiveness Index (`collected ÷ (openingAr + invoiced)`, `outstanding = openingAr + invoiced − collected`, `openingAr` from the same ledger), with the default row sort moved from period-invoiced to total collectible so a carried-balance customer without new invoices still sorts near the top. 11 files modified; backend + frontend) |
-| **Previous production HEAD** | `7d7b4f99` — release `stable-document-studio-ux-polish-pack-v1` (Document Studio UX Polish Pack v1: UX/UI polish for the Official Letter page's Document Studio — no new business feature, no document-model/print-engine/pagination/backend change. A single documented z-index ladder (`--lt-z-canvas` → `--lt-z-dialog`) plus a shared `useFloatingPosition` hook that portals every floating panel to `document.body`, fixing the reported "Font dropdown hidden behind other panels": the real cause was `DocumentToolbar`'s own `overflow-x: auto` clipping FontPicker's dropdown before z-index was ever consulted, not stacking order — applied to FontPicker's dropdown, the toolbar's Spacing popover, and a new floating selection toolbar (Font/Size/Bold/Underline/Highlight/Alignment/Clear Formatting, appearing on an actual text selection, routed through the same command handlers the docked toolbar already uses). Resizable side rails (nav/layers, inspector, insert/revisions/properties slot) with a drag handle, keyboard resize and session-persisted width; collapsible Object Inspector section cards; a Layers panel drop-target indicator, selected-state edge bar and icon empty states; canvas per-object hover outline and handle/rotation hover feedback; toolbar group spacing refinement and panel entrance animation. Two defects found and fixed during a live-browser pass, not by static review: the new resize handles on Object Inspector and Document Properties were unclickable — a negative-inset handle silently clipped by that panel's own `overflow-y: auto` (which per the CSS spec also computes `overflow-x` away from `visible`) — confirmed via `document.elementFromPoint`, not assumed; and every handle had a ~45px dead zone under its panel's own sticky header from a z-index that didn't clear it. Both fixed and re-verified with a real simulated drag before merge. 33 files (6 new, 27 modified); frontend-only) | (Document Studio v1: transforms the Official Letter page from a basic rich-text editor into a professional enterprise Document Studio, in three additive layers merged as one release. **Foundation v1** — canvas experience, grouped toolbar, rich text (paragraph/character styles, format painter, line/letter/paragraph spacing, first-line/hanging indent), find & replace, document stats, mini navigator, zoom presets, keyboard shortcuts. **Layout Designer v1** — a drag/resize/rotate/lock/group object layer over the flow document, layers panel, object inspector, snapping, smart guides, alignment/distribution; the letterhead's reserved zones stay a blocking validation rule (E16) regardless of object placement. **Professional Document Automation v1** — an 18-variable engine resolved live on a DRAFT and frozen everywhere else, visual-only conditional content, asset/block/template/header-footer/signature/stamp libraries, document properties, version history (`AUTO`/`NAMED`/`PRE_RESTORE`/`PRE_REGISTER`, capped and pruned — never the two lifecycle kinds), track changes (word-level LCS diff, blocks matched by id, reject-only by construction since accept is a no-op), threaded comments (one level deep), auto-save, and Smart Export routed through the existing print/compose pipeline and its validation gate. Content model version 1→4, each step a purely additive re-stamp so stored drafts keep opening. Two new tables (`LetterVersion`, `LetterComment`) via a hand-written, dependency-reviewed migration; 9 new routes reuse the existing `letters.*` permission keys — no new key. No change to the print engine, preview pipeline, business logic or public APIs beyond the letters module, and no change to any page outside Official Letter. 100 files (66 new, 30 modified, 4 deleted); backend + frontend) |
+| **Production HEAD** | `b5d7cc8a` — release `stable-form-editor-ux-rebuild-pack-v2` (Form Editor UX Rebuild Pack v2: rebuilds the Official Letter page into a lightweight, generic Form Editor, shipped on top of Form Editor UX Simplification Pack v1 — the rename to "Form Editor", the blank-page default and the Advanced Tools menu — carried on the same branch. **Version History and Comments** removed completely, backend and frontend (9 routes, their handlers, schemas and `revisions.service.ts` deleted; the registration transaction's `PRE_REGISTER` snapshot call removed — the registration snapshot itself, which a reprint is reproduced from, is unaffected). **Validation rules** cut from 25 to exactly 3 — `E4_reservedZoneOverlap`, `E16_objectInReservedZone`, `E13_impossibleGeometry` — deleted outright (implementations, catalogue entries, `ValidationRuleId` members, tests), not deselected; the editor now assists rather than refuses a missing subject, an empty body or an unregistered draft. **Letter assumptions removed** — date, recipient and subject stopped being fixed sections rendered on the sheet, in the pagination flow or in the outline (which shrank from six sections to three: content, signature, barcode); they stay in the data model as metadata (barcode payload, registration snapshot, workspace list columns/search/sort unaffected), with no editor surface writing them yet. **Word (.docx) export** — real, via the `docx` package (new production dependency), mapping the Block Model directly into docx paragraphs/runs rather than rendering the page; a new `docx:export` Electron IPC channel opens the native save dialog. **Accurate preview** wired to the shared `useAccurateFormPreview`/`WysiwygPreviewPocDialog` infrastructure 16+ other forms already use, composing through the same `composeLetter` function HTML/PDF export use. **Header and toolbar merged** — `ExecutiveHeader`'s identity-card styling replaced by a slim `.lc-topbar` sharing one sticky shell with the formatting toolbar. **Layout rebuilt as three columns** — Insert promoted to a primary, default-open left rail (no longer an Advanced Tools destination); the Object Inspector ("خصائص العنصر")/Document Properties rail moved to a contextual right-hand slot, mode-exclusive by construction. 64 files (46 modified, 12 deleted, 6 added); backend + frontend + Electron) |
+| **Previous production HEAD** | `9ec31d16` — release `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (Financial Position Analysis Audit & PDF Fix Pack v1: two independent fixes to the Financial Analysis Center's PDF export and calculation engine, no page redesign, no workflow change. **PDF export** — `composeStyledFromNode` cloned only the print root, losing its `.xpl-scope`/`.xpl-page`/`.fac-page` ancestors and every rule/token scoped to them (the whole `--xpl-*` token set, the table-wrap's `max-height: none` override — without it the kit's own `max-height: 62vh` clipped every table on paper — cell un-truncation, repeated `<thead>`); fixed by composing a detached clone wrapped in that same ancestor chain. KPI cards separately could clip an amount with no ellipsis because `useFitText`'s inline font-size, measured against the on-screen card width, survives unchanged into the static document; new `@media print` rules release the clip and override the inline size. **Calculation engine** — `resolveAnalysisPeriod`'s day count was off by one for every period (measured start-of-day to end-of-day then +1), inflating DSO and mis-sizing the previous-period comparison window; Section 5 Receivables computed a period-movement delta instead of an as-of balance, so a debtor invoiced before the period vanished and an in-period payment against an older invoice produced a negative/excluded balance — fixed via a new `AnalysisDataset.ledger` (every invoice/payment up to `period.to`, zero added queries) matching the project's own AR definition in `operational.reporting.getAccountsReceivable`; Section 8 DSO was dividing by Section 4's signed movement delta (could go negative) and now reads Section 5's real balance. A further correction to **Section 4's collection rate**, made after initial delivery per an explicit review question about its accounting basis: the old formula divided collected-in-period (which can include settlement of pre-period invoices) by invoiced-in-period only, producing rates over 900% and a movement-delta "outstanding" that read −800 when +100 was actually owed — replaced with the Collection Effectiveness Index (`collected ÷ (openingAr + invoiced)`, `outstanding = openingAr + invoiced − collected`, `openingAr` from the same ledger), with the default row sort moved from period-invoiced to total collectible so a carried-balance customer without new invoices still sorts near the top. 11 files modified; backend + frontend) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (release date 2026-08-07) → merge `9ec31d16` |
-| **Previous stable tag** | `stable-document-studio-ux-polish-pack-v1` (2026-08-07) → merge `7d7b4f99` |
-| **Total stable releases** | 413 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
-| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · 89 tests in `financialAnalysis/__tests__` (24 receivables incl. 7 carry-over/ledger cases, 33 compute incl. 10 CEI + 2 sort-order cases, 21 excel, 11 period-resolution) · 19 in `financialAnalysisPrintRoot.test.tsx` (7 new, PDF ancestor-context wrapper + print-only KPI rules) · full backend suite 2813/2813 pass · full frontend suite unchanged at its pre-existing baseline (the same 26 failures across the same 8 files, confirmed via `git stash` against clean production before branching) · scope confirmed: exactly 11 files entered the release, staged explicitly by path — the unrelated pre-existing dirty Electron/scripts/`package.json` workstream, five one-time backend scripts, two `docs/*.xlsx` workbooks, `build/`, review screenshots and other untracked paths sharing the same working tree were all deliberately left uncommitted · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `9ec31d16` + tags `stable-financial-position-analysis-audit-pdf-fix-pack-v1`, `checkpoint-financial-position-analysis-audit-pdf-fix-pack-v1` + branch `feature/financial-position-analysis-audit-pdf-fix-pack-v1`) |
+| **Latest stable tag** | `stable-form-editor-ux-rebuild-pack-v2` (release date 2026-08-07) → merge `b5d7cc8a` |
+| **Previous stable tag** | `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (2026-08-07) → merge `9ec31d16` |
+| **Total stable releases** | 414 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ (confirms the new `vendor-docx-writer` chunk split cleanly from the pre-existing `vendor-mammoth` chunk) · full backend suite 2790/2790 pass · frontend letters suite 655/655 (7 new `docxExport.test.ts` cases unzip the generated `.docx` and assert real OOXML content/bold/heading/RTL/list-numbering, not merely that the library call did not throw) · full frontend suite unchanged at its pre-existing baseline (the same 26 failures across the same 8 files — cheque printing, currency headers, forms-registry translation audit, invoice fast entry — none letters-related) · scope confirmed: exactly 64 files entered the release, staged explicitly by path — for `electron/main.ts` and `package-lock.json`, by constructing the exact intended blob via `git hash-object`/`git update-index` and a filtered patch respectively, since both files were entangled line-by-line with an unrelated, pre-existing uncommitted "Production Startup Pack"/deployment-version-bump workstream sharing the same working tree, which was left exactly as it stood, uncommitted throughout · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `b5d7cc8a` + tags `stable-form-editor-ux-rebuild-pack-v2`, `checkpoint-form-editor-ux-rebuild-pack-v2` + branch `feature/form-editor-ux-simplification-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +62,106 @@ in a table cell.
 
 ---
 
-## Latest Release — Financial Position Analysis Audit & PDF Fix Pack v1
+## Latest Release — Form Editor UX Rebuild Pack v2
+
+| Field | Value |
+|-------|-------|
+| **Package** | Form Editor UX Rebuild Pack v2 — rebuilds the Official Letter page into a lightweight, generic Form Editor, on top of Form Editor UX Simplification Pack v1 carried on the same branch. Version History/Comments removed, validation cut from 25 rules to 3, letter assumptions removed from the sheet, real Word export, accurate preview, header/toolbar merge, three-column layout (64 files: 46 modified, 12 deleted, 6 added; backend + frontend + Electron) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-07 |
+| **Feature branch** | `feature/form-editor-ux-simplification-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `571a2cdc` (previous release's follow-up documentation commit) |
+| **Checkpoint tag** | `checkpoint-form-editor-ux-rebuild-pack-v2` → `571a2cdc` |
+| **Feature commit** | `30ba1ca8` |
+| **Production merge commit** | `b5d7cc8a` |
+| **Stable tag** | `stable-form-editor-ux-rebuild-pack-v2` → merge `b5d7cc8a` (annotated) |
+| **Reviews** | Claude Code Review self-verified via backend + frontend + Electron `tsc --noEmit`, `build:back`, `build:front`, and the full backend/frontend suites → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · full backend suite 2790/2790 · frontend letters suite 655/655 (7 new docx-export tests) · full frontend suite unchanged at its pre-existing 26-failure/8-file baseline |
+| **Schema impact** | None |
+| **Permission impact** | None — no route touched, no new permission key |
+
+**What it is.** The Official Letter page rebuilt into a lightweight, generic Form
+Editor — Microsoft Word rather than Adobe InDesign as the reference point — across
+seven areas, shipped in one release on top of Form Editor UX Simplification Pack v1
+(the earlier rename to "Form Editor", the blank-page default and the Advanced Tools
+menu that hides the full studio behind one door), which this same branch also
+carried uncommitted.
+
+**Version History and Comments — removed completely.** Backend: 9 routes, their
+controller handlers, their Zod schemas and `revisions.service.ts` deleted; the
+registration transaction's `PRE_REGISTER` version-snapshot call removed (the
+**registration snapshot** itself — what a reprint is reproduced from — is
+unaffected; only the ability to browse earlier drafts is gone). Frontend:
+`RevisionPanel`, `letterRevisionsApi`, `documentDiff.ts` and their tests deleted;
+the composer's Review button and revisions side panel removed.
+
+**Validation rules — cut from 25 to exactly 3.** `E4_reservedZoneOverlap` (flow
+content reaching the pre-printed band), `E16_objectInReservedZone` (a positioned
+object reaching it) and `E13_impossibleGeometry` (a print profile describing no
+usable page) are the only rules that protect what an author cannot see going
+wrong; the other 22 are **deleted outright** — implementations, catalogue entries,
+`ValidationRuleId` members, tests — not deselected. The validation context shrank
+from 8 `ValidationInput` members and ~17 context fields to 3 inputs
+(content/pagination/geometry) and a matching minimal shape. The editor now assists;
+it no longer refuses a missing subject, an empty body or an unregistered draft.
+
+**Letter assumptions removed — the document begins completely generic.** Date,
+recipient and subject stopped being fixed sections: no longer rendered on the
+sheet, no longer in the pagination flow, no longer in the outline's fixed skeleton
+(six sections → three: content, signature, barcode). They stay in the data model as
+metadata — the barcode payload, the registration snapshot, the workspace list's
+columns/search/sort are unaffected — with no editor surface writing them yet
+(deferred to a future "Form Info" section in the left rail). An author who wants a
+date or a subject now types it as ordinary content.
+
+**Word (.docx) export — real, via the `docx` package** (new production
+dependency), mapping the Block Model directly into docx paragraphs/runs (headings,
+lists, bold/underline/highlight marks, alignment, indent) rather than rendering the
+page — the reserved bands, letterhead and barcode/signature images are page
+composition, not document content, and are deliberately not reproduced. A new
+`docx:export` Electron IPC channel opens the native save dialog and writes the
+bytes the user chooses; the bridge is exposed through `preload.ts` and typed in
+`api/client.ts`. Verified by unzipping the generated `.docx` and reading its real
+OOXML content, not by trusting the library call to not throw. `vite.config.ts`
+gives the new `docx` package its own vendor chunk (`vendor-docx-writer`), separated
+from the pre-existing `mammoth` chunk (`vendor-mammoth`) after Rollup's automatic
+chunking silently merged the two under the same reused chunk name.
+
+**Accurate preview** — wired to the same `useAccurateFormPreview` hook and
+`WysiwygPreviewPocDialog` 16+ other forms already use, composing through the exact
+same `composeLetter` function (exported from `exportPipeline.ts`) that HTML/PDF
+export use — one document source, not a preview-only copy of it.
+
+**Header and toolbar merged** — `ExecutiveHeader`'s identity-card styling (logo box,
+gradient, rounded card, shadow) is gone from this page; a slim `.lc-topbar` built
+from the same ExplorerKit primitives (`Icon`/`Button`/`StatusChip`) replaces it,
+sharing one sticky shell/border/shadow with the formatting toolbar directly beneath
+it instead of two separately-styled bars.
+
+**Left/right panels rebuilt as a three-column layout.** Insert is now a primary
+surface, open by default on the left (not hidden behind Advanced Tools), toggled
+from a plain strip button instead of a menu row. The Object Inspector ("خصائص
+العنصر") moved to the right, contextual on layout-object selection in Design mode;
+Document Properties shares that same right-hand slot outside Design mode (the two
+are mode-exclusive by construction). `sidePanel`'s three-way union replaced by two
+independent booleans (`insertOpen`/`propertiesOpen`) since the two panels no longer
+compete for one slot.
+
+**Scope discipline.** The working tree also carried a large, unrelated,
+pre-existing uncommitted workstream — a "Production Startup Pack" (a new Electron
+startup window, progress bus and data-dir bootstrap), a deployment version bump to
+`2026.1.0` with new packaging scripts, deleted one-time cheque-backfill scripts, and
+changes to `migrate.ts`/`server.ts`/`electron-builder.yml`. None of it entered this
+release. Every file was staged explicitly by path; `electron/main.ts` and
+`package-lock.json`, which were entangled line-by-line with that workstream, were
+staged by constructing the exact intended content directly (`git hash-object`/
+`git update-index` for the former, a hand-filtered patch applied with
+`git apply --cached` for the latter) rather than by staging the whole file, so the
+working tree kept every uncommitted line of that other workstream throughout.
+
+---
+
+## Previous Release — Financial Position Analysis Audit & PDF Fix Pack v1
 
 | Field | Value |
 |-------|-------|
