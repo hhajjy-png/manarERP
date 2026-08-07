@@ -43,14 +43,14 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `7d7b4f99` — release `stable-document-studio-ux-polish-pack-v1` (Document Studio UX Polish Pack v1: UX/UI polish for the Official Letter page's Document Studio — no new business feature, no document-model/print-engine/pagination/backend change. A single documented z-index ladder (`--lt-z-canvas` → `--lt-z-dialog`) plus a shared `useFloatingPosition` hook that portals every floating panel to `document.body`, fixing the reported "Font dropdown hidden behind other panels": the real cause was `DocumentToolbar`'s own `overflow-x: auto` clipping FontPicker's dropdown before z-index was ever consulted, not stacking order — applied to FontPicker's dropdown, the toolbar's Spacing popover, and a new floating selection toolbar (Font/Size/Bold/Underline/Highlight/Alignment/Clear Formatting, appearing on an actual text selection, routed through the same command handlers the docked toolbar already uses). Resizable side rails (nav/layers, inspector, insert/revisions/properties slot) with a drag handle, keyboard resize and session-persisted width; collapsible Object Inspector section cards; a Layers panel drop-target indicator, selected-state edge bar and icon empty states; canvas per-object hover outline and handle/rotation hover feedback; toolbar group spacing refinement and panel entrance animation. Two defects found and fixed during a live-browser pass, not by static review: the new resize handles on Object Inspector and Document Properties were unclickable — a negative-inset handle silently clipped by that panel's own `overflow-y: auto` (which per the CSS spec also computes `overflow-x` away from `visible`) — confirmed via `document.elementFromPoint`, not assumed; and every handle had a ~45px dead zone under its panel's own sticky header from a z-index that didn't clear it. Both fixed and re-verified with a real simulated drag before merge. 33 files (6 new, 27 modified); frontend-only) |
-| **Previous production HEAD** | `c197e834` — release `stable-document-studio-v1` (Document Studio v1: transforms the Official Letter page from a basic rich-text editor into a professional enterprise Document Studio, in three additive layers merged as one release. **Foundation v1** — canvas experience, grouped toolbar, rich text (paragraph/character styles, format painter, line/letter/paragraph spacing, first-line/hanging indent), find & replace, document stats, mini navigator, zoom presets, keyboard shortcuts. **Layout Designer v1** — a drag/resize/rotate/lock/group object layer over the flow document, layers panel, object inspector, snapping, smart guides, alignment/distribution; the letterhead's reserved zones stay a blocking validation rule (E16) regardless of object placement. **Professional Document Automation v1** — an 18-variable engine resolved live on a DRAFT and frozen everywhere else, visual-only conditional content, asset/block/template/header-footer/signature/stamp libraries, document properties, version history (`AUTO`/`NAMED`/`PRE_RESTORE`/`PRE_REGISTER`, capped and pruned — never the two lifecycle kinds), track changes (word-level LCS diff, blocks matched by id, reject-only by construction since accept is a no-op), threaded comments (one level deep), auto-save, and Smart Export routed through the existing print/compose pipeline and its validation gate. Content model version 1→4, each step a purely additive re-stamp so stored drafts keep opening. Two new tables (`LetterVersion`, `LetterComment`) via a hand-written, dependency-reviewed migration; 9 new routes reuse the existing `letters.*` permission keys — no new key. No change to the print engine, preview pipeline, business logic or public APIs beyond the letters module, and no change to any page outside Official Letter. 100 files (66 new, 30 modified, 4 deleted); backend + frontend) |
+| **Production HEAD** | `9ec31d16` — release `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (Financial Position Analysis Audit & PDF Fix Pack v1: two independent fixes to the Financial Analysis Center's PDF export and calculation engine, no page redesign, no workflow change. **PDF export** — `composeStyledFromNode` cloned only the print root, losing its `.xpl-scope`/`.xpl-page`/`.fac-page` ancestors and every rule/token scoped to them (the whole `--xpl-*` token set, the table-wrap's `max-height: none` override — without it the kit's own `max-height: 62vh` clipped every table on paper — cell un-truncation, repeated `<thead>`); fixed by composing a detached clone wrapped in that same ancestor chain. KPI cards separately could clip an amount with no ellipsis because `useFitText`'s inline font-size, measured against the on-screen card width, survives unchanged into the static document; new `@media print` rules release the clip and override the inline size. **Calculation engine** — `resolveAnalysisPeriod`'s day count was off by one for every period (measured start-of-day to end-of-day then +1), inflating DSO and mis-sizing the previous-period comparison window; Section 5 Receivables computed a period-movement delta instead of an as-of balance, so a debtor invoiced before the period vanished and an in-period payment against an older invoice produced a negative/excluded balance — fixed via a new `AnalysisDataset.ledger` (every invoice/payment up to `period.to`, zero added queries) matching the project's own AR definition in `operational.reporting.getAccountsReceivable`; Section 8 DSO was dividing by Section 4's signed movement delta (could go negative) and now reads Section 5's real balance. A further correction to **Section 4's collection rate**, made after initial delivery per an explicit review question about its accounting basis: the old formula divided collected-in-period (which can include settlement of pre-period invoices) by invoiced-in-period only, producing rates over 900% and a movement-delta "outstanding" that read −800 when +100 was actually owed — replaced with the Collection Effectiveness Index (`collected ÷ (openingAr + invoiced)`, `outstanding = openingAr + invoiced − collected`, `openingAr` from the same ledger), with the default row sort moved from period-invoiced to total collectible so a carried-balance customer without new invoices still sorts near the top. 11 files modified; backend + frontend) |
+| **Previous production HEAD** | `7d7b4f99` — release `stable-document-studio-ux-polish-pack-v1` (Document Studio UX Polish Pack v1: UX/UI polish for the Official Letter page's Document Studio — no new business feature, no document-model/print-engine/pagination/backend change. A single documented z-index ladder (`--lt-z-canvas` → `--lt-z-dialog`) plus a shared `useFloatingPosition` hook that portals every floating panel to `document.body`, fixing the reported "Font dropdown hidden behind other panels": the real cause was `DocumentToolbar`'s own `overflow-x: auto` clipping FontPicker's dropdown before z-index was ever consulted, not stacking order — applied to FontPicker's dropdown, the toolbar's Spacing popover, and a new floating selection toolbar (Font/Size/Bold/Underline/Highlight/Alignment/Clear Formatting, appearing on an actual text selection, routed through the same command handlers the docked toolbar already uses). Resizable side rails (nav/layers, inspector, insert/revisions/properties slot) with a drag handle, keyboard resize and session-persisted width; collapsible Object Inspector section cards; a Layers panel drop-target indicator, selected-state edge bar and icon empty states; canvas per-object hover outline and handle/rotation hover feedback; toolbar group spacing refinement and panel entrance animation. Two defects found and fixed during a live-browser pass, not by static review: the new resize handles on Object Inspector and Document Properties were unclickable — a negative-inset handle silently clipped by that panel's own `overflow-y: auto` (which per the CSS spec also computes `overflow-x` away from `visible`) — confirmed via `document.elementFromPoint`, not assumed; and every handle had a ~45px dead zone under its panel's own sticky header from a z-index that didn't clear it. Both fixed and re-verified with a real simulated drag before merge. 33 files (6 new, 27 modified); frontend-only) | (Document Studio v1: transforms the Official Letter page from a basic rich-text editor into a professional enterprise Document Studio, in three additive layers merged as one release. **Foundation v1** — canvas experience, grouped toolbar, rich text (paragraph/character styles, format painter, line/letter/paragraph spacing, first-line/hanging indent), find & replace, document stats, mini navigator, zoom presets, keyboard shortcuts. **Layout Designer v1** — a drag/resize/rotate/lock/group object layer over the flow document, layers panel, object inspector, snapping, smart guides, alignment/distribution; the letterhead's reserved zones stay a blocking validation rule (E16) regardless of object placement. **Professional Document Automation v1** — an 18-variable engine resolved live on a DRAFT and frozen everywhere else, visual-only conditional content, asset/block/template/header-footer/signature/stamp libraries, document properties, version history (`AUTO`/`NAMED`/`PRE_RESTORE`/`PRE_REGISTER`, capped and pruned — never the two lifecycle kinds), track changes (word-level LCS diff, blocks matched by id, reject-only by construction since accept is a no-op), threaded comments (one level deep), auto-save, and Smart Export routed through the existing print/compose pipeline and its validation gate. Content model version 1→4, each step a purely additive re-stamp so stored drafts keep opening. Two new tables (`LetterVersion`, `LetterComment`) via a hand-written, dependency-reviewed migration; 9 new routes reuse the existing `letters.*` permission keys — no new key. No change to the print engine, preview pipeline, business logic or public APIs beyond the letters module, and no change to any page outside Official Letter. 100 files (66 new, 30 modified, 4 deleted); backend + frontend) |
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-document-studio-ux-polish-pack-v1` (release date 2026-08-07) → merge `7d7b4f99` |
-| **Previous stable tag** | `stable-document-studio-v1` (2026-08-06) → merge `c197e834` |
-| **Total stable releases** | 412 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
-| **Latest validation** | Frontend `tsc --noEmit` ✅ (feature branch and post-merge) · `build:front` ✅ · frontend letters suite 707 pass (704 baseline + 3 new, covering the floating toolbar's open/close-on-selection and its reuse of the docked Bold command) · full frontend suite: the same 26 pre-existing baseline failures across the same 8 files, confirmed unchanged by stashing this change set and re-running those 8 files against clean HEAD · no backend/Electron files touched, so those suites are unaffected by construction · scope confirmed: exactly 33 files entered the release, staged explicitly by path — the substantial pre-existing uncommitted Electron packaging/startup-window workstream, five one-time backend scripts, two `docs/*.xlsx` workbooks, two unreferenced font files, a leftover jsdom probe test and five review screenshots this session produced were all deliberately left unstaged · a live-browser pass (Playwright against the dev server) additionally caught and fixed two real defects neither static review nor the automated suite would have — see the release entry below · Product Owner manual visual review — **completed & approved**, release explicitly requested |
-| **Remote sync** | `origin/production` — pushed with this release (merge `7d7b4f99` + tags `stable-document-studio-ux-polish-pack-v1`, `checkpoint-document-studio-ux-polish-pack-v1` + branch `feature/document-studio-ux-polish-pack-v1`) |
+| **Latest stable tag** | `stable-financial-position-analysis-audit-pdf-fix-pack-v1` (release date 2026-08-07) → merge `9ec31d16` |
+| **Previous stable tag** | `stable-document-studio-ux-polish-pack-v1` (2026-08-07) → merge `7d7b4f99` |
+| **Total stable releases** | 413 (all merged onto `production`; window 2026-06-07 → 2026-08-07) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · 89 tests in `financialAnalysis/__tests__` (24 receivables incl. 7 carry-over/ledger cases, 33 compute incl. 10 CEI + 2 sort-order cases, 21 excel, 11 period-resolution) · 19 in `financialAnalysisPrintRoot.test.tsx` (7 new, PDF ancestor-context wrapper + print-only KPI rules) · full backend suite 2813/2813 pass · full frontend suite unchanged at its pre-existing baseline (the same 26 failures across the same 8 files, confirmed via `git stash` against clean production before branching) · scope confirmed: exactly 11 files entered the release, staged explicitly by path — the unrelated pre-existing dirty Electron/scripts/`package.json` workstream, five one-time backend scripts, two `docs/*.xlsx` workbooks, `build/`, review screenshots and other untracked paths sharing the same working tree were all deliberately left uncommitted · Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Remote sync** | `origin/production` — pushed with this release (merge `9ec31d16` + tags `stable-financial-position-analysis-audit-pdf-fix-pack-v1`, `checkpoint-financial-position-analysis-audit-pdf-fix-pack-v1` + branch `feature/financial-position-analysis-audit-pdf-fix-pack-v1`) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -62,7 +62,91 @@ in a table cell.
 
 ---
 
-## Latest Release — Document Studio UX Polish Pack v1
+## Latest Release — Financial Position Analysis Audit & PDF Fix Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Financial Position Analysis Audit & PDF Fix Pack v1 — a PDF export fix and a full calculation audit for the Financial Analysis Center, plus a follow-up correction to Section 4's collection-rate definition. No page redesign, no workflow change (11 files modified; backend + frontend) |
+| **Release status** | RELEASED |
+| **Release date** | 2026-08-07 |
+| **Feature branch** | `feature/financial-position-analysis-audit-pdf-fix-pack-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `7c93d58c` (previous release's follow-up documentation commit) |
+| **Checkpoint tag** | `checkpoint-financial-position-analysis-audit-pdf-fix-pack-v1` → `7c93d58c` |
+| **Feature commit** | `669eb978` |
+| **Production merge commit** | `9ec31d16` |
+| **Stable tag** | `stable-financial-position-analysis-audit-pdf-fix-pack-v1` → merge `9ec31d16` (annotated) |
+| **Reviews** | Claude Code Review self-verified via backend + frontend `tsc --noEmit`, `build:back`, `build:front`, and the full backend/frontend suites at each of the three implementation rounds → Product Owner manual visual review — **completed & approved**, release explicitly requested |
+| **Validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · 89 tests in `financialAnalysis/__tests__` (17 new/rewritten in round 1, 10 new in round 2, 2 new in round 3) · 19 in `financialAnalysisPrintRoot.test.tsx` (7 new) · full backend suite 2813/2813 · full frontend suite unchanged at its pre-existing 26-failure/8-file baseline, confirmed via `git stash` |
+| **Schema impact** | None |
+| **Permission impact** | None — no route touched |
+
+**What it is.** Two independent problems on one page — `#/financial-analysis` — fixed
+across three approved rounds: a PDF rendering defect, a calculation audit of the
+compute engine, and a follow-up correction to one section's accounting definition
+found by an explicit review question after the first two rounds shipped.
+
+**PDF export — lost ancestor context.** `composeStyledFromNode` clones only the node
+it is handed into a bare `<body>`. The print root (`.fac-report`) is a descendant of
+`.xpl-scope .xpl-page .fac-page`, so every selector rooted at those ancestors —
+the entire `--xpl-*` custom-property set (borders/surfaces silently became
+invalid-at-computed-value), `.fac-page .xpl-table-wrap { max-height: none; overflow:
+visible }` (without it the shared kit's own `max-height: 62vh` clipped every table
+and the remainder was unreachable on paper — the single largest source of hidden
+content), cell un-truncation, repeated `<thead>`, `break-inside: avoid` on cards —
+stopped matching in the exported document. Fixed by wrapping a detached clone of the
+print root in `.xpl-scope.xpl-page.fac-page` (`printShell()`) before composing; the
+live page is never touched.
+
+**PDF export — KPI card clipping.** Separately, a card's amount could be cut with no
+ellipsis (deliberate design: an ellipsised amount reads as a *different* number, not
+a shortened one) because `useFitText` writes an inline `font-size` measured against
+the on-screen card width, and that value survives unchanged into the static PDF with
+no JavaScript there to re-measure it at the A4-landscape card width. New
+`@media print` rules release `overflow`/`white-space` on the metric internals and
+override the baked-in inline size with `!important`.
+
+**Calculation audit — three engine defects.** `resolveAnalysisPeriod`'s day count was
+measured start-of-day to end-of-day (`23:59:59.999`), i.e. `n − ~0` days, then `+1`
+for inclusivity ⇒ `n+1` for every period (August → 32 days) — inflating DSO and, since
+the previous-period window is derived from this length, making it one day longer than
+the period it was compared against. Section 5 Receivables computed a period-movement
+delta, not an as-of balance: a debtor invoiced before the period but with no movement
+inside the window had no row at all, and an in-period payment settling an older
+invoice produced a negative/excluded balance instead of a lower one — fixed by adding
+`AnalysisDataset.ledger` (every active sales invoice and payment up to `period.to`,
+**zero added queries**: the two existing row queries lost their lower bound, and the
+in-period arrays Sections 1–4/6 still use are derived from it by one filter), matching
+the project's own AR definition in `operational.reporting.getAccountsReceivable`.
+Section 8's `daysSalesOutstanding` divided by Section 4's *signed* period-movement
+delta, which can go negative — repointed at Section 5's real `totalOutstanding`.
+
+**Section 4 — a follow-up correction, not part of the original audit scope.** After the
+first two rounds shipped, an explicit review question asked whether the collection-rate
+figure was capped or genuinely correct. It was neither: `collectionRate` divided
+collected-in-period (which can include settlement of pre-period invoices) by
+invoiced-in-period only — two different scopes — producing rates over 900% and an
+"outstanding" figure that was a movement delta, not a balance (a −800 reading when
++100 was actually owed). Replaced with the Collection Effectiveness Index:
+`collectionRate = collected ÷ (openingAr + invoiced)`,
+`outstanding = openingAr + invoiced − collected`, with `openingAr` derived from the
+same `ledger` (entries dated before `period.from`) — again zero added queries. A
+second, smaller follow-up moved the default row sort from period-`invoiced` to total
+collectible (`openingAr + invoiced`), since every KPI on the section now measures
+against that basis — without it, a customer carrying a large balance but no new
+invoices this period sorted past the 6-row collapsed fold despite being the section's
+largest figure.
+
+**Scope discipline.** Sections 1 Profitability, 2 Revenue, 3 Expenses, 6 Monthly
+Performance, page layout and the import workflow are untouched. Sections 7/8 are
+unaffected in substance (top-customer ranking still uses period `invoiced`; DSO now
+reads Section 5 rather than a new source). The three rounds' 11 touched files are the
+entire diff — no unrelated file was staged, and the large pre-existing uncommitted
+Electron/scripts/`package.json` workstream sharing this working tree was left exactly
+as it stood.
+
+---
+
+## Previous Release — Document Studio UX Polish Pack v1
 
 | Field | Value |
 |-------|-------|
