@@ -95,6 +95,37 @@
 
   /* Focus ring — identical everywhere, so "this is focused" is learned once. */
   --lt-focus: var(--accent, #1d4e6f);
+
+  /* ── Overlay layering (Document Studio UX Polish Pack v1) ─────────────
+     One ladder for every layer that can compete for "on top". Before this pack each
+     z-index was a bare literal chosen locally — 2, 5, 20, 25, 40, 60, 120 — with no
+     ordering rule connecting them, which is exactly how a Font dropdown ended up
+     behind the Layers panel: nothing here decided who wins, so whichever component
+     was touched last did. Read bottom to top: */
+  --lt-z-canvas: 5;           /* the layout designer's hit-testing surface */
+  --lt-z-sticky: 20;          /* the sticky command strip (.lc-bars) */
+  --lt-z-validation: 25;      /* the validation centre, above the strip it scrolls under */
+  --lt-z-panel-sticky: 30;    /* a panel's OWN sticky header (Object Inspector, Properties) —
+                                  above that panel's body, never above another panel */
+  --lt-z-overlay: 1000;       /* every floating popover: a dropdown, a menu, the floating
+                                  selection toolbar, an anchored editor — always above every
+                                  panel, drawer, layer list and inspector, full stop */
+  --lt-z-dialog: 1100;        /* a true modal (Shortcuts) — above a popover, because a modal
+                                  the user explicitly opened must win over anything transient */
+}
+
+/* `--lt-z-overlay` and `--lt-z-dialog` ALSO live at `:root`, unscoped — deliberately, the one
+   exception to this file's own "nothing here leaks past `.lc-page`" rule stated above. A
+   panel that portals to `document.body` (FontPicker's dropdown, the Spacing menu, the
+   floating selection toolbar — see `useFloatingPosition.ts`) sits OUTSIDE `.lc-page` in the
+   actual DOM, so a property scoped there cannot reach it; CSS custom properties inherit by
+   DOM ancestry, not by React tree. Two bare integers carry no risk of "restyling Cheques or
+   Settings" the way a color or shadow token would, so the tradeoff the header warns about
+   does not apply here. Every consumer still supplies its own `1000`/`1100` fallback
+   (`var(--lt-z-overlay, 1000)`), so nothing actually depends on this rule being loaded. */
+:root {
+  --lt-z-overlay: 1000;
+  --lt-z-dialog: 1100;
 }
 
 /* Motion is decorative here; someone who has asked for less of it gets none.

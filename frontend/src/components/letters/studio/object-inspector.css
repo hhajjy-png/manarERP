@@ -7,10 +7,13 @@
  */
 
 .obi-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 232px;
-  width: 232px;
+  /* Draggable (Document Studio UX Polish Pack v1) — see `.dnv-rail` for why this is a
+     variable with the old fixed value only as its fallback. */
+  flex: 0 0 var(--rail-w, 232px);
+  width: var(--rail-w, 232px);
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -46,7 +49,7 @@
 .obi-head {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--lt-z-panel-sticky, 30);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -82,15 +85,45 @@
 /* ── Sections ──────────────────────────────────────────────────────────── */
 
 .obi-section {
-  padding: 10px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--border, #e2e8f0) 60%, transparent);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .obi-section:last-child {
   border-bottom: 0;
+}
+
+/* ── Collapsible card head (Document Studio UX Polish Pack v1) ────────────
+   A real `<button>`, not a clickable `<div>` — keyboard and screen-reader support come
+   free rather than being re-implemented. */
+.obi-section-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.obi-section-head:hover {
+  background: var(--surface-2, #f1f5f9);
+}
+.obi-section-head:focus-visible {
+  outline: 2px solid var(--lt-focus, #1d4e6f);
+  outline-offset: -2px;
+}
+
+.obi-section-chevron {
+  font-size: 15px !important;
+  color: var(--text-muted, #64748b);
+  flex: 0 0 auto;
+  transition: transform var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+.obi-section.is-collapsed .obi-section-chevron {
+  transform: rotate(-90deg);
 }
 
 .obi-section-title {
@@ -100,6 +133,26 @@
   letter-spacing: 0.3px;
   text-transform: none;
   color: var(--text-muted, #64748b);
+}
+
+/* The grid-rows collapse trick: 1fr → 0fr animates a height nobody has to measure in
+   JS, and it degrades gracefully to an instant snap under `prefers-reduced-motion`
+   since `--lt-slow` zeroes there. */
+.obi-section-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--lt-slow, 200ms) var(--lt-ease, ease-out);
+}
+.obi-section.is-collapsed .obi-section-collapse {
+  grid-template-rows: 0fr;
+}
+.obi-section-body {
+  overflow: hidden;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 10px;
 }
 
 /* ── Numeric grid ──────────────────────────────────────────────────────────

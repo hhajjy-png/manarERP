@@ -55,7 +55,7 @@
 .lc-bars {
   position: sticky;
   top: 0;
-  z-index: 20;
+  z-index: var(--lt-z-sticky, 20);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -186,7 +186,7 @@
   position: fixed;
   top: 132px;
   inset-inline-end: 24px;
-  z-index: 60;
+  z-index: var(--lt-z-overlay, 1000);
 }
 
 /* ── The workspace ─────────────────────────────────────────────────────────
@@ -200,6 +200,59 @@
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+/* ── Resizable rails (Document Studio UX Polish Pack v1) ──────────────────
+   One handle style shared by every resizable rail (nav/layers, inspector, the
+   insert/revisions/properties slot) — the resize MATH lives in `useResizableRail`,
+   this is only the grip's appearance and which edge it renders on. `--before` is for a
+   rail that comes before the canvas in DOM order (handle at its inline-END, touching
+   the canvas); `--after` is for one that comes after (handle at inline-START). Each
+   host rule needs `position: relative` for this to anchor against IT rather than a
+   further ancestor.
+
+   Flush with the edge (`0`, never a negative inset) DELIBERATELY — a negative inset
+   would protrude past the panel's own box, and two of these panels (`.obi-panel`,
+   `.dpp-panel`) set `overflow-y: auto` on that same root, which per the CSS spec also
+   computes `overflow-x` away from `visible`. A protruding handle was then clipped by
+   its own host's overflow — invisible to hit-testing though `getBoundingClientRect`
+   still reported it, so it looked present and was silently unclickable. Confirmed live
+   in a real browser via `document.elementFromPoint()`, not assumed. */
+.rail-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  touch-action: none;
+  /* Above the panel's OWN sticky header (`--lt-z-panel-sticky`) — the handle spans the
+     panel's full height, including the header's rows, and a plain `1` left it grabbable
+     everywhere EXCEPT that top strip, found the same way as the overflow-clip above:
+     `elementFromPoint` at several heights down the handle, not assumed. */
+  z-index: calc(var(--lt-z-panel-sticky, 30) + 1);
+}
+.rail-resize-handle--before {
+  inset-inline-end: 0;
+}
+.rail-resize-handle--after {
+  inset-inline-start: 0;
+}
+.rail-resize-handle::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 3px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: transparent;
+  transition: background-color var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+.rail-resize-handle:hover::after,
+.rail-resize-handle:focus-visible::after {
+  background: var(--lt-focus, var(--accent, #1d4e6f));
+}
+.rail-resize-handle:focus-visible {
+  outline: none;
 }
 
 /* Containing block for the measurement layer, which is absolutely positioned so it
@@ -313,10 +366,25 @@
   animation: lc-paper-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* A side rail's own entrance (Document Studio UX Polish Pack v1) — lighter than the
+   paper's, since five different rails use it and a dramatic entrance repeated on every
+   panel switch would read as busy rather than as polish. Scale + opacity only, so it
+   costs nothing beyond a compositor layer. */
+@keyframes lc-rail-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.lc-rail-in {
+  animation: lc-rail-in var(--lt-slow, 200ms) var(--lt-ease, ease-out) both;
+  transform-origin: center;
+}
+
 /* Honour the OS setting. Motion here is decorative, so there is no case for
    overriding someone who has asked for less of it. */
 @media (prefers-reduced-motion: reduce) {
-  .lc-paper-area .lp-stack {
+  .lc-paper-area .lp-stack,
+  .lc-rail-in {
     animation: none;
   }
   .lp-sheet,

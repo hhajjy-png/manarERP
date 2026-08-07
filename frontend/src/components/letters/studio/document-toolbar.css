@@ -41,8 +41,11 @@
   flex-direction: column;
   justify-content: center;
   gap: 1px;
-  padding-inline-end: 8px;
-  margin-inline-end: 4px;
+  /* Widened from 8/4 (Document Studio UX Polish Pack v1) — one more px of breathing
+     room on each side of the rule reads as nine groups rather than a wall of buttons,
+     without costing enough width to force an extra scroll at common window sizes. */
+  padding-inline-end: 10px;
+  margin-inline-end: 6px;
   position: relative;
   flex: 0 0 auto;
 }
@@ -55,7 +58,9 @@
   transform: translateY(-50%);
   width: 1px;
   height: 20px;
-  background: var(--border, #e2e8f0);
+  /* The letters engine's own hairline token rather than the generic app border — one
+     shade calmer, so nine of these in a row read as rhythm, not as nine tiny fences. */
+  background: var(--lt-hairline, var(--border, #e2e8f0));
 }
 
 .dt-group--last::after,
@@ -204,11 +209,15 @@
   display: inline-flex;
 }
 
+/* Portaled to `document.body` (Document Studio UX Polish Pack v1) — `.dt-bar` clips
+   overflow on the inline axis to let the toolbar scroll sideways instead of wrapping,
+   which was silently cropping this popover before z-index ever mattered. `position:
+   fixed` plus the `top`/`left` inline styles from `useFloatingPosition` replace the old
+   `position: absolute; inset-inline-start: 0`, which depended on staying a DOM child of
+   `.dt-menu` — a portal is not one. */
 .dt-menu-panel {
-  position: absolute;
-  top: calc(100% + 6px);
-  inset-inline-start: 0;
-  z-index: 40;
+  position: fixed;
+  z-index: var(--lt-z-overlay, 1000);
   min-width: 250px;
   display: flex;
   flex-direction: column;

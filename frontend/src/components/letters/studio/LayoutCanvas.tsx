@@ -26,7 +26,7 @@
  * `useLayoutInteraction` for why.
  */
 
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Icon } from '../../explorer/ExplorerKit';
 import {
   type DocumentLayout,
@@ -90,6 +90,11 @@ export default function LayoutCanvas({
   onGuideMove,
 }: LayoutCanvasProps) {
   const surface = useRef<HTMLDivElement | null>(null);
+  /** The object directly under the pointer, right now — not the selection, and not the
+   *  whole-canvas ambient hover `.lc-canvas:hover` already gives every outline (Document
+   *  Studio UX Polish Pack v1). Idle-only: computing it mid-gesture would be wasted
+   *  work, since the frame the gesture itself draws already answers "what am I doing". */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   /** Objects on this page that can be interacted with. */
   const visible = useMemo(
@@ -183,6 +188,20 @@ export default function LayoutCanvas({
     [readOnly, pxPerMm, layout, pageIndex, selection, interaction],
   );
 
+  const onPointerMove = useCallback(
+    (event: React.PointerEvent) => {
+      if (readOnly || interaction.interacting) return;
+      const box = event.currentTarget.getBoundingClientRect();
+      const point = {
+        xMm: (event.clientX - box.left) / pxPerMm,
+        yMm: (event.clientY - box.top) / pxPerMm,
+      };
+      const hit = hitTest(layout.objects, point, pageIndex);
+      setHoveredId((current) => (current === (hit?.id ?? null) ? current : hit?.id ?? null));
+    },
+    [readOnly, interaction.interacting, pxPerMm, layout, pageIndex],
+  );
+
   /** The frame drawn while a gesture previews. */
   const previewBounds: RectMm | null = useMemo(() => {
     if (!bounds) return null;
@@ -202,6 +221,8 @@ export default function LayoutCanvas({
       className={`no-print lc-canvas${interaction.interacting ? ' is-interacting' : ''}${readOnly ? ' is-readonly' : ''}`}
       ref={surface}
       onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerLeave={() => setHoveredId(null)}
       // A design surface is not a control. It carries no role and no tab stop: every
       // object is reachable through the Layers panel, which IS a list of controls and
       // is where keyboard users select. A canvas that grabbed focus would trap them.
@@ -231,7 +252,7 @@ export default function LayoutCanvas({
       {visible.map((object) => (
         <span
           key={`outline-${object.id}`}
-          className={`lc-outline${selection.has(object.id) ? ' is-selected' : ''}${effectiveLocked(layout, object) ? ' is-locked' : ''}`}
+          className={`lc-outline${selection.has(object.id) ? ' is-selected' : ''}${effectiveLocked(layout, object) ? ' is-locked' : ''}${hoveredId === object.id && !selection.has(object.id) ? ' is-hovered' : ''}`}
           style={{
             ...boxStyle({
               xMm: object.frame.xMm,

@@ -49,6 +49,8 @@ import {
 } from '../../../letters/revisions/documentDiff';
 import { type BlockDocument } from '../../../letters/model/blockTypes';
 import { parseDocument } from '../../../letters/editor/blockCommands';
+import { type ResizableRail } from './useResizableRail';
+import RailResizeHandle from './RailResizeHandle';
 import './revision-panel.css';
 
 export type RevisionTab = 'history' | 'changes' | 'comments';
@@ -80,13 +82,26 @@ export interface RevisionPanelProps {
   /** Reload the letter after a restore — the server rewrote it. */
   readonly onRestored: () => void;
   readonly onClose: () => void;
+  readonly resize: ResizableRail;
 }
 
 export default function RevisionPanel(props: RevisionPanelProps) {
-  const { tab, onTabChange, onClose } = props;
+  const { tab, onTabChange, onClose, resize } = props;
 
   return (
-    <aside className="rev-panel" aria-label="المراجعة والنسخ">
+    <aside
+      className="rev-panel lc-rail-in"
+      aria-label="المراجعة والنسخ"
+      ref={resize.railRef}
+      style={{ '--rail-w': `${resize.width}px` } as React.CSSProperties}
+    >
+      <RailResizeHandle
+        handleRef={resize.handleRef}
+        label="تغيير عرض لوحة المراجعة"
+        edge="after"
+        onPointerDown={resize.startDrag}
+        onKeyDown={resize.onHandleKeyDown}
+      />
       <div className="rev-head">
         <Icon name="history" />
         <span className="rev-title">المراجعة</span>

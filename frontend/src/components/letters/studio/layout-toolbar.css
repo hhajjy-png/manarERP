@@ -32,8 +32,11 @@
   flex-direction: column;
   justify-content: center;
   gap: 1px;
-  padding-inline-end: 8px;
-  margin-inline-end: 4px;
+  /* Matches `.dt-group` (Document Studio UX Polish Pack v1) — the two toolbars are
+     never on screen together and must read as the same design, per this file's own
+     header. */
+  padding-inline-end: 10px;
+  margin-inline-end: 6px;
   position: relative;
   flex: 0 0 auto;
 }
@@ -46,7 +49,7 @@
   transform: translateY(-50%);
   width: 1px;
   height: 20px;
-  background: var(--border, #e2e8f0);
+  background: var(--lt-hairline, var(--border, #e2e8f0));
 }
 
 .ltb-group--last::after,

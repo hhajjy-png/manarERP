@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   FONT_CATEGORY_LABELS_AR,
   fontStackOf,
@@ -10,6 +11,7 @@ import {
   type FontId,
   type FontMeta,
 } from '../../../styles/fontRegistry';
+import { rectOfElement, useCloseOnOutsideInteraction, useFloatingPosition } from '../../../hooks/useFloatingPosition';
 import './FontPicker.css';
 
 /**
@@ -120,15 +122,11 @@ export default function FontPicker({
     if (open) inputRef.current?.focus();
   }, [open]);
 
-  // إغلاق عند النقر خارج المكوّن.
-  useEffect(() => {
-    if (!open) return;
-    function onDocMouseDown(e: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
-    }
-    document.addEventListener('mousedown', onDocMouseDown);
-    return () => document.removeEventListener('mousedown', onDocMouseDown);
-  }, [open, close]);
+  // اللوحة تُبثّ إلى `document.body` (أدناه) فتخرج من شجرة `rootRef` الفعلية في الـDOM؛
+  // فحص الإغلاق يتحقق من `panelRef` أيضًا، وإلا أغلقت اللوحة نفسها عند أي نقرة داخلها.
+  const getAnchorRect = useCallback(() => rectOfElement(rootRef.current), []);
+  const { panelRef, position } = useFloatingPosition(getAnchorRect, open, { align: 'start' });
+  useCloseOnOutsideInteraction(open, [rootRef, panelRef], close);
 
   // تمرير العنصر النشط إلى النطاق المرئي.
   useEffect(() => {
@@ -216,8 +214,12 @@ export default function FontPicker({
         </span>
       </button>
 
-      {open && (
-        <div className="fpk-pop">
+      {open && createPortal(
+        <div
+          className="fpk-pop"
+          ref={panelRef}
+          style={position ? { top: position.top, left: position.left, minWidth: position.minWidth } : { visibility: 'hidden' }}
+        >
           <div className="fpk-search">
             <span className="material-symbols-outlined" aria-hidden="true">
               search
@@ -293,7 +295,8 @@ export default function FontPicker({
               );
             })}
           </ul>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

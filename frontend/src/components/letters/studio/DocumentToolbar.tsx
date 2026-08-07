@@ -31,8 +31,10 @@
  * could produce one.
  */
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { FontPicker } from '../../common/FontPicker';
+import { rectOfElement, useCloseOnOutsideInteraction, useFloatingPosition } from '../../../hooks/useFloatingPosition';
 import { Icon } from '../../explorer/ExplorerKit';
 import {
   type ToolbarCommandId,
@@ -404,7 +406,9 @@ function Group({ label, last, children }: { label: string; last?: boolean; child
   );
 }
 
-function ToolButton({
+/** Exported so the floating selection toolbar renders the SAME button — same styling,
+ *  same aria semantics — rather than a second, slightly different one. */
+export function ToolButton({
   icon,
   label,
   title,
@@ -467,26 +471,12 @@ function SpacingMenu({
   const wrapper = useRef<HTMLDivElement | null>(null);
   const panelId = useId();
 
-  useEffect(() => {
-    if (!open) return;
-
-    const onPointerDown = (event: MouseEvent) => {
-      if (!wrapper.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        setOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown, true);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown, true);
-    };
-  }, [open]);
+  // Portaled below (Document Studio UX Polish Pack v1) so the panel escapes `.dt-bar`'s
+  // `overflow-x: auto` — the same clipping defect FontPicker's dropdown had, and the
+  // reason a bare z-index bump alone never fixed either.
+  const getAnchorRect = useCallback(() => rectOfElement(wrapper.current), []);
+  const { panelRef, position } = useFloatingPosition(getAnchorRect, open, { align: 'start' });
+  useCloseOnOutsideInteraction(open, [wrapper, panelRef], () => setOpen(false));
 
   // A paragraph left at the engine's defaults reports no explicit spacing, so the
   // button is only marked "on" when something actually deviates — otherwise every
@@ -514,8 +504,15 @@ function SpacingMenu({
         <Icon name="format_line_spacing" />
       </button>
 
-      {open && (
-        <div className="dt-menu-panel" id={panelId} role="dialog" aria-label="التباعد والإزاحة">
+      {open && createPortal(
+        <div
+          className="dt-menu-panel"
+          id={panelId}
+          role="dialog"
+          aria-label="التباعد والإزاحة"
+          ref={panelRef}
+          style={position ? { top: position.top, left: position.left, minWidth: position.minWidth } : { visibility: 'hidden' }}
+        >
           {shows('lineHeight') && (
             <LadderField
               label="تباعد الأسطر"
@@ -564,7 +561,8 @@ function SpacingMenu({
           <p className="dt-menu-note">
             لا تجتمع إزاحة السطر الأول مع الإزاحة المعلّقة — يُلغى أحدهما تلقائيًا عند ضبط الآخر.
           </p>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -96,24 +96,24 @@
 /* ── اللوحة المنسدلة ─────────────────────────────────────────────────────── */
 
 /* Font Picker Final UI Hotfix v1 — the popup no longer matches the trigger's width.
-   `inset-inline: 0` pinned BOTH logical edges to the trigger, forcing popup width to
-   equal trigger width exactly — inside a crowded toolbar (`ct-group--font` is only
-   190px) that is narrower than several approved display names ("Simplified Arabic
-   Fixed", "Droid Arabic Naskh", "PF Din Text Arabic"), which is why they were being
-   cut off. Only the START edge stays pinned (`inset-inline-start: 0`) — the popup
-   still opens flush with the trigger's start edge, exactly as before, in either
-   writing direction — and `width: max-content` lets it grow toward the end edge to
-   fit its own widest line. `min-width: 100%` keeps the old floor: it is never
-   narrower than the trigger even when every name is short. `max-width` is a safety
-   ceiling only — with the current ten approved names it is never actually reached. */
+   `width: max-content` lets it grow past the trigger's own width to fit its own widest
+   line ("Simplified Arabic Fixed", "Droid Arabic Naskh", "PF Din Text Arabic" all exceed
+   a typical 190px toolbar slot). `min-width` keeps the old floor — never narrower than
+   the trigger — via the inline `minWidth` the positioning hook computes from the
+   trigger's own measured width, since a portaled panel has no CSS parent to read a
+   percentage from. `max-width` is a safety ceiling only.
+
+   Document Studio UX Polish Pack v1 — portaled to `document.body` (see FontPicker.tsx)
+   so it escapes `.dt-bar`'s `overflow-x: auto`, which had been silently clipping this
+   dropdown before z-index ever entered the picture — the actual cause of it appearing
+   "behind" other panels. `position: fixed` plus `top`/`left` inline styles from
+   `useFloatingPosition` replace the old `position: absolute; inset-inline-start: 0`,
+   which relied on the popup still being a DOM child of `.fpk` (a portal is not one). */
 .fpk-pop {
-  position: absolute;
-  top: calc(100% + 6px);
-  inset-inline-start: 0;
+  position: fixed;
   width: max-content;
-  min-width: 100%;
   max-width: min(360px, calc(100vw - 24px));
-  z-index: 60;
+  z-index: var(--lt-z-overlay, 1000);
   display: flex;
   flex-direction: column;
   max-height: 380px;

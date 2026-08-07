@@ -49,6 +49,8 @@ import {
   toggleFavourite,
 } from '../../../letters/library/favourites';
 import { type BrandingAsset } from '../../../print-templates/branding/brandingAssets';
+import { type ResizableRail } from './useResizableRail';
+import RailResizeHandle from './RailResizeHandle';
 import './insert-panel.css';
 
 export type InsertTab = 'variables' | 'blocks' | 'templates' | 'assets';
@@ -75,6 +77,7 @@ export interface InsertPanelProps {
   readonly onSaveSelectionAsBlock: () => void;
   readonly onSaveDocumentAsTemplate: () => void;
   readonly onClose: () => void;
+  readonly resize: ResizableRail;
 }
 
 export default function InsertPanel({
@@ -90,6 +93,7 @@ export default function InsertPanel({
   onSaveSelectionAsBlock,
   onSaveDocumentAsTemplate,
   onClose,
+  resize,
 }: InsertPanelProps) {
   const [tab, setTab] = useState<InsertTab>('variables');
   const [query, setQuery] = useState('');
@@ -106,7 +110,19 @@ export default function InsertPanel({
   };
 
   return (
-    <aside className="ins-panel" aria-label="لوحة الإدراج السريع">
+    <aside
+      className="ins-panel lc-rail-in"
+      aria-label="لوحة الإدراج السريع"
+      ref={resize.railRef}
+      style={{ '--rail-w': `${resize.width}px` } as React.CSSProperties}
+    >
+      <RailResizeHandle
+        handleRef={resize.handleRef}
+        label="تغيير عرض لوحة الإدراج"
+        edge="after"
+        onPointerDown={resize.startDrag}
+        onKeyDown={resize.onHandleKeyDown}
+      />
       <div className="ins-head">
         <Icon name="add_circle" />
         <span className="ins-title">إدراج سريع</span>

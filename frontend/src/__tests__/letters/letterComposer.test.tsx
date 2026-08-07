@@ -560,6 +560,59 @@ describe('Editing is paragraph-oriented', () => {
   });
 });
 
+/* ── Floating selection toolbar (Document Studio UX Polish Pack v1) ──────── */
+
+describe('Floating selection toolbar', () => {
+  async function focusFirstParagraph() {
+    renderComposer();
+    await waitFor(() => expect(paragraphs().length).toBeGreaterThan(0));
+    fireEvent.focus(paragraphs()[0]);
+    return paragraphs()[0];
+  }
+
+  it('stays absent for a plain caret — only a RANGE opens it', async () => {
+    const p = await focusFirstParagraph();
+    fireEvent.change(p, { target: { value: 'نص كامل' } });
+    p.setSelectionRange(3, 3);
+    fireEvent.select(p);
+    await waitFor(() => expect(document.querySelector('.fct-bar')).toBeNull());
+  });
+
+  it('appears when a range is selected, and reuses the SAME bold command', async () => {
+    const p = await focusFirstParagraph();
+    fireEvent.change(p, { target: { value: 'نص كامل' } });
+    p.setSelectionRange(0, 3);
+    fireEvent.select(p);
+
+    const bar = await waitFor(() => {
+      const el = document.querySelector('.fct-bar');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+
+    // Two "عريض" buttons exist while the floating bar is open — the docked one and this
+    // one — so the query is scoped to the floating bar, not `screen`.
+    fireEvent.click(within(bar).getByLabelText('عريض'));
+    // The SAME command DocumentToolbar's own Bold button calls: it applies to the whole
+    // paragraph, never a character range, exactly as the "bold applies to the WHOLE
+    // paragraph" case above already proves for the docked button.
+    await waitFor(() => expect(paragraphs()[0].style.fontWeight).toBe('700'));
+    expect(paragraphs()[0].value).toBe('نص كامل');
+  });
+
+  it('closes once the selection collapses back to a caret', async () => {
+    const p = await focusFirstParagraph();
+    fireEvent.change(p, { target: { value: 'نص كامل' } });
+    p.setSelectionRange(0, 3);
+    fireEvent.select(p);
+    await waitFor(() => expect(document.querySelector('.fct-bar')).not.toBeNull());
+
+    p.setSelectionRange(3, 3);
+    fireEvent.select(p);
+    await waitFor(() => expect(document.querySelector('.fct-bar')).toBeNull());
+  });
+});
+
 /* ── Persistence ───────────────────────────────────────────────────────── */
 
 describe('Saving', () => {

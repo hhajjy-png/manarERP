@@ -1,0 +1,59 @@
+/**
+ * Floating selection toolbar — a compact pill, not a second copy of the docked bar.
+ */
+
+.fct-bar {
+  position: fixed;
+  z-index: var(--lt-z-overlay, 1000);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-lg, 9px);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.20), 0 2px 8px rgba(15, 23, 42, 0.10);
+  animation: fct-in var(--lt-fast, 130ms) var(--lt-ease, ease-out);
+}
+
+@keyframes fct-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fct-font-picker {
+  width: 132px;
+}
+.fct-font-picker .fpk-trigger {
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: var(--lt-r-md, 7px);
+}
+
+.fct-select {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--lt-r-md, 7px);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.fct-select:hover {
+  border-color: var(--accent, #3b82f6);
+}
+
+.fct-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--border, #e2e8f0);
+  flex: 0 0 auto;
+}
