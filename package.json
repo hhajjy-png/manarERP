@@ -1,9 +1,10 @@
 {
   "name": "manar-erp",
-  "version": "1.0.0",
+  "productName": "Al Manar ERP",
+  "version": "2026.2.0",
   "private": true,
   "description": "نظام إدارة أعمال شركة المنار — Electron + React + Express + Prisma + SQLite (الكويت)",
-  "author": "شركة المنار",
+  "author": "شركة المنار الدولية",
   "main": "electron-dist/main.js",
   "workspaces": [
     "backend",
@@ -23,7 +24,12 @@
     "build:back": "npm --workspace backend run build",
     "build:front": "npm --workspace frontend run build",
     "package:backend-deps": "node scripts/prepare-backend-deps.js",
-    "dist": "npm run build:back && npm run build:front && npm run electron:build && npm run package:backend-deps && electron-builder"
+    "package:seed-data": "node scripts/prepare-seed-data.js",
+    "package:analyze-deps": "node scripts/analyze-runtime-deps.js",
+    "package:nsis-prereqs": "node scripts/generate-nsis-prereqs.js",
+    "package:repair-cache": "node scripts/repair-builder-cache.js",
+    "cleanup:dev": "node scripts/cleanup-dev-artifacts.js",
+    "dist": "npm run build:back && npm run build:front && npm run electron:build && npm run package:backend-deps && npm run package:seed-data && npm run package:analyze-deps && npm run package:nsis-prereqs && npm run package:repair-cache && electron-builder"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",

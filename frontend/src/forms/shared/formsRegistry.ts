@@ -48,7 +48,7 @@ export const FORM_CARDS: FormCard[] = [
   // محرك الخطابات — البطاقة هي **المدخل الوحيد** للمحرك: لا اختصار في القائمة
   // الجانبية ولا دخول مباشر من أي وحدة أعمال. تفتح على مساحة العمل (قائمة
   // الخطابات) لا على محرّر فارغ.
-  { key: 'official-letter', route: 'official-letter', titleKey: 'page.officialLetter.title', description: 'إنشاء الخطابات الرسمية وتتبّعها وأرشفتها، بأرقام مرجعية تسلسلية دائمة تُطبع على ورق الشركة الرسمي.', descriptionEn: 'Create, track and archive official letters with permanent sequential reference numbers, printed on company letterhead.', icon: '✉️', category: 'ops', requiresEmployee: false },
+  { key: 'official-letter', route: 'official-letter', titleKey: 'page.officialLetter.title', description: 'تحرير وطباعة أي مستند A4 — خطابات وشهادات وعقود ونماذج وإقرارات — بأرقام مرجعية تسلسلية دائمة على ورق الشركة الرسمي.', descriptionEn: 'Write and print any A4 document — letters, certificates, contracts, forms and declarations — with permanent sequential reference numbers on company letterhead.', icon: '📝', category: 'ops', requiresEmployee: false },
 ];
 
 /** النماذج المرتبطة بموظف — أساس قائمة «نماذج الموظف» المنبثقة من الدرج. */

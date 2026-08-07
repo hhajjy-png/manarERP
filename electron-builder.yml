@@ -1,58 +1,147 @@
-appId: sa.almanar.erp
-productName: نظام المنار
-copyright: © شركة المنار
+# ─────────────────────────────────────────────────────────────────────────────
+# Al Manar ERP — تهيئة حزمة الإنتاج (Production Deployment Pack v1)
+#
+# الهدف: مثبّت واحد يعمل على جهاز Windows 10/11 (64-bit) نظيف تمامًا، بلا أي
+# خطوة يدوية بعد Next → Install → Finish، وبلا أي اعتماد على جهاز التطوير.
+#
+# لا توقيع رقمي (Code Signing) في هذه المرحلة — SmartScreen مقبول (نسخة شخصية).
+# ─────────────────────────────────────────────────────────────────────────────
+
+appId: kw.almanar.erp
+productName: Al Manar ERP
+copyright: © شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م
 
 directories:
   output: release
   buildResources: build
 
-# الملفات المضمّنة في التطبيق (الواجهة المبنية + كود Electron المترجم)
+# ── محتوى حزمة التطبيق (asar) ────────────────────────────────────────────────
+# الواجهة المبنية + كود Electron المترجم فقط. لا مصادر TypeScript، ولا اختبارات،
+# ولا خرائط مصدر — لا شيء منها يُنفَّذ في الإنتاج، ووجوده يكبّر الحزمة ويسرّب
+# تفاصيل بنية لا داعي لتوزيعها.
 files:
   - electron-dist/**/*
   - frontend/dist/**/*
   - package.json
+  - '!**/*.map'
+  - '!**/__tests__/**'
+  - '!**/*.test.*'
+  - '!**/*.spec.*'
 
-# الخدمة الخلفية + Prisma تُوضع كموارد خارجية لتُشغّل كعملية Node
+# ── الموارد الخارجية (خارج asar — تُشغَّل كعملية Node مستقلة) ──────────────────
 extraResources:
+  # الخدمة الخلفية المترجمة
   - from: backend/dist
     to: backend/dist
+    filter:
+      - '**/*'
+      - '!**/*.map'
+      - '!**/__tests__/**'
+      - '!**/*.test.js'
+
+  # اعتماديات الإنتاج للخدمة الخلفية (يُجهّزها scripts/prepare-backend-deps.js
+  # كتثبيت معزول عن workspaces — انظر الملف لتفصيل السبب).
   - from: backend/node_modules
     to: backend/node_modules
     filter:
-      - "**/*"
+      - '**/*'
+      # بقايا إعادة تسمية محرّك Prisma — عديمة الفائدة وقت التشغيل، وكانت تضيف
+      # مئات الميغابايتات لكل مثبّت. حاجز ثانٍ بعد مُرشِّح prepare-backend-deps.
+      - '!**/*.tmp[0-9]*'
+      - '!**/*.map'
+      - '!**/*.md'
+      - '!**/*.ts'
+      - '!**/@types/**'
+      - '!**/test/**'
+      - '!**/tests/**'
+      - '!**/__tests__/**'
+      - '!**/.bin/**'
+      # محرّكات Prisma لمنصّات أخرى — المثبّت وندوز x64 حصرًا.
+      - '!**/*debian*'
+      - '!**/*rhel*'
+      - '!**/*darwin*'
+      - '!**/*linux*'
+
+  # مخطط Prisma + الترحيلات — مطلوبة وقت التشغيل: `migrate deploy` يُطبَّق عند
+  # بدء الخدمة فتُرقّى قواعد التثبيتات القائمة عند تحديث التطبيق.
+  #
+  # المُرشِّح حصري عمدًا (`schema.prisma` + `migrations/` فقط) لا استبعادي:
+  # المجلد يتراكم فيه ما لا يُشحن — `seed.ts`/`seed.js.map` (أدوات تطوير، ولا
+  # يُنفَّذ البذر في الإنتاج أصلًا)، و`data/manar.db` وهي **قاعدة ثانية قديمة**
+  # خلّفها تشغيل Prisma بمسار نسبي، بجوارها ملف `-journal` أي أنها مُتّسخة. شحن
+  # قاعدة ثانية غير متّسقة داخل المثبّت خطر التباس حقيقي لا مجرّد حجم زائد.
   - from: backend/prisma
     to: backend/prisma
+    filter:
+      - schema.prisma
+      - migrations/**/*
   - from: backend/package.json
     to: backend/package.json
-  # قاعدة بيانات مبدئية مُهيّأة (أنشئها قبل البناء عبر prisma migrate + seed)
+
+  # قاعدة البيانات المبدئية — بيانات النظام الحالية كاملة. تُنسخ إلى
+  # %AppData% عند أول تشغيل فقط، ولا تستبدل قاعدة موجودة أبدًا.
+  # يتحقق scripts/prepare-seed-data.js من سلامتها قبل السماح بالتغليف.
   - from: backend/data/manar.db
     to: backend/data/manar.db
-  # خطوط عربية مُضمَّنة في قوالب HTML للتقارير
+
+  # خطوط عربية + قالب NBK — تُقرأ من backendCwd/assets وقت التشغيل.
   - from: backend/assets
     to: backend/assets
-  # عميل OAuth سطح المكتب (Google Drive Deployment Pack v1) — Client ID/Secret الخاصان
-  # بتطبيق Google Cloud الموزَّع، وليسا سرًا حقيقيًا لتطبيق سطح مكتب (نموذج Google
-  # Installed App الرسمي). المستخدم النهائي لا يُنشئ أو ينسخ هذا الملف أبدًا؛ المطوّر
-  # يُنشئه مرة واحدة قبل بناء المثبّت — انسخ
-  # electron/resources/gdrive-oauth-client.example.json إلى
-  # electron/resources/gdrive-oauth-client.json وامْلأه (غير مُتتبَّع بـ git). راجع
+
+  # ملفات الحالة المبدئية (سجلّ المزامنة وربط ملف Google Drive). تُنسخ عند أول
+  # تشغيل فقط — انظر electron/services/dataDirBootstrap.ts. بلا أي رمز أو سرّ.
+  - from: build/seed-data
+    to: seed-data
+
+  # عميل OAuth لسطح المكتب (Google Drive Deployment Pack v1). يُجهَّز آليًا ضمن
+  # `npm run dist`؛ المستخدم النهائي لا يُنشئ أو ينسخ أي ملف. راجع
   # electron/resources/README.md.
   - from: electron/resources/gdrive-oauth-client.json
     to: gdrive-oauth-client.json
 
+  # بيان الاعتماديات وقت التشغيل — مُستخرَج آليًا من جداول استيراد PE لكل ثنائي
+  # مشحون (scripts/analyze-runtime-deps.js). تشخيصي: يُجيب «ما الذي يحتاجه هذا
+  # التثبيت فعلًا؟» على جهاز العميل بلا الرجوع إلى المستودع.
+  - from: build/runtime-requirements.json
+    to: runtime-requirements.json
+
+# ── هدف البناء ───────────────────────────────────────────────────────────────
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
         - x64
-  artifactName: ManarSetup-${version}.${ext}
+  artifactName: AlManarERP-Setup-${version}.${ext}
+  # لا توقيع رقمي في هذه المرحلة (قرار صريح — نسخة شخصية).
+  signAndEditExecutable: true
+  legalTrademarks: شركة المنار الدولية
 
+# ── المثبّت ──────────────────────────────────────────────────────────────────
 nsis:
   oneClick: false
-  perMachine: false
+  perMachine: false            # تثبيت لكل مستخدم: لا يحتاج صلاحيات مسؤول إطلاقًا
+  allowElevation: true
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: نظام المنار
+  menuCategory: false
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false   # حاسم: بيانات المستخدم تنجو من إلغاء التثبيت
+  displayLanguageSelector: false
   installerLanguages:
     - ar_SA
+  language: '1025'             # العربية (السعودية) — لغة واجهة المثبّت
+  uninstallDisplayName: ${productName} ${version}
+  artifactName: AlManarERP-Setup-${version}.${ext}
+  # فحص/تثبيت المتطلبات المسبقة + حارس نسخة وندوز.
+  # مولَّد آليًا من build/runtime-requirements.json عبر
+  # scripts/generate-nsis-prereqs.js — لا يُحرَّر يدويًا.
+  include: build/installer-prereqs.nsh
+
+# ضغط أقصى: المثبّت يُنسخ مرة واحدة إلى الجهاز الجديد، وحجمه أهم من زمن بنائه.
+compression: maximum
+
+# لا نشر تلقائي — التوزيع يدوي بملف Setup واحد.
+publish: null

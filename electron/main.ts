@@ -2,7 +2,9 @@ import { app, BrowserWindow, Menu, dialog } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { beginSyncProgressUI } from './windows/syncProgressWindow';
 import { registerMainWindow, shouldQuitOnAllWindowsClosed } from './windows/windowLifecycle';
-import { startBackend, stopBackend, getUserDataPaths, getInternalSecret } from './services/backendLauncher';
+import { startBackend, stopBackend, getUserDataPaths, getInternalSecret, BackendStartupError } from './services/backendLauncher';
+import { createStartupWindow, type StartupWindowHandle } from './windows/startupWindow';
+import { reportStartup } from './services/startupProgressBus';
 import { startBackupScheduler, stopBackupScheduler, runCatchupIfNeeded } from './services/backupScheduler';
 import { performStartupSync, performShutdownSync } from './services/syncEngine.service';
 import { registerDialogIpc } from './ipc/dialog.ipc';
@@ -44,6 +46,10 @@ function guardAgainstSplitBrain(dataDir: string): boolean {
   const lock = acquireRuntimeLock(dataDir);
 
   if (!lock.ok) {
+    // نافذة بدء التشغيل `alwaysOnTop` — تُغلق قبل الحوار وإلا حجبته عن المستخدم
+    // فبدا التطبيق معلّقًا بلا سبب ظاهر.
+    startupWindow?.close();
+    startupWindow = null;
     // `HELD` = الحماية عملت ورفضت. `UNAVAILABLE` = تعذّر إنشاء القفل أصلًا.
     // كلتاهما **تمنع التشغيل**: في حزمة غرضها منع الـsplit-brain، المتابعة بلا
     // قفل تعني تشغيلًا غير محمي بصمت — وهو أسوأ من عدم التشغيل. FAIL CLOSED.
@@ -75,8 +81,84 @@ function guardAgainstSplitBrain(dataDir: string): boolean {
   return true;
 }
 
+/**
+ * Production Startup Pack v1 — نافذة بدء التشغيل، تُنشأ قبل أي عمل بطيء.
+ *
+ * تُعرَّف على مستوى الوحدة لا داخل `bootstrap` لأن معالج الفشل أدناه يحتاجها،
+ * ولأن فتح النافذة الرئيسية يجب أن يُغلقها مهما كان مسار الوصول.
+ */
+let startupWindow: StartupWindowHandle | null = null;
+
+/**
+ * إنهاء التطبيق بعد فشل الإقلاع — **بطلب صريح من المستخدم**.
+ *
+ * `stopBackend()` أولًا: قد تكون الخدمة الخلفية بدأت فعلًا قبل وقوع الفشل، وعلى
+ * وندوز لا يقتل خروجُ العملية الأمّ عمليةَ `fork` الابنة — فتبقى ممسكة بالمنفذ
+ * 48211 وتمنع أي محاولة تشغيل تالية بخطأ EADDRINUSE.
+ *
+ * `app.exit()` لا `app.quit()`: تسلسل `before-quit` يُنفّذ مزامنة إغلاق إلى
+ * Google Drive، ولا يجوز أن ترفع بيئةٌ فشل إقلاعُها أي شيء إلى السحابة.
+ */
+function abortAfterStartupFailure(): void {
+  try {
+    stopBackend();
+  } catch {
+    // أفضل جهد — الخروج يجب ألّا يتعطّل بسبب فشل الإيقاف.
+  }
+  app.exit(1);
+}
+
+/**
+ * الفشل النهائي للإقلاع — **يُعرَض ولا يُبتلع**.
+ *
+ * ── ما كان يحدث قبل هذه الحزمة ────────────────────────────────────────────────
+ *
+ * `catch { console.error(...); app.quit(); }` — و`console.error` في تطبيق مُعبَّأ
+ * لا يصل إلى أي طرفية. فكانت النتيجة العملية: نقر المستخدم على الاختصار، ولا
+ * يحدث شيء على الإطلاق. لا نافذة، ولا خطأ، ولا أثر.
+ *
+ * ── العقد الآن ─────────────────────────────────────────────────────────────────
+ *
+ * لا `app.quit()` قبل أن يرى المستخدم السبب. نافذة بدء التشغيل تتحوّل إلى حالة
+ * فشل تعرض الرسالة والتفاصيل الحقيقية (رمز الخروج، آخر أسطر خطأ الخدمة، مسار
+ * السجلّ)، وتنتظر ضغط المستخدم على «إغلاق». وإن تعذّر عرضها لأي سبب، يُستخدم
+ * حوار النظام كطبقة أخيرة — فلا يوجد مسار فشل صامت واحد.
+ */
+function reportStartupFailure(err: unknown): void {
+  const detail =
+    err instanceof BackendStartupError
+      ? err.describe()
+      : err instanceof Error
+        ? err.stack ?? err.message
+        : String(err);
+  const message = err instanceof Error ? err.message : 'خطأ غير متوقع أثناء بدء التشغيل';
+
+  // eslint-disable-next-line no-console
+  console.error('فشل بدء التطبيق:', err);
+
+  if (startupWindow?.isAlive()) {
+    reportStartup('FAILED', message, { detail });
+    return; // التطبيق يبقى حيًّا حتى يضغط المستخدم «إغلاق» في النافذة.
+  }
+
+  // لا نافذة (فشل قبل إنشائها أو أُغلقت) ⇒ حوار النظام، ثم خروج صريح.
+  dialog.showMessageBoxSync({
+    type: 'error',
+    title: 'نظام المنار — تعذّر بدء التشغيل',
+    message,
+    detail,
+    buttons: ['إغلاق'],
+  });
+  abortAfterStartupFailure();
+}
+
 async function bootstrap() {
   try {
+    // النافذة أولًا — قبل أي عمل قد يستغرق وقتًا. هذه هي النقطة التي كان
+    // المستخدم فيها يرى العدم.
+    startupWindow = createStartupWindow({ onQuitRequested: abortAfterStartupFailure });
+    reportStartup('ENVIRONMENT', 'فحص بيئة التشغيل...');
+
     // ── حارس التقاطع أولًا: قبل المزامنة وقبل تشغيل الخادم وقبل أي كتابة ──────
     const { dataDir: bootDataDir } = getUserDataPaths();
     if (!guardAgainstSplitBrain(bootDataDir)) {
@@ -88,6 +170,9 @@ async function bootstrap() {
       app.quit();
       return;
     }
+
+    // `getUserDataPaths()` أعلاه نفّذ تهيئة مجلد البيانات وبذر أول تشغيل.
+    reportStartup('DATA_DIR', 'تهيئة مجلد البيانات...');
 
     // كنس لقطات المزامنة اليتيمة (بقايا إغلاق قسري أثناء رفع/تنزيل سابق).
     // أفضل جهد بحت — لا يُعطّل بدء التطبيق مهما فشل.
@@ -130,6 +215,7 @@ async function bootstrap() {
     // call, its try/catch, and its error handling below are UNCHANGED; the
     // dialog only shows/hides around it and never affects whether or how
     // startup sync runs.
+    reportStartup('CLOUD_SYNC', 'فحص المزامنة السحابية...');
     const startupSyncUI = beginSyncProgressUI();
     try {
       const { dbPath, dataDir } = getUserDataPaths();
@@ -141,11 +227,25 @@ async function bootstrap() {
       await startupSyncUI.finish();
     }
 
-    await startBackend(INTERNAL_SECRET); // تشغيل الخدمة الخلفية أولًا
+    // المرحلة الأطول. عدّاد الثواني يجعل الانتظار مفهومًا على جهاز بطيء بدل أن
+    // يبدو تعليقًا — والفشل الحقيقي يُكتشف فورًا عبر خروج العملية لا بانتظار المهلة.
+    reportStartup('BACKEND', 'تشغيل الخدمة الخلفية...');
+    await startBackend(INTERNAL_SECRET, (elapsedSeconds) => {
+      reportStartup('BACKEND', 'تشغيل الخدمة الخلفية...', { elapsedSeconds });
+    });
+
     await startBackupScheduler(INTERNAL_SECRET); // ثم جدولة النسخ التلقائي
     runCatchupIfNeeded(INTERNAL_SECRET).catch(console.error); // نسخة تعويضية إذا فات وقت الجدولة
 
+    reportStartup('READY', 'اكتملت التهيئة — جارٍ فتح النظام');
+
     mainWindow = createMainWindow();
+    // النافذة الرئيسية تُظهر نفسها عند `ready-to-show`؛ إغلاق شاشة البدء عندها
+    // يمنع وميض سطح المكتب بين اختفاء الأولى وظهور الثانية.
+    mainWindow.once('ready-to-show', () => {
+      startupWindow?.close();
+      startupWindow = null;
+    });
     registerMainWindow(mainWindow);
     registerContextMenuIpc(mainWindow);
     // WYSIWYG viewer guard — suppresses PDFium's Ctrl+P / Ctrl+S exits, but ONLY while a
@@ -182,9 +282,9 @@ async function bootstrap() {
       ]),
     );
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('فشل بدء التطبيق:', err);
-    app.quit();
+    // لا `app.quit()` هنا إطلاقًا. `reportStartupFailure` يعرض السبب الحقيقي
+    // ويترك القرار للمستخدم — انظر تعليق الدالة لتفصيل ما كان يحدث سابقًا.
+    reportStartupFailure(err);
   }
 }
 

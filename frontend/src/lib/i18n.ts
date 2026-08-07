@@ -4161,8 +4161,13 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.leaveReq.field.reason': 'السبب',
     'page.leaveReq.field.expected_return': 'تاريخ العودة المتوقع',
     'page.blankA4.title': 'ورقة A4 فارغة',
-    // محرك الخطابات — مساحة العمل (P2). العنوان يُحلّ من هنا حصرًا عبر t(titleKey).
-    'page.officialLetter.title': 'خطاب رسمي',
+    // محرك المستندات — مساحة العمل (P2). العنوان يُحلّ من هنا حصرًا عبر t(titleKey).
+    //
+    // اسم المنتج «محرر النماذج» — Form Editor UX Simplification Pack v1. المفتاح نفسه
+    // لم يتغيّر عمدًا: تغييره يعني تعديل formsRegistry والاختبارات ومسار الصفحة، بينما
+    // المطلوب هو هوية المنتج لا معرّفاته. القالب لا يزال officialLetter وبادئة الترقيم
+    // لا تزال OL — كلاهما دائم بحكم INV-8 و INV-10 ولا يجوز أن يتبع تسمية واجهة.
+    'page.officialLetter.title': 'محرر النماذج',
     // Forms Registry Translation Audit v1 — مفاتيح عنوان مفقودة اكتُشفت بالتدقيق:
     // كل نموذج يجب أن يحلّ عنوانه عبر t(titleKey) لا نصًا حرفيًا مباشرًا.
     'page.salaryCert.title': 'شهادة راتب',
@@ -9125,8 +9130,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.leaveReq.field.reason': 'Reason',
     'page.leaveReq.field.expected_return': 'Expected Return Date',
     'page.blankA4.title': 'Blank A4 Sheet',
-    // Letter Engine — workspace (P2).
-    'page.officialLetter.title': 'Official Letter',
+    // Letter Engine — workspace (P2). Product name is "Form Editor" as of the
+    // Form Editor UX Simplification Pack v1; the KEY is deliberately unchanged.
+    'page.officialLetter.title': 'Form Editor',
     // Forms Registry Translation Audit v1 — missing title keys found by the audit.
     'page.salaryCert.title': 'Salary Certificate',
     'page.salaryCert.doc_label': 'Salary Certificate',
