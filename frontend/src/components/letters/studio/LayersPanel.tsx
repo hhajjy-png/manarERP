@@ -68,6 +68,9 @@ export default function LayersPanel(props: LayersPanelProps) {
   const { layout, selection, readOnly } = props;
   const [query, setQuery] = useState('');
   const [dragging, setDragging] = useState<string | null>(null);
+  /** Which row a drag is currently over — the drop-line indicator (Document Studio UX
+   *  Polish Pack v1). Separate from `dragging`: that names the SOURCE, this the TARGET. */
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
 
   const search = query.trim().toLowerCase();
@@ -126,7 +129,8 @@ export default function LayersPanel(props: LayersPanelProps) {
 
         {rows.length === 0 && (
           <li className="lyp-empty" role="none">
-            {search ? 'لا نتائج' : 'لا عناصر بعد — أضف عنصرًا من شريط الإدراج.'}
+            <Icon name={search ? 'search_off' : 'dashboard_customize'} />
+            <p>{search ? 'لا نتائج' : 'لا عناصر بعد — أضف عنصرًا من شريط الإدراج.'}</p>
           </li>
         )}
 
@@ -147,6 +151,8 @@ export default function LayersPanel(props: LayersPanelProps) {
               row={row}
               dragging={dragging}
               setDragging={setDragging}
+              dragOverId={dragOverId}
+              setDragOverId={setDragOverId}
               renaming={renaming === row.object.id}
               onStartRename={() => setRenaming(row.object.id)}
               onEndRename={() => setRenaming(null)}
@@ -302,6 +308,8 @@ function ObjectRow({
   readOnly,
   dragging,
   setDragging,
+  dragOverId,
+  setDragOverId,
   renaming,
   onStartRename,
   onEndRename,
@@ -314,6 +322,8 @@ function ObjectRow({
   row: Extract<Row, { type: 'object' }>;
   dragging: string | null;
   setDragging: (id: string | null) => void;
+  dragOverId: string | null;
+  setDragOverId: (id: string | null) => void;
   renaming: boolean;
   onStartRename: () => void;
   onEndRename: () => void;
@@ -322,22 +332,33 @@ function ObjectRow({
   const selected = selection.has(object.id);
   const inheritedHidden = effectiveHidden(layout, object) && !object.hidden;
   const inheritedLocked = effectiveLocked(layout, object) && !object.locked;
+  const isDropTarget = dragOverId === object.id && dragging !== null && dragging !== object.id;
 
   return (
     <li role="none">
       <div
-        className={`lyp-row${selected ? ' is-selected' : ''}${dragging === object.id ? ' is-dragging' : ''}`}
+        className={`lyp-row${selected ? ' is-selected' : ''}${dragging === object.id ? ' is-dragging' : ''}${isDropTarget ? ' is-drop-target' : ''}`}
         role="treeitem"
         aria-selected={selected}
         style={{ paddingInlineStart: `${8 + row.depth * 12}px` }}
         draggable={!readOnly && !renaming}
         onDragStart={() => setDragging(object.id)}
-        onDragEnd={() => setDragging(null)}
+        onDragEnd={() => {
+          setDragging(null);
+          setDragOverId(null);
+        }}
         onDragOver={(e) => {
-          if (dragging && dragging !== object.id) e.preventDefault();
+          if (dragging && dragging !== object.id) {
+            e.preventDefault();
+            if (dragOverId !== object.id) setDragOverId(object.id);
+          }
+        }}
+        onDragLeave={() => {
+          if (dragOverId === object.id) setDragOverId(null);
         }}
         onDrop={(e) => {
           e.preventDefault();
+          setDragOverId(null);
           if (!dragging || dragging === object.id) return;
           // The list is reversed, so dropping ON a row means "go in FRONT of it" —
           // which in paint order means directly after it. Passing the row's own id as

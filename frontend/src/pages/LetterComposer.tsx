@@ -51,6 +51,10 @@ import DocumentToolbar, {
   DocumentViewControls,
   type ToolbarState,
 } from '../components/letters/studio/DocumentToolbar';
+import FloatingContextToolbar from '../components/letters/studio/FloatingContextToolbar';
+import { useResizableRail } from '../components/letters/studio/useResizableRail';
+import RailResizeHandle from '../components/letters/studio/RailResizeHandle';
+import { textareaSelectionRect } from '../lib/textareaSelectionRect';
 import DocumentStatusBar from '../components/letters/studio/DocumentStatusBar';
 import LayoutToolbar from '../components/letters/studio/LayoutToolbar';
 import LayoutCanvas from '../components/letters/studio/LayoutCanvas';
@@ -333,6 +337,14 @@ export default function LetterComposer() {
   const [showZones, setShowZones] = usePersistedState<boolean>('manarERP.letters.composer.zones', true);
   const [showNavigator, setShowNavigator] = usePersistedState<boolean>('manarERP.letters.composer.navigator', true);
   const [navigatorTab, setNavigatorTab] = usePersistedState<NavigatorTab>('manarERP.letters.composer.navigatorTab', 'pages');
+  // Shared by both rails that occupy the nav slot (LayersPanel in Design mode,
+  // DocumentNavigator otherwise) — the slot remembers one width regardless of which of
+  // the two is currently showing in it.
+  const navRail = useResizableRail('manarERP.letters.composer.railWidth.nav', 172, 140, 340);
+  const inspectorRail = useResizableRail('manarERP.letters.composer.railWidth.inspector', 232, 200, 420);
+  // Insert / Revisions / Properties are mutually exclusive (`sidePanel`), so they too
+  // share one remembered width for the slot they take turns occupying.
+  const sidePanelRail = useResizableRail('manarERP.letters.composer.railWidth.sidePanel', 250, 220, 460);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   /* ── Design mode ──────────────────────────────────────────────────────────
@@ -1363,6 +1375,45 @@ export default function LetterComposer() {
     findOpen,
   };
 
+  // Shared between the docked toolbar and the floating selection toolbar (Document
+  // Studio UX Polish Pack v1) — the floating bar is a second SURFACE for these same
+  // commands, not a second implementation of them.
+  const onToggleMark = useCallback(
+    (mark: InlineMark) => withActiveBlock((d, b) => toggleBlockMark(d, b, mark)),
+    [withActiveBlock],
+  );
+  const onAlign = useCallback(
+    (alignment: TextAlignment) => withActiveBlock((d, b) => setBlockAttributes(d, b, { alignment })),
+    [withActiveBlock],
+  );
+  const onFont = useCallback(
+    (fontId: FontId) => withActiveBlock((d, b) => setBlockAttributes(d, b, { fontId })),
+    [withActiveBlock],
+  );
+  const onSize = useCallback(
+    (sizePt: number) => withActiveBlock((d, b) => setBlockAttributes(d, b, { sizePt })),
+    [withActiveBlock],
+  );
+  const onClearFormatting = useCallback(
+    () => withActiveBlock((d, b) => clearBlockFormatting(d, b, bodyAttributes)),
+    [withActiveBlock, bodyAttributes],
+  );
+
+  // The floating toolbar's anchor: the ACTIVE block's own textarea, read live rather
+  // than cached, since `useFloatingPosition` calls this at open-time and again on every
+  // scroll/resize while it stays open.
+  const getSelectionAnchorRect = useCallback(() => {
+    if (!activeBlockId) return null;
+    const el = paragraphRefs.current.get(activeBlockId);
+    return el ? textareaSelectionRect(el) : null;
+  }, [activeBlockId]);
+
+  // Shown only for an actual RANGE selected inside a content block — a collapsed caret
+  // has nothing for these commands to act on, and the docked toolbar already covers
+  // that case continuously.
+  const floatingToolbarOpen =
+    !readOnly && !designMode && activeBlockId !== null && selection.caret.selectedCharacters > 0;
+
   const undo = useCallback(() => {
     setContent((current) => {
       if (!current) return current;
@@ -2365,10 +2416,10 @@ export default function LetterComposer() {
           allowedCommands={template.toolbarCommands}
           state={toolbarState}
           disabled={readOnly}
-          onToggleMark={(mark: InlineMark) => withActiveBlock((d, b) => toggleBlockMark(d, b, mark))}
-          onAlign={(alignment: TextAlignment) => withActiveBlock((d, b) => setBlockAttributes(d, b, { alignment }))}
-          onFont={(fontId: FontId) => withActiveBlock((d, b) => setBlockAttributes(d, b, { fontId }))}
-          onSize={(sizePt) => withActiveBlock((d, b) => setBlockAttributes(d, b, { sizePt }))}
+          onToggleMark={onToggleMark}
+          onAlign={onAlign}
+          onFont={onFont}
+          onSize={onSize}
           onParagraphStyle={(style: ParagraphStyle) => withActiveBlock((d, b) => applyParagraphStyle(d, b, style))}
           onCharacterStyle={(style: CharacterStyle) => withActiveBlock((d, b) => applyCharacterStyle(d, b, style))}
           onToggleList={(listType: ListType) => withActiveBlock((d, b) => toggleListType(d, b, listType))}
@@ -2380,12 +2431,23 @@ export default function LetterComposer() {
           onHangingIndent={(mm) => withActiveBlock((d, b) => setBlockIndentation(d, b, { hangingIndentMm: mm }))}
           onFormatPainter={handleFormatPainter}
           onPastePlain={() => void handlePastePlain()}
-          onClearFormatting={() => withActiveBlock((d, b) => clearBlockFormatting(d, b, bodyAttributes))}
+          onClearFormatting={onClearFormatting}
           onToggleFind={() => (findOpen ? setFindOpen(false) : openFind(false))}
           onUndo={undo}
           onRedo={redo}
         />
         )}
+        <FloatingContextToolbar
+          open={floatingToolbarOpen}
+          getAnchorRect={getSelectionAnchorRect}
+          allowedCommands={template.toolbarCommands}
+          state={toolbarState}
+          onToggleMark={onToggleMark}
+          onAlign={onAlign}
+          onFont={onFont}
+          onSize={onSize}
+          onClearFormatting={onClearFormatting}
+        />
         {/* The signature and stamp choice sits with the view controls rather than in
             the paper: it is a decision ABOUT the document, and putting a dropdown on
             the sheet would put chrome where only ink belongs. Hidden once the letter
@@ -2481,7 +2543,19 @@ export default function LetterComposer() {
             The panel is also the keyboard-accessible face of the canvas — see its
             header for why the canvas itself carries no tab stops. */}
         {showNavigator && designMode && (
-          <aside className="dnv-rail" aria-label="لوحة الطبقات">
+          <aside
+            className="dnv-rail lc-rail-in"
+            aria-label="لوحة الطبقات"
+            ref={navRail.railRef}
+            style={{ '--rail-w': `${navRail.width}px` } as React.CSSProperties}
+          >
+            <RailResizeHandle
+              handleRef={navRail.handleRef}
+              label="تغيير عرض لوحة الطبقات"
+              edge="before"
+              onPointerDown={navRail.startDrag}
+              onKeyDown={navRail.onHandleKeyDown}
+            />
             <LayersPanel
               layout={designer.layout}
               selection={layoutSelection}
@@ -2523,6 +2597,7 @@ export default function LetterComposer() {
             outline={outline}
             onGoToPage={goToPage}
             onGoToOutlineEntry={goToOutlineEntry}
+            resize={navRail}
             onClose={() => setShowNavigator(false)}
           />
         )}
@@ -2575,6 +2650,7 @@ export default function LetterComposer() {
             onSaveSelectionAsBlock={saveSelectionAsBlock}
             onSaveDocumentAsTemplate={saveDocumentAsTemplate}
             onClose={() => setSidePanel('none')}
+            resize={sidePanelRail}
           />
         )}
 
@@ -2616,6 +2692,7 @@ export default function LetterComposer() {
               }
               if (target.sectionKind) focusSection(target.sectionKind);
             }}
+            resize={sidePanelRail}
             onRestored={() => {
               // The server rewrote the letter, so the composer must re-read it rather
               // than trust what it holds. Clearing the baseline too: it was chosen
@@ -2645,6 +2722,7 @@ export default function LetterComposer() {
             variableCount={usedVariables.length}
             conditionCount={content.blocks.filter((b) => conditionSize(b.attributes.condition) > 0).length}
             onClose={() => setSidePanel('none')}
+            resize={sidePanelRail}
           />
         )}
 
@@ -2664,6 +2742,7 @@ export default function LetterComposer() {
             onHidden={designer.setHidden}
             onReorder={designer.reorder}
             onPayload={designer.setPayload}
+            resize={inspectorRail}
           />
         )}
       </div>

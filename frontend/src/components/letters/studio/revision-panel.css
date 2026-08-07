@@ -7,10 +7,13 @@
  */
 
 .rev-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 268px;
-  width: 268px;
+  /* Draggable (Document Studio UX Polish Pack v1) — see `.dnv-rail` for why this is a
+     variable with the old fixed value only as its fallback. */
+  flex: 0 0 var(--rail-w, 268px);
+  width: var(--rail-w, 268px);
   min-height: 0;
   background: var(--surface, #fff);
   border-inline-start: 1px solid var(--border, #e2e8f0);

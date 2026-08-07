@@ -21,7 +21,7 @@
   /* Above the ink, below the page chrome. The canvas is one transparent surface: there
      is no element per object, because hit testing is done in millimetres against the
      objects' true rotated shapes rather than by the DOM. */
-  z-index: 5;
+  z-index: var(--lt-z-canvas, 5);
   cursor: default;
   -webkit-user-select: none;
   user-select: none;
@@ -58,6 +58,15 @@
 
 .lc-outline.is-selected {
   border-color: transparent;
+}
+
+/* The ONE object under the pointer right now (Document Studio UX Polish Pack v1) —
+   stronger than the ambient whole-canvas hover above, since that answers "what is
+   arrangeable here" while this answers "what would a click hit". Never drawn for the
+   selected object: `.lc-selection` already owns that one's frame. */
+.lc-outline.is-hovered {
+  border-color: var(--accent, #1d4e6f);
+  border-width: 1.5px;
 }
 
 /* A locked object reads as pinned rather than as selectable: a dashed hairline is the
@@ -129,6 +138,14 @@
   /* The visual is 9px; the GRAB area is padded out to 16px by the transparent border
      box below, because a 9px target is below every accepted minimum. */
   box-sizing: border-box;
+  /* `transform` only — never a layout property — so this costs nothing during a drag,
+     where `.is-interacting *` zeroes every transition anyway (see above). */
+  transition: transform var(--lt-fast, 130ms) ease-out, background-color var(--lt-fast, 130ms) ease-out;
+}
+
+.lc-handle:hover {
+  background: var(--accent, #1d4e6f);
+  transform: scale(1.25);
 }
 
 .lc-handle::before {
@@ -165,6 +182,13 @@
   border: 1.5px solid var(--accent, #1d4e6f);
   color: var(--accent, #1d4e6f);
   cursor: grab;
+  transition: transform var(--lt-fast, 130ms) ease-out, background-color var(--lt-fast, 130ms) ease-out, color var(--lt-fast, 130ms) ease-out;
+}
+
+.lc-rotate:hover {
+  background: var(--accent, #1d4e6f);
+  color: #fff;
+  transform: scale(1.12);
 }
 
 .lc-rotate:active {
@@ -223,6 +247,11 @@
   position: absolute;
   background: #06b6d4;
   opacity: 0.75;
+  transition: opacity var(--lt-fast, 130ms) ease-out;
+}
+
+.lc-guide:not(.is-locked):hover {
+  opacity: 1;
 }
 
 .lc-guide--vertical {
@@ -259,6 +288,14 @@
   position: absolute;
   background: #e11d48;
   pointer-events: none;
+  /* Opacity only — never a position property, which is redrawn every pointer-move
+     during the drag this line exists to explain. `.is-interacting *` zeroes it anyway,
+     so this is purely the flash-in the instant a snap engages. */
+  animation: lc-smart-in var(--lt-fast, 130ms) ease-out;
+}
+
+@keyframes lc-smart-in {
+  from { opacity: 0; }
 }
 
 .lc-smart--vertical {

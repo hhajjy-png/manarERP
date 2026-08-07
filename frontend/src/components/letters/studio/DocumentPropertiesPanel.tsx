@@ -16,6 +16,8 @@
 
 import { Icon } from '../../explorer/ExplorerKit';
 import { type DocumentStats, LANGUAGE_LABEL_AR, type DocumentLanguage } from '../../../letters/editor/documentStats';
+import { type ResizableRail } from './useResizableRail';
+import RailResizeHandle from './RailResizeHandle';
 import './document-properties.css';
 
 export interface DocumentPropertiesProps {
@@ -35,6 +37,7 @@ export interface DocumentPropertiesProps {
   readonly variableCount: number;
   readonly conditionCount: number;
   readonly onClose: () => void;
+  readonly resize: ResizableRail;
 }
 
 /** ISO → a readable local date and time. Empty for a missing value. */
@@ -50,10 +53,22 @@ function n(value: number): string {
 }
 
 export default function DocumentPropertiesPanel(props: DocumentPropertiesProps) {
-  const { stats } = props;
+  const { stats, resize } = props;
 
   return (
-    <aside className="dpp-panel" aria-label="خصائص المستند">
+    <aside
+      className="dpp-panel lc-rail-in"
+      aria-label="خصائص المستند"
+      ref={resize.railRef}
+      style={{ '--rail-w': `${resize.width}px` } as React.CSSProperties}
+    >
+      <RailResizeHandle
+        handleRef={resize.handleRef}
+        label="تغيير عرض لوحة الخصائص"
+        edge="after"
+        onPointerDown={resize.startDrag}
+        onKeyDown={resize.onHandleKeyDown}
+      />
       <div className="dpp-head">
         <Icon name="info" />
         <span className="dpp-title">خصائص المستند</span>

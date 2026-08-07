@@ -7,10 +7,13 @@
  */
 
 .dnv-rail {
+  position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 172px;
-  width: 172px;
+  /* Draggable (Document Studio UX Polish Pack v1) — `--rail-w` is set inline from
+     `useResizableRail`'s persisted width; the literal is only the first-ever default. */
+  flex: 0 0 var(--rail-w, 172px);
+  width: var(--rail-w, 172px);
   min-height: 0;
   background: color-mix(in srgb, var(--lt-canvas, #4b5563) 88%, #000);
   border-inline-end: 1px solid rgba(0, 0, 0, 0.28);

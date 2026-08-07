@@ -27,7 +27,11 @@
      falls back to start alignment in exactly that case, which is what makes the two
      new high zoom rungs usable at all. */
   justify-content: safe center;
-  padding: 14px 8px 32px;
+  /* Trimmed from 14/8/32 (Document Studio UX Polish Pack v1 — "reduce unnecessary
+     empty margins"). `.lp-stage`'s OWN 22px margin is untouched: it is exactly
+     `A4_RULER_THICKNESS`, the ruler's real footprint, not spare room. This padding is
+     the separate, genuinely empty breathing room around the whole scroll area. */
+  padding: 10px 6px 22px;
   overflow: auto;
   background: var(--lt-canvas);
   /* Keeps the sheet visually anchored while the surround scrolls behind it. */

@@ -22,7 +22,7 @@
  * a quiet lie about the other four.
  */
 
-import { useEffect, useId, useState } from 'react';
+import { type RefObject, useEffect, useId, useState } from 'react';
 import { Icon } from '../../explorer/ExplorerKit';
 import { FontPicker } from '../../common/FontPicker';
 import {
@@ -34,12 +34,15 @@ import { type FontId, type FontMeta } from '../../../styles/fontRegistry';
 import { getLetterFontPool } from '../../../letters/fonts/fontIntegration';
 import { FONT_SIZE_LADDER_PT, type TextAlignment } from '../../../letters/registry/typographyPresets';
 import { LINE_HEIGHT_LADDER } from '../../../letters/registry/toolbarCommands';
+import { type ResizableRail } from './useResizableRail';
+import RailResizeHandle from './RailResizeHandle';
 import './object-inspector.css';
 
 export interface ObjectInspectorProps {
   readonly objects: readonly LayoutObject[];
   readonly pageCount: number;
   readonly readOnly: boolean;
+  readonly resize: ResizableRail;
   readonly onFrame: (patch: { xMm?: number; yMm?: number; widthMm?: number; heightMm?: number }) => void;
   readonly onRotate: (degrees: number) => void;
   readonly onOpacity: (opacity: number) => void;
@@ -69,10 +72,23 @@ export default function ObjectInspector({
   onHidden,
   onReorder,
   onPayload,
+  resize,
 }: ObjectInspectorProps) {
+  const railStyle = { '--rail-w': `${resize.width}px` } as React.CSSProperties;
+  const handle = (
+    <RailResizeHandle
+      handleRef={resize.handleRef}
+      label="تغيير عرض لوحة الخصائص"
+      edge="after"
+      onPointerDown={resize.startDrag}
+      onKeyDown={resize.onHandleKeyDown}
+    />
+  );
+
   if (objects.length === 0) {
     return (
-      <div className="obi-panel obi-panel--empty">
+      <div className="obi-panel obi-panel--empty lc-rail-in" ref={resize.railRef as RefObject<HTMLDivElement>} style={railStyle}>
+        {handle}
         <Icon name="ads_click" />
         <p>اختر عنصرًا لعرض خصائصه</p>
       </div>
@@ -83,7 +99,8 @@ export default function ObjectInspector({
   const disabled = readOnly;
 
   return (
-    <div className="obi-panel">
+    <div className="obi-panel lc-rail-in" ref={resize.railRef as RefObject<HTMLDivElement>} style={railStyle}>
+      {handle}
       <div className="obi-head">
         <Icon name="tune" />
         <span className="obi-title">
@@ -506,11 +523,32 @@ function PayloadSection({
 
 /* ── Small parts ────────────────────────────────────────────────────────── */
 
+/**
+ * A collapsible card (Document Studio UX Polish Pack v1). Collapse is component state,
+ * not persisted — it naturally survives switching between objects of the same session
+ * (this component stays mounted; only the per-kind section below it unmounts/remounts
+ * when the selection's KIND changes), which is exactly the behaviour worth keeping:
+ * collapse "Position & size" once, and it stays collapsed while you click through
+ * several objects, but a fresh session starts every card open.
+ */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(true);
+  const bodyId = useId();
   return (
-    <section className="obi-section">
-      <h3 className="obi-section-title">{title}</h3>
-      {children}
+    <section className={`obi-section${open ? '' : ' is-collapsed'}`}>
+      <button
+        type="button"
+        className="obi-section-head"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={bodyId}
+      >
+        <Icon name="expand_more" className="obi-section-chevron" />
+        <h3 className="obi-section-title">{title}</h3>
+      </button>
+      <div className="obi-section-collapse" id={bodyId} role="region" aria-label={title}>
+        <div className="obi-section-body">{children}</div>
+      </div>
     </section>
   );
 }

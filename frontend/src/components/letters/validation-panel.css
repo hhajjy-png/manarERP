@@ -18,7 +18,7 @@
 .vp-panel {
   position: sticky;
   bottom: 0;
-  z-index: 25;
+  z-index: var(--lt-z-validation, 25);
   background: var(--surface, #fff);
   border-top: 1px solid var(--border, #e2e8f0);
   box-shadow: var(--lt-panel-shadow);

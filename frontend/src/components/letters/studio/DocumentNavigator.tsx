@@ -29,6 +29,8 @@ import { Icon } from '../../explorer/ExplorerKit';
 import { type OutlineEntry } from '../../../letters/editor/documentOutline';
 import { type PaginationResult } from '../../../letters/pagination/paginate';
 import { type PageGeometry, pageSizeOf } from '../../../letters/registry/geometryRegistry';
+import { type ResizableRail } from './useResizableRail';
+import RailResizeHandle from './RailResizeHandle';
 import './document-navigator.css';
 
 /** Which panel the rail is showing. */
@@ -46,6 +48,7 @@ export interface DocumentNavigatorProps {
   readonly onGoToPage: (pageIndex: number) => void;
   readonly onGoToOutlineEntry: (entry: OutlineEntry) => void;
   readonly onClose: () => void;
+  readonly resize: ResizableRail;
 }
 
 /** Thumbnail width in pixels. The height follows from the page's real aspect ratio. */
@@ -63,12 +66,25 @@ export default function DocumentNavigator({
   onGoToPage,
   onGoToOutlineEntry,
   onClose,
+  resize,
 }: DocumentNavigatorProps) {
   const page = pageSizeOf(geometry);
   const thumbHeight = Math.round(THUMB_WIDTH_PX * (page.heightMm / page.widthMm));
 
   return (
-    <aside className="dnv-rail" aria-label="لوحة التنقّل">
+    <aside
+      className="dnv-rail lc-rail-in"
+      aria-label="لوحة التنقّل"
+      ref={resize.railRef}
+      style={{ '--rail-w': `${resize.width}px` } as React.CSSProperties}
+    >
+      <RailResizeHandle
+        handleRef={resize.handleRef}
+        label="تغيير عرض لوحة التنقّل"
+        edge="before"
+        onPointerDown={resize.startDrag}
+        onKeyDown={resize.onHandleKeyDown}
+      />
       <div className="dnv-head">
         <div className="dnv-tabs" role="tablist" aria-label="طرق التنقّل">
           <button
