@@ -22,6 +22,7 @@ import { registerNbkExportIpc } from './ipc/nbkExport.ipc';
 import { registerLegacyRecoveryIpc } from './ipc/legacyRecovery.ipc';
 import { acquireRuntimeLock, releaseRuntimeLock, describeLockConflict, runtimeLockPath } from './services/runtimeLock';
 import { cleanupOrphanSyncTemps } from './services/syncTempCleanup';
+import { createZoomPersistenceController, type ZoomPersistenceController } from './services/viewZoomPreference.pure';
 
 const INTERNAL_SECRET = getInternalSecret();
 
@@ -32,6 +33,15 @@ if (!gotLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * UX Improvement — Persist View Zoom Level v1. Holds the debounce timer between
+ * a `zoom-changed` event (View menu's تكبير/تصغير — unchanged, no new shortcut,
+ * no new UI) and the disk write it causes; flushed on `before-quit` so a zoom
+ * change made right before closing the app is never lost. See
+ * `viewZoomPreference.pure.ts` for the persisted logic and its tests.
+ */
+let zoomPersistence: ZoomPersistenceController | null = null;
 
 /**
  * حارس Dev/Packaged Split-Brain — يجب أن يسبق **أي** مزامنة أو تشغيل للخادم.
@@ -257,6 +267,24 @@ async function bootstrap() {
     // WYSIWYG preview is open. One listener for the window's lifetime; no global blocking.
     registerWysiwygViewerGuard(mainWindow);
 
+    // UX Improvement — Persist View Zoom Level v1. Restores the last zoom level
+    // once, on the window's first paint, so a manual "إعادة تحميل" later in this
+    // menu keeps behaving exactly as before (it is not treated as a relaunch).
+    // The View menu's تكبير/تصغير items below are Electron's own zoomIn/zoomOut
+    // roles, untouched; `zoom-changed` only fires for THOSE actions, never for
+    // the `setZoomLevel` call this restoration makes.
+    zoomPersistence = createZoomPersistenceController(bootDataDir);
+    const savedZoomLevel = zoomPersistence.getInitialZoomLevel();
+    const mainWebContents = mainWindow.webContents;
+    if (savedZoomLevel !== null) {
+      mainWebContents.once('did-finish-load', () => {
+        if (!mainWebContents.isDestroyed()) mainWebContents.setZoomLevel(savedZoomLevel);
+      });
+    }
+    mainWebContents.on('zoom-changed', () => {
+      zoomPersistence?.scheduleSave(mainWebContents.getZoomLevel());
+    });
+
     // قائمة عربية مبسّطة
     Menu.setApplicationMenu(
       Menu.buildFromTemplate([
@@ -329,6 +357,10 @@ let quitConfirmed = false;
 let startupAborted = false;
 
 app.on('before-quit', (event) => {
+  // UX Improvement — Persist View Zoom Level v1: a zoom change made just before
+  // quitting must not be lost to the debounce window. No-op if nothing is pending.
+  zoomPersistence?.flush();
+
   // بيئة مرفوضة: لا `preventDefault` ولا تسلسل إغلاق — اخرج مباشرة.
   if (quitConfirmed || startupAborted) return;
   event.preventDefault();
