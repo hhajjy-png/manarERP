@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ConfirmModal from '../ConfirmModal';
 import {
@@ -115,10 +115,7 @@ type ModalState =
 
 export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateManagerProps) {
   const navigate = useNavigate();
-  const [current, setCurrent] = useState<Current>(() => {
-    const initial = getDefaultTemplate() ?? listTemplates()[0] ?? null;
-    return initial ? recordToCurrent(initial) : newCurrent();
-  });
+  const [current, setCurrent] = useState<Current>(newCurrent);
   const [dirty, setDirty] = useState(false);
   const [designerKey, setDesignerKey] = useState(0);
   const [modal, setModal] = useState<ModalState>({ kind: 'none' });
@@ -126,6 +123,31 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
   const [msg, setMsg] = useState('');
   // Presentation surface only (view state — never persisted in the template).
   const [paperMode, setPaperMode] = useState<ChequePaperMode>('real-cheque');
+
+  // ── Initial template load ──────────────────────────────────────────────────
+  // Templates now live in the database (Cheque Template Persistence Migration
+  // Pack v1), so the editor's starting template is fetched rather than read
+  // synchronously from browser storage. Same selection rule as before: the
+  // flagged default, else the most-recently-updated template, else a new one.
+  //
+  // The result is discarded if the user has already started working in the
+  // meantime, so a slow response can never overwrite live edits.
+  const touchedRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const initial = (await getDefaultTemplate()) ?? (await listTemplates())[0] ?? null;
+        if (cancelled || !initial || touchedRef.current) return;
+        load(recordToCurrent(initial));
+      } catch {
+        /* keep the blank starter template — the toolbar still works */
+      }
+    })();
+    return () => { cancelled = true; };
+    // Mount-only: this establishes the editor's starting document.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Runtime data: real cheque values when a cheque is present, else mock.
   const runtimeData = useMemo(
@@ -201,37 +223,48 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
   }
 
   function handleDesignerChange(fields: DesignerField[]) {
+    touchedRef.current = true;
     setCurrent((c) => ({ ...c, fields }));
     setDirty(true);
   }
 
   // ── Toolbar actions ──────────────────────────────────────────────────────
+  // Every persistence call is now a database round-trip and therefore awaited.
+  // A failed write reports the failure instead of leaving the toolbar claiming
+  // success for something that never reached storage.
   function handleNew() {
+    touchedRef.current = true;
     load(newCurrent());
     flash('تم إنشاء قالب جديد (غير محفوظ).');
   }
 
-  function handleOpen() {
-    setRows(listTemplates());
-    setModal({ kind: 'open' });
+  async function handleOpen() {
+    try {
+      setRows(await listTemplates());
+      setModal({ kind: 'open' });
+    } catch {
+      flash('تعذّر تحميل قائمة القوالب.');
+    }
   }
 
-  function openTemplate(id: string) {
-    const rec = getTemplate(id);
+  async function openTemplate(id: string) {
+    const rec = await getTemplate(id);
     if (rec) {
+      touchedRef.current = true;
       load(recordToCurrent(rec));
       flash(`تم فتح «${rec.name}».`);
     }
     setModal({ kind: 'none' });
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (!current.id) {
       // Unsaved template — Save behaves as Save As (needs a name).
       setModal({ kind: 'name', mode: 'saveas', value: current.name });
       return;
     }
-    saveTemplate(current.id, { name: current.name, surface: current.surface, fields: current.fields });
+    const saved = await saveTemplate(current.id, { name: current.name, surface: current.surface, fields: current.fields });
+    if (!saved) { flash('تعذّر الحفظ.'); return; }
     setDirty(false);
     flash('تم الحفظ.');
   }
@@ -244,36 +277,55 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
     setModal({ kind: 'name', mode: 'rename', value: current.name });
   }
 
-  function submitName(value: string) {
+  async function submitName(value: string) {
     const name = value.trim();
     if (!name) return;
     if (modal.kind !== 'name') return;
+    touchedRef.current = true;
+    setModal({ kind: 'none' });
     if (modal.mode === 'saveas') {
-      const rec = createTemplate({ name, surface: current.surface, fields: current.fields });
-      setCurrent(recordToCurrent(rec));
-      setDirty(false);
-      flash(`تم الحفظ باسم «${name}».`);
+      try {
+        const rec = await createTemplate({ name, surface: current.surface, fields: current.fields });
+        setCurrent(recordToCurrent(rec));
+        setDirty(false);
+        flash(`تم الحفظ باسم «${name}».`);
+      } catch {
+        flash('تعذّر الحفظ.');
+      }
     } else {
-      if (current.id) renameTemplate(current.id, name);
+      if (current.id && !(await renameTemplate(current.id, name))) { flash('تعذّرت إعادة التسمية.'); return; }
       setCurrent((c) => ({ ...c, name }));
       flash('تمت إعادة التسمية.');
     }
-    setModal({ kind: 'none' });
   }
 
-  function confirmDelete() {
-    if (current.id) {
-      deleteTemplate(current.id);
-      flash('تم حذف القالب.');
-    }
+  async function confirmDelete() {
+    const id = current.id;
     setModal({ kind: 'none' });
-    const next = getDefaultTemplate() ?? listTemplates()[0] ?? null;
+    touchedRef.current = true;
+    if (id) {
+      try {
+        await deleteTemplate(id);
+        flash('تم حذف القالب.');
+      } catch {
+        flash('تعذّر حذف القالب.');
+        return;
+      }
+    }
+    // Re-read the surviving default from the database — the server promotes the
+    // most-recently-updated survivor when the deleted template was the default.
+    const next = (await getDefaultTemplate()) ?? (await listTemplates())[0] ?? null;
     load(next ? recordToCurrent(next) : newCurrent());
   }
 
-  function handleDefault() {
+  async function handleDefault() {
     if (!current.id) return;
-    setDefaultTemplate(current.id);
+    try {
+      await setDefaultTemplate(current.id);
+    } catch {
+      flash('تعذّر تعيين القالب كافتراضي.');
+      return;
+    }
     setCurrent((c) => ({ ...c, isDefault: true }));
     flash('تم تعيين القالب كافتراضي.');
   }

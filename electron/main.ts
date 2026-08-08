@@ -19,6 +19,7 @@ import { registerPrintIpc } from './services/printService';
 import { registerWysiwygPocIpc } from './ipc/wysiwygPoc.ipc';
 import { registerWysiwygViewerGuard } from './ipc/wysiwygViewerGuard.ipc';
 import { registerNbkExportIpc } from './ipc/nbkExport.ipc';
+import { registerLegacyRecoveryIpc } from './ipc/legacyRecovery.ipc';
 import { acquireRuntimeLock, releaseRuntimeLock, describeLockConflict, runtimeLockPath } from './services/runtimeLock';
 import { cleanupOrphanSyncTemps } from './services/syncTempCleanup';
 
@@ -202,6 +203,10 @@ async function bootstrap() {
     registerAttachmentsIpc();
     // NBK Salary Export — Native XLS Generation v1 (additive; other Excel exports unchanged).
     registerNbkExportIpc();
+    // Legacy Cheque Template Recovery v1 — read-only lookup of templates stranded
+    // in a previous `userData` folder. Registers a handler only; it scans nothing
+    // until the renderer asks, and it can neither write nor block startup.
+    registerLegacyRecoveryIpc();
     // Print Center Foundation v1 — additive. `app:print` / `pdf:export` /
     // `pdf:exportHtml` remain registered above and fully functional.
     registerPrintIpc();

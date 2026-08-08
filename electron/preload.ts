@@ -360,6 +360,20 @@ const api = {
     errorCode?: string;
   }> => ipcRenderer.invoke('nbkExport:generateXls', sheets),
 
+  // ─── Legacy Cheque Template Recovery v1 ──────────────────────────────────────
+  // Read-only lookup of cheque designer templates left behind in a PREVIOUS
+  // `userData` folder (the folder moved when `productName` was introduced, and
+  // Chromium partitions localStorage by that path). Returns what was found and
+  // every location inspected; it writes nothing and decides nothing — the
+  // backend owns the "only once, only into an empty database" rules.
+  scanLegacyChequeTemplates: (): Promise<{
+    found: {
+      templates: unknown[];
+      source: { userDataName: string; leveldbPath: string; origin: string; file: string };
+    } | null;
+    inspected: { path: string; outcome: string }[];
+  }> => ipcRenderer.invoke('legacyTemplates:scan'),
+
 };
 
 contextBridge.exposeInMainWorld('manar', api);

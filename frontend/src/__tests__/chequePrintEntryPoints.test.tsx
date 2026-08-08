@@ -65,7 +65,31 @@ const SETTINGS_ROWS = [
 /** `/settings` resolution is controllable so the load race is testable. */
 let settingsDeferred: { resolve: (rows: unknown[]) => void; reject: (e: unknown) => void; promise: Promise<unknown> };
 
+/**
+ * The flagged default Designer template, as the DATABASE would return it.
+ *
+ * Cheque designer templates moved out of browser storage into `manar.db`
+ * (Cheque Template Persistence Migration Pack v1), so the entry point resolves
+ * its template from `/cheque-designer-templates/default` — seeded here — rather
+ * than from a `localStorage` key.
+ */
+let defaultDesignerTemplate: unknown = null;
+
+function designerTemplate(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'tpl-1',
+    name: 'تجربه',
+    isDefault: true,
+    surface: { widthCm: 17.8, heightCm: 8.9 },
+    fields: [{ id: 'date', label: '', value: 'x', x: 10, y: 10, width: 20, height: 6, rotation: 0, fontSize: 12, fontWeight: 400, textAlign: 'center', color: '#000', zIndex: 1, visible: true }],
+    createdAt: '2026-07-24T00:00:00.000Z',
+    updatedAt: '2026-07-30T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
 function mockApi(provider = 'classic') {
+  defaultDesignerTemplate = null;
   settingsDeferred = {} as never;
   settingsDeferred.promise = new Promise((resolve, reject) => {
     settingsDeferred.resolve = (rows) => resolve({ data: { data: { settings: rows } } });
@@ -75,6 +99,8 @@ function mockApi(provider = 'classic') {
     if (url === '/cheques') return Promise.resolve({ data: { data: { data: CHEQUES, meta: { total: 2 } } } } as never);
     if (url === '/cheques/stats') return Promise.resolve({ data: { data: { total: 2, draft: 2, printed: 0, cancelled: 0 } } } as never);
     if (url === '/settings') return settingsDeferred.promise as never;
+    if (url === '/cheque-designer-templates/default') return Promise.resolve({ data: { data: defaultDesignerTemplate } } as never);
+    if (url === '/cheque-designer-templates/legacy-import') return Promise.resolve({ data: { data: { done: true } } } as never);
     return Promise.resolve({ data: { data: [] } } as never);
   });
   vi.mocked(api.post).mockResolvedValue({ data: { data: {} } } as never);
@@ -132,15 +158,7 @@ describe('settings load race (H5)', () => {
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/settings'));
 
     // Seed a default Designer template so the template provider can resolve one.
-    localStorage.setItem('chequeDesigner.templates.v1', JSON.stringify({
-      version: 1,
-      templates: [{
-        id: 'tpl-1', name: 'تجربه', isDefault: true,
-        surface: { widthCm: 17.8, heightCm: 8.9 },
-        fields: [{ id: 'date', label: '', value: 'x', x: 10, y: 10, width: 20, height: 6, rotation: 0, fontSize: 12, fontWeight: 400, textAlign: 'center', color: '#000', zIndex: 1, visible: true }],
-        createdAt: 'a', updatedAt: 'b',
-      }],
-    }));
+    defaultDesignerTemplate = designerTemplate();
 
     await waitFor(() => expect(screen.queryByText(/جارٍ تحميل إعدادات الطباعة/)).not.toBeInTheDocument());
     printSelected();
@@ -173,16 +191,9 @@ describe('default template at the Cheques entry point', () => {
     resolveSettings();
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/settings'));
     // A template EXISTS but none is flagged default — the old code would have
-    // silently used it via the updatedAt-ordered fallback.
-    localStorage.setItem('chequeDesigner.templates.v1', JSON.stringify({
-      version: 1,
-      templates: [{
-        id: 'tpl-not-default', name: 'غير افتراضي', isDefault: false,
-        surface: { widthCm: 17.8, heightCm: 8.9 },
-        fields: [{ id: 'date', label: '', value: 'x', x: 10, y: 10, width: 20, height: 6, rotation: 0, fontSize: 12, fontWeight: 400, textAlign: 'center', color: '#000', zIndex: 1, visible: true }],
-        createdAt: 'a', updatedAt: '2099-01-01',
-      }],
-    }));
+    // silently used it via the updatedAt-ordered fallback. The database answers
+    // `/default` with null in exactly that situation.
+    defaultDesignerTemplate = null;
 
     await selectRows(0, 1);
     await waitFor(() => expect(screen.queryByText(/جارٍ تحميل/)).not.toBeInTheDocument());
