@@ -1,0 +1,12 @@
+-- Zero Data Loss Certification Pack v1 — attachment bytes move INTO the database.
+--
+-- WHY: `manar.db` is the only artifact that backup, restore and Google Drive sync
+-- carry. Attachment bytes lived beside it on disk, so a restore or a move to a new
+-- machine produced attachment rows whose files did not exist. Storing the bytes in
+-- the database makes attachments inherit every guarantee the database already has.
+--
+-- Purely additive: a nullable BLOB column. Existing rows keep working unchanged and
+-- are backfilled from disk at the next backend startup
+-- (`backfillAttachmentContent()` in `attachments.backfill.ts`). No data is rewritten
+-- or deleted here, so this migration is safe to apply to a live production database.
+ALTER TABLE "attachments" ADD COLUMN "content" BLOB;

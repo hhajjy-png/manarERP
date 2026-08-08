@@ -35,6 +35,27 @@ const FILE_PREFIX: Record<BackupType, string> = {
 };
 
 export class BackupService {
+  /**
+   * المسار الفعلي لملف نسخة احتياطية **على هذا الجهاز الآن**
+   * (Zero Data Loss Certification Pack v1).
+   *
+   * العمود `filePath` يخزّن مسارًا مطلقًا كُتب لحظة إنشاء النسخة. ثلاثة أحداث
+   * واقعية تُبطله بينما الملف نفسه سليم على القرص:
+   *   • استعادة قاعدة على جهاز آخر (اسم مستخدم Windows مختلف).
+   *   • تغيير `productName` أو `appId` — ينقل `userData` ومعه مجلد النسخ كاملًا.
+   *   • نقل مجلد النسخ يدويًا إلى قرص آخر.
+   * في كل هذه الحالات كانت كل نسخة في القائمة تصبح غير قابلة للاستعادة برسالة
+   * «ملف النسخة غير موجود» رغم وجود الملف فعلًا — أي فقدان قدرة تعافٍ لا فقدان ملف.
+   *
+   * الاشتقاق من `BACKUP_DIR` الحالي + اسم الملف يعالج ذلك، والرجوع إلى المسار
+   * المخزَّن يحفظ الحالات القديمة التي كُتبت خارج المجلد الحالي — فلا يخسر أحد شيئًا.
+   */
+  resolveBackupFile(backup: { fileName: string; filePath: string }): string {
+    const derived = path.join(path.resolve(process.cwd(), env.BACKUP_DIR), path.basename(backup.fileName));
+    if (fs.existsSync(derived)) return derived;
+    return backup.filePath;
+  }
+
   /** إنشاء نسخة احتياطية من ملف قاعدة البيانات. */
   async create(type: BackupType, createdById?: number) {
     const dbPath = resolveDbPath();
@@ -82,7 +103,10 @@ export class BackupService {
   async restore(backupId: number) {
     const backup = await prisma.backup.findUnique({ where: { id: backupId } });
     if (!backup) throw AppError.notFound('النسخة الاحتياطية غير موجودة');
-    if (!fs.existsSync(backup.filePath)) throw AppError.badRequest('ملف النسخة غير موجود على القرص');
+    // المسار المشتقّ لا المخزَّن — فتبقى النسخ قابلة للاستعادة بعد انتقال مجلد
+    // البيانات (تغيير productName/appId، أو جهاز جديد). انظر `resolveBackupFile`.
+    const sourcePath = this.resolveBackupFile(backup);
+    if (!fs.existsSync(sourcePath)) throw AppError.badRequest('ملف النسخة غير موجود على القرص');
 
     const dbPath = resolveDbPath();
 
@@ -94,7 +118,7 @@ export class BackupService {
     }
 
     await disconnectDatabase();
-    fs.copyFileSync(backup.filePath, dbPath);
+    fs.copyFileSync(sourcePath, dbPath);
     logger.warn(`تمت استعادة قاعدة البيانات من ${backup.fileName} — يجب إعادة تشغيل الخدمة`);
 
     return { restored: true, requiresRestart: true, fileName: backup.fileName };
@@ -114,7 +138,10 @@ export class BackupService {
   async remove(backupId: number) {
     const backup = await prisma.backup.findUnique({ where: { id: backupId } });
     if (!backup) throw AppError.notFound('النسخة الاحتياطية غير موجودة');
-    if (fs.existsSync(backup.filePath)) fs.unlinkSync(backup.filePath);
+    // المسار المشتقّ — فيُحذف الملف فعلًا حتى بعد انتقال مجلد البيانات، بدل ترك
+    // ملف يتيم على القرص وسجلّ محذوف في القاعدة.
+    const target = this.resolveBackupFile(backup);
+    if (fs.existsSync(target)) fs.unlinkSync(target);
     await prisma.backup.delete({ where: { id: backupId } });
     return { deleted: true };
   }
@@ -145,7 +172,11 @@ export class BackupService {
 
     const verifiedAt = new Date();
 
-    if (!fs.existsSync(backup.filePath)) {
+    // المسار المشتقّ — وإلا رُصدت كل نسخة سليمة على أنها «مفقودة» بمجرّد انتقال
+    // مجلد البيانات، فتُفقد الثقة بالنسخ الاحتياطية وهي موجودة فعلًا.
+    const backupFile = this.resolveBackupFile(backup);
+
+    if (!fs.existsSync(backupFile)) {
       await prisma.backup.update({
         where: { id: backupId },
         data: {
@@ -158,7 +189,7 @@ export class BackupService {
     }
 
     // Read first 16 bytes to validate SQLite header
-    const fd = fs.openSync(backup.filePath, 'r');
+    const fd = fs.openSync(backupFile, 'r');
     const headerBuf = Buffer.alloc(16);
     fs.readSync(fd, headerBuf, 0, 16, 0);
     fs.closeSync(fd);
@@ -182,10 +213,10 @@ export class BackupService {
     }
 
     // Compute checksum (read-only)
-    const checksum = this.computeChecksum(backup.filePath);
+    const checksum = this.computeChecksum(backupFile);
 
     // Check file size matches recorded size
-    const { size } = fs.statSync(backup.filePath);
+    const { size } = fs.statSync(backupFile);
     const sizeNote = size !== backup.sizeBytes
       ? ` — حجم الملف (${size}) يختلف عن المسجّل (${backup.sizeBytes})`
       : '';
@@ -226,8 +257,11 @@ export class BackupService {
 
     for (const b of toDelete) {
       try {
-        if (fs.existsSync(b.filePath)) {
-          fs.unlinkSync(b.filePath);
+        // المسار المشتقّ — بدونه كان التقليم بعد انتقال مجلد البيانات يحذف السجلّ
+        // ويترك الملف على القرص إلى الأبد، فينمو المجلد بلا حدّ بلا أثر في القائمة.
+        const target = this.resolveBackupFile(b);
+        if (fs.existsSync(target)) {
+          fs.unlinkSync(target);
           deletedFiles.push(b.fileName);
         }
       } catch {

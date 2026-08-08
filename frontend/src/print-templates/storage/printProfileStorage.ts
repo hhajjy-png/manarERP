@@ -6,9 +6,14 @@
  *
  * Key format: `manar:print-profile:<category>`
  *   e.g.    `manar:print-profile:invoice`
+ *
+ * Zero Data Loss Certification Pack v1: القراءة تبقى متزامنة من `localStorage`
+ * (المخبأ)، أما الكتابة فتمرّ عبر `persistPreference` لتُحفظ أيضًا في قاعدة البيانات
+ * — فيدخل ملف الطباعة المضبوط لكل فئة النسخَ الاحتياطي والمزامنة وينتقل مع الجهاز.
  */
 
 import type { PrintTemplateCategory } from '../engine/types';
+import { persistPreference, removePreference } from '../../lib/syncedPreferences';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,7 +88,7 @@ export function loadPrintProfile(category: PrintTemplateCategory): PrintProfile 
 export function savePrintProfile(category: PrintTemplateCategory, profile: PrintProfile): void {
   if (!storageAvailable()) return;
   try {
-    window.localStorage.setItem(storageKey(category), JSON.stringify(profile));
+    persistPreference(storageKey(category), JSON.stringify(profile));
   } catch {
     // ignore — quota exceeded, private mode, etc.
   }
@@ -95,7 +100,7 @@ export function savePrintProfile(category: PrintTemplateCategory, profile: Print
 export function resetPrintProfile(category: PrintTemplateCategory): void {
   if (!storageAvailable()) return;
   try {
-    window.localStorage.removeItem(storageKey(category));
+    removePreference(storageKey(category));
   } catch {
     // ignore
   }

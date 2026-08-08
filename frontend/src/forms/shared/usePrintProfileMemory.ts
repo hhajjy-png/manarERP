@@ -1,5 +1,8 @@
 import { useState, useCallback } from 'react';
 import { ProfileId, DEFAULT_PROFILE_ID, PRINT_PROFILES } from './printProfiles';
+// Zero Data Loss Certification Pack v1 — الكتابة تذهب إلى قاعدة البيانات أيضًا،
+// فينتقل ملف الطباعة وعدد النسخ المحفوظان لكل نموذج مع النسخة الاحتياطية والمزامنة.
+import { persistPreference } from '../../lib/syncedPreferences';
 
 function loadSaved(formType: string): ProfileId | null {
   try {
@@ -11,7 +14,7 @@ function loadSaved(formType: string): ProfileId | null {
 
 function savePref(formType: string, profile: ProfileId): void {
   try {
-    localStorage.setItem(`manar.printProfile.${formType}`, profile);
+    persistPreference(`manar.printProfile.${formType}`, profile);
   } catch {}
 }
 
@@ -49,6 +52,6 @@ export function loadCopies(formType: string): number {
 
 export function saveCopies(formType: string, n: number): void {
   try {
-    localStorage.setItem(`manar.copies.${formType}`, String(n));
+    persistPreference(`manar.copies.${formType}`, String(n));
   } catch {}
 }

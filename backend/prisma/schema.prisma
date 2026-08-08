@@ -712,11 +712,26 @@ model Attachment {
   title        String
   fileName     String // stored filename (uuid prefix)
   originalName String // original upload filename
-  filePath     String // absolute path on disk
+  filePath     String // مسار مطلق قديم — تشخيصي فقط؛ لا يُعتمد عليه (انظر `content`)
   fileSize     Int      @default(0) // bytes
   mimeType     String?
   uploadedById Int?
   uploadedAt   DateTime @default(now())
+
+  // بايتات الملف نفسها — المصدر الوحيد للحقيقة منذ Zero Data Loss Certification Pack v1.
+  //
+  // لماذا داخل قاعدة البيانات لا بجوارها: وحدة النسخ الاحتياطي والمزامنة في هذا
+  // المشروع هي ملف `manar.db` وحده (`backup.service.create` ينسخه، و`syncEngine`
+  // يرفعه/ينزّله). كل ما يعيش خارجه لا يُنسَخ ولا يُزامَن ولا ينتقل إلى جهاز جديد.
+  // كانت المرفقات تعيش على القرص فقط، فكانت الاستعادة تُنتج سجلّات مرفقات بلا ملفات
+  // — فقدان بيانات صامت. وضع البايتات هنا يجعل المرفقات تَرِث تلقائيًا كل ضمانات
+  // القاعدة (WAL checkpoint، sha256، الاستبدال الذرّي، حلّ التعارض، نسخة الإنقاذ)
+  // بلا نظام تخزين ثانٍ يحتاج دلالات تعارض خاصة به.
+  //
+  // `Bytes?` لا `Bytes`: العمود مضاف لاحقًا على قواعد فيها صفوف قائمة، فيبدأ NULL
+  // ويملؤه `backfillAttachmentContent()` عند الإقلاع من الملفات الموجودة على القرص.
+  // أي صف يبقى NULL يعني أن ملفه فُقد قبل هذه الحزمة — لا يُخترع له محتوى.
+  content Bytes?
 
   uploadedBy User? @relation("AttachmentUploader", fields: [uploadedById], references: [id])
 

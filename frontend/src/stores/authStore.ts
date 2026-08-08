@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api, getToken, setToken } from '../api/client';
 import { clearPersistedUIState } from '../hooks/usePersistedState';
+import { clearSyncedPreferenceCache, flushPreferenceWrites } from '../lib/syncedPreferences';
 
 /** إرسال توكن الجلسة إلى Electron Main Process للتحقق منه عبر Backend مباشرة. */
 function syncElectronToken(token: string | null) {
@@ -49,11 +50,19 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   async logout() {
+    // Zero Data Loss Certification Pack v1 — تُدفع آخر كتابات التفضيلات إلى قاعدة
+    // البيانات **قبل** إبطال الرمز. بدون هذا كان تفضيل غُيِّر في آخر نصف ثانية قبل
+    // الخروج يضيع، لأن الدفعة المؤجّلة كانت سترسَل بعد إبطال الجلسة فتُرفض بـ401.
+    await flushPreferenceWrites();
     try {
       await api.post('/auth/logout');
     } catch {
       // نتجاهل أخطاء الخروج
     }
+    // المخبأ المحلي للتفضيلات يُمسح مع بقية حالة الواجهة: التفضيلات صارت لكل مستخدم
+    // في القاعدة بينما `localStorage` لكل جهاز، فبقاؤها كان سيُظهر تفضيلات المستخدم
+    // السابق للمستخدم التالي في اللحظة بين دخوله واكتمال المزامنة.
+    clearSyncedPreferenceCache();
     clearPersistedUIState();
     setToken(null);
     set({ user: null });

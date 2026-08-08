@@ -5,6 +5,7 @@ import { useT } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
 import { resolveName } from '../lib/resolveName';
 import { useToast } from '../stores/toastStore';
+import { persistPreference } from '../lib/syncedPreferences';
 import { formatDate, formatDisplayDate } from '../lib/date';
 import { PageMeta } from '../components/DataTable';
 import DateInput from '../components/DateInput';
@@ -55,7 +56,8 @@ function readBoardVisible(): boolean {
 
 function writeBoardVisible(visible: boolean) {
   try {
-    localStorage.setItem(AGREEMENTS_BOARD_KEY, visible ? 'shown' : 'hidden');
+    // Zero Data Loss Certification Pack v1 — يُحفظ في قاعدة البيانات أيضًا فينتقل مع الجهاز.
+    persistPreference(AGREEMENTS_BOARD_KEY, visible ? 'shown' : 'hidden');
   } catch {
     /* التخزين غير متاح — الجلسة الحالية تعمل، والاستعادة وحدها ما يضيع */
   }

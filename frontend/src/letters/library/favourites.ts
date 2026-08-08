@@ -48,9 +48,33 @@ function read(key: string): Buckets {
   }
 }
 
+/**
+ * أين تُكتب المفضّلات فعلًا — منفذ يُركَّب من الخارج (Zero Data Loss Certification
+ * Pack v1).
+ *
+ * المفضّلات والمؤخّرات بيانات اختارها المستخدم، وكانت حبيسة `localStorage` أي خارج
+ * النسخ الاحتياطي والمزامنة. لكن `src/letters/` محرك مستقل يمنع اختبارُ حدوده
+ * (`engineBoundary.test.ts`) أي استيراد خارجه عدا سجلّ الخطوط — والالتفاف على ذلك
+ * الحد لتمرير هذه الحزمة كان سيهدم ثابتًا معماريًا قائمًا مقابل مكسب يمكن تحقيقه
+ * دون كسره.
+ *
+ * لذلك يُعرَّف المنفذ هنا ويُركِّبه مُركِّب التطبيق (`main.tsx`) بكاتب التفضيلات.
+ * الافتراضي هو سلوك ما قبل الحزمة حرفيًا، فالمحرك يبقى صالحًا للعمل والاختبار وحده.
+ */
+type PreferenceWriter = (key: string, rawValue: string) => void;
+
+let writePreference: PreferenceWriter = (key, rawValue) => {
+  window.localStorage.setItem(key, rawValue);
+};
+
+/** يُركِّب كاتب التفضيلات المتزامن مع قاعدة البيانات. يُستدعى مرة واحدة عند الإقلاع. */
+export function setFavouritesPersistence(writer: PreferenceWriter): void {
+  writePreference = writer;
+}
+
 function write(key: string, buckets: Buckets): void {
   try {
-    window.localStorage.setItem(key, JSON.stringify(buckets));
+    writePreference(key, JSON.stringify(buckets));
   } catch {
     // A full quota must never stop someone writing a letter.
   }
