@@ -22,7 +22,16 @@
  *   chequeDate = 2026-08-02    → must print  02 / 08 / 2026
  *   and must NEVER print the legacy sample  24 / 07 / 2026
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+
+// Cheque designer templates live in the database now (Cheque Template
+// Persistence Migration Pack v1), so the store block below talks to a fake of
+// `/api/cheque-designer-templates` that mirrors the real service semantics.
+// Nothing else in this file touches the API client.
+vi.mock('../api/client', async () => {
+  const mod = await import('./helpers/fakeChequeTemplateApi');
+  return { api: mod.fakeApi };
+});
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
@@ -40,6 +49,15 @@ import {
   LTR_ISOLATED_KEYS,
 } from '../modules/chequeTemplateRuntime';
 import type { RuntimeData, SemanticKey } from '../modules/chequeTemplateRuntime';
+import { fakeTemplateDb, resetFakeTemplateDb, seedFakeTemplates } from './helpers/fakeChequeTemplateApi';
+import {
+  LEGACY_STORAGE_KEY,
+  resetLegacyImportForTests,
+  listTemplates,
+  getTemplate,
+  getDefaultTemplate,
+  saveTemplate,
+} from '../components/chequeTemplateManager/chequeDesignerStore';
 import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import ChequeRenderSurface from '../components/chequeTemplateManager/ChequeRenderSurface';
@@ -262,10 +280,14 @@ describe('template normalization (legacy migration)', () => {
   });
 });
 
-describe('chequeDesignerStore — legacy templates keep working', () => {
-  const STORAGE_KEY = 'chequeDesigner.templates.v1';
-
-  /** The five real stored templates, verbatim in the legacy (binding-less) shape. */
+describe('chequeDesignerStore — legacy templates keep working after the move to SQLite', () => {
+  /**
+   * The five real stored templates, verbatim in the legacy (binding-less) shape
+   * the old `localStorage` store wrote. They are seeded into browser storage and
+   * then carried into the database by the one-time import, which is exactly the
+   * path a real upgrading installation takes — so these tests prove the date
+   * defect stays fixed ACROSS the migration, not just before it.
+   */
   function seedLegacyStore() {
     const templates = LEGACY_TEMPLATE_NAMES.map((name, i) => ({
       id: `tpl-${i}`,
@@ -276,53 +298,48 @@ describe('chequeDesignerStore — legacy templates keep working', () => {
       createdAt: '2026-07-24T04:02:48.954Z',
       updatedAt: `2026-07-30T13:${String(10 + i).padStart(2, '0')}:00.000Z`,
     }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, templates }));
+    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ version: 1, templates }));
   }
 
   beforeEach(() => {
     localStorage.clear();
+    resetFakeTemplateDb();
+    resetLegacyImportForTests();
     seedLegacyStore();
   });
   afterEach(() => localStorage.clear());
 
   it('none of the seeded templates has a stored binding (the legacy shape is real)', () => {
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as { templates: { fields: DesignerField[] }[] };
+    const raw = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY)!) as { templates: { fields: DesignerField[] }[] };
     for (const t of raw.templates) {
       for (const f of t.fields) expect(f.binding).toBeUndefined();
     }
   });
 
   it('every read path hands out normalized bindings — all 5 templates preserved', async () => {
-    const { listTemplates, getDefaultTemplate, getTemplate } = await import(
-      '../components/chequeTemplateManager/chequeDesignerStore'
-    );
-    const all = listTemplates();
+    const all = await listTemplates();
     expect(all).toHaveLength(5);
     expect(all.map((t) => t.name).sort()).toEqual([...LEGACY_TEMPLATE_NAMES].sort());
     for (const t of all) {
       expect(t.fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
       expect(t.fields.find((f) => f.id === 'amount')?.binding).toBe('amount');
     }
-    expect(getDefaultTemplate()?.name).toBe('تجربه');
-    expect(getTemplate('tpl-0')?.fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
+    expect((await getDefaultTemplate())?.name).toBe('تجربه');
+    expect((await getTemplate('tpl-0'))?.fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
   });
 
   it('a normal save PERSISTS the corrected shape (no manual recreation needed)', async () => {
-    const { getDefaultTemplate, saveTemplate } = await import(
-      '../components/chequeTemplateManager/chequeDesignerStore'
-    );
-    const tpl = getDefaultTemplate()!;
-    saveTemplate(tpl.id, { surface: tpl.surface, fields: tpl.fields });
+    const tpl = (await getDefaultTemplate())!;
+    await saveTemplate(tpl.id, { surface: tpl.surface, fields: tpl.fields });
 
-    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as { templates: { name: string; fields: DesignerField[] }[] };
-    expect(raw.templates).toHaveLength(5); // nothing deleted or recreated
-    const saved = raw.templates.find((t) => t.name === 'تجربه')!;
-    expect(saved.fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
+    expect(fakeTemplateDb.templates).toHaveLength(5); // nothing deleted or recreated
+    const saved = fakeTemplateDb.templates.find((t) => t.name === 'تجربه')!;
+    const fields = saved.fields as DesignerField[];
+    expect(fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
   });
 
   it('a stored template read from the store prints the ACTUAL cheque date end to end', async () => {
-    const { getDefaultTemplate } = await import('../components/chequeTemplateManager/chequeDesignerStore');
-    const tpl = getDefaultTemplate()!;
+    const tpl = (await getDefaultTemplate())!;
     const model = resolveChequeTemplateForPrint(
       { surface: tpl.surface, fields: tpl.fields },
       buildChequeRuntimeData(CHEQUE_000002),
@@ -333,13 +350,14 @@ describe('chequeDesignerStore — legacy templates keep working', () => {
   });
 
   it('a malformed stored template degrades safely instead of throwing', async () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ version: 1, templates: [{ id: 'x', name: 'broken', isDefault: true, surface: SURFACE }] }),
-    );
-    const { listTemplates } = await import('../components/chequeTemplateManager/chequeDesignerStore');
-    expect(() => listTemplates()).not.toThrow();
-    expect(listTemplates()[0].fields).toEqual([]);
+    resetFakeTemplateDb();
+    resetLegacyImportForTests();
+    localStorage.clear();
+    seedFakeTemplates([
+      { id: 'x', name: 'broken', isDefault: true, surface: SURFACE, fields: undefined as unknown as unknown[], createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
+    ]);
+    const rows = await listTemplates();
+    expect(rows[0].fields).toEqual([]);
   });
 });
 

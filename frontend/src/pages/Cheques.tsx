@@ -17,6 +17,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
 import ChequeStudioOverlay from '../components/ChequeStudioOverlay';
 import { getDefaultTemplate } from '../components/chequeTemplateManager/chequeDesignerStore';
+import type { StoredChequeTemplate } from '../components/chequeTemplateManager/chequeDesignerStore';
 import {
   A4_LANDSCAPE_PAGE,
   buildChequePrintJob,
@@ -352,6 +353,33 @@ export default function Cheques() {
   // this until the real configuration is known.
   const printReady = printConfigState === 'ready';
 
+  // ── Default cheque template (database-backed) ───────────────────────────────
+  // Cheque designer templates moved out of browser `localStorage` and into
+  // `manar.db` (Cheque Template Persistence Migration Pack v1), so reading the
+  // flagged default is now a request. It is still read AT CLICK TIME — never
+  // cached in React state — which is what preserved the deterministic-geometry
+  // guarantee before and preserves it now.
+  //
+  // The read is wrapped so a transport failure is reported as a transport
+  // failure. Collapsing it into `resolveDefaultPrintTemplate`'s "no default
+  // configured" message would tell the user to go configure a template that is
+  // in fact already configured — and would invite them to create a duplicate.
+  type DefaultTemplateLoad =
+    | { ok: true; get: () => StoredChequeTemplate | null }
+    | { ok: false; message: string };
+
+  async function loadDefaultTemplate(): Promise<DefaultTemplateLoad> {
+    try {
+      const template = await getDefaultTemplate();
+      return { ok: true, get: () => template };
+    } catch {
+      return {
+        ok: false,
+        message: 'تعذّر قراءة قالب الشيك الافتراضي من قاعدة البيانات. تأكد من عمل النظام ثم أعد المحاولة — لن تتم الطباعة بقالب غير مؤكد.',
+      };
+    }
+  }
+
   /** Guard every production print entry point. Returns false (and explains) when not ready. */
   function assertPrintReady(): boolean {
     if (printReady) return true;
@@ -550,7 +578,7 @@ export default function Cheques() {
   // the existing ChequeTemplatePrintPage (one navigation per item, same as the
   // single-item `handleTemplatePrint` path), which now carries tracking + a
   // Next/Finish control gated on the real print result — see that page.
-  function handlePrintSelectedCheques() {
+  async function handlePrintSelectedCheques() {
     // Settings gate — see `printReady`. Never fall back to the initial 'classic'
     // provider before the saved one has loaded.
     if (!assertPrintReady()) return;
@@ -571,7 +599,14 @@ export default function Cheques() {
     // default, never an updatedAt-ordered guess. Resolved once here and shared by
     // every item, so batch geometry cannot drift between items and is identical
     // to printing any of those cheques singly. Only runtimeData varies per item.
-    const resolution = resolveDefaultPrintTemplate(getDefaultTemplate);
+    //
+    // The template is fetched from the database at click time (Cheque Template
+    // Persistence Migration Pack v1) — the same re-read-at-click-time guarantee
+    // as before, now against the single source of truth rather than browser
+    // storage. `resolveDefaultPrintTemplate` stays the pure decision function.
+    const loaded = await loadDefaultTemplate();
+    if (!loaded.ok) { setFormError(loaded.message); return; }
+    const resolution = resolveDefaultPrintTemplate(loaded.get);
     if (!resolution.ok) { setFormError(resolution.message); return; }
     const tpl = resolution.template;
     clearSelection();
@@ -643,11 +678,13 @@ export default function Cheques() {
   // Route the print request to the EXISTING Official Cheque Template print page
   // (Runtime Engine → ChequeRenderSurface). Real Cheque = 178×89mm; A4 = A4 sheet.
   // Uses the user's default saved template (or the most recent one).
-  function handleTemplatePrint(paperMode: 'real-cheque' | 'a4', cheque?: Cheque) {
+  async function handleTemplatePrint(paperMode: 'real-cheque' | 'a4', cheque?: Cheque) {
     // Same resolution as the batch path — the flagged default, re-read from
     // storage at click time so no React state can go stale, and with no
     // updatedAt-ordered fallback that could silently switch templates.
-    const resolution = resolveDefaultPrintTemplate(getDefaultTemplate);
+    const loaded = await loadDefaultTemplate();
+    if (!loaded.ok) { setFormError(loaded.message); return; }
+    const resolution = resolveDefaultPrintTemplate(loaded.get);
     if (!resolution.ok) { setFormError(resolution.message); return; }
     const tpl = resolution.template;
     const job = buildChequePrintJob({

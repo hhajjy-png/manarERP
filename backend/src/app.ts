@@ -29,6 +29,7 @@ import reportsRoutes from './modules/reports/reports.routes';
 import accountingRoutes from './modules/accounting/accounting.routes';
 import inventoryRoutes from './modules/inventory/inventory.routes';
 import chequesRoutes from './modules/cheques/cheques.routes';
+import chequeDesignerTemplatesRoutes from './modules/chequeDesignerTemplates/chequeDesignerTemplates.routes';
 import importRoutes from './modules/import/import.routes';
 import pricesRoutes from './modules/prices/prices.routes';
 import workAnalysisRoutes from './modules/workAnalysis/workAnalysis.routes';
@@ -125,6 +126,7 @@ export function createApp(): Application {
   app.use('/api/accounting', accountingRoutes);
   app.use('/api/inventory', inventoryRoutes);
   app.use('/api/cheques', chequesRoutes);
+  app.use('/api/cheque-designer-templates', chequeDesignerTemplatesRoutes);
   app.use('/api/import', importRoutes);
   app.use('/api/prices', pricesRoutes);
   app.use('/api/forms', formsRoutes);
