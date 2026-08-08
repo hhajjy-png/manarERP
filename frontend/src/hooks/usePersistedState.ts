@@ -1,4 +1,5 @@
 import { Dispatch, SetStateAction, useRef, useState } from 'react';
+import { persistPreference } from '../lib/syncedPreferences';
 
 // All prefixes used by usePersistedState across the app.
 // Update this list when adding persisted state to a new page.
@@ -22,8 +23,12 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+// يمرّ عبر `persistPreference` لا `localStorage` مباشرةً: المفاتيح المسجَّلة في
+// `syncedPreferences` تُحفظ أيضًا في قاعدة البيانات فتدخل النسخ الاحتياطي والمزامنة،
+// وما عداها (أرقام الصفحات، نصوص البحث، الفلاتر — حالة جلسة على هذا الجهاز) يسلك
+// سلوك `localStorage.setItem` القديم حرفيًا.
 function write(key: string, value: unknown): void {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
+  try { persistPreference(key, JSON.stringify(value)); } catch {}
 }
 
 export function usePersistedState<T>(

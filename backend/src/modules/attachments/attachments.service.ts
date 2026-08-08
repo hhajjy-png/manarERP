@@ -6,6 +6,7 @@ import { env } from '@config/env';
 import { AppError } from '@core/errors/AppError';
 import { recordAudit } from '@core/middleware/audit';
 import { hasRolePermission } from '@core/middleware/rbac.middleware';
+import { logger } from '@core/utils/logger';
 
 const ALLOWED_ENTITY_TYPES = new Set([
   'CUSTOMER', 'CONTRACT', 'INVOICE', 'EMPLOYEE', 'SUPPLIER', 'EXPENSE', 'EQUIPMENT',
@@ -65,12 +66,92 @@ export class AttachmentsService {
     return dir;
   }
 
+  /**
+   * المسار الذي يجب أن يعيش فيه المرفق **على هذا الجهاز الآن** — يُشتقّ دائمًا من
+   * `ATTACHMENTS_DIR` الحالي، ولا يُقرأ من العمود `filePath` أبدًا.
+   *
+   * العمود يخزّن مسارًا **مطلقًا** كُتب على جهاز الرفع (`C:\Users\<اسم>\AppData\…`).
+   * بعد استعادة نسخة على جهاز آخر — أو بعد تغيير `productName`/`appId` الذي ينقل
+   * مجلد `userData` — لا يوجد ذلك المسار، وحارس المسار في `attachments:openPath`
+   * يرفضه لأنه خارج مجلد المرفقات الحالي. الاشتقاق يجعل الصف صالحًا على أي جهاز.
+   */
+  currentPath(entityType: string, entityId: number, fileName: string): string {
+    return path.join(this.storageDir(entityType, entityId), path.basename(fileName));
+  }
+
+  /**
+   * يكتب بايتات المرفق إلى القرص إن لم تكن هناك — ذاتيّ الشفاء بلا تكلفة في الحالة
+   * الطبيعية (الملف موجود ⇒ لا عمل إطلاقًا).
+   *
+   * هذه هي اللحظة التي «تعود» فيها المرفقات بعد استعادة نسخة احتياطية أو مزامنة
+   * من جهاز آخر: القاعدة وصلت ومعها البايتات، ويكفي أول عرض لقائمة المرفقات كي
+   * تُكتب الملفات في مكانها الصحيح على الجهاز الجديد.
+   *
+   * الكتابة عبر ملف مؤقت ثم `rename` — حتى لا يرى `shell.openPath` ملفًا نصف مكتوب
+   * إن تزامن الفتح مع الكتابة، ولا يبقى ملف مبتور إذا انقطعت الكهرباء أثناءها.
+   */
+  private materializeIfMissing(att: {
+    entityType: string;
+    entityId: number;
+    fileName: string;
+    content: Buffer | Uint8Array | null;
+  }): string | null {
+    let target: string;
+    try {
+      target = this.currentPath(att.entityType, att.entityId, att.fileName);
+    } catch {
+      return null; // entityType غير مسموح (بيانات قديمة تالفة) — لا يُشتقّ مسار
+    }
+
+    if (fs.existsSync(target)) return target;
+    if (!att.content) return target; // لا بايتات محفوظة — الملف مفقود فعلًا
+
+    const tmp = `${target}.${process.pid}.tmp`;
+    try {
+      fs.writeFileSync(tmp, Buffer.from(att.content));
+      fs.renameSync(tmp, target);
+    } catch (err) {
+      try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch { /* تنظيف أفضل جهد */ }
+      logger.warn(`[Attachments] تعذّرت كتابة المرفق ${att.fileName} إلى القرص`, { error: err });
+    }
+    return target;
+  }
+
+  /**
+   * قائمة المرفقات — تُعيد `filePath` **المشتقّ لهذا الجهاز**، وتُنشئ الملف من
+   * القاعدة إن كان غائبًا.
+   *
+   * `select` صريح لا `include`: بلا ذلك يُدرج Prisma كل الحقول القياسية ومنها
+   * `content`، فتُرسل بايتات كل مرفقات الكيان في استجابة JSON واحدة عند كل فتح
+   * للوحة المرفقات. البايتات لا تغادر الخادم إطلاقًا.
+   */
   async list(entityType: string, entityId: number) {
-    return prisma.attachment.findMany({
+    const rows = await prisma.attachment.findMany({
       where: { entityType, entityId },
       orderBy: { uploadedAt: 'desc' },
-      include: { uploadedBy: { select: { username: true, fullName: true } } },
+      select: {
+        id: true,
+        entityType: true,
+        entityId: true,
+        title: true,
+        fileName: true,
+        originalName: true,
+        filePath: true,
+        fileSize: true,
+        mimeType: true,
+        uploadedById: true,
+        uploadedAt: true,
+        content: true,
+        uploadedBy: { select: { username: true, fullName: true } },
+      },
     });
+
+    return rows.map(({ content, ...row }) => ({
+      ...row,
+      filePath: this.materializeIfMissing({ ...row, content }) ?? row.filePath,
+      /** هل بايتات هذا المرفق محفوظة داخل القاعدة (⇒ تنتقل مع النسخ والمزامنة)؟ */
+      isPortable: content !== null,
+    }));
   }
 
   /**
@@ -86,6 +167,20 @@ export class AttachmentsService {
     uploadedById: number,
     req: Request,
   ) {
+    // البايتات تُقرأ من الملف الذي كتبه multer وتُخزَّن **داخل القاعدة**، لأنها
+    // وحدة النسخ والمزامنة الوحيدة في هذا المشروع. الملف على القرص يبقى كما هو
+    // (مخبّأ محلي يُستخدم للفتح بالتطبيق الافتراضي)، لكنه لم يعد المصدر الوحيد.
+    // فشل القراءة هنا خطأ قاتل للرفع: تسجيل مرفق بلا بايتات يعيد إنتاج نفس
+    // الفقدان الصامت الذي جاءت هذه الحزمة لإغلاقه.
+    let content: Buffer;
+    try {
+      content = fs.readFileSync(file.path);
+    } catch (err) {
+      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+      logger.error('[Attachments] تعذّرت قراءة الملف المرفوع لتخزينه في قاعدة البيانات', { error: err });
+      throw AppError.internal('تعذّر حفظ المرفق');
+    }
+
     let att;
     try {
       att = await prisma.attachment.create({
@@ -99,6 +194,7 @@ export class AttachmentsService {
           fileSize:     file.size,
           mimeType:     file.mimetype,
           uploadedById,
+          content,
         },
       });
     } catch (err) {
@@ -118,11 +214,24 @@ export class AttachmentsService {
   }
 
   async remove(id: number, userId: number, req: Request): Promise<void> {
-    const att = await prisma.attachment.findUnique({ where: { id } });
+    const att = await prisma.attachment.findUnique({
+      where: { id },
+      // بلا `content` عمدًا: الحذف لا يحتاج البايتات، وقراءتها تُحمّل ملفًا كاملًا
+      // في الذاكرة بلا سبب.
+      select: {
+        id: true, entityType: true, entityId: true,
+        fileName: true, originalName: true, filePath: true,
+      },
+    });
     if (!att) throw AppError.notFound('المرفق غير موجود');
 
-    if (fs.existsSync(att.filePath)) {
-      fs.unlinkSync(att.filePath);
+    // يُحذف كلا الموقعين: المسار المشتقّ لهذا الجهاز (الملف الفعلي الآن) والمسار
+    // المطلق القديم المخزَّن في الصف. على جهاز الرفع الأصلي هما نفس الملف، وعلى
+    // أي جهاز آخر يوجد الأول فقط — فحذفهما معًا لا يترك ملفًا يتيمًا في الحالتين.
+    let derived: string | null = null;
+    try { derived = this.currentPath(att.entityType, att.entityId, att.fileName); } catch { /* نوع كيان غير صالح */ }
+    for (const p of new Set([derived, att.filePath].filter((v): v is string => !!v))) {
+      try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch { /* أفضل جهد — الصف يُحذف بأي حال */ }
     }
 
     await prisma.attachment.delete({ where: { id } });

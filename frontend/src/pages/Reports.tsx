@@ -14,6 +14,7 @@ import { resolveName } from '../lib/resolveName';
 import { ARABIC_MONTHS } from '../utils/dateUtils';
 import { formatReportCell, formatCurrency } from '../lib/format';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
+import { persistPreference } from '../lib/syncedPreferences';
 import {
   ExecutiveHeader,
   IdChip,
@@ -230,13 +231,15 @@ const LS_RECENT    = 'rc_recent_v1';
 function loadFavorites(): string[] {
   try { return JSON.parse(localStorage.getItem(LS_FAVORITES) ?? '[]'); } catch { return []; }
 }
-function saveFavorites(ids: string[]) { localStorage.setItem(LS_FAVORITES, JSON.stringify(ids)); }
+// Zero Data Loss Certification Pack v1 — المفضّلات والمؤخّرات تُحفظ في قاعدة البيانات
+// أيضًا (عبر `persistPreference`) فتنتقل مع النسخة الاحتياطية والمزامنة.
+function saveFavorites(ids: string[]) { persistPreference(LS_FAVORITES, JSON.stringify(ids)); }
 function loadRecent(): string[] {
   try { return JSON.parse(localStorage.getItem(LS_RECENT) ?? '[]'); } catch { return []; }
 }
 function pushRecent(key: string) {
   const prev = loadRecent().filter((k) => k !== key);
-  localStorage.setItem(LS_RECENT, JSON.stringify([key, ...prev].slice(0, 5)));
+  persistPreference(LS_RECENT, JSON.stringify([key, ...prev].slice(0, 5)));
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

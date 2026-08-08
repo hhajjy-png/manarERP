@@ -7,6 +7,7 @@ import PageLoader from './PageLoader';
 import { useAuth } from '../stores/authStore';
 import { useUI } from '../stores/uiStore';
 import { useSettings } from '../stores/settingsStore';
+import { hydrateSyncedPreferences } from '../lib/syncedPreferences';
 import { useT } from '../lib/i18n';
 import almanarLogo from '../assets/almanar-logo.png';
 // نفس الشعار بخلفية شفافة (RGBA) — الأصل بخلفية بيضاء صلبة تظهر كمربّع في الوضع الداكن.
@@ -68,6 +69,21 @@ export default function Layout() {
   useEffect(() => {
     if (user && !settingsLoaded) loadCompanySettings();
   }, [user, settingsLoaded, loadCompanySettings]);
+
+  // مزامنة تفضيلات المستخدم مع قاعدة البيانات بعد المصادقة
+  // (Zero Data Loss Certification Pack v1).
+  //
+  // هذه هي اللحظة التي تعود فيها تفضيلات المستخدم على **جهاز جديد**: القيم وصلت
+  // داخل `manar.db` مع النسخة الاحتياطية أو مزامنة Google Drive، وهنا تُنزَّل إلى
+  // المخبأ المحلي الذي تقرأ منه الشاشات بشكل متزامن. وفي أول تشغيل بعد الترقية
+  // تُرفع التفضيلات المتراكمة محليًا إلى القاعدة — هجرة صامتة بلا أي إجراء من
+  // المستخدم. لا يرمي أبدًا: تعذّر الاتصال يعني بقاء التفضيلات محلية هذه الجلسة،
+  // وهو سلوك ما قبل الحزمة بالضبط.
+  const preferencesUserId = user?.id;
+  useEffect(() => {
+    if (preferencesUserId === undefined) return;
+    void hydrateSyncedPreferences();
+  }, [preferencesUserId]);
 
   async function onLogout() {
     await logout();

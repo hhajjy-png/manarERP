@@ -4,6 +4,7 @@ import { logger } from './core/utils/logger';
 import { disconnectDatabase, initDatabase } from './config/database';
 import { runPendingMigrations } from './core/utils/migrate';
 import { reconcileSequencesOnStartup } from './modules/letters/reference.service';
+import { backfillAttachmentContent } from './modules/attachments/attachments.backfill';
 
 /**
  * يسجّل خطأ قاتل ثم يُنهي العملية بأمان (قطع اتصال قاعدة البيانات أولًا إن أمكن).
@@ -41,6 +42,10 @@ async function startServer() {
     // ضروري بعد استعادة نسخة احتياطية أقدم من آخر خطاب صادر: بدونه يُعاد إصدار
     // أرقام مرجعية موجودة على ورق سُلّم للغير. لا يرمي أبدًا — شبكة أمان لا شرط بدء.
     await reconcileSequencesOnStartup();
+    // المرفقات المرفوعة قبل Zero Data Loss Certification Pack v1 تعيش على القرص
+    // وحده، أي خارج النسخ الاحتياطي والمزامنة. هذا ينقل بايتاتها إلى القاعدة مرّة
+    // واحدة. لا يرمي أبدًا، ويعود فورًا بعد أول تشغيل — شبكة أمان لا شرط بدء.
+    await backfillAttachmentContent();
   } catch (err) {
     crashSafely('startup', err);
     return;

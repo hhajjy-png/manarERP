@@ -1,4 +1,7 @@
 import { searchLocationsGrouped, CategoryGroup } from '../constants/kuwaitLocations';
+// Zero Data Loss Certification Pack v1 — ذكاء المواقع مُتعلَّم من إدخال المستخدم
+// نفسه، فيُحفظ في قاعدة البيانات لينتقل مع النسخة الاحتياطية والمزامنة.
+import { persistPreference } from '../lib/syncedPreferences';
 
 export const RECENT_KEY = 'manarERP.recentInvoiceLocations';
 export const USAGE_COUNTS_KEY = 'manarERP.locationUsageCounts';
@@ -32,7 +35,7 @@ function incrementUsageCount(location: string): void {
   const counts = getUsageCounts();
   counts[location] = (counts[location] ?? 0) + 1;
   try {
-    localStorage.setItem(USAGE_COUNTS_KEY, JSON.stringify(counts));
+    persistPreference(USAGE_COUNTS_KEY, JSON.stringify(counts));
   } catch {
     // localStorage unavailable — ignore
   }
@@ -53,7 +56,7 @@ export function addRecentLocation(location: string): void {
   const current = getRecentLocations().filter((r) => r !== trimmed);
   const updated = [trimmed, ...current].slice(0, MAX_RECENT);
   try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(updated));
+    persistPreference(RECENT_KEY, JSON.stringify(updated));
   } catch {
     // localStorage unavailable — ignore
   }

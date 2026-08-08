@@ -49,7 +49,15 @@ describe('the templates table is part of the database, so it is part of everythi
 
   it('restore replaces the whole database file', () => {
     const backup = read('backend/src/shared/services/backup.service.ts');
-    expect(backup).toContain('fs.copyFileSync(backup.filePath, dbPath)');
+    // الحقيقة المحمية هنا هي «ملف كامل يحلّ محلّ ملف كامل»، لا اسم المتغيّر الذي
+    // يحمل المصدر. Zero Data Loss Certification Pack v1 غيّر المصدر من العمود
+    // المخزَّن `backup.filePath` إلى المسار المشتقّ `resolveBackupFile(...)` كي تبقى
+    // النسخ قابلة للاستعادة بعد انتقال مجلد البيانات — وهو **تقوية** لنفس الضمانة
+    // التي يحرسها هذا الاختبار، لا تراجع عنها. لذلك يُثبَّت الوجهة (`dbPath`) ومصدر
+    // المسار (`resolveBackupFile`)، ويُترك اسم المتغيّر الوسيط حرًّا.
+    expect(backup).toMatch(/fs\.copyFileSync\(\s*\w+\s*,\s*dbPath\s*\)/);
+    expect(backup).toContain('this.resolveBackupFile(backup)');
+    expect(backup).not.toMatch(/tables\s*[:=]\s*\[/);
   });
 
   it('export to an external path — moving to a new machine — copies the whole file', () => {

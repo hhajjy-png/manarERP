@@ -1,8 +1,14 @@
 // Smart Import Assistant (Phase 2B-G) — saved mapping profiles.
-// Frontend-only, localStorage. NO backend sync. Stores ONLY headers + field mapping
-// (never file contents or row data). Keyed by entity + normalized header signature.
+// Stores ONLY headers + field mapping (never file contents or row data). Keyed by
+// entity + normalized header signature.
+//
+// Zero Data Loss Certification Pack v1: هذه ملفات يبنيها المستخدم بيده لكل شكل ملف
+// وارد، وكانت تعيش في `localStorage` وحده — خارج النسخ الاحتياطي والمزامنة، وتضيع
+// عند الانتقال إلى جهاز جديد. صارت تُحفظ في قاعدة البيانات عبر `persistPreference`
+// (القراءة تبقى متزامنة من المخبأ المحلي — لا تغيير في سلوك أي مستدعٍ).
 
 import { normalizeHeader } from './headerIntelligence';
+import { persistPreference } from '../lib/syncedPreferences';
 
 const STORAGE_KEY = 'manar.import.mapping_profiles';
 
@@ -33,7 +39,7 @@ function readAll(): MappingProfile[] {
 
 function writeAll(profiles: MappingProfile[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+    persistPreference(STORAGE_KEY, JSON.stringify(profiles));
   } catch {
     /* storage full / unavailable — profiles are a convenience, ignore */
   }

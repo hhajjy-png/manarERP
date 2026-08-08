@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { isProtectedNavKey, sanitizeHiddenNavKeys } from '../config/navVisibility';
+import { persistPreference } from '../lib/syncedPreferences';
 
 type Theme = 'light' | 'dark';
 export type Lang = 'ar' | 'en';
@@ -87,9 +88,14 @@ function readHiddenNavKeys(): string[] {
   }
 }
 
+// Zero Data Loss Certification Pack v1 — إخفاء عناصر القائمة ووضع الشريط الجانبي
+// إعدادان ضبطهما المستخدم صراحةً (أُصدرا كميزة «إدارة ظهور الشريط الجانبي»)، لا
+// حالة جلسة عابرة. يُحفظان الآن في قاعدة البيانات أيضًا فينتقلان مع النسخة الاحتياطية
+// والمزامنة إلى أي جهاز. القراءة تبقى متزامنة من المخبأ المحلي — لا وميض ولا تغيير
+// في زمن الإقلاع.
 function writeHiddenNavKeys(keys: string[]) {
   try {
-    localStorage.setItem(SIDEBAR_HIDDEN_KEY, JSON.stringify(keys));
+    persistPreference(SIDEBAR_HIDDEN_KEY, JSON.stringify(keys));
   } catch {
     /* التخزين غير متاح — الجلسة الحالية تعمل، والاستعادة وحدها ما يضيع */
   }
@@ -125,7 +131,7 @@ export const useUI = create<UIState>((set, get) => ({
   toggleSidebarMode() {
     const sidebarMode: SidebarMode = get().sidebarMode === 'collapsed' ? 'expanded' : 'collapsed';
     try {
-      localStorage.setItem(SIDEBAR_KEY, sidebarMode);
+      persistPreference(SIDEBAR_KEY, sidebarMode);
     } catch {
       /* التخزين غير متاح — الجلسة الحالية تعمل، والاستعادة وحدها ما يضيع */
     }
