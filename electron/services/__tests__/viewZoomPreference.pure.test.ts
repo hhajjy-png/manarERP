@@ -1,24 +1,20 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import {
-  clampZoomLevel,
-  readSavedZoomLevel,
-  saveZoomLevel,
-  createZoomPersistenceController,
-  DEFAULT_SAVE_DEBOUNCE_MS,
-} from '../viewZoomPreference.pure';
+import { clampZoomLevel, readSavedZoomLevel, saveZoomLevel } from '../viewZoomPreference.pure';
 
 /**
- * UX Improvement — Persist View Zoom Level v1.
+ * View Zoom Manual Save Pack v1.
  *
  * The View menu's zoomIn/zoomOut items (`main.ts`) are Electron's own built-in
- * roles — this suite covers only what this pack ADDS around them: reading and
- * writing `view-zoom.json` under the app's data directory, and the debounce/flush
- * timing that decides when a zoom change actually reaches disk. `main.ts`'s
- * BrowserWindow wiring itself is untestable here (no Electron runtime — see
- * `vitest.electron.config.ts`) and is kept intentionally thin around this module.
+ * roles — this suite covers what this pack ADDS around them: reading and writing
+ * `view-zoom.json` under the app's data directory. Saving is explicit-only now
+ * (the "حفظ مستوى التكبير الحالي كافتراضي" menu item calls `saveZoomLevel`
+ * directly and synchronously) — there is no debounce, no scheduled write, and no
+ * listener to test, since none exists any more. `main.ts`'s BrowserWindow wiring
+ * itself is untestable here (no Electron runtime — see `vitest.electron.config.ts`)
+ * and is kept intentionally thin around this module.
  */
 
 let dir: string;
@@ -119,130 +115,48 @@ describe('saveZoomLevel', () => {
     fs.writeFileSync(blocker, 'x');
     expect(() => saveZoomLevel(path.join(blocker, 'nested'), 1)).not.toThrow();
   });
-});
 
-// ── createZoomPersistenceController ──────────────────────────────────────────
-
-describe('createZoomPersistenceController', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it('getInitialZoomLevel reflects whatever is already saved on disk', () => {
-    saveZoomLevel(dir, 5);
-    const controller = createZoomPersistenceController(dir);
-    expect(controller.getInitialZoomLevel()).toBe(5);
-  });
-
-  it('getInitialZoomLevel is null on a fresh install', () => {
-    const controller = createZoomPersistenceController(dir);
-    expect(controller.getInitialZoomLevel()).toBeNull();
-  });
-
-  it('does NOT write to disk immediately on scheduleSave — it is debounced', () => {
-    const controller = createZoomPersistenceController(dir);
-    controller.scheduleSave(2);
+  it('writes synchronously — the value is on disk before saveZoomLevel returns, no timer involved', () => {
+    // View Zoom Manual Save Pack v1's core guarantee: a manual save has no
+    // debounce window to wait out. If this were still scheduled on a timer,
+    // reading immediately afterward (no fake-timer advance anywhere in this
+    // file any more) would see the PREVIOUS value, not this one.
     expect(readSavedZoomLevel(dir)).toBeNull();
-  });
-
-  it('writes to disk once the debounce window elapses', () => {
-    const controller = createZoomPersistenceController(dir);
-    controller.scheduleSave(2);
-    vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS);
+    saveZoomLevel(dir, 2);
     expect(readSavedZoomLevel(dir)).toBe(2);
   });
+});
 
-  it('collapses rapid successive changes (holding Ctrl+=) into a single write of the LAST value', () => {
-    const controller = createZoomPersistenceController(dir);
-    controller.scheduleSave(1);
-    vi.advanceTimersByTime(100);
-    controller.scheduleSave(2);
-    vi.advanceTimersByTime(100);
-    controller.scheduleSave(3);
-    vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS);
+// ── End-to-end: manual save survives a simulated relaunch ───────────────────
 
+describe('a manually saved zoom level survives a simulated relaunch', () => {
+  it('save now, "relaunch" (fresh read), and the level is still there', () => {
+    saveZoomLevel(dir, 3);
+    // Nothing else runs between save and "relaunch" — no controller, no
+    // session object, no state to reconstruct; readSavedZoomLevel is the
+    // entire restore path main.ts uses at startup.
     expect(readSavedZoomLevel(dir)).toBe(3);
   });
 
-  it('a custom debounce window is honoured', () => {
-    const controller = createZoomPersistenceController(dir, 1000);
-    controller.scheduleSave(2);
-    vi.advanceTimersByTime(400); // the production default — must NOT have fired yet
-    expect(readSavedZoomLevel(dir)).toBeNull();
-    vi.advanceTimersByTime(600);
-    expect(readSavedZoomLevel(dir)).toBe(2);
-  });
-
-  it('flush() writes a pending change immediately, before the debounce window elapses', () => {
-    const controller = createZoomPersistenceController(dir);
-    controller.scheduleSave(4);
-    controller.flush();
-    expect(readSavedZoomLevel(dir)).toBe(4);
-  });
-
-  it('flush() is a no-op when nothing is pending — never writes a phantom value', () => {
-    const controller = createZoomPersistenceController(dir);
-    controller.flush();
+  it('a fresh install (never saved) still restores to null, letting the caller keep the default', () => {
     expect(readSavedZoomLevel(dir)).toBeNull();
   });
 
-  it('flush() cancels the pending timer — no double write and no crash if the timer would have fired later', () => {
-    const controller = createZoomPersistenceController(dir);
-    controller.scheduleSave(4);
-    controller.flush();
-    saveZoomLevel(dir, 7); // simulate something else writing in between
-    vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS);
-    expect(readSavedZoomLevel(dir)).toBe(7); // the (cancelled) debounced 4 never overwrote it
-  });
-
-  it('the quit-flush scenario: a zoom change right before quitting is not lost', () => {
-    // Mirrors main.ts's before-quit handler: scheduleSave from zoom-changed,
-    // then flush() before the process actually exits — no timers ever fire on
-    // their own in this scenario.
-    const controller = createZoomPersistenceController(dir);
-    controller.scheduleSave(6);
-    controller.flush(); // as if before-quit fired 50ms later, well inside the debounce window
-    expect(readSavedZoomLevel(dir)).toBe(6);
-  });
-
-  it('two independent controllers over the same directory do not corrupt each other\'s write', () => {
-    const a = createZoomPersistenceController(dir);
-    const b = createZoomPersistenceController(dir);
-    a.scheduleSave(1);
-    vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS);
-    b.scheduleSave(2);
-    vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS);
-    expect(readSavedZoomLevel(dir)).toBe(2);
+  it('only the LAST manual save before quitting is what a relaunch restores', () => {
+    for (const level of [1, 2, 3, 2, 1, 0, -1]) {
+      saveZoomLevel(dir, level);
+    }
+    expect(readSavedZoomLevel(dir)).toBe(-1);
   });
 });
 
-// ── End-to-end: relaunch simulation ──────────────────────────────────────────
-
-describe('relaunch restores the last zoom level (end to end, no Electron)', () => {
-  beforeEach(() => vi.useFakeTimers());
-  afterEach(() => vi.useRealTimers());
-
-  it('a fresh install uses the default (null ⇒ caller keeps Electron\'s own 0)', () => {
-    const firstLaunch = createZoomPersistenceController(dir);
-    expect(firstLaunch.getInitialZoomLevel()).toBeNull();
-  });
-
-  it('a zoom change survives a simulated app close and relaunch', () => {
-    const session1 = createZoomPersistenceController(dir);
-    session1.scheduleSave(3);
-    vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS); // "app closes" — write has landed
-
-    const session2 = createZoomPersistenceController(dir); // "app relaunches"
-    expect(session2.getInitialZoomLevel()).toBe(3);
-  });
-
-  it('several zoom-in/zoom-out steps across a session persist only the final level', () => {
-    const session1 = createZoomPersistenceController(dir);
-    for (const level of [1, 2, 3, 2, 1, 0, -1]) {
-      session1.scheduleSave(level);
-      vi.advanceTimersByTime(DEFAULT_SAVE_DEBOUNCE_MS);
-    }
-
-    const session2 = createZoomPersistenceController(dir);
-    expect(session2.getInitialZoomLevel()).toBe(-1);
+describe('legacy on-disk format compatibility', () => {
+  it('reads a file written by the old auto-save pack unchanged — the format never changed', () => {
+    // Simulates a user upgrading from View Zoom Persistence Pack v1 (the
+    // auto-save design) straight into this pack: the file this pack reads is
+    // byte-identical in shape to what the old `saveZoomLevel` call wrote.
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'view-zoom.json'), JSON.stringify({ zoomLevel: 5 }, null, 2));
+    expect(readSavedZoomLevel(dir)).toBe(5);
   });
 });
