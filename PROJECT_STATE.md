@@ -43,16 +43,16 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `39da6141` — release `stable-user-data-persistence-legacy-recovery-pack-v1` (**User Data Persistence & Legacy Recovery Pack v1** — internal code name Zero Data Loss Certification Pack v1, used throughout the feature branch and in-code comments. Closes three data-loss gaps found in a full-project data-persistence audit. **1. Attachments** — `Attachment.content` (new nullable `Bytes` column) stores the file's bytes inside `manar.db` itself; previously only a filesystem path was recorded, so attachments were invisible to local backup, restore, and Google Drive sync entirely, and any move to a new machine silently orphaned every one. `attachments.service.ts` now derives the on-disk path from the CURRENT `ATTACHMENTS_DIR` at read time (never the stored absolute path, which breaks the same way a `productName`/`userData` change already broke Cheque Designer templates) and self-heals a missing file from its DB bytes on demand; `attachments.backfill.ts` migrates every pre-existing row's bytes from disk into the new column once, at backend startup, never throwing and a no-op after the first run. **2. User-authored preferences** — import column-mapping profiles, per-form print profile/copy-count memory, report and letter favourites/recents, learned Kuwait location usage, sidebar visibility, and the Prices agreements-board toggle move off `localStorage`-only storage into a synced-preferences layer backed by the EXISTING `Setting` table (`pref.<userId>.<key>`, via new `GET/PUT /api/settings/preferences`, scoped server-side to the caller's own keys — the route intentionally requires no `settings.update` permission). Reads stay synchronous from the local cache (zero behavior change, no new loading state); writes fan out to the database in a debounced batch, hydrated on login (remote wins so a new machine actually recovers the data) and flushed before logout invalidates the token. **3. Backup file portability** — `BackupService.resolveBackupFile()` derives a backup's path from the current `BACKUP_DIR` with a fallback to the stored path, so `restore`/`verify`/`remove`/`pruneAutoBackups` keep working after a `productName`/`appId` change relocates `userData` (previously every prior backup became falsely unrestorable/unverifiable). Full data-loss audit covered 19+ storage surfaces (SQLite, attachments, exports, Backup/Restore, Google Drive sync, all `localStorage`/`sessionStorage`/IndexedDB use, every `userData` JSON state file, form/cheque/print templates) with documented, deliberate exceptions for genuinely per-device state (JWT token, theme/language, table page/search/filter state, print-preview feature flags, view zoom, OAuth/device-identity files). 27 files (19 modified, 8 new: `attachments.backfill.ts`, `frontend/src/lib/syncedPreferences.ts`, and 6 new regression-test files); one additive Prisma migration (`20260808150000_attachment_content_blob`). Backend 186/186 files, 2874/2874 tests (+34 new). Electron 24/24, 473/473 (unaffected, unchanged). Frontend 3757/3783 — the pre-existing 26-test/8-file baseline (documented since 2026-07-23) unchanged in count and identity, confirmed both pre-merge and post-merge. TypeScript zero errors on all three surfaces; all three builds green)
-| **Previous production HEAD** | `e0467d62` — release `stable-view-zoom-persistence-pack-v1` (**View Zoom Persistence Pack v1** — persists the last zoom level the user chose from the View menu's تكبير/تصغير items (Electron's own built-in `role: 'zoomIn' | 'zoomOut'` — unchanged, same accelerators, same labels) and restores it automatically on the next launch. `viewZoomPreference.pure.ts` (new, no `electron` import) is the persistence layer: reads/writes a small `view-zoom.json` file under the app's data directory, written atomically via the existing `writeFileAtomicSync` — no new settings system, no backend call, no IPC channel. The saved level is clamped to Chromium's own safe zoom range (±8 zoom-level steps, roughly 25%–500%). `createZoomPersistenceController` debounces the disk write (400ms) and exposes `flush()` — called from the existing `before-quit` handler. 3 files (1 modified, 2 new); electron only. TypeScript zero errors on all three surfaces; `electron:build` passes; Electron + scripts suite 473/473 (+29 new). No schema change, no permission change, no route touched)
-| **Production HEAD before that** | `91d3f987` — release `stable-cheque-template-persistence-legacy-recovery-pack-v1` (**Cheque Template Persistence & Legacy Recovery Pack v1** — closes a confirmed architectural defect: Cheque Designer templates, including a template a real user actually lost, were the only user-created data in the system stored outside SQLite (browser `localStorage` under `chequeDesigner.templates.v1`), absent from local backup/restore/Google Drive sync, and destroyed outright by a `productName`/`userData` rename or an origin change. New `cheque_designer_templates` table becomes the single source of truth, plus a hand-written LevelDB reader recovering templates stranded in a PREVIOUS `userData` folder. 24 files (15 new, 9 modified); backend + frontend + electron; no new permission key)
+| **Production HEAD** | `ec874c8b` — release `stable-production-release-2026.3.0` (**Production Installer Release 2026.3.0** — direct commit to `production`, no feature branch this cycle per explicit release-scope instruction. Repackages every commit already merged onto `production` since the 2026.2.0 installer (Administrative Forms Barcode Enhancement Pack v1, Collection Analysis Page v1, Document Studio v1 + UX Polish Pack v1, Financial Position Analysis Audit & PDF Fix Pack v1, Form Editor UX Rebuild Pack v2, Cheque Template Persistence & Legacy Recovery Pack v1, View Zoom Persistence Pack v1, User Data Persistence & Legacy Recovery Pack v1) into a new self-contained Windows installer. `package.json` `version` (`2026.2.0` → `2026.3.0`) is the only tracked-file change — no application source, schema, or permission change. Two build-environment defects were found and fixed during the build itself, both confined to gitignored `node_modules`/`dist` and so producing no commit: **(1)** the root-level generated Prisma Client had gone stale (last regenerated 2026-08-03, predating the 2026-08-08 `chequeDesignerTemplate`/`Attachment.content` migrations) — the copy `scripts/prepare-backend-deps.js` packages into the installer, so an unnoticed build would have shipped Cheque Designer Templates and attachment BLOB storage compiling cleanly but throwing at runtime; fixed with `prisma generate` against root `node_modules`, then verified against the packaged `.prisma/client/schema.prisma`. **(2)** `backend/dist` had accumulated 16 files of compiled output from deleted/abandoned source with no `backend/src/*.ts` counterpart (a full unwired `googleDriveBackup` module, dead entitlement calculators, orphaned tests), silently entering `extraResources` in prior installer builds; confirmed unreachable from `app.js`'s require chain, then excluded via a full clean rebuild. Installer `AlManarERP-Setup-2026.3.0.exe`, 138,137,720 bytes (131.74 MiB), SHA-256 `0f4e83bce06b281e3ac15287158d6f378bad8ba14d5e6e637632b448ce7a11fd`, Windows 10/11 x64, zero external runtime prerequisites. No new Product Owner visual review applies — no application code or UI changed; every packaged commit already carries its own completed review)
+| **Previous production HEAD** | `39da6141` — release `stable-user-data-persistence-legacy-recovery-pack-v1` (**User Data Persistence & Legacy Recovery Pack v1** — internal code name Zero Data Loss Certification Pack v1, used throughout the feature branch and in-code comments. Closes three data-loss gaps found in a full-project data-persistence audit. **1. Attachments** — `Attachment.content` (new nullable `Bytes` column) stores the file's bytes inside `manar.db` itself; previously only a filesystem path was recorded, so attachments were invisible to local backup, restore, and Google Drive sync entirely, and any move to a new machine silently orphaned every one. `attachments.service.ts` now derives the on-disk path from the CURRENT `ATTACHMENTS_DIR` at read time (never the stored absolute path, which breaks the same way a `productName`/`userData` change already broke Cheque Designer templates) and self-heals a missing file from its DB bytes on demand; `attachments.backfill.ts` migrates every pre-existing row's bytes from disk into the new column once, at backend startup, never throwing and a no-op after the first run. **2. User-authored preferences** — import column-mapping profiles, per-form print profile/copy-count memory, report and letter favourites/recents, learned Kuwait location usage, sidebar visibility, and the Prices agreements-board toggle move off `localStorage`-only storage into a synced-preferences layer backed by the EXISTING `Setting` table (`pref.<userId>.<key>`, via new `GET/PUT /api/settings/preferences`, scoped server-side to the caller's own keys — the route intentionally requires no `settings.update` permission). Reads stay synchronous from the local cache (zero behavior change, no new loading state); writes fan out to the database in a debounced batch, hydrated on login (remote wins so a new machine actually recovers the data) and flushed before logout invalidates the token. **3. Backup file portability** — `BackupService.resolveBackupFile()` derives a backup's path from the current `BACKUP_DIR` with a fallback to the stored path, so `restore`/`verify`/`remove`/`pruneAutoBackups` keep working after a `productName`/`appId` change relocates `userData` (previously every prior backup became falsely unrestorable/unverifiable). Full data-loss audit covered 19+ storage surfaces (SQLite, attachments, exports, Backup/Restore, Google Drive sync, all `localStorage`/`sessionStorage`/IndexedDB use, every `userData` JSON state file, form/cheque/print templates) with documented, deliberate exceptions for genuinely per-device state (JWT token, theme/language, table page/search/filter state, print-preview feature flags, view zoom, OAuth/device-identity files). 27 files (19 modified, 8 new: `attachments.backfill.ts`, `frontend/src/lib/syncedPreferences.ts`, and 6 new regression-test files); one additive Prisma migration (`20260808150000_attachment_content_blob`). Backend 186/186 files, 2874/2874 tests (+34 new). Electron 24/24, 473/473 (unaffected, unchanged). Frontend 3757/3783 — the pre-existing 26-test/8-file baseline (documented since 2026-07-23) unchanged in count and identity, confirmed both pre-merge and post-merge. TypeScript zero errors on all three surfaces; all three builds green)
+| **Production HEAD before that** | `e0467d62` — release `stable-view-zoom-persistence-pack-v1` (**View Zoom Persistence Pack v1** — persists the last zoom level the user chose from the View menu's تكبير/تصغير items (Electron's own built-in `role: 'zoomIn' | 'zoomOut'` — unchanged, same accelerators, same labels) and restores it automatically on the next launch. 3 files (1 modified, 2 new); electron only. No schema change, no permission change, no route touched)
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-user-data-persistence-legacy-recovery-pack-v1` (release date 2026-08-08) → merge `39da6141` |
-| **Previous stable tag** | `stable-view-zoom-persistence-pack-v1` (2026-08-08) → merge `e0467d62` |
-| **Application version** | **`2026.2.0`** — calendar versioning, set in `package.json` (`productName: "Al Manar ERP"`). The installer artifact is `release/AlManarERP-Setup-2026.2.0.exe`. `2026.1.0` was authored but never released; the series jumped to `2026.2.0` at the Product Owner's request. Unchanged by this release (no new installer built — backend/frontend/electron source release only) |
-| **Total stable releases** | 418 (all merged onto `production`; window 2026-06-07 → 2026-08-08) |
-| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ (all three confirmed both pre-merge and post-merge) · Backend suite 186/186 files, 2874/2874 tests (+34 new: `attachments.portability`, `attachments.backfill`, `backup.pathPortability`, `settings.preferences`) · Electron + scripts suite 24/24, 473/473 (unaffected, unchanged) · Frontend suite 199/207 files, 3757/3783 tests (+18 new: `syncedPreferences.test.ts`) — the pre-existing 26-test/8-file baseline failure (`chequePrintInkIsolation`, `currencyHeaderCompleteness`, `financialCenterTables`, `formatBalance`, `formsRegistryTranslationAudit`, `universalPrintPreviewCorrective`, `wysiwygPreviewPoc`, `invoiceFastEntry` — documented in this file since 2026-07-23) unchanged in count and identity, confirmed by running the full suite both before and after the merge · scope confirmed: exactly 27 files entered the release (19 modified, 8 new), every one staged explicitly by path (no `git add -A`, no `git commit -a`); unrelated pre-existing untracked artifacts (screenshots, letter-composer fonts, an explorer test probe) deliberately left out of scope · Product Owner manual visual review — **completed** prior to release authorization |
-| **Remote sync** | `origin/production` — pushed with this release (merge `39da6141` + tags `stable-user-data-persistence-legacy-recovery-pack-v1`, `checkpoint-user-data-persistence-legacy-recovery-pack-v1` + branch `feature/zero-data-loss-certification-pack-v1`, kept per standing policy) |
+| **Latest stable tag** | `stable-production-release-2026.3.0` (release date 2026-08-09) → commit `ec874c8b` |
+| **Previous stable tag** | `stable-user-data-persistence-legacy-recovery-pack-v1` (2026-08-08) → merge `39da6141` |
+| **Application version** | **`2026.3.0`** — calendar versioning, set in `package.json` (`productName: "Al Manar ERP"`). The installer artifact is `release/AlManarERP-Setup-2026.3.0.exe` (131.74 MiB, Windows 10/11 x64, zero external runtime prerequisites). This release IS the new installer |
+| **Total stable releases** | 419 (all merged onto `production`; window 2026-06-07 → 2026-08-09) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ · `electron-builder` (NSIS, x64) ✅ — full `npm run dist` pipeline, run twice (first pass surfaced the two build-environment defects described above; the second, after fixing both, produced the shipped installer) · No application source touched, so the existing test-suite counts (Backend 2874/2874, Electron+scripts 473/473, Frontend 3757/3783) are unaffected and were not re-run · Package content verified directly post-build: packaged `.prisma/client/schema.prisma` contains `ChequeDesignerTemplate` and `Attachment.content`; packaged `backend/dist` has zero files without a `backend/src/*.ts` counterpart; `runtime-requirements.json` reports zero external prerequisites across 10 analyzed PE binaries · No new Product Owner visual review — no application code or UI changed |
+| **Remote sync** | `origin/production` — pushed with this release (commit `ec874c8b` + docs + hash-closure commits + tags `stable-production-release-2026.3.0`, `checkpoint-production-release-2026.3.0`; no feature branch this cycle) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -64,7 +64,113 @@ in a table cell.
 
 ---
 
-## Latest Release — User Data Persistence & Legacy Recovery Pack v1
+## Latest Release — Production Installer Release 2026.3.0
+
+| Field | Value |
+|-------|-------|
+| **Package** | Production Installer Release 2026.3.0 — repackages every commit already merged onto `production` since the 2026.2.0 installer (Administrative Forms Barcode Enhancement Pack v1, Collection Analysis Page v1, Document Studio v1 + UX Polish Pack v1, Financial Position Analysis Audit & PDF Fix Pack v1, Form Editor UX Rebuild Pack v2, Cheque Template Persistence & Legacy Recovery Pack v1, View Zoom Persistence Pack v1, User Data Persistence & Legacy Recovery Pack v1) into a new self-contained Windows installer. No application source, schema, or permission change |
+| **Release status** | RELEASED — explicit user request for the official production release, per the Production Release Policy's explicit-request path. No new application code or UI to visually review — every packaged commit already carries its own completed review |
+| **Release date** | 2026-08-09 |
+| **Application version** | `2026.3.0` (`2026.2.0` → `2026.3.0`) — this release IS the new installer |
+| **Feature branch** | None this cycle — release-only work performed directly on `production`, per explicit release-scope instruction ("لا تدمج أي Feature Branch إضافي") |
+| **Baseline** | `production` @ `8413c9ec` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-production-release-2026.3.0` → `8413c9ec` |
+| **Release commit** | `ec874c8b` — `chore(release): bump version to 2026.3.0` (only tracked-file change: `package.json` `version`) |
+| **Stable tag** | `stable-production-release-2026.3.0` → this release's hash-closure commit (annotated) |
+| **Reviews** | Claude Code self-verified via `tsc --noEmit` × 3 surfaces, all builds, and the full `npm run dist` packaging pipeline, run twice after fixing two build-environment defects discovered mid-process; packaged output inspected directly (Prisma client schema, `backend/dist` contents, `runtime-requirements.json`) rather than assumed from a green build alone |
+| **Validation** | Backend `tsc` ✅ · Frontend `tsc` ✅ · Electron `tsc` ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ · `electron-builder` (NSIS, x64) ✅ · Installer `AlManarERP-Setup-2026.3.0.exe`, 138,137,720 bytes (131.74 MiB), SHA-256 `0f4e83bce06b281e3ac15287158d6f378bad8ba14d5e6e637632b448ce7a11fd` · No test suite changes (no application source touched) |
+| **Schema impact** | None — no new migration; all migrations already on `production`, confirmed present in the packaged `backend/prisma/migrations` |
+| **Permission impact** | None |
+
+**What this release is.** A pure packaging release: build the current `production`
+HEAD into a new official Windows installer and bump `package.json`'s
+`version`. No feature branch, no merge, no application code change — direct
+commits to `production`, per the release task's own explicit instruction to
+work on `production` directly and not merge additional feature work.
+
+**Two build-environment defects found and fixed during the build itself.**
+Neither touched tracked source — both live entirely inside gitignored
+`node_modules`/`backend/dist` — so neither produced a commit; they are
+recorded here because an unnoticed build would have shipped a defective
+installer despite every check passing.
+
+**1. Stale root-level Prisma Client.** `scripts/prepare-backend-deps.js`
+packages the installer's runtime Prisma Client from the repo-root
+`node_modules/.prisma/client` (documented in the script itself: the default
+client from a fresh `npm install` is an empty, schema-less wrapper). That
+root copy had last been regenerated 2026-08-03 — stale against the
+2026-08-08 migrations `20260808120000_add_cheque_designer_templates` and
+`20260808150000_attachment_content_blob` — while `backend/node_modules`'s
+own copy, refreshed more recently in normal dev use, was current. A first
+full `npm run dist` pass compiled cleanly against the current backend-local
+client, then `prepare-backend-deps.js` silently overwrote it with the stale
+root copy during packaging — meaning the *shipped runtime* Prisma Client
+would have been missing the `ChequeDesignerTemplate` model and
+`Attachment.content` field entirely, despite a clean compile and a
+successful build log. This surfaced concretely on the *second* build
+attempt (after an unrelated `backend/dist` cleanup forced a fresh `tsc`
+compile against the now-current root client, which had NOT yet been fixed
+at that point): `tsc` failed with `error TS2339: Property
+'chequeDesignerTemplate' does not exist on type 'PrismaClient'` across both
+the service and its test suite, plus `Attachment.content` field errors —
+the exact defect the first build's clean compile had silently avoided by
+compiling before the stale overwrite happened. Fixed with `prisma generate`
+against root `node_modules` (`npx prisma generate
+--schema=backend/prisma/schema.prisma` from repo root; Prisma resolves the
+output location to the nearest `node_modules`, so this required generating
+once normally via `npm run db:generate` — which targets
+`backend/node_modules` — then copying that fresh output over the stale root
+copy, since Prisma's own resolution from the repo root still targeted
+`backend/node_modules` given its local `@prisma/client` install). Re-verified
+directly: the packaged `.prisma/client/schema.prisma` inside
+`release/win-unpacked/resources/backend/node_modules/.prisma/client/`
+contains both `ChequeDesignerTemplate` and `content Bytes?` on `Attachment`.
+No schema or migration change — this was a generated-artifact staleness
+bug, not a data-model change.
+
+**2. Orphaned dead code in `backend/dist`.** `backend/dist` (gitignored
+build output, `tsc` does not clean stale files between runs) had
+accumulated 16 compiled `.js` files with no corresponding
+`backend/src/**/*.ts` source: a complete, unwired `googleDriveBackup`
+module (routes/controller/service/schema/config/types — 5 files plus a
+test), dead entitlement calculators
+(`employee-entitlements/calculators/legalEntitlementCalculator.js`,
+`employees/attendance.pagination.js`), orphaned `letters`/`payrollBankImport`
+service and test files, and a near-empty `__smoke_monthly_export.js` stub.
+`electron-builder.yml`'s `extraResources` packages `backend/dist` with only
+`.map`/`__tests__`/`.test.js` exclusions — none of which caught these files,
+so they had been silently entering every installer built from this working
+tree. Confirmed dead before touching anything: none of the 16 files were
+`require()`'d from `app.js`'s own module graph or from any currently-live
+module — only their own equally-orphaned sibling test files referenced them.
+Excluded via a full clean rebuild (`backend/dist`, `electron-dist` moved
+aside — not deleted — after explicit user sign-off, since the destructive
+`rm -rf` this would normally use was blocked by policy; `frontend/dist` did
+not need it, as Vite already empties its own output directory every build).
+Re-verified directly: the packaged `resources/backend/dist` contains zero
+files without a `backend/src/*.ts` counterpart.
+
+**Pre-existing untracked files, confirmed harmless and left untouched.**
+Root-level screenshots (`compose-full.png`, `design-mode-*.png`,
+`fontpicker-open.png`, `kpi-after-fix.png`, `letter-compose-2.png`,
+`letter-composer-compose.png`), a debug probe test
+(`frontend/src/components/explorer/__tests__/zz-probe.test.tsx`), and two
+font files in `frontend/src/assets/fonts/نموذج كتاب رسمي خطوط/`
+(`103-Tahoma.ttf`, `Cairo-Regular.ttf`) were present in the working tree
+before this release and remain untracked after it. Verified explicitly, not
+assumed: `electron-builder.yml`'s `files`/`extraResources` config only
+includes `electron-dist/**`, `frontend/dist/**`, `package.json`, and a
+curated `backend/*` allowlist — none of the six root screenshots or the
+probe test can enter the package regardless of git status. The two font
+files are explicitly documented as deliberately undeclared in
+`assets/fonts/fonts.css`'s own header comment (no `@font-face` references
+either), confirmed by grep — their absence from git makes no difference to
+the build output either way. Left as-is per the release task's own
+constraint against unnecessary code changes.
+
+---
+
+## Previous Release — User Data Persistence & Legacy Recovery Pack v1
 
 | Field | Value |
 |-------|-------|
