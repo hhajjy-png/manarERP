@@ -43,16 +43,16 @@ in a table cell.
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | `6d02c08b` — release `stable-view-zoom-manual-save-pack-v1` (**View Zoom Manual Save Pack v1** — merge of `feature/view-zoom-manual-save-pack-v1`. Replaces View Zoom Persistence Pack v1's auto-save design (`zoom-changed` listener + 400ms debounce) with an explicit manual save. Root cause, found via a live runtime investigation (temporary file-based logging instrumentation on `did-finish-load`/`zoom-changed`/navigation/focus/blur events built into a real production installer, run by the Product Owner, then fully reverted — zero trace confirmed via `git diff`): `zoom-changed` fires ONLY for mouse-wheel zoom, per Electron's own docs and confirmed live down to sub-second timestamps — never for the `role: 'zoomIn'`/`'zoomOut'` items the View menu actually uses. The auto-save path had never captured a single menu-driven zoom change; Chromium's own per-origin zoom resync on the next same-page navigation (`did-navigate-in-page`) then reapplied the stale disk value to the live window — captured in the log as a revert exactly once, within 249ms of the first navigation after a menu zoom change, never again for the rest of the session. `viewZoomPreference.pure.ts` lost `createZoomPersistenceController`/`ZoomPersistenceController`/`DEFAULT_SAVE_DEBOUNCE_MS`; `readSavedZoomLevel`/`saveZoomLevel`/`clampZoomLevel` and the on-disk format are unchanged. `main.ts` keeps the same one-time `.once('did-finish-load', …)` restore (never reapplied mid-session) and adds one View-menu item, "💾 حفظ مستوى التكبير الحالي كافتراضي", reading the live zoom via `getZoomLevel()` and writing it synchronously via `saveZoomLevel` — no debounce, no listener — then showing a native `Notification`. 3 files (2 modified, 1 test file rewritten: 13 obsolete tests removed, 10 new); electron only. TypeScript zero errors; `electron:build` passes pre- and post-merge; Electron+scripts 463/464 (one pre-existing unrelated failure, confirmed via `git stash` to already fail on unmodified `production`). No schema/permission/route change. Product Owner manual visual review: **completed** prior to release authorization)
-| **Previous production HEAD** | `ec874c8b` — release `stable-production-release-2026.3.0` (**Production Installer Release 2026.3.0** — direct commit to `production`, no feature branch this cycle per explicit release-scope instruction. Repackages every commit already merged onto `production` since the 2026.2.0 installer (Administrative Forms Barcode Enhancement Pack v1, Collection Analysis Page v1, Document Studio v1 + UX Polish Pack v1, Financial Position Analysis Audit & PDF Fix Pack v1, Form Editor UX Rebuild Pack v2, Cheque Template Persistence & Legacy Recovery Pack v1, View Zoom Persistence Pack v1, User Data Persistence & Legacy Recovery Pack v1) into a new self-contained Windows installer. `package.json` `version` (`2026.2.0` → `2026.3.0`) is the only tracked-file change — no application source, schema, or permission change. Two build-environment defects were found and fixed during the build itself, both confined to gitignored `node_modules`/`dist` and so producing no commit: **(1)** the root-level generated Prisma Client had gone stale (last regenerated 2026-08-03, predating the 2026-08-08 `chequeDesignerTemplate`/`Attachment.content` migrations) — the copy `scripts/prepare-backend-deps.js` packages into the installer, so an unnoticed build would have shipped Cheque Designer Templates and attachment BLOB storage compiling cleanly but throwing at runtime; fixed with `prisma generate` against root `node_modules`, then verified against the packaged `.prisma/client/schema.prisma`. **(2)** `backend/dist` had accumulated 16 files of compiled output from deleted/abandoned source with no `backend/src/*.ts` counterpart (a full unwired `googleDriveBackup` module, dead entitlement calculators, orphaned tests), silently entering `extraResources` in prior installer builds; confirmed unreachable from `app.js`'s require chain, then excluded via a full clean rebuild. Installer `AlManarERP-Setup-2026.3.0.exe`, 138,137,720 bytes (131.74 MiB), SHA-256 `0f4e83bce06b281e3ac15287158d6f378bad8ba14d5e6e637632b448ce7a11fd`, Windows 10/11 x64, zero external runtime prerequisites. No new Product Owner visual review applies — no application code or UI changed; every packaged commit already carries its own completed review)
-| **Production HEAD before that** | `39da6141` — release `stable-user-data-persistence-legacy-recovery-pack-v1` (**User Data Persistence & Legacy Recovery Pack v1** — closes three data-loss gaps found in a full-project data-persistence audit: attachment bytes moved from filesystem-only into `Attachment.content`; user-authored preferences moved off `localStorage`-only onto the `Setting` table; backup file paths made portable across a `productName`/`appId` change. 27 files (19 modified, 8 new); one additive Prisma migration)
+| **Production HEAD** | `0712c905` — release `stable-production-release-2026.3.1` (**Production Installer Release 2026.3.1** — merge of `feature/production-release-2026.3.1`. Full release audit against `stable-production-release-2026.3.0..HEAD` confirmed exactly one completed, mergeable body of work since the 2026.3.0 installer: View Zoom Manual Save Pack v1 (already merged, tagged, documented). Every other local branch was unmerged work-in-progress and was deliberately excluded. `package.json` `version` (`2026.3.0` → `2026.3.1`) is the only additional tracked-file change. Pre-build: zero orphaned `backend/dist` files (543 checked), Prisma Client confirmed in sync with the current schema, zero instrumentation/debug traces in tracked source. Packaging audit: `app.asar` contents inspected directly (`package.json`, `electron-dist/main.js`, `frontend/dist/index.html` present; zero `zoom-debug` traces; the only `test`/`debug` string hits are a false-positive filename substring — `TemplateStudio` contains "teSt" — and pre-existing third-party `node_modules` internals, not our code). Runtime audit: packaged backend launched standalone against a copy of the real seeded database — `/api/health` OK, login with real seed admin credentials succeeded with a full permission set, `/api/cheque-designer-templates` responded correctly, all 56 migrations applied with zero errors. GUI-only surfaces (printing, PDF, Google Drive, Backup/Restore, Cheque Designer canvas, the Zoom Manual Save click itself) were not driven by Claude — no interactive desktop session available — covered instead by the Product Owner's completed visual review and the fact that none of their source changed beyond the already-reviewed zoom pack. Installer `AlManarERP-Setup-2026.3.1.exe`, 138,140,632 bytes (131.75 MiB), SHA-256 `a7e197ad7415a3687b6bc6dd78699b54b78a87969fd90afce886079672807483`; `win-unpacked` 468,062,834 bytes (446.4 MiB). TypeScript zero errors on backend/frontend/electron; `build:back`/`build:front`/`electron:build`/`npm run dist` all pass. Product Owner manual visual review: **completed** prior to release authorization)
+| **Previous production HEAD** | `6d02c08b` — release `stable-view-zoom-manual-save-pack-v1` (**View Zoom Manual Save Pack v1** — merge of `feature/view-zoom-manual-save-pack-v1`. Replaces View Zoom Persistence Pack v1's auto-save design (`zoom-changed` listener + 400ms debounce) with an explicit manual save. Root cause, found via a live runtime investigation (temporary file-based logging instrumentation on `did-finish-load`/`zoom-changed`/navigation/focus/blur events built into a real production installer, run by the Product Owner, then fully reverted — zero trace confirmed via `git diff`): `zoom-changed` fires ONLY for mouse-wheel zoom, per Electron's own docs and confirmed live down to sub-second timestamps — never for the `role: 'zoomIn'`/`'zoomOut'` items the View menu actually uses. The auto-save path had never captured a single menu-driven zoom change; Chromium's own per-origin zoom resync on the next same-page navigation (`did-navigate-in-page`) then reapplied the stale disk value to the live window — captured in the log as a revert exactly once, within 249ms of the first navigation after a menu zoom change, never again for the rest of the session. `viewZoomPreference.pure.ts` lost `createZoomPersistenceController`/`ZoomPersistenceController`/`DEFAULT_SAVE_DEBOUNCE_MS`; `readSavedZoomLevel`/`saveZoomLevel`/`clampZoomLevel` and the on-disk format are unchanged. `main.ts` keeps the same one-time `.once('did-finish-load', …)` restore (never reapplied mid-session) and adds one View-menu item, "💾 حفظ مستوى التكبير الحالي كافتراضي", reading the live zoom via `getZoomLevel()` and writing it synchronously via `saveZoomLevel` — no debounce, no listener — then showing a native `Notification`. 3 files (2 modified, 1 test file rewritten: 13 obsolete tests removed, 10 new); electron only. TypeScript zero errors; `electron:build` passes pre- and post-merge; Electron+scripts 463/464 (one pre-existing unrelated failure, confirmed via `git stash` to already fail on unmodified `production`). No schema/permission/route change. Product Owner manual visual review: **completed** prior to release authorization)
+| **Production HEAD before that** | `ec874c8b` — release `stable-production-release-2026.3.0` (**Production Installer Release 2026.3.0** — repackages every commit merged onto `production` since the 2026.2.0 installer into a new installer. `package.json` version bump only, no application source/schema/permission change. 138,137,720 bytes (131.74 MiB), SHA-256 `0f4e83bce06b281e3ac15287158d6f378bad8ba14d5e6e637632b448ce7a11fd`)
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary |
-| **Latest stable tag** | `stable-view-zoom-manual-save-pack-v1` (release date 2026-08-10) → merge `6d02c08b` |
-| **Previous stable tag** | `stable-production-release-2026.3.0` (2026-08-09) → commit `ec874c8b` |
-| **Application version** | **`2026.3.0`** — unchanged by this release (source-only; no new installer built) |
-| **Total stable releases** | 420 (all merged onto `production`; window 2026-06-07 → 2026-08-10) |
-| **Latest validation** | Electron `tsc --noEmit` ✅ · `electron:build` ✅ — confirmed both pre-merge and post-merge · Electron + scripts suite 463/464 — the one failure (`electronBuilderPackaging.test.ts`'s hardcoded `/^2026\.2\./` version regex) confirmed via `git stash` to already fail identically on unmodified `production`, unrelated to this pack · Backend/frontend untouched by this release, not re-run · Product Owner manual visual review — **completed** prior to release authorization |
-| **Remote sync** | `origin/production` — pushed with this release (feature commit `8412990b` + merge `6d02c08b` + docs + hash-closure commits + tags `stable-view-zoom-manual-save-pack-v1`, `checkpoint-view-zoom-manual-save-pack-v1` + branch `feature/view-zoom-manual-save-pack-v1`, kept per standing policy) |
+| **Latest stable tag** | `stable-production-release-2026.3.1` (release date 2026-08-10) → merge `0712c905` |
+| **Previous stable tag** | `stable-view-zoom-manual-save-pack-v1` (2026-08-10) → merge `6d02c08b` |
+| **Application version** | **`2026.3.1`** — calendar versioning, set in `package.json` (`productName: "Al Manar ERP"`). The installer artifact is `release/AlManarERP-Setup-2026.3.1.exe` (131.75 MiB, Windows 10/11 x64, zero external runtime prerequisites). This release IS the new installer |
+| **Total stable releases** | 421 (all merged onto `production`; window 2026-06-07 → 2026-08-10) |
+| **Latest validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · Electron `tsc --noEmit` ✅ · `build:back` ✅ · `build:front` ✅ · `electron:build` ✅ · `npm run dist` (NSIS, x64) ✅ · Packaging audit: `app.asar` contents verified directly, zero orphaned files, zero instrumentation traces · Runtime audit: packaged backend launched standalone against the real seeded database — health check OK, login succeeded with full permission set, cheque-designer-templates endpoint responded correctly, all 56 migrations applied cleanly · Electron + scripts suite 463/464 (one pre-existing unrelated failure, confirmed via `git stash` against unmodified `production`) · GUI-only surfaces (print/PDF/Google Drive/Backup/Restore/Cheque Designer canvas) not independently re-driven by Claude — no interactive desktop session available; covered by the Product Owner's completed visual review and by their source being unchanged in this release · Product Owner manual visual review — **completed** prior to release authorization |
+| **Remote sync** | `origin/production` — pushed with this release (feature commit `19bb13b7` + merge `0712c905` + docs + hash-closure commits + tags `stable-production-release-2026.3.1`, `checkpoint-production-release-2026.3.1` + branch `feature/production-release-2026.3.1`, kept per standing policy) |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -64,7 +64,90 @@ in a table cell.
 
 ---
 
-## Latest Release — View Zoom Manual Save Pack v1
+## Latest Release — Production Installer Release 2026.3.1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Production Installer Release 2026.3.1 — packages View Zoom Manual Save Pack v1, the only completed work merged onto `production` since the 2026.3.0 installer, into a new self-contained Windows installer |
+| **Release status** | RELEASED — Product Owner manual visual review completed |
+| **Release date** | 2026-08-10 |
+| **Application version** | `2026.3.1` (`2026.3.0` → `2026.3.1`) — this release IS the new installer |
+| **Feature branch** | `feature/production-release-2026.3.1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `d9e254de` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-production-release-2026.3.1` → `d9e254de` |
+| **Feature commit** | `19bb13b7` (version bump only) |
+| **Production merge commit** | `0712c905` |
+| **Stable tag** | `stable-production-release-2026.3.1` → merge `0712c905` (annotated) |
+| **Reviews** | Full Git-based release audit (`stable-production-release-2026.3.0..HEAD`) → Claude Code self-verified via `tsc --noEmit` ×3, all builds, full `npm run dist`, a packaging audit, and a runtime audit (packaged backend launched standalone against the real seed database) → Product Owner manual visual review **completed** |
+| **Validation** | Backend/Frontend/Electron `tsc` ✅ · `build:back`/`build:front`/`electron:build` ✅ · `npm run dist` ✅ · Electron+scripts 463/464 (one pre-existing unrelated failure) |
+| **Schema impact** | None — no new migration since 2026.3.0 |
+| **Permission impact** | None |
+
+**Release audit.** `git log stable-production-release-2026.3.0..HEAD` before this
+release began showed exactly four commits, all belonging to one already-merged,
+already-tagged, already-documented body of work: View Zoom Manual Save Pack v1
+(feature commit `8412990b`, merge `6d02c08b`, docs `e43495c4`, hash-closure
+`d9e254de`). A survey of every other local branch (`git for-each-ref` diffed
+against `production`) found nine branches with unmerged commits — `feature/
+google-drive-backup-phase1`, `feature/cheques-print-calibration-v1`, `feature/
+monetary-formatting-standard`, and six others — every one work-in-progress,
+none complete, none touched by this release, per the task's explicit
+exclusion criteria. The untracked screenshots, the debug probe test file, and
+the two undeclared font files sitting in the working tree since earlier
+sessions remain untracked and excluded, unchanged from every prior release
+audit's finding that `electron-builder.yml`'s `files`/`extraResources` config
+cannot reach any of them regardless of git status.
+
+**Pre-build checks.** `backend/dist` scanned for compiled output with no
+`backend/src/*.ts` counterpart: 543 files checked, zero orphans. The root
+`node_modules/.prisma/client` schema was confirmed already in sync with
+`backend/prisma/schema.prisma` (no schema change occurred since the last
+verification) — the exact staleness class of defect the 2026.3.0 release
+had to fix mid-build did not recur, because no migration was added in this
+window. `git diff` confirmed zero instrumentation or debug code anywhere in
+tracked source before the build began.
+
+**Packaging audit.** `app.asar` was extracted and inspected directly rather
+than assumed from a green build: `package.json` (version `2026.3.1`,
+matching the commit), `electron-dist/main.js`, and `frontend/dist/index.html`
+all present at their expected paths. A search for `zoom-debug`/
+`instrumentation` traces returned nothing. A broader `test`/`debug` string
+search surfaced only two categories, both confirmed benign: a false-positive
+filename substring (`TemplateStudioRenderer` contains the letters "teSt")
+and pre-existing `node_modules` internals (the `debug` logging package, a
+transitive dependency of several backend packages, and a `test.js` file
+bundled inside one dependency's own npm package) — neither is this project's
+own code, and neither is new to this release. `backend/dist` inside the
+package itself was re-checked for orphans post-packaging: 356 files, zero
+orphans (fewer than the 543 in the source tree only because the packaging
+filter excludes `__tests__`/`.test.js`, as designed).
+
+**Runtime audit.** No interactive desktop session is available to Claude in
+this tool environment, so GUI-driven verification (menu clicks, print
+dialogs, the Google Drive OAuth flow, Backup/Restore dialogs, the Cheque
+Designer canvas) was not performed directly — that gap is closed by the
+Product Owner's own completed manual visual review, and by the fact that
+none of those surfaces' source changed in this release beyond the
+already-reviewed View Zoom Manual Save Pack v1. What *was* independently
+verified: the packaged backend (`resources/backend/dist/server.js`) was
+launched as a standalone Node process against a working copy of the real
+seeded database, using the exact environment variables `backendLauncher.ts`
+constructs. It started cleanly, applied all 56 Prisma migrations with zero
+errors, `GET /api/health` returned `{"success":true,"status":"ok"}`, `POST
+/api/auth/login` with the real seed admin credentials returned a valid JWT
+and the full `SYSTEM_ADMIN` permission set, and `GET /api/cheque-designer-
+templates` (authenticated) returned a correct empty list — confirming the
+backend, its bundled Prisma engine, the database file, authentication, and
+the Cheque Designer Templates API all function correctly end to end.
+
+**Build information.** `AlManarERP-Setup-2026.3.1.exe`: 138,140,632 bytes
+(131.75 MiB). SHA-256: `a7e197ad7415a3687b6bc6dd78699b54b78a87969fd90afce886079672807483`.
+`win-unpacked`: 468,062,834 bytes (446.4 MiB). Windows 10/11 x64, zero
+external runtime prerequisites (10 PE binaries analyzed).
+
+---
+
+## Previous Release — View Zoom Manual Save Pack v1
 
 | Field | Value |
 |-------|-------|
