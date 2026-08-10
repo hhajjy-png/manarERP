@@ -7,6 +7,7 @@ import { longTextCell } from './shared/formStyles';
 import FormQRCode, { QRData } from './shared/FormQRCode';
 import { getAuthorizedSignatory } from './shared/authorizedSignatories';
 import { DOC_FONT_STACK } from '../styles/fontRegistry';
+import contractEmblem from '../assets/contract_emblem.png';
 
 export interface ContractParams {
   issueDate: string;
@@ -223,7 +224,7 @@ export default function EmploymentContractTemplate({
 
           <div style={{ ...fullRow, padding: '3px 10px', display: 'flex', direction: 'rtl', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
             <img
-              src="/contract_emblem.png"
+              src={contractEmblem}
               alt="Kuwait Public Authority Emblem"
               style={{ height: 34, objectFit: 'contain' }}
             />
@@ -383,7 +384,7 @@ export default function EmploymentContractTemplate({
 
         <div style={{ ...fullRow, padding: '3px 10px', display: 'flex', direction: 'rtl', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
           <img
-            src="/contract_emblem.png"
+            src={contractEmblem}
             alt="Kuwait Public Authority Emblem"
             style={{ height: 34, objectFit: 'contain' }}
           />
