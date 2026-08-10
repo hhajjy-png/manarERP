@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog } from 'electron';
+import { app, BrowserWindow, Menu, dialog, Notification } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { beginSyncProgressUI } from './windows/syncProgressWindow';
 import { registerMainWindow, shouldQuitOnAllWindowsClosed } from './windows/windowLifecycle';
@@ -22,7 +22,7 @@ import { registerNbkExportIpc } from './ipc/nbkExport.ipc';
 import { registerLegacyRecoveryIpc } from './ipc/legacyRecovery.ipc';
 import { acquireRuntimeLock, releaseRuntimeLock, describeLockConflict, runtimeLockPath } from './services/runtimeLock';
 import { cleanupOrphanSyncTemps } from './services/syncTempCleanup';
-import { createZoomPersistenceController, type ZoomPersistenceController } from './services/viewZoomPreference.pure';
+import { readSavedZoomLevel, saveZoomLevel } from './services/viewZoomPreference.pure';
 
 const INTERNAL_SECRET = getInternalSecret();
 
@@ -33,15 +33,6 @@ if (!gotLock) {
 }
 
 let mainWindow: BrowserWindow | null = null;
-
-/**
- * UX Improvement — Persist View Zoom Level v1. Holds the debounce timer between
- * a `zoom-changed` event (View menu's تكبير/تصغير — unchanged, no new shortcut,
- * no new UI) and the disk write it causes; flushed on `before-quit` so a zoom
- * change made right before closing the app is never lost. See
- * `viewZoomPreference.pure.ts` for the persisted logic and its tests.
- */
-let zoomPersistence: ZoomPersistenceController | null = null;
 
 /**
  * حارس Dev/Packaged Split-Brain — يجب أن يسبق **أي** مزامنة أو تشغيل للخادم.
@@ -267,23 +258,22 @@ async function bootstrap() {
     // WYSIWYG preview is open. One listener for the window's lifetime; no global blocking.
     registerWysiwygViewerGuard(mainWindow);
 
-    // UX Improvement — Persist View Zoom Level v1. Restores the last zoom level
-    // once, on the window's first paint, so a manual "إعادة تحميل" later in this
-    // menu keeps behaving exactly as before (it is not treated as a relaunch).
-    // The View menu's تكبير/تصغير items below are Electron's own zoomIn/zoomOut
-    // roles, untouched; `zoom-changed` only fires for THOSE actions, never for
-    // the `setZoomLevel` call this restoration makes.
-    zoomPersistence = createZoomPersistenceController(bootDataDir);
-    const savedZoomLevel = zoomPersistence.getInitialZoomLevel();
+    // View Zoom Manual Save Pack v1. Restores the last EXPLICITLY saved zoom
+    // level once, on the window's first paint, so a manual "إعادة تحميل" later
+    // in this menu keeps behaving exactly as before (it is not treated as a
+    // relaunch) — this restoration listener is `.once` and is never registered
+    // again for the rest of the process's life. There is no listener anywhere
+    // that detects a zoom change: saving happens only from the explicit "حفظ
+    // مستوى التكبير الحالي كافتراضي" menu item below, which reads the live zoom
+    // and writes it synchronously. See `viewZoomPreference.pure.ts` for why the
+    // previous `zoom-changed`-driven auto-save was removed.
+    const savedZoomLevel = readSavedZoomLevel(bootDataDir);
     const mainWebContents = mainWindow.webContents;
     if (savedZoomLevel !== null) {
       mainWebContents.once('did-finish-load', () => {
         if (!mainWebContents.isDestroyed()) mainWebContents.setZoomLevel(savedZoomLevel);
       });
     }
-    mainWebContents.on('zoom-changed', () => {
-      zoomPersistence?.scheduleSave(mainWebContents.getZoomLevel());
-    });
 
     // قائمة عربية مبسّطة
     Menu.setApplicationMenu(
@@ -310,6 +300,23 @@ async function bootstrap() {
             { role: 'togglefullscreen', label: 'ملء الشاشة' },
             { role: 'zoomIn', label: 'تكبير' },
             { role: 'zoomOut', label: 'تصغير' },
+            { type: 'separator' },
+            {
+              label: '💾 حفظ مستوى التكبير الحالي كافتراضي',
+              // View Zoom Manual Save Pack v1 — the ONLY place a zoom level is ever
+              // written to disk. Reads the live level at click time (never a cached
+              // or stale value) and writes it synchronously; does not change the
+              // live zoom itself. `bootDataDir` and `mainWebContents` are the same
+              // values the restoration above already captured.
+              click: () => {
+                if (mainWebContents.isDestroyed()) return;
+                saveZoomLevel(bootDataDir, mainWebContents.getZoomLevel());
+                new Notification({
+                  title: 'نظام المنار',
+                  body: 'تم حفظ مستوى التكبير الحالي كافتراضي',
+                }).show();
+              },
+            },
           ],
         },
       ]),
@@ -357,10 +364,6 @@ let quitConfirmed = false;
 let startupAborted = false;
 
 app.on('before-quit', (event) => {
-  // UX Improvement — Persist View Zoom Level v1: a zoom change made just before
-  // quitting must not be lost to the debounce window. No-op if nothing is pending.
-  zoomPersistence?.flush();
-
   // بيئة مرفوضة: لا `preventDefault` ولا تسلسل إغلاق — اخرج مباشرة.
   if (quitConfirmed || startupAborted) return;
   event.preventDefault();

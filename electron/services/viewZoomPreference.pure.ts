@@ -3,13 +3,29 @@ import path from 'path';
 import { writeFileAtomicSync } from './atomicFile';
 
 /**
- * UX Improvement — Persist View Zoom Level v1.
+ * View Zoom Manual Save Pack v1 (supersedes Persist View Zoom Level v1's
+ * auto-save design — the on-disk format is unchanged, so an existing
+ * `view-zoom.json` from the old pack still reads correctly).
  *
  * The View menu's "تكبير"/"تصغير" (zoomIn/zoomOut) items in `main.ts` are
  * Electron's built-in `role: 'zoomIn' | 'zoomOut'` — unchanged by this file, same
  * accelerators, same labels. Chromium's `webContents.zoomLevel` is process-memory
  * only and always resets to 0 (100%) on relaunch; this module is the persistence
- * layer around it, so the app reopens at whatever zoom the user left it at.
+ * layer around it, so the app reopens at whatever zoom was last explicitly saved.
+ *
+ * Saving is explicit only now, from a single View-menu item ("💾 حفظ مستوى
+ * التكبير الحالي كافتراضي" in `main.ts`) that calls `saveZoomLevel` directly and
+ * synchronously with the live zoom level read at click time. There is
+ * deliberately no automatic save path any more: the previous design listened
+ * for Electron's `zoom-changed` event and debounced a write, but `zoom-changed`
+ * is documented — and was confirmed live, via a runtime investigation of this
+ * exact pack — to fire only for mouse-wheel zoom, never for the `zoomIn`/
+ * `zoomOut` roles this menu actually uses. The auto-save path silently never
+ * captured the only zoom change a user could make here, and a later same-page
+ * navigation would resync Chromium's live zoom back to its last-known origin
+ * value — which looked like the zoom level reverting on its own. Manual save
+ * removes the dependency on that event entirely: nothing needs to detect a
+ * zoom change, so nothing can miss one.
  *
  * Storage follows the SAME convention already used for other main-process local
  * state (`device-identity.json`, `db-bootstrap-state.json`, …): one small JSON
@@ -36,9 +52,6 @@ const FILE_NAME = 'view-zoom.json';
  */
 const MIN_ZOOM_LEVEL = -8;
 const MAX_ZOOM_LEVEL = 8;
-
-/** Default debounce window between a zoom change and the disk write it causes. */
-export const DEFAULT_SAVE_DEBOUNCE_MS = 400;
 
 export function clampZoomLevel(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -79,55 +92,4 @@ export function saveZoomLevel(dataDir: string, zoomLevel: number): void {
   } catch {
     /* أفضل جهد — انظر تعليق الدالة */
   }
-}
-
-export interface ZoomPersistenceController {
-  /** The zoom level to restore at launch, or `null` for Electron's own default. */
-  getInitialZoomLevel(): number | null;
-  /** Call on every `zoom-changed` event; writes to disk after a short quiet period. */
-  scheduleSave(zoomLevel: number): void;
-  /** Write any pending scheduled save immediately and cancel its timer. Call before quit. */
-  flush(): void;
-}
-
-/**
- * One controller per app launch, holding the debounce timer and the initial read.
- *
- * Debounced rather than written on every `zoom-changed` event because a user
- * holding Ctrl+= fires several events in quick succession — writing to disk on
- * each one is the kind of repeated-I/O-per-keystroke this codebase already
- * guards against elsewhere (see `getUserDataPaths()`'s once-per-process bootstrap
- * guard). `flush()` exists so a quit that lands inside the debounce window still
- * persists the user's last change — see the `before-quit` handler in `main.ts`.
- */
-export function createZoomPersistenceController(
-  dataDir: string,
-  debounceMs: number = DEFAULT_SAVE_DEBOUNCE_MS,
-): ZoomPersistenceController {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let pendingLevel: number | null = null;
-
-  return {
-    getInitialZoomLevel: () => readSavedZoomLevel(dataDir),
-
-    scheduleSave(zoomLevel: number) {
-      pendingLevel = zoomLevel;
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
-        const level = pendingLevel;
-        pendingLevel = null;
-        if (level !== null) saveZoomLevel(dataDir, level);
-      }, debounceMs);
-    },
-
-    flush() {
-      if (timer) clearTimeout(timer);
-      timer = null;
-      if (pendingLevel !== null) {
-        saveZoomLevel(dataDir, pendingLevel);
-        pendingLevel = null;
-      }
-    },
-  };
 }
