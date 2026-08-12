@@ -78,6 +78,11 @@ export const MODULES = [
   // خارج letters / letter_references / letter_sequences، ولا ترتبط بالمحاسبة ولا
   // بالفواتير ولا بالرواتب ولا بالمخزون.
   'letters',
+  // مستحقات الموظف الشهرية — وحدة تجريبية مستقلة. تكتب حصريًا في جداولها الأربعة
+  // (employee_compensation_*)، ولا ترتبط بالرواتب ولا بالمحاسبة ولا بالمصروفات ولا
+  // بنهاية الخدمة. مفاتيحها منفصلة عن `payroll.*` عمدًا: صلاحية الرواتب لا تمنح
+  // صلاحية هذه الوحدة، والعكس.
+  'employeeCompensation',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];

@@ -67,6 +67,14 @@ const AdminPaymentVoucher = lazy(() => import('./pages/AdminPaymentVoucher'));
 const ReceiptVoucher = lazy(() => import('./pages/ReceiptVoucher'));
 const AIAssistant = lazy(() => import('./pages/AIAssistant'));
 const EmployeeEntitlementsCenter = lazy(() => import('./pages/EmployeeEntitlementsCenter'));
+// مستحقات الموظف الشهرية — وحدة مستقلة (قائمة ← ملف سنوي ← حسبة شهر)، ومستندان مطبوعان.
+const EmployeeCompensation = lazy(() => import('./pages/EmployeeCompensation'));
+const EmployeeCompensationFile = lazy(() => import('./pages/EmployeeCompensationFile'));
+const EmployeeCompensationMonth = lazy(() => import('./pages/EmployeeCompensationMonth'));
+const EmployeeCompensationDebts = lazy(() => import('./pages/EmployeeCompensationDebts'));
+const EmployeeCompensationDebtDetail = lazy(() => import('./pages/EmployeeCompensationDebtDetail'));
+const EmployeeCompensationStatement = lazy(() => import('./pages/EmployeeCompensationStatement'));
+const EmployeeCompensationDetailed = lazy(() => import('./pages/EmployeeCompensationDetailed'));
 // طباعة قالب الشيك (نظام قالب الشيك الجديد) — صفحة طباعة مستقلة خارج التخطيط، لعزل نظيف عن المعايرة والصفحة.
 const ChequeTemplatePrintPage = lazy(() => import('./components/chequeTemplateManager/ChequeTemplatePrintPage'));
 
@@ -123,6 +131,10 @@ export default function App() {
               يفتح محرّرًا فارغًا: الإنشاء يمرّ بالقائمة دائمًا. */}
           <Route path="/forms/official-letter/:id" element={<ProtectedRoute><LetterComposer /></ProtectedRoute>} />
           <Route path="/cheque-template/print" element={<ProtectedRoute><ChequeTemplatePrintPage /></ProtectedRoute>} />
+          {/* مستندا مستحقات الموظف — خارج التخطيط كبقية المستندات المطبوعة، فلا
+              تدخل القائمة الجانبية ولا الشريط العلوي في المستند المُركَّب. */}
+          <Route path="/employee-compensation/statement/:id" element={<ProtectedRoute><EmployeeCompensationStatement /></ProtectedRoute>} />
+          <Route path="/employee-compensation/detailed/:id" element={<ProtectedRoute><EmployeeCompensationDetailed /></ProtectedRoute>} />
           <Route
             element={
               <ProtectedRoute>
@@ -136,6 +148,13 @@ export default function App() {
             <Route path="/equipment" element={<ResourcePage moduleKey="equipment" />} />
             <Route path="/employees" element={<ResourcePage moduleKey="employees" />} />
             <Route path="/employees/:id/entitlements" element={<EmployeeEntitlementsCenter />} />
+            <Route path="/employee-compensation" element={<EmployeeCompensation />} />
+            {/* سجل المديونيات **قبل** مسار السنة: كلاهما مقطع واحد بعد المعرّف،
+                و«debts» يجب أن يُطابَق نصًّا قبل أن يُقرأ كسنة. */}
+            <Route path="/employee-compensation/debts/:id" element={<EmployeeCompensationDebtDetail />} />
+            <Route path="/employee-compensation/:employeeId/debts" element={<EmployeeCompensationDebts />} />
+            <Route path="/employee-compensation/:employeeId/:year" element={<EmployeeCompensationFile />} />
+            <Route path="/employee-compensation/:employeeId/:year/:month" element={<EmployeeCompensationMonth />} />
             <Route path="/suppliers" element={<ResourcePage moduleKey="suppliers" />} />
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/users" element={<Users />} />

@@ -24,8 +24,12 @@ import { readFileSync, readdirSync } from 'node:fs';
 const code = (src: string) =>
   src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '').replace(/\/\/.*$/gm, '');
 
-/** كل صفحة تستورد FormLayout فعليًا اليوم — الاثنا عشر بالاسم، لا تخمين. */
+/** كل صفحة تستورد FormLayout فعليًا اليوم — بالاسم، لا تخمين. */
 const ALL_FORM_LAYOUT_CONSUMERS = [
+  // مستندا وحدة مستحقات الموظف الشهرية — انضمّا إلى نفس مسار التركيب والتصدير
+  // (`composeStyledFromNode` → `exportPdfFromHtml`) بلا مسار طباعة موازٍ.
+  'EmployeeCompensationStatement',
+  'EmployeeCompensationDetailed',
   'SalaryCertificate',
   'EmployeeWarning',
   'LeaveRequest',
@@ -54,7 +58,7 @@ describe('لا أي أثر لعلم pdfUseComposedDocument المتقاعد', ()
 });
 
 describe('شمولية الفحص — كل مستهلكي FormLayout محسوبون', () => {
-  it('12 صفحة بالضبط تستورد FormLayout — لا واحدة منسية من القائمة أعلاه', () => {
+  it('كل الصفحات المستوردة لـ FormLayout مُدرجة أعلاه — لا واحدة منسية', () => {
     const pagesDir = 'src/pages';
     const consumers = readdirSync(pagesDir)
       .filter((f) => f.endsWith('.tsx'))
