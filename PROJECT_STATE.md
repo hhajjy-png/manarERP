@@ -64,7 +64,41 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Installer Release 2026.3.2
+## Latest Release — Employee Compensation v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Compensation v1 — releases three interlocking packs as one unit: Employee Monthly Compensation v1 · Legal/Accounting Validation + UI/UX Corrective Pack · Employee Compensation Debt & Advances Ledger Pack v1 |
+| **Release status** | RELEASED — Claude Code self-verified (typechecks ×3, full suites, both builds, live API smoke, browser UI smoke on 12 surfaces). No separate Product Owner visual sign-off is recorded for this release |
+| **Release date** | 2026-08-12 |
+| **Feature branch** | `feature/employee-compensation-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `435ba6d0` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-employee-compensation-v1` → `435ba6d0` |
+| **Feature commit** | `5561c2c3` |
+| **Production merge commit** | `cbe0734f` |
+| **Stable tag** | `stable-employee-compensation-v1` → merge `cbe0734f` (annotated) |
+| **Validation** | Backend/Frontend/Electron `tsc --noEmit` ✅ · `build:back` / `build:front` ✅ · backend 3,006/3,006 across 192 files ✅ · frontend 3,787 passed with the known 26-failure baseline unchanged (zero new) ✅ · module suites 132 backend + 96 frontend ✅ |
+| **Schema impact** | Two additive migrations — `20260812120000_add_employee_monthly_compensation` (4 tables), `20260812180000_add_employee_compensation_debt_ledger` (2 tables + one nullable FK column on this module's own deduction-lines table). Zero `DROP`, zero `PRAGMA`, zero data movement, zero rebuild of any pre-existing table |
+| **Permission impact** | New module key `employeeCompensation` with `read/create/update/delete/approve/print`. Seeded via `upsert` only — no existing grant is removed. HR_MANAGER full, ACCOUNTANT read+print |
+| **Legal contract** | Kuwait Labour Law 6/2010 — Art. 66 regular overtime (×1.25), Art. 67 weekly rest (×1.50 + compensatory day), Art. 68 official holiday (×2.00 + compensatory day). Hourly rate = basic ÷ 208 (26 × 8), the divisor imported from `DAILY_WAGE_DIVISOR` so it can never diverge from the project's documented daily-wage baseline. `LEGAL_RULES_VERSION = KW-LL-6/2010-v2` |
+| **Limit handling** | 180 h/year verified against the database (`STATUTORY`). The 2 h/day, 3 days/week and 90 days/year limits are **disclosed, not claimed verified** (`DISCLOSURE`) — the module has no daily timesheet. A derived ~26 h monthly ceiling is flagged `DERIVED` and never blocks saving |
+| **Employee delete audit** | `employees.service.remove()` is a soft delete (`status: 'TERMINATED'`); zero `prisma.employee.delete` call sites exist anywhere in the backend. All 12 employee-scoped relations in the schema use `onDelete: Cascade`. The two new relations follow that precedent unchanged — no speculative FK change, no extra migration |
+| **Isolation** | No Payroll / Accounting / GL / Expense writes, no Employee mutation. Guarded by a source-scanning test that also forbids *reading* `payrollAdvance`, `deduction`, `employeeAllowance`, `journalEntry`, `expense` and 8 further financial models. Measured before/after the live smoke: `payroll_lines` 54, `transactions` 103, `journal_entries` 460, `expenses` 240, `employees` 31 — all unchanged |
+| **Excluded from this release** | Pre-existing untracked working-tree items, left untouched and unstaged: screenshots (`compose-full.png`, `design-mode-*.png`, `fontpicker-open.png`, `kpi-after-fix.png`, `letter-compose-2.png`, `letter-composer-compose.png`), a probe test (`frontend/src/components/explorer/__tests__/zz-probe.test.tsx`), two untracked fonts under `frontend/src/assets/fonts/نموذج كتاب رسمي خطوط/`, plus this session's own UI-smoke screenshots (`ui-01…ui-11.png`) and `.playwright-mcp/` |
+
+**Known non-blocking item.** Three stale `query_engine-windows.dll.node.tmp*` copies remain under
+`backend/node_modules/.prisma/client/` — leftovers from an earlier `prisma generate` whose engine
+rename was blocked while a dev server held the DLL. They are inside `node_modules`, matched by
+`.gitignore:1`, and therefore cannot enter any commit. A clean `npx prisma generate` was re-run and
+completed successfully after the lock cleared; deleting the leftovers was refused by the environment's
+file-permission layer and is left as user housekeeping.
+
+**Future roadmap.** Wiring this module to payroll or the general ledger is explicitly **out of scope**
+for v1 and is deferred to a separate future pack — `Employee Compensation → Payroll / Accounting
+Integration Pack`. The `engine/` folder is the intended reuse surface: it is pure, deterministic, and
+knows nothing about its caller.
+
+## Previous Release — Production Installer Release 2026.3.2
 
 | Field | Value |
 |-------|-------|
@@ -6712,6 +6746,20 @@ The AI layer is **fully deterministic, offline, and rule-based — there is NO L
 ---
 
 ## Future Roadmap
+
+### Employee Compensation → Payroll / Accounting Integration Pack — deferred, not part of Employee Compensation v1
+
+Employee Compensation v1 shipped **deliberately isolated**: it writes only to its own six tables and
+posts nothing to payroll, the general ledger, expenses, or end-of-service. That isolation is enforced
+by a source-scanning test, not by convention.
+
+Wiring it into the financial cycle is a **separate future pack** and is explicitly out of scope for
+v1. When it is requested, the reuse surface is `backend/src/modules/employee-compensation/engine/` —
+pure, deterministic, free of Prisma/Express/React, and unaware of its caller. Nothing in the current
+release should be treated as a partial or in-progress integration.
+
+### Pre-existing roadmap items
+
 
 > Reconciled against the **code** on 2026-07-12 by the *Master Release Audit* and the *Core Runtime
 > Completion* pack — not against older documentation. Items that the audit proved already shipped were

@@ -39,9 +39,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `a24cc25b` — merge of `feature/production-release-2026.3.2` (documentation commit to follow) | High |
-| **Current stable tag** | `stable-production-release-2026.3.2` (merge commit `a24cc25b`) | High |
-| **Previous stable tag** | `stable-production-resource-integrity-audit-fix-pack-v1` (`d94dfe26`) | High |
+| **Current HEAD** | `cbe0734f` — merge of `feature/employee-compensation-v1` (**Employee Compensation v1**: monthly compensation engine + Kuwait Labour Law validation + UI/UX corrective pack + debt & advances ledger; documentation commit to follow) | High |
+| **Current stable tag** | `stable-employee-compensation-v1` (merge commit `cbe0734f`) | High |
+| **Previous stable tag** | `stable-production-release-2026.3.2` (merge commit `a24cc25b`) | High |
 | **Application version** | `2026.3.2` — new installer build; installer `AlManarERP-Setup-2026.3.2.exe` (131.76 MiB, Windows 10/11 x64, per-user install under `%AppData%`) | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
