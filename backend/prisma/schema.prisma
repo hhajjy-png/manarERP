@@ -165,6 +165,11 @@ model Employee {
   finalSettlements    EmployeeFinalSettlement[]
   deductions          Deduction[]
   bonuses             Bonus[]
+  // مستحقات الموظف الشهرية (وحدة مستقلة) — حقل علاقة عكسي **فقط**، تفرضه Prisma لكل
+  // علاقة. لا عمود جديد في جدول `employees`، ولا تغيير في أي حقل أو سلوك قائم.
+  compensationCalcs   EmployeeCompensationCalculation[]
+  // سجل المديونيات والسلف (نفس الوحدة المستقلة) — حقل علاقة عكسي فقط، بلا عمود جديد.
+  compensationDebts   EmployeeCompensationDebt[]
   performanceRevs     PerformanceReview[]
   approvedExpenses    Expense[]                    @relation("ExpenseApprover")
   managedContracts    Contract[]                   @relation("ContractManager")
@@ -1889,4 +1894,240 @@ model LetterTimelineEvent {
   @@index([letterId])
   @@index([letterId, occurredAt])
   @@map("letter_timeline_events")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// مستحقات الموظف الشهرية (Employee Monthly Compensation v1)
+//
+// وحدة **مستقلة تمامًا** — مرحلة تجريبية. تقرأ من `Employee` قراءةً فقط (اسم، رقم،
+// مسمّى، راتب أساسي)، ولا تكتب خارج الجداول الأربعة أدناه إطلاقًا: لا رواتب، ولا قيود
+// يومية، ولا مصروفات، ولا بدلات/خصومات نظام الرواتب، ولا مستحقات نهاية الخدمة، ولا
+// كشوف بنكية، ولا مراكز تكلفة. الأرقام هنا **لا تُرحَّل** إلى أي وحدة مالية.
+//
+// ═══ العلاقة بـ `Employee` ═══
+// `employeeId` مفتاح أجنبي حقيقي (Cascade عند حذف الموظف). حقل العلاقة العكسي
+// `Employee.compensationCalcs` **تفرضه Prisma** لكل علاقة، وهو حقل افتراضي لا يضيف
+// أي عمود إلى جدول `employees` ولا يغيّر أي سلوك فيه — نفس ما تفعله وحدات
+// `EmployeeEntitlementLedger` و`EmployeeFinalSettlement` القائمة.
+//
+// ═══ لقطة تاريخية (Snapshot) ═══
+// عند **إنشاء** حسبة الشهر تُكتب لقطة بيانات الموظف والراتب الأساسي مرة واحدة. تغيّر
+// الاسم أو المسمّى أو الراتب في ملف الموظف لاحقًا **لا يغيّر** كشوف الأشهر السابقة —
+// الكشف يُبنى من اللقطة، لا من الملف الحيّ.
+//
+// ═══ نسخة واحدة لكل موظف/سنة/شهر ═══
+// `@@unique([employeeId, year, month])` — لا إصدارات متعددة لنفس الشهر. التعديل
+// يُحدِّث نفس السجل. الاعتماد حالة تنظيمية فقط: لا يقفل السجل، ولا يمنع التعديل أو الحذف.
+model EmployeeCompensationCalculation {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  year  Int
+  month Int // 1..12
+
+  /// DRAFT | APPROVED — الاعتماد تنظيمي بحت، لا يقفل السجل.
+  status String @default("DRAFT")
+
+  // ── لقطة الموظف: تُكتب عند الإنشاء ولا تُعاد قراءتها من ملف الموظف بعدها ──
+  employeeNumberSnapshot String
+  employeeNameSnapshot   String
+  jobTitleSnapshot       String?
+  departmentSnapshot     String?
+  nationalitySnapshot    String?
+  civilIdSnapshot        String?
+  basicSalarySnapshot    Float
+
+  /// إصدار قواعد الاحتساب القانونية المستخدمة وقت الإنشاء (`legal/kuwaitLabourLaw.ts`).
+  legalRulesVersion String
+
+  /// أجر الساعة المشتقّ من لقطة الراتب — محفوظ لأن الكشف التاريخي يجب أن يُعاد شرحه
+  /// بنفس أرقامه حتى لو تغيّر القاسم القانوني في إصدار لاحق من المحرك.
+  hourlyRateSnapshot Float
+
+  // ── الإجماليات المشتقّة (تُعاد كتابتها في كل حفظ من محرك واحد) ──
+  totalOvertimeAmount Float @default(0)
+  totalOtherEarnings  Float @default(0)
+  grossEntitlements   Float @default(0)
+  totalDeductions     Float @default(0)
+  netAmount           Float @default(0)
+
+  notes String?
+
+  overtimeLines OvertimeLine[]
+  earningLines  CompensationEarningLine[]
+  deductionLines CompensationDeductionLine[]
+  /// حركات سداد المديونيات الناشئة عن هذه الحسبة — تُحذف بحذفها (Cascade).
+  debtPayments  EmployeeCompensationDebtPayment[]
+
+  createdById   Int?
+  createdByName String?
+  approvedAt    DateTime?
+  approvedById  Int?
+  approvedByName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([employeeId, year, month])
+  @@index([year, month])
+  @@index([employeeId, year])
+  @@map("employee_compensation_calculations")
+}
+
+/// سطر عمل إضافي واحد من نوع قانوني واحد.
+/// `method` = MANUAL_HOURS | REVERSE_FROM_AMOUNT — بيانات تدقيق داخلية فقط، لا تظهر
+/// في الكشف الرسمي المختصر إطلاقًا (المتطلب ١١).
+model OvertimeLine {
+  id            Int                             @id @default(autoincrement())
+  calculationId Int
+  calculation   EmployeeCompensationCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  /// REGULAR | WEEKLY_REST | OFFICIAL_HOLIDAY
+  overtimeType String
+  hours        Float
+  hourlyRate   Float
+  multiplier   Float
+  amount       Float
+
+  /// MANUAL_HOURS | REVERSE_FROM_AMOUNT
+  calculationMethod  String  @default("MANUAL_HOURS")
+  reverseTargetAmount Float?
+  /// الساعات الخام قبل التقريب لأعلى (الحسبة العكسية فقط).
+  rawHoursBeforeCeiling Float?
+  /// المادة/المرجع القانوني المطبَّق — نص ثابت من محرك القواعد.
+  legalReference String
+  notes          String?
+  sortOrder      Int     @default(0)
+
+  @@index([calculationId])
+  @@map("employee_compensation_overtime_lines")
+}
+
+/// استحقاق آخر (مكافأة/منحة/حافز/بدل/تعويض مصروف/مخصص). **لا** علاقة له بجداول
+/// `EmployeeAllowance` أو `Bonus` في نظام الرواتب — بند خاص بهذه الوحدة وحدها.
+model CompensationEarningLine {
+  id            Int                             @id @default(autoincrement())
+  calculationId Int
+  calculation   EmployeeCompensationCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  /// BONUS | GRANT | INCENTIVE | ALLOWANCE | EXPENSE_REIMBURSEMENT | CUSTOM
+  type      String
+  label     String
+  amount    Float
+  entryDate DateTime?
+  reason    String?
+  notes     String?
+  recurring Boolean @default(false)
+  sortOrder Int     @default(0)
+
+  @@index([calculationId])
+  @@map("employee_compensation_earning_lines")
+}
+
+/// استقطاع (غياب/سلفة/جزاء/خصم/مخصص). **لا** يُنشئ ولا يُعدّل أي `Deduction` أو
+/// `PayrollAdvance` في نظام الرواتب.
+model CompensationDeductionLine {
+  id            Int                             @id @default(autoincrement())
+  calculationId Int
+  calculation   EmployeeCompensationCalculation @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  /// ABSENCE | ADVANCE | PENALTY | DISCOUNT | CUSTOM | DEBT_REPAYMENT
+  type      String
+  label     String
+  amount    Float
+  notes     String?
+  sortOrder Int    @default(0)
+
+  /// سداد مديونية: ربط **صريح** بالسجل، لا استدلال من نصّ `label`.
+  /// `Restrict` عمدًا: لا تُحذف مديونية عليها استقطاع محفوظ بصمت (المتطلب ١١).
+  debtId Int?
+  debt   EmployeeCompensationDebt? @relation(fields: [debtId], references: [id], onDelete: Restrict)
+
+  /// حركة الدفتر المقابلة لهذا السطر — علاقة عكسية فقط (تملكها حركة الدفتر).
+  debtPayment EmployeeCompensationDebtPayment?
+
+  @@index([calculationId])
+  @@index([debtId])
+  @@map("employee_compensation_deduction_lines")
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// سجل المديونيات والسلف (Employee Compensation Debt & Advances Ledger v1)
+//
+// امتداد لوحدة مستحقات الموظف الشهرية، **بنفس عزلها حرفيًا**: لا رواتب، ولا محاسبة،
+// ولا قيود يومية، ولا مصروفات. سلفةٌ هنا ليست سلفة الرواتب (`PayrollAdvance`)، ولا
+// تنشئها ولا تقرؤها ولا تتأثر بها — سجل مستقل تمامًا لهذه الوحدة وحدها.
+//
+// ═══ لا رصيد مخزَّن — إطلاقًا ═══
+// لا يوجد عمود `remainingBalance` ولا `paidAmount` ولا `status`. الرصيد **يُشتقّ**
+// دائمًا: `originalAmount − SUM(payments.amount)`، والحالة تُشتقّ منه. عمودٌ مخزَّن كان
+// سيصير مصدر حقيقة ثانيًا يتباعد عن الدفتر عند أول تعديل يفشل في تحديثه — وهو بالضبط
+// صنف العيب الذي يجعل موظفًا يُخصم منه مرتين أو لا يُخصم أبدًا.
+//
+// ═══ هوية حركة السداد الشهرية ═══
+// `@@unique([calculationId, debtId])` هو ما يجعل التعديل **idempotent**: تعديل استقطاع
+// من ٢٥ إلى ١٥ يُحدِّث **نفس** الصف بدل أن يضيف صفًّا ثانيًا فوقه. ولأن SQLite تعدّ
+// الـNULL قيمًا متمايزة، لا يقيّد هذا الفهرس السدادات اليدوية (`calculationId = NULL`)،
+// فيجوز للموظف عدة سدادات يدوية على المديونية نفسها.
+model EmployeeCompensationDebt {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  /// ADVANCE (سلفة) | DEBT (مديونية أخرى) | CUSTOM
+  type String
+
+  /// بيان السجل كما يكتبه المستخدم — «سلفة شراء سيارة»، «مديونية وقود».
+  label          String
+  originalAmount Float
+  debtDate       DateTime
+  notes          String?
+
+  createdById   Int?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  payments       EmployeeCompensationDebtPayment[]
+  deductionLines CompensationDeductionLine[]
+
+  @@index([employeeId])
+  @@index([employeeId, debtDate])
+  @@map("employee_compensation_debts")
+}
+
+/// حركة سداد واحدة على مديونية — **دفتر الحقيقة الوحيد** الذي يُشتقّ منه الرصيد.
+model EmployeeCompensationDebtPayment {
+  id     Int                      @id @default(autoincrement())
+  debtId Int
+  /// `Restrict`: لا تُحذف مديونية عليها حركات بصمت — الحذف يُرفض برسالة صريحة.
+  debt   EmployeeCompensationDebt @relation(fields: [debtId], references: [id], onDelete: Restrict)
+
+  amount      Float
+  paymentDate DateTime
+
+  /// MONTHLY_COMPENSATION (من حسبة شهر) | MANUAL_PAYMENT (سداد خارج الحسبة)
+  sourceType String
+
+  /// حسبة الشهر المصدر. `Cascade`: حذف الحسبة يُلغي سدادها فيرتدّ الرصيد تلقائيًا —
+  /// لا حركة يتيمة تبقى تخصم من موظف عن شهر لم يعد موجودًا.
+  calculationId Int?
+  calculation   EmployeeCompensationCalculation? @relation(fields: [calculationId], references: [id], onDelete: Cascade)
+
+  /// مؤشّر إلى سطر الاستقطاع المقابل — **للعرض والتتبّع**، لا للهوية.
+  /// الهوية هي `(calculationId, debtId)`، لأن سطور الاستقطاع تُستبدل بالكامل عند كل
+  /// حفظ (تُحذف وتُنشأ من جديد)، فمعرّفها يتغيّر بينما الحركة نفسها تبقى.
+  deductionLineId Int?                       @unique
+  deductionLine   CompensationDeductionLine? @relation(fields: [deductionLineId], references: [id], onDelete: SetNull)
+
+  notes         String?
+  createdById   Int?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([calculationId, debtId])
+  @@index([debtId])
+  @@index([calculationId])
+  @@map("employee_compensation_debt_payments")
 }

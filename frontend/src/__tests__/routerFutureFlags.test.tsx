@@ -74,7 +74,10 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     expect(appSrc).not.toContain('createHashRouter');
     expect(appSrc).not.toContain('RouterProvider');
     expect(appSrc).toContain('<Suspense fallback={<PageLoader />}>');
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(55); // +1: CollectionAnalysis (Collection Analysis Page v1) — still lazy, still HashRouter
+    // +7: صفحات وحدة مستحقات الموظف الشهرية — قائمة · ملف سنوي · حسبة شهر · كشف ·
+    // تفاصيل · سجل المديونيات · تفاصيل مديونية. كلها كسولة كبقية الصفحات،
+    // والـ Router والـ Suspense كما هما.
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(62);
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });

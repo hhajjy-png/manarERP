@@ -86,6 +86,12 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   //   لا `print`: الطباعة وتصدير PDF من حزم لاحقة، ومفتاح صلاحية بلا مسار خلفه
   //   يظهر في شاشة الأدوار كقدرة لا تفعل شيئًا.
   letters:              ['read', 'create', 'update', 'delete', 'register', 'archive', 'cancel'],
+  // مستحقات الموظف الشهرية — وحدة مستقلة عن الرواتب.
+  //   `approve` حالة تنظيمية لا قفل: من يملكها يعتمد الحسبة، ومن يملك `update` يظلّ
+  //   قادرًا على تعديلها بعد الاعتماد. لا مفتاح «إعادة فتح» لأنه لا يوجد قفل يُفتح.
+  //   `delete` موجود لأن حذف حسبة معتمدة مسموح صراحةً في تصميم الوحدة.
+  //   `print` يحرس مسارَي بيانات الطباعة (الكشف المختصر والتقرير التفصيلي).
+  employeeCompensation: ['read', 'create', 'update', 'delete', 'approve', 'print'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -182,6 +188,10 @@ async function main() {
       'workAnalysis.read',
       'workAnalysis.export',
       'workAnalysis.print',
+      // المحاسب يطالع مستحقات الموظف ويطبعها، ولا ينشئها ولا يعتمدها: الوحدة تشغيلية
+      // بيد الموارد البشرية، ولا تُرحَّل إلى المحاسبة أصلًا.
+      'employeeCompensation.read',
+      'employeeCompensation.print',
       'import.read',
       'import.create',
       'financialdashboard.read',
@@ -232,7 +242,8 @@ async function main() {
       'attachments.create',
     ],
     HR_MANAGER: [
-      ...keysForModules(['employees', 'attendance', 'payroll', 'reports', 'forms']),
+      // مسؤول الموارد البشرية هو مالك وحدة مستحقات الموظف الشهرية — صلاحية كاملة.
+      ...keysForModules(['employees', 'attendance', 'payroll', 'reports', 'forms', 'employeeCompensation']),
       ...readOnly(['dashboard']),
       'import.read',
       'import.create',

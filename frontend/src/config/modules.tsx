@@ -494,6 +494,9 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'equipment',    label: 'nav.equipment',    icon: 'construction', permission: 'equipment.read' },
     { key: 'maintenance',  label: 'nav.maintenance',  icon: 'build_circle', permission: 'maintenance.read' },
     { key: 'employees',    label: 'nav.employees',    icon: 'badge',       permission: 'employees.read' },
+    // مستحقات الموظف الشهرية — يجاور «الموظفين» لأنه يقرأ منهم، ويسبق الحضور.
+    // صلاحيته مستقلة تمامًا عن `payroll.read`.
+    { key: 'employee-compensation', label: 'nav.employee_compensation', icon: 'request_quote', permission: 'employeeCompensation.read' },
     { key: 'attendance',   label: 'nav.attendance',   icon: 'event_available', permission: 'attendance.read' },
     { key: 'contracts',    label: 'nav.contracts',    icon: 'description', permission: 'contracts.read' },
   ] },

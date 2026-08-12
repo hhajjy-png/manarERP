@@ -33,6 +33,8 @@ import chequeDesignerTemplatesRoutes from './modules/chequeDesignerTemplates/che
 import importRoutes from './modules/import/import.routes';
 import pricesRoutes from './modules/prices/prices.routes';
 import workAnalysisRoutes from './modules/workAnalysis/workAnalysis.routes';
+// مستحقات الموظف الشهرية — وحدة مستقلة، لا تكتب خارج جداولها الأربعة.
+import employeeCompensationRoutes from './modules/employee-compensation/employeeCompensation.routes';
 import formsRoutes from './modules/forms/forms.routes';
 import internalRoutes from './modules/backups/internal.routes';
 import executiveRoutes from './modules/executive/executive.routes';
@@ -152,6 +154,7 @@ export function createApp(): Application {
   app.use('/api/letters', lettersRoutes);
   // تحليل الشغل والعمولة — أداة تحليل داخلية خارج الدورة المحاسبية.
   app.use('/api/work-analysis', workAnalysisRoutes);
+  app.use('/api/employee-compensation', employeeCompensationRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);
