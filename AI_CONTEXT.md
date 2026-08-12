@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `cbe0734f` (merge of `feature/employee-compensation-v1` — **Employee Compensation v1**. Releases three interlocking packs as one unit: Employee Monthly Compensation v1, Legal/Accounting Validation + UI/UX Corrective Pack, and Employee Compensation Debt & Advances Ledger Pack v1. A new, architecturally isolated module: per-employee annual file, exactly one calculation per employee/year/month, historical snapshot written once at creation, Kuwait Labour Law overtime engine (Art. 66 regular ×1.25 · Art. 67 weekly rest ×1.50 · Art. 68 official holiday ×2.00), hourly rate = basic ÷ 208 (26 × 8, divisor imported from `DAILY_WAGE_DIVISOR` so it cannot diverge from the project's documented daily-wage baseline), reverse overtime (amount → hours, rounded up in the employee's favour), short official statement + internal detailed report on the existing FormLayout/PrintWorkspace path, approved records remain editable and deletable, and a debt & advances ledger whose balance is derived from movements (never stored) with automatic reversal when a month is edited or deleted. Two additive migrations, zero rebuild of any pre-existing table. No payroll, accounting, GL, or expense posting — enforced by a source-scanning isolation test.) |
-| **Current Documentation Commit** | `<pending>` |
+| **Current Documentation Commit** | `5773601b` |
 | **Current Stable Tag** | `stable-employee-compensation-v1` |
 | **Current Release Date** | 2026-08-12 |
 | **Application Version** | `2026.3.2` — new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `release/AlManarERP-Setup-2026.3.2.exe` (131.76 MiB, Windows 10/11 x64, per-user install under `%AppData%`) |
