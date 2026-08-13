@@ -74,7 +74,11 @@ describe('تدقيق ترجمة سجل النماذج — كل نموذج مسج
       if (pageFile) {
         it(`شاشة ${pageFile} تستدعي نفس titleKey المسجَّل — لا انحراف بين السجل والشاشة`, () => {
           const src = readFileSync(`src/pages/${pageFile}`, 'utf8');
-          expect(src).toContain(`t('${card.titleKey}')`);
+          // الشاشات تحلّ العنوان إما عبر t('KEY') أو translate('KEY', lang) —
+          // كلاهما يقرأ نفس القاموس؛ المطلوب هو استدعاء المفتاح المسجَّل حرفيًا.
+          const resolvesKey =
+            src.includes(`t('${card.titleKey}')`) || src.includes(`translate('${card.titleKey}'`);
+          expect(resolvesKey, `الشاشة لا تستدعي '${card.titleKey}' عبر t() أو translate()`).toBe(true);
         });
       }
     });

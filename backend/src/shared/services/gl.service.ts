@@ -141,6 +141,8 @@ export async function createBalancedJournal(
       return;
     } catch (err) {
       if (attempt < MAX_ENTRY_NUMBER_ATTEMPTS - 1 && isEntryNumberCollision(err)) {
+        // console.warn عمدًا لا logger: استيراد Winston هنا يُنشئ مجلدات عند تحميل
+        // الوحدة ويكسر اختبارات الوحدة (نفس المفاضلة الموثّقة في approval.service).
         console.warn(`[GL] entryNumber collision on attempt ${attempt + 1} — retrying`);
         lastErr = err;
         continue;

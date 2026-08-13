@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
@@ -202,7 +202,11 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
   // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
   const sort = useTableSort('accounting-accounts', () => setPage(1));
 
+  // حارس ضد الاستجابات المتأخرة (نفس نمط reqIdRef المعتمد في Invoices.tsx).
+  const reqIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
       const res = await api.get('/accounting/accounts', {
@@ -214,10 +218,11 @@ function AccountsTab({ canCreate }: { canCreate: boolean }) {
           ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
         },
       });
+      if (reqId !== reqIdRef.current) return; // استجابة تجاوزها طلب أحدث — تُهمَل
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
   }, [page, search, typeFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
@@ -462,7 +467,11 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
   // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
   const sort = useTableSort('accounting-journal', () => setPage(1));
 
+  // حارس ضد الاستجابات المتأخرة (نفس نمط reqIdRef المعتمد في Invoices.tsx).
+  const reqIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
       const res = await api.get('/accounting/journal', {
@@ -473,10 +482,11 @@ function JournalTab({ canCreate }: { canCreate: boolean }) {
           ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
         },
       });
+      if (reqId !== reqIdRef.current) return; // استجابة تجاوزها طلب أحدث — تُهمَل
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
   }, [page, search, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
@@ -759,7 +769,11 @@ function PaymentsTab() {
   // فرز خادمي — تغيير الفرز استعلام جديد فيعود للصفحة الأولى.
   const sort = useTableSort('accounting-payments', () => setPage(1));
 
+  // حارس ضد الاستجابات المتأخرة (نفس نمط reqIdRef المعتمد في Invoices.tsx).
+  const reqIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     try {
       const res = await api.get('/accounting/payments', {
@@ -770,10 +784,11 @@ function PaymentsTab() {
           ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
         },
       });
+      if (reqId !== reqIdRef.current) return; // استجابة تجاوزها طلب أحدث — تُهمَل
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
   }, [page, methodFilter, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);

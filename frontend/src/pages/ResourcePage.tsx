@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useToast } from '../stores/toastStore';
 import { api, errorMessage } from '../api/client';
 import { MODULES, money } from '../config/modules';
@@ -102,7 +102,13 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
   const canExport = cfg.supportsExport && hasPermission('reports.export');
   const [exportBusy, setExportBusy] = useState(false);
 
+  // حارس ضد الاستجابات المتأخرة: تغيير الصفحة/البحث/الفرز بسرعة يُطلق طلبات متتالية
+  // وترتيب وصولها غير مضمون — لا يُسمح بالكتابة في الحالة إلا لصاحب الرقم الأحدث
+  // (نفس نمط reqIdRef المعتمد في Invoices.tsx).
+  const reqIdRef = useRef(0);
+
   const load = useCallback(async () => {
+    const reqId = ++reqIdRef.current;
     setLoading(true);
     setError('');
     try {
@@ -115,12 +121,14 @@ export default function ResourcePage({ moduleKey }: { moduleKey: string }) {
           ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}),
         },
       });
+      if (reqId !== reqIdRef.current) return; // استجابة تجاوزها طلب أحدث — تُهمَل
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } catch (err) {
+      if (reqId !== reqIdRef.current) return;
       setError(errorMessage(err));
     } finally {
-      setLoading(false);
+      if (reqId === reqIdRef.current) setLoading(false);
     }
   }, [cfg.endpoint, page, query, filterValue, cfg.statusFilter, sort.sortBy, sort.sortDir]);
 

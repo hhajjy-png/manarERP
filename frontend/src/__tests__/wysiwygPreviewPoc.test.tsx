@@ -507,8 +507,8 @@ describe('جاهزية الإنتاج — التسمية وسطح الشريط',
 
   /** الميزة صارت مُفعَّلة افتراضيًا — أي أثر «تجريبي» في الواجهة صار كذبًا على المستخدم. */
   it('لا رمز تجارب ولا كلمة «تجريبي» ولا اختصار WYSIWYG في أي نص يراه المستخدم', () => {
-    // زرّ الفاتورة
-    expect(invoiceSrc).toContain('📄 معاينة دقيقة');
+    // زرّ الفاتورة — التسمية انتقلت إلى مفتاح i18n (btn.accurate_preview = «معاينة دقيقة»)
+    expect(invoiceSrc).toContain("📄 {t('btn.accurate_preview')}");
     expect(invoiceSrc).not.toContain('🧪');
     expect(invoiceSrc).not.toContain('معاينة WYSIWYG');
 

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+import { roundMoney, sumMoney } from '../../shared/utils/money';
 
 // القائمة البيضاء للفرز (Enterprise Data Grid Foundation) — سجل صرف الرواتب.
 // paymentDate الافتراضي نفسه اختياري → nulls آخرًا عند الفرز الصريح عليه.
@@ -67,7 +68,7 @@ export class SalariesService {
       const key = r.beneficiaryName;
       if (!byEmp.has(key)) byEmp.set(key, { name: r.beneficiaryName, civilId: r.civilId, perMonth: {} });
       const emp = byEmp.get(key)!;
-      emp.perMonth[mk] = (emp.perMonth[mk] ?? 0) + (r.amount ?? 0);
+      emp.perMonth[mk] = roundMoney((emp.perMonth[mk] ?? 0) + (r.amount ?? 0));
     }
 
     const months = [...monthsSet].sort();
@@ -75,14 +76,14 @@ export class SalariesService {
       .map((e) => {
         const values = months.map((m) => e.perMonth[m] ?? 0);
         const monthsPaid = values.filter((v) => v > 0).length;
-        const total = values.reduce((s, v) => s + v, 0);
+        const total = sumMoney(values);
         return { name: e.name, civilId: e.civilId, values, monthsPaid, total };
       })
       .sort((a, b) => b.total - a.total);
 
-    const monthTotals = months.map((_, i) => employees.reduce((s, e) => s + e.values[i], 0));
+    const monthTotals = months.map((_, i) => sumMoney(employees.map((e) => e.values[i])));
     const monthCounts = months.map((_, i) => employees.reduce((s, e) => s + (e.values[i] > 0 ? 1 : 0), 0));
-    const grandTotal = employees.reduce((s, e) => s + e.total, 0);
+    const grandTotal = sumMoney(employees.map((e) => e.total));
 
     return { months, employees, monthTotals, monthCounts, grandTotal, employeeCount: employees.length };
   }

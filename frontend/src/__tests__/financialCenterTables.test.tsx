@@ -26,7 +26,14 @@ vi.mock('../stores/settingsStore', () => ({
   currentCurrencyLanguage: () => currencyLanguage,
   useSettings: (sel: (s: Record<string, unknown>) => unknown) => sel({ currencyLanguage }),
 }));
-vi.mock('../stores/uiStore', () => ({ useUI: () => false }));
+// useT() يفكّك { lang } من useUI() — الـ mock يعيد حالة كاملة (ومع محدِّد اختياري)
+// بدل false القديمة التي كانت تُسقط الترجمة بـ undefined[key].
+vi.mock('../stores/uiStore', () => ({
+  useUI: (sel?: (s: Record<string, unknown>) => unknown) => {
+    const state = { lang: 'ar', theme: 'light', sidebarMode: 'expanded' };
+    return sel ? sel(state) : state;
+  },
+}));
 
 const STATE = { reportType: 'statement', filters: {} } as never;
 

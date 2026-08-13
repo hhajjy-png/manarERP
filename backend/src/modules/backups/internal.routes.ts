@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { prisma } from '../../config/database';
 import { env } from '../../config/env';
 import { backupService } from '../../shared/services/backup.service';
@@ -8,8 +9,13 @@ import { ok } from '../../core/utils/response';
 const router = Router();
 
 function requireInternalSecret(req: Request, res: Response, next: NextFunction): void {
-  const secret = req.headers['x-internal-secret'];
-  if (!env.INTERNAL_SECRET || secret !== env.INTERNAL_SECRET) {
+  const header = req.headers['x-internal-secret'];
+  const provided = Buffer.from(typeof header === 'string' ? header : '');
+  const expected = Buffer.from(env.INTERNAL_SECRET ?? '');
+  // مقارنة زمنية-ثابتة: السر يحرس مسارات تغيّر الحالة، فلا يُقارن بـ !==
+  const valid =
+    expected.length > 0 && provided.length === expected.length && timingSafeEqual(provided, expected);
+  if (!valid) {
     res.status(403).json({ success: false, error: 'Forbidden' });
     return;
   }

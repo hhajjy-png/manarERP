@@ -60,10 +60,12 @@ function renderPage() {
   );
 }
 
-/** Open the calibration overlay via its real toolbar button. */
+/** Open the calibration overlay via its real toolbar button.
+ * i18n ممُوَّه هنا بهوية (t = key)، والواجهة انتقلت من النص الحرفي إلى المفاتيح —
+ * فالأسماء المرئية في هذا الاختبار هي المفاتيح لا النصوص العربية. */
 async function openCalibrator() {
-  fireEvent.click(await screen.findByRole('button', { name: /معايرة الطباعة/ }));
-  await screen.findByText(/معايرة الشيكات/);
+  fireEvent.click(await screen.findByRole('button', { name: /action\.cheque\.calibrate_print/ }));
+  await screen.findByText(/calib\.toolbar\.title/);
 }
 
 describe('cheque print ink isolation', () => {
@@ -121,7 +123,7 @@ describe('cheque print ink isolation', () => {
     vi.mocked(api.put).mockClear();
 
     // المعاينة طبقة عرض: تُفتح أولًا، ثم «طباعة» بداخلها تفوّض إلى `printCurrentView`.
-    const btn = screen.getByRole('button', { name: /اختبار المعايرة/ });
+    const btn = screen.getByRole('button', { name: /action\.calib\.test_print/ });
     fireEvent.click(btn);
     await flushAsyncUpdates();
     const printBtn = screen.getByRole('button', { name: 'طباعة' });
