@@ -50,6 +50,17 @@ export interface DecisionInput {
    * يُحسب في `dbBootstrapState.isPristineSeed` (وسم صريح + تطابق بصمة).
    */
   isPristineSeed: boolean;
+  /**
+   * Data Safety Pack v2 — F-03 · هل بيانات القالب الذهبي **أحدث** من نسخة Drive؟
+   *
+   * يُحسب في `goldenManifest.isGoldenNewerThanRemote` من بيان مشحون مع المثبّت،
+   * ولا يُعتدّ به إلا حين تطابق بصمة البيان بصمة القاعدة المحلية فعليًا.
+   *
+   * `false` هو **قيمة السقوط الآمن**: بيان مفقود (بيئة تطوير، مثبّت أقدم من هذه
+   * الحزمة)، أو تالف، أو غير مطابق ⇒ يبقى السلوك السابق حرفيًا. لا يُقرأ هذا الحقل
+   * إطلاقًا خارج فرع `isPristineSeed`.
+   */
+  goldenNewerThanRemote: boolean;
 }
 
 export interface DecisionResult {
@@ -63,7 +74,7 @@ export interface DecisionResult {
  * `__tests__/syncDecision.pure.test.ts`.
  */
 export function decideSyncAction(input: DecisionInput): DecisionResult {
-  const { localHash, remote, metadata, isPristineSeed } = input;
+  const { localHash, remote, metadata, isPristineSeed, goldenNewerThanRemote } = input;
 
   // (1) لا نسخة سحابية بعد.
   if (!remote) {
@@ -88,7 +99,20 @@ export function decideSyncAction(input: DecisionInput): DecisionResult {
   //     القالب المُضمَّن ليس «تغييرًا محليًا»: لا مستخدم كتب فيه شيئًا. تصنيفه كذلك
   //     كان يُنتج CONFLICT ويعرض خيار «المحلي» الذي يرفع القالب الفارغ فوق بيانات
   //     Drive الحقيقية. القرار هنا **تنزيل حصرًا** — لا تعارض ولا خيار رفع أصلًا.
+  //     Data Safety Pack v2 — F-03: الافتراض الضمني السابق كان «البذرة أقدم من Drive
+  //     دائمًا». صحيح لقالب فارغ، وخاطئ تمامًا لقالب ذهبي يحمل آخر لقطة إنتاجية —
+  //     فكان قالب أحدث يُستبدل تلقائيًا بنسخة سحابية أقدم. الآن يُستشار دليل صريح
+  //     (بيان القالب) قبل التنزيل، ولا يُنفَّذ الاستبدال التلقائي حين يُثبت الدليل
+  //     أن المحلي أحدث. غياب الدليل ⇒ `false` ⇒ السلوك السابق حرفيًا.
   if (isPristineSeed) {
+    if (goldenNewerThanRemote) {
+      return {
+        action: 'CONFLICT',
+        reason:
+          'القالب المضمَّن في هذا الإصدار أحدث من النسخة الموجودة على Google Drive — ' +
+          'لن تُستبدل القاعدة المحلية تلقائيًا، والقرار لك',
+      };
+    }
     return {
       action: 'DOWNLOAD',
       reason: 'أول تشغيل: تهيئة القاعدة من النسخة السحابية (القالب المحلي بذرة لا بيانات مستخدم)',

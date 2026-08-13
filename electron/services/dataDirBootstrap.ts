@@ -35,25 +35,36 @@ export const DATA_SUBDIRECTORIES = [
 ] as const;
 
 /**
- * ملفات الحالة التي تُنقل مع النسخة الإنتاجية إن وُجدت في `seed-data` المُرفقة
- * بالمثبّت — ولا تُنشأ محليًا إلا إن كانت غائبة.
+ * Data Safety Pack v2 — F-04 · **لا حالة من جهاز البناء تُشحن إطلاقًا.**
  *
- * ما **لا** يُنقل عمدًا:
- *   • `gdrive-token.dat` — مُعمّى بـDPAPI (safeStorage) ومربوط بحساب المستخدم
- *     والجهاز الذي أنشأه. نقله إلى جهاز آخر يُنتج ملفًا لا يُفكّ تعميته أبدًا؛
- *     المستخدم يربط الحساب بضغطة واحدة على الجهاز الجديد.
- *   • `device-identity.json` — هوية الجهاز يجب أن تكون **جديدة** على جهاز جديد،
- *     وإلا ظهر جهازان مختلفان بالهوية نفسها في سجلّ المزامنة وفي كشف التعارض.
- *   • `security.json` — سرّ JWT يُولَّد محليًا لكل تثبيت؛ نقله يعني إعادة استخدام
- *     سرّ عبر أجهزة بلا أي فائدة (الأثر الوحيد لتوليده من جديد: تسجيل دخول واحد).
+ * ── ما كان يحدث ────────────────────────────────────────────────────────────────
+ *
+ * كان المثبّت يحمل ملفَّي حالة يُنسخان إلى مجلد بيانات المستخدم عند أول تشغيل:
+ *
+ *   • `sync-metadata.json`  — ويحمل `lastSyncedHash` و`lastSyncedLocalHash`
+ *     و`lastSyncedFileId` **من جهاز البناء**. النتيجة: جهاز جديد يُمنح «تاريخ
+ *     مزامنة» لم يعشه. فحين يُقارَن لاحقًا:
+ *         remoteChanged = (R !== lastSyncedHash) ⇒ false إن لم يتغيّر Drive منذ البناء
+ *         localChanged  = true
+ *       ⇒ القرار `UPLOAD` — **رفع صامت** فوق النسخة السحابية.
+ *     وبلا هذا الملف يكون `lastSyncedHash = null` ⇒ remoteChanged = true ⇒ القرار
+ *     `CONFLICT` يقرّره المستخدم. أي أن شحن الملف كان **يحوّل تعارضًا آمنًا إلى
+ *     رفع صامت**، ويُبطل عمليًا الضمانة التي يغطّيها الاختبار «أول ربط بلا بيانات
+ *     مزامنة سابقة على قاعدة حقيقية ⇒ تعارض لا رفع صامت».
+ *
+ *   • `gdrive-account.json` — بريد حساب Google الخاص بالمطوّر. تسريب هوية بلا أي
+ *     فائدة وظيفية (الواجهة لا تعرضه أصلًا إلا مع توكن صالح، والتوكن لا يُشحن).
+ *
+ * ── العقد الآن ─────────────────────────────────────────────────────────────────
+ *
+ * مجلد `seed-data` المشحون يحمل **بيان القالب الذهبي فقط** (`golden-manifest.json`)
+ * — وهو وصف للقالب نفسه لا لجهاز البناء ولا لحساب أحد، ويُقرأ من مكانه في
+ * `resources` مباشرة ولا يُنسخ إلى مجلد بيانات المستخدم أصلًا (نسخُه كان سيجعله
+ * قديمًا بعد أول تحديث للتطبيق).
+ *
+ * فمجلد بيانات المستخدم الجديد يبدأ **نظيفًا تمامًا**: لا تاريخ مزامنة، ولا هوية
+ * جهاز، ولا حساب، ولا سرّ — كلها تُولَّد محليًا عند أول حاجة إليها.
  */
-export const SEEDED_STATE_FILES = [
-  // يحفظ `lastSyncedFileId` — الرابط بملف قاعدة البيانات في appDataFolder على
-  // Drive، وسجلّ المزامنة وتاريخها. بدونه تبدأ النسخة الجديدة بلا تاريخ مزامنة.
-  'sync-metadata.json',
-  // بريد الحساب المرتبط سابقًا — عرضي بحت (الواجهة لا تُظهره إلا مع توكن صالح).
-  'gdrive-account.json',
-] as const;
 
 /** ينشئ كل مجلدات البيانات الناقصة. آمن للتكرار — `recursive: true` لا يمسّ الموجود. */
 export function ensureDataLayout(dataDir: string): void {
@@ -61,40 +72,4 @@ export function ensureDataLayout(dataDir: string): void {
   for (const sub of DATA_SUBDIRECTORIES) {
     fs.mkdirSync(path.join(dataDir, sub), { recursive: true });
   }
-}
-
-export interface SeedCompanionResult {
-  copied: string[];
-  skipped: string[];
-  failed: Array<{ file: string; error: string }>;
-}
-
-/**
- * ينسخ ملفات الحالة المُرفقة بالمثبّت إلى مجلد بيانات المستخدم — **الناقصة فقط**.
- *
- * `seedDir` غائب (تطوير، أو حزمة بلا بيانات مبدئية) ⇒ لا عمل ولا خطأ.
- * فشل نسخ ملف واحد لا يُوقف الباقي ولا يُفشل بدء التطبيق: هذه ملفات راحة لا
- * ملفات حرجة — النظام يعمل كاملًا بدونها وينشئها من جديد عند الحاجة.
- */
-export function seedCompanionFiles(dataDir: string, seedDir: string | null): SeedCompanionResult {
-  const result: SeedCompanionResult = { copied: [], skipped: [], failed: [] };
-  if (!seedDir || !fs.existsSync(seedDir)) return result;
-
-  for (const fileName of SEEDED_STATE_FILES) {
-    const src = path.join(seedDir, fileName);
-    const dest = path.join(dataDir, fileName);
-    if (!fs.existsSync(src)) continue;
-    if (fs.existsSync(dest)) {
-      result.skipped.push(fileName);
-      continue;
-    }
-    try {
-      fs.copyFileSync(src, dest);
-      result.copied.push(fileName);
-    } catch (err) {
-      result.failed.push({ file: fileName, error: err instanceof Error ? err.message : String(err) });
-    }
-  }
-
-  return result;
 }

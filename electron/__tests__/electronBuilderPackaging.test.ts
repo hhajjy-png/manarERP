@@ -80,15 +80,38 @@ describe('electron-builder.yml — عقد حزمة الإنتاج', () => {
     expect(config).toMatch(/from:\s*backend\/data\/manar\.db\s*\n\s*to:\s*backend\/data\/manar\.db/);
   });
 
-  it('يشحن ملفات الحالة المبدئية إلى seed-data (يقرأها dataDirBootstrap عند أول تشغيل)', () => {
+  it('يشحن مجلد seed-data (يقرأ منه backendLauncher بيان القالب الذهبي)', () => {
     // المسار الهدف `seed-data` مقروء حرفيًا في backendLauncher عبر
-    // path.join(resourcesPath, 'seed-data') — تغييره هنا يكسر البذر بصمت.
+    // path.join(resourcesPath, 'seed-data') — تغييره هنا يكسر قراءة البيان بصمت.
     expect(config).toMatch(/from:\s*build\/seed-data\s*\n\s*to:\s*seed-data/);
     const launcher = fs.readFileSync(
       path.join(repoRoot, 'electron', 'services', 'backendLauncher.ts'),
       'utf8',
     );
-    expect(launcher).toContain("path.join(resourcesPath, 'seed-data')");
+    expect(launcher).toContain("path.join(resourcesPath, 'seed-data'");
+  });
+
+  it('Data Safety Pack v2 (F-04) — لا يُجهَّز أي ملف حالة من جهاز البناء', () => {
+    // `sync-metadata.json` كان يمنح الجهاز الجديد تاريخ مزامنة جهاز البناء فيحوّل
+    // أول قرار من CONFLICT آمن إلى UPLOAD صامت فوق بيانات Drive، و`gdrive-account.json`
+    // كان يسرّب بريد المطوّر. عودة أيٍّ منهما إلى سكربت التجهيز تُعيد العطل نفسه.
+    const script = fs.readFileSync(path.join(repoRoot, 'scripts', 'prepare-seed-data.js'), 'utf8');
+    const staging = script.slice(script.indexOf('function stageSeedFiles'));
+    expect(staging).not.toContain('sync-metadata.json');
+    expect(staging).not.toContain('gdrive-account.json');
+    expect(staging).toContain('GOLDEN_MANIFEST_FILENAME');
+  });
+
+  it('Data Safety Pack v2 (F-03) — اسم بيان القالب متطابق بين السكربت والوحدة القارئة', () => {
+    // ملفّان في لغتين مختلفتين يتفقان على اسم واحد بلا مُصدِّر مشترك؛ اختلافهما
+    // يُسقط الحماية بصمت (البيان يُكتب باسم لا يقرؤه أحد ⇒ سلوك ما قبل الحزمة).
+    const script = fs.readFileSync(path.join(repoRoot, 'scripts', 'prepare-seed-data.js'), 'utf8');
+    const module_ = fs.readFileSync(
+      path.join(repoRoot, 'electron', 'services', 'goldenManifest.ts'),
+      'utf8',
+    );
+    expect(script).toContain("GOLDEN_MANIFEST_FILENAME = 'golden-manifest.json'");
+    expect(module_).toContain("GOLDEN_MANIFEST_FILENAME = 'golden-manifest.json'");
   });
 
   it('يشحن مخطط Prisma والترحيلات — بلاها يفشل migrate deploy عند بدء الخدمة', () => {
@@ -136,10 +159,14 @@ describe('electron-builder.yml — عقد حزمة الإنتاج', () => {
     expect(config).toMatch(/perMachine:\s*false/);
   });
 
-  it('اسم المنتج وإصدار 2026.2 متسقان بين package.json و electron-builder.yml', () => {
+  it('اسم المنتج والترقيم التقويمي متسقان بين package.json و electron-builder.yml', () => {
     expect(pkg.productName).toBe('Al Manar ERP');
     expect(config).toMatch(/productName:\s*Al Manar ERP/);
-    expect(pkg.version).toMatch(/^2026\.2\./);
+    // ترقيم تقويمي `2026.<إصدار>.<تصحيح>`. كان التأكيد مثبّتًا على `2026.2.` حرفيًا
+    // فصار يفشل منذ 2026.3.0 — أي أن العقد المقصود (الالتزام بالترقيم التقويمي)
+    // لم يعد محروسًا، وبقي الإخفاق قائمًا عبر إصدارين. الشكل هو المحروس الآن لا
+    // رقم إصدار بعينه، فيبقى صحيحًا مع كل ترقية لاحقة.
+    expect(pkg.version).toMatch(/^2026\.\d+\.\d+$/);
   });
 
   it('خط أنابيب dist يُشغّل كل خطوات التجهيز بالترتيب الصحيح', () => {

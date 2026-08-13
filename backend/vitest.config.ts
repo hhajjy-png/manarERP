@@ -12,5 +12,19 @@ export default defineConfig({
   },
   test: {
     globals: false,
+    /**
+     * Test Isolation Pack v1 — طبقتا حماية لقاعدة بيانات التطوير.
+     *
+     * `setupFiles`  — تُنفَّذ **قبل** شجرة وحدات كل ملف اختبار، فتُعيد توجيه
+     *                 DATABASE_URL و BACKUP_DIR و ATTACHMENTS_DIR و DATA_DIR إلى
+     *                 صندوق رملي في مجلد المؤقتات. `dotenv` لا يستبدل قيمة موجودة،
+     *                 فقيمة `.env` (قاعدة التطوير) لا تصل التطبيق أثناء الاختبار
+     *                 مهما كان ترتيب الاستيراد. المنع الفعلي يعيش هنا.
+     *
+     * `globalSetup` — يلتقط بصمة SHA-256 لقاعدة التطوير قبل أول اختبار ويقارنها
+     *                 بعد آخر واحد، فيُفشل التشغيل كله إن تغيّرت. الإثبات يعيش هنا.
+     */
+    setupFiles: ['./vitest.setup.ts'],
+    globalSetup: ['./vitest.globalSetup.ts'],
   },
 });

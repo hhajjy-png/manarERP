@@ -166,11 +166,19 @@ declare global {
       syncUpload?: () => Promise<{
         ok: boolean;
         error?: string;
+        /**
+         * Data Safety Pack v2 (F-01) — قرار محرّك المزامنة لهذا الطلب:
+         * `UPLOAD` نُفِّذ · `CONFLICT` يحتاج قرار المستخدم · `DOWNLOAD` رُفض الرفع
+         * لأن السحابة أحدث · `NONE` لا شيء ليُرفع.
+         */
+        action?: string;
         rescueBackup?: RescueBackupOutcomeInfo;
         /** رُفض الرفع لأن النسخة السحابية تغيّرت من جهاز آخر — يلزم قرار المستخدم. */
         conflict?: SyncConflictInfo;
         needsReauth?: boolean;
         busy?: boolean;
+        /** أُلغيت العملية لانتهاء المهلة قبل أي كتابة. */
+        aborted?: boolean;
       }>;
       syncDownload?: () => Promise<{
         ok: boolean;

@@ -31,8 +31,11 @@ const TEMPLATE_DB = path.join(SOURCE_DATA_DIR, 'manar.db');
 const DEV_OAUTH_CLIENT = path.join(SOURCE_DATA_DIR, 'gdrive-client.json');
 const PACKAGED_OAUTH_CLIENT = path.join(REPO_ROOT, 'electron', 'resources', 'gdrive-oauth-client.json');
 
-/** يجب أن تطابق `SEEDED_STATE_FILES` في electron/services/dataDirBootstrap.ts. */
-const SEEDED_STATE_FILES = ['sync-metadata.json', 'gdrive-account.json'];
+/**
+ * Data Safety Pack v2 — F-03 · اسم بيان القالب الذهبي.
+ * يجب أن يطابق `GOLDEN_MANIFEST_FILENAME` في electron/services/goldenManifest.ts.
+ */
+const GOLDEN_MANIFEST_FILENAME = 'golden-manifest.json';
 
 /** لواحق ملفات SQLite الجانبية — وجودها يعني معاملة مفتوحة أو قاعدة قيد الاستخدام. */
 const HOT_JOURNAL_SUFFIXES = ['-wal', '-shm', '-journal'];
@@ -78,7 +81,14 @@ function verifyTemplateDatabase() {
     throw new Error('قاعدة البيانات المبدئية صغيرة بشكل غير معقول — يُرجّح أنها تالفة.');
   }
 
-  return { sizeBytes: buf.length, sha256: sha256(TEMPLATE_DB) };
+  // `mtime` يُقرأ **هنا وحده**، على جهاز البناء حيث الملف مرجعي وطازج، ثم يُجمَّد
+  // داخل البيان. لا يُقرأ وقت التشغيل أبدًا: `mtime` الملف المشحون قد يتغيّر بفكّ
+  // ضغط المثبّت أو النسخ أو الأرشفة، فيُنتج ادّعاء أحدثية كاذبًا في الاتجاهين.
+  return {
+    sizeBytes: buf.length,
+    sha256: sha256(TEMPLATE_DB),
+    dataModifiedAt: fs.statSync(TEMPLATE_DB).mtime.toISOString(),
+  };
 }
 
 /**
@@ -116,36 +126,54 @@ function ensurePackagedOAuthClient() {
   return { action: 'derived' };
 }
 
-function stageSeedFiles() {
+/**
+ * Data Safety Pack v2 — F-03/F-04 · يُنتج مجلد `seed-data` المشحون.
+ *
+ * ── ما تغيّر ───────────────────────────────────────────────────────────────────
+ *
+ * كان هذا المجلد يحمل `sync-metadata.json` و`gdrive-account.json` **من جهاز البناء**،
+ * فيُنسخان إلى مجلد بيانات المستخدم عند أول تشغيل. الأثر:
+ *   • `sync-metadata.json` يمنح الجهاز الجديد `lastSyncedHash` لم يكسبه ⇒ القرار
+ *     التالي يصير `UPLOAD` صامتًا بدل `CONFLICT` آمن.
+ *   • `gdrive-account.json` يسرّب بريد حساب Google للمطوّر بلا أي فائدة وظيفية.
+ * كلاهما حُذف نهائيًا (F-04).
+ *
+ * المجلد الآن يحمل **بيان القالب فقط**: وصفٌ للقاعدة المشحونة نفسها — لا لجهاز
+ * البناء ولا لحساب أحد — يُقرأ من `resources` مباشرة ولا يُنسخ إلى مجلد المستخدم.
+ */
+function stageSeedFiles(dbInfo) {
   fs.rmSync(SEED_OUT_DIR, { recursive: true, force: true });
   fs.mkdirSync(SEED_OUT_DIR, { recursive: true });
 
-  const staged = [];
-  for (const fileName of SEEDED_STATE_FILES) {
-    const src = path.join(SOURCE_DATA_DIR, fileName);
-    if (!fs.existsSync(src)) {
-      log(`تخطٍّ (غير موجود): ${fileName}`);
-      continue;
-    }
-    fs.copyFileSync(src, path.join(SEED_OUT_DIR, fileName));
-    staged.push(fileName);
-  }
+  const manifest = {
+    sha256: dbInfo.sha256,
+    sizeBytes: dbInfo.sizeBytes,
+    dataModifiedAt: dbInfo.dataModifiedAt,
+    packagedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(
+    path.join(SEED_OUT_DIR, GOLDEN_MANIFEST_FILENAME),
+    JSON.stringify(manifest, null, 2) + '\n',
+    'utf8',
+  );
 
   // ملف وصف — تشخيصي بحت، يُقرأ يدويًا عند تدقيق نسخة إنتاجية.
   fs.writeFileSync(
     path.join(SEED_OUT_DIR, 'README.txt'),
     [
-      'Al Manar ERP — بيانات مبدئية مُرفقة بالمثبّت.',
+      'Al Manar ERP — بيان القالب الذهبي المُرفق بالمثبّت.',
       '',
-      'تُنسخ هذه الملفات إلى %AppData%\\Al Manar ERP\\data عند أول تشغيل فقط،',
-      'ولا تستبدل أي ملف موجود. لا تحتوي على أي رمز وصول أو سرّ.',
+      'يصف هذا المجلد قاعدة البيانات المبدئية المشحونة (بصمتها وحجمها وتاريخ آخر',
+      'تعديل لبياناتها). يُقرأ من مكانه ولا يُنسخ إلى مجلد بيانات المستخدم.',
       '',
-      'الملفات: ' + (staged.join(', ') || '(لا شيء)'),
+      'لا يحتوي على أي بيانات جهاز أو حساب أو رمز وصول أو سرّ.',
+      '',
+      'الملفات: ' + GOLDEN_MANIFEST_FILENAME,
     ].join('\r\n'),
     'utf8',
   );
 
-  return staged;
+  return manifest;
 }
 
 function main() {
@@ -159,10 +187,19 @@ function main() {
       : 'تهيئة عميل OAuth المُجمَّعة موجودة مسبقًا — لم تُمسّ.',
   );
 
-  const staged = stageSeedFiles();
-  log(`جُهِّز build/seed-data — ${staged.length} ملف حالة: ${staged.join(', ') || '(لا شيء)'}`);
+  const manifest = stageSeedFiles(db);
+  log(
+    `جُهِّز build/seed-data — بيان القالب الذهبي: ` +
+      `sha256 ${manifest.sha256.slice(0, 16)}… · آخر تعديل للبيانات ${manifest.dataModifiedAt}`,
+  );
+  log('لم تُشحن أي بيانات حالة من جهاز البناء (Data Safety Pack v2 — F-04).');
 }
 
 if (require.main === module) main();
 
-module.exports = { verifyTemplateDatabase, ensurePackagedOAuthClient, stageSeedFiles, SEEDED_STATE_FILES };
+module.exports = {
+  verifyTemplateDatabase,
+  ensurePackagedOAuthClient,
+  stageSeedFiles,
+  GOLDEN_MANIFEST_FILENAME,
+};

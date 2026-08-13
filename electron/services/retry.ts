@@ -41,7 +41,17 @@ export async function withRetry<T>(fn: () => Promise<T>, opts: RetryOptions = {}
       if (!canRetry) {
         if (attempt > 1) {
           const message = err instanceof Error ? err.message : String(err);
-          throw new Error(`فشل بعد ${attempt} محاولات: ${message}`);
+          // Data Safety Pack v2 — F-02: `cause` يحفظ **نوع** الخطأ الأصلي عبر اللفّ.
+          // بدونه كان إلغاءُ عمليةٍ في المحاولة الثانية فما فوق يخرج من هنا كـ`Error`
+          // عامّ، فيفقد المحرّك القدرة على تمييز «أُلغيت العملية» عن «فشلت» — ويعامل
+          // الإلغاء المتعمَّد فشلًا سحابيًا كاملًا. النصّ الأصلي يبقى داخل الرسالة كما
+          // كان، فتصنيف `classifyGoogleAuthError` لا يتأثر إطلاقًا.
+          // `cause` يُسنَد يدويًا لا عبر `new Error(msg, { cause })`: خيار المُنشئ
+          // يتطلّب `lib: ES2022`، وترقية هدف الترجمة لأجل سطر واحد تغيير أوسع من
+          // نطاق هذه الحزمة. الأثر وقت التشغيل متطابق.
+          const wrapped = new Error(`فشل بعد ${attempt} محاولات: ${message}`);
+          (wrapped as Error & { cause?: unknown }).cause = err;
+          throw wrapped;
         }
         throw err;
       }

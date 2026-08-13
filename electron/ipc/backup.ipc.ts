@@ -12,6 +12,7 @@ import {
 import { reconfigureBackupScheduler } from '../services/backupScheduler';
 import { hasSessionPermission } from './session.ipc';
 import { withRetry } from '../services/retry';
+import { markPendingReview } from '../services/pendingReview';
 
 /** أخطاء قفل الملف على ويندوز — الوحيدة القابلة لإعادة المحاولة عند الاستبدال. */
 function isFileLockError(err: unknown): boolean {
@@ -137,7 +138,7 @@ export function registerBackupIpc() {
       return { success: false, error: 'الملف المختار ليس قاعدة بيانات SQLite صالحة' };
     }
 
-    const { dbPath, backupDir } = getUserDataPaths();
+    const { dbPath, backupDir, dataDir } = getUserDataPaths();
 
     // ── خطوة 1: نسخة أمان تلقائية إجبارية قبل الاستعادة ──────────────────────
     const autoBackupDir = path.join(backupDir, 'pre-restore');
@@ -191,6 +192,23 @@ export function registerBackupIpc() {
 
       // eslint-disable-next-line no-console
       console.log(`[backup:restore] تمت الاستعادة من: ${sourcePath} — الحجم: ${size} بايت`);
+
+      /**
+       * Data Safety Pack v2 — F-05 · وسم «قيد المراجعة».
+       *
+       * الاستعادة تجعل `localChanged = true` بينما `remoteChanged = false`، فقرار
+       * المزامنة التالي كان `UPLOAD` ⇒ مزامنة الإغلاق ترفع النسخة المستعادة (وقد
+       * تكون عمرها أسابيع) فوق النسخة السحابية الحالية بلا حوار ولا تحذير. الوسم
+       * يوقف المزامنة التلقائية في الاتجاهين حتى يقرّر المستخدم صراحةً.
+       *
+       * فشل الوسم **لا يُفشل الاستعادة**: القاعدة استُبدلت بنجاح فعلًا، والتراجع عنها
+       * أضرّ من المتابعة. يُسجَّل التحذير ليظهر في التشخيص.
+       */
+      if (!markPendingReview(dataDir, { source: 'RESTORE', detail: path.basename(sourcePath) })) {
+        // eslint-disable-next-line no-console
+        console.warn('[backup:restore] تعذّر وسم القاعدة «قيد المراجعة» — قد تُستأنف المزامنة التلقائية.');
+      }
+
       return {
         success: true,
         requiresRestart: true,
