@@ -330,9 +330,17 @@ export default function CloudSyncPanel() {
     startProgressPolling();
     try {
       const result = await window.manar.syncUpload();
+      // Data Safety Pack v2 (F-01) — الرفع صار قائمًا على قرار المحرّك، فله الآن
+      // نتيجتان مشروعتان لم تكونا ممكنتين قبل الحزمة، وكلتاهما ليست فشلًا:
+      //   • NONE     — لا تغييرات محلية تستحق الرفع.
+      //   • DOWNLOAD — النسخة السحابية أحدث، فرُفض الرفع حمايةً لها.
+      // ما عدا ذلك يمرّ بمسار التبليغ القائم بلا تغيير (بما فيه حوار التعارض).
       if (result.ok) {
         setLastFailed(null);
-        toast.ok(t('msg.cloudsync.upload_done'));
+        toast.ok(result.action === 'NONE' ? t('msg.cloudsync.up_to_date') : t('msg.cloudsync.upload_done'));
+      } else if (result.action === 'DOWNLOAD') {
+        setLastFailed(null);
+        toast.warn(result.error ?? t('msg.cloudsync.sync_fail'));
       } else {
         reportCloudFailure(result, 'UPLOAD');
       }

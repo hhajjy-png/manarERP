@@ -115,15 +115,37 @@ async function throwDriveApiError(res: Response, context: string): Promise<never
  * `clearTimeout` في `finally` يمنع بقاء مؤقّت حيّ يُبقي حلقة الأحداث مشغولة بعد
  * انتهاء الطلب بنجاح — وهو ما كان سيُؤخّر إغلاق التطبيق أثناء مزامنة الإغلاق.
  */
-async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number, context: string): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  context: string,
+  /**
+   * Data Safety Pack v2 — F-02 · إشارة إلغاء خارجية من محرّك المزامنة.
+   *
+   * تُدمَج مع مهلة هذا الطلب عبر `AbortSignal.any` (مدمجة في Node منذ 20.3 — لا
+   * اعتمادية جديدة)، فأيّهما سبق يقطع الاتصال فعليًا ويُحرّر المقبس فورًا. بدون
+   * هذا الدمج كان إلغاء المحرّك لا يصل إلى الطلب الجاري إطلاقًا، فيبقى النقل
+   * مستمرًّا في الخلفية بعد أن يئس المُستدعي منه.
+   */
+  externalSignal?: AbortSignal,
+): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const signal = externalSignal ? AbortSignal.any([controller.signal, externalSignal]) : controller.signal;
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await fetch(url, { ...init, signal });
   } catch (err) {
-    // `AbortError` هنا يعني «انتهت مهلتنا نحن» لا «ألغى المستخدم» — نُعيد تسميته
-    // إلى `TimeoutError` ليصنّفه `isRetryableSyncError` كعطل عابر قابل للإعادة.
     if (err instanceof Error && err.name === 'AbortError') {
+      // الإلغاء الخارجي **لا يُعاد تسميته**: إعادة تسميته `TimeoutError` كانت
+      // ستُصنّفه `isRetryableSyncError` عطلًا عابرًا فتُعيد المحاولة — أي أن
+      // الإلغاء كان سيُنتج محاولات جديدة بدل أن يوقف العمل. سببُ الإلغاء يُرمى
+      // كما هو ليتعرّف عليه المحرّك.
+      if (externalSignal?.aborted) {
+        throw externalSignal.reason instanceof Error ? externalSignal.reason : err;
+      }
+      // `AbortError` هنا يعني «انتهت مهلتنا نحن» لا «ألغى المستخدم» — نُعيد تسميته
+      // إلى `TimeoutError` ليصنّفه `isRetryableSyncError` كعطل عابر قابل للإعادة.
       const timeout = new Error(`${context}: انتهت المهلة الزمنية بعد ${Math.round(timeoutMs / 1000)} ثانية`);
       timeout.name = 'TimeoutError';
       throw timeout;
@@ -166,7 +188,10 @@ async function authHeader(client: OAuth2Client): Promise<Record<string, string>>
 }
 
 /** يبحث عن ملف قاعدة البيانات المُزامَن داخل appDataFolder — يُعيد null إن لم يوجد بعد. */
-export async function findRemoteSyncFile(client: OAuth2Client): Promise<RemoteSyncFile | null> {
+export async function findRemoteSyncFile(
+  client: OAuth2Client,
+  signal?: AbortSignal,
+): Promise<RemoteSyncFile | null> {
   const headers = await authHeader(client);
   const params = new URLSearchParams({
     spaces: 'appDataFolder',
@@ -179,6 +204,7 @@ export async function findRemoteSyncFile(client: OAuth2Client): Promise<RemoteSy
     { headers },
     METADATA_TIMEOUT_MS,
     'الاستعلام عن ملف Drive',
+    signal,
   );
   if (!res.ok) await throwDriveApiError(res, 'فشل الاستعلام عن ملف Drive');
 
@@ -215,6 +241,7 @@ export async function uploadDatabase(
   client: OAuth2Client,
   filePath: string,
   opts: UploadOptions,
+  signal?: AbortSignal,
 ): Promise<RemoteSyncFile> {
   const headers = await authHeader(client);
   const stat = fs.statSync(filePath);
@@ -250,6 +277,7 @@ export async function uploadDatabase(
     },
     METADATA_TIMEOUT_MS,
     'بدء الرفع القابل للاستئناف',
+    signal,
   );
   if (!initRes.ok) await throwDriveApiError(initRes, 'فشل بدء الرفع القابل للاستئناف');
 
@@ -266,6 +294,7 @@ export async function uploadDatabase(
     },
     TRANSFER_TIMEOUT_MS,
     'رفع محتوى قاعدة البيانات',
+    signal,
   );
   if (!putRes.ok) await throwDriveApiError(putRes, 'فشل رفع محتوى قاعدة البيانات');
 
@@ -282,13 +311,19 @@ export async function uploadDatabase(
 }
 
 /** يُنزّل قاعدة البيانات من Drive إلى مسار محلي مؤقت (لا يستبدل الملف الفعلي). */
-export async function downloadDatabase(client: OAuth2Client, fileId: string, destPath: string): Promise<void> {
+export async function downloadDatabase(
+  client: OAuth2Client,
+  fileId: string,
+  destPath: string,
+  signal?: AbortSignal,
+): Promise<void> {
   const headers = await authHeader(client);
   const res = await fetchWithTimeout(
     `${DRIVE_FILES}/${fileId}?alt=media`,
     { headers },
     TRANSFER_TIMEOUT_MS,
     'تنزيل قاعدة البيانات',
+    signal,
   );
   if (!res.ok) await throwDriveApiError(res, 'فشل تنزيل قاعدة البيانات');
   const arrayBuffer = await res.arrayBuffer();

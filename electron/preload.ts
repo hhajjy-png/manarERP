@@ -251,15 +251,25 @@ const api = {
     busy?: boolean;
   }> => ipcRenderer.invoke('sync:now'),
 
-  /** رفع يدوي إجباري لقاعدة البيانات المحلية إلى Google Drive. */
+  /**
+   * رفع قاعدة البيانات المحلية إلى Google Drive — **بعد المرور بمحرّك القرار**.
+   *
+   * Data Safety Pack v2 (F-01): لم يعد رفعًا «إجباريًا». يمرّ بنفس فحص التغييرات
+   * وكشف التعارض الذي تمرّ به المزامنة الكاملة، ولا يُنفَّذ الرفع إلا إذا كان القرار
+   * `UPLOAD`. الحقل `action` يُعلن ما قرّره المحرّك فعلًا.
+   */
   syncUpload: (): Promise<{
     ok: boolean;
     error?: string;
+    /** قرار المحرّك: UPLOAD نُفِّذ · CONFLICT يحتاج قرارك · DOWNLOAD رُفض الرفع · NONE محدّث. */
+    action?: string;
     rescueBackup?: RescueBackupOutcomeInfo;
     /** رُفض الرفع لأن النسخة السحابية تغيّرت من جهاز آخر — يلزم قرار المستخدم. */
     conflict?: SyncConflictInfo;
     needsReauth?: boolean;
     busy?: boolean;
+    /** أُلغيت العملية لانتهاء المهلة قبل أي كتابة. */
+    aborted?: boolean;
   }> => ipcRenderer.invoke('sync:upload'),
 
   /** تنزيل يدوي إجباري من Google Drive مع استبدال آمن (ذرّي) لقاعدة البيانات المحلية. */

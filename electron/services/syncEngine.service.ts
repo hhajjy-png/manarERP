@@ -23,9 +23,18 @@ import {
 } from './googleDriveApi.service';
 import { checkSqliteIntegrity, checkpointWal, snapshotDatabase, sha256File } from './dbIntegrity';
 import { isPristineSeed, markBootstrapComplete } from './dbBootstrapState';
+import { readGoldenManifest, isGoldenNewerThanRemote } from './goldenManifest';
+import { isPendingReview, readPendingReview, clearPendingReview } from './pendingReview';
 import { withRetry } from './retry';
 import { getOrCreateDeviceIdentity } from './deviceIdentity.service';
-import { isBackendRunning, stopBackendForRestart, startBackend, getInternalSecret, getSeedTemplatePath } from './backendLauncher';
+import {
+  isBackendRunning,
+  stopBackendForRestart,
+  startBackend,
+  getInternalSecret,
+  getSeedTemplatePath,
+  getGoldenManifestPath,
+} from './backendLauncher';
 import { emitSyncProgress } from './syncProgressBus';
 import { createRescueBackup, type RescueBackupResult } from './rescueBackupFallback.service';
 import { classifyGoogleAuthError, toUserFacingSyncError } from './googleAuthErrors.pure';
@@ -446,8 +455,143 @@ function requireSession(dataDir: string): { client: OAuth2Client } {
   return { client: session.client };
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
+// ─── Data Safety Pack v2 · F-02 — إلغاء حقيقي بدل السباق ─────────────────────
+
+/**
+ * انتهت المهلة فأُلغيت العملية **فعليًا**. ليست فشلًا سحابيًا: لم تُنفَّذ أي كتابة،
+ * والقاعدة المحلية سليمة كما كانت — لذلك تُسجَّل `SKIPPED` لا `FAILED`.
+ */
+class SyncAbortedError extends Error {
+  constructor(message = 'أُلغيت العملية لانتهاء المهلة الزمنية') {
+    super(message);
+    this.name = 'SyncAbortedError';
+  }
+}
+
+/**
+ * يفحص الخطأ **وسببه** معًا: `withRetry` يلفّ الأخطاء غير القابلة لإعادة المحاولة
+ * برسالة «فشل بعد N محاولات» بدءًا من المحاولة الثانية، ويحفظ الأصل في `cause`.
+ * بلا فحص `cause` كان إلغاءٌ وقع في محاولة متأخّرة يُعامَل فشلًا سحابيًا كاملًا.
+ */
+function isAbortedError(err: unknown): boolean {
+  if (err instanceof SyncAbortedError) return true;
+  const cause = (err as { cause?: unknown } | null | undefined)?.cause;
+  return cause instanceof SyncAbortedError;
+}
+
+/** يرمي فورًا إن كان الإلغاء قد طُلب — يُوضع **قبل** كل خطوة مغيِّرة أو مكلفة. */
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (!signal?.aborted) return;
+  throw signal.reason instanceof SyncAbortedError ? signal.reason : new SyncAbortedError();
+}
+
+/**
+ * يُنفّذ عملية بمهلة زمنية **مع إلغاء حقيقي**، بديلًا عن `Promise.race` السابق.
+ *
+ * ── العطل الذي يغلقه ───────────────────────────────────────────────────────────
+ *
+ * `Promise.race` لا يُلغي الوعد الخاسر. فكان انتهاء المهلة يعني «توقّف الانتظار»
+ * لا «توقّف العمل»، وينتج عنه ثلاثة أعطال متزامنة:
+ *
+ *   1. **القفل يُحرَّر مبكرًا.** دالة `syncMutex.run` تعود بينما التنزيل ما زال
+ *      جاريًا ⇒ عملية مزامنة أخرى قد تعمل بالتوازي معه، وهو بالضبط ما وُضع القفل
+ *      لمنعه. وفي مسار الإغلاق يُحرَّر `runtimeLock` أيضًا ورفعٌ ما زال في الطريق.
+ *   2. **استبدال القاعدة تحت المستخدم.** مزامنة البدء تنتهي مهلتها ⇒ `main` يُكمل
+ *      فيشغّل الخادم ويفتح النافذة ⇒ ثم ينتهي التنزيل المتأخّر فيوقف ذلك الخادم
+ *      ويستبدل `manar.db` بينما المستخدم يعمل عليها.
+ *   3. **نقل شبكي بلا نهاية.** الطلب يبقى مفتوحًا يستهلك الشبكة والذاكرة بلا أي
+ *      مستهلك لنتيجته.
+ *
+ * ── العقد الآن ─────────────────────────────────────────────────────────────────
+ *
+ * • **انتظار الحسم لا السباق:** `await run(signal)` — لا نتقدّم خطوة واحدة قبل أن
+ *   تنتهي العملية فعليًا. القفل يبقى مأخوذًا طوال عمرها الحقيقي.
+ * • **الإلغاء يصل الشبكة:** الإشارة تُمرَّر إلى نداءات Drive وتُدمج مع مهلها، فيُقطع
+ *   الاتصال ويُحرَّر المقبس فورًا — فالانتظار بعد الإلغاء محدود بأجزاء من الثانية.
+ * • **قيمة الرجوع محفوظة:** عند الإلغاء تُعاد `onTimeout()` — نفس شكل النتيجة الذي
+ *   كان `Promise.race` يُعيده، فسلوك المُستدعين لم يتغيّر.
+ */
+async function withDeadline<T>(
+  ms: number,
+  run: (signal: AbortSignal) => Promise<T>,
+  onTimeout: () => T,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(new SyncAbortedError()), ms);
+  try {
+    return await run(controller.signal);
+  } catch (err) {
+    if (isAbortedError(err)) return onTimeout();
+    throw err;
+  } finally {
+    // بلا هذا يبقى مؤقّت حيّ يشغل حلقة الأحداث بعد نجاح العملية، فيؤخّر إغلاق
+    // التطبيق حتى انقضائه — حتى عشرين ثانية في مسار مزامنة الإغلاق.
+    clearTimeout(timer);
+  }
+}
+
+// ─── Data Safety Pack v2 · F-03 — حالة البذرة والقالب الذهبي ─────────────────
+
+export interface SeedState {
+  /** القاعدة المحلية ما زالت بذرة القالب كما نُسخت حرفيًا. */
+  isPristineSeed: boolean;
+  /** بيانات القالب الذهبي أحدث من النسخة الموجودة على Drive (بدليل البيان المشحون). */
+  goldenNewerThanRemote: boolean;
+}
+
+/**
+ * المصدر **الوحيد** لحقيقتَي البذرة في النظام.
+ *
+ * يستخدمها `decide()` (لقرار التنزيل) و`uploadInternal` (لحارس الرفع) معًا. توحيدها
+ * هنا مقصود: حارسان يحسبان الشرط نفسه بطريقتين هو أوسع باب لانحرافهما عن بعضهما،
+ * وحينها يمنع أحدهما ما يسمح به الآخر.
+ */
+function evaluateSeedState(
+  dataDir: string,
+  localHash: string | null,
+  remoteModifiedTime: string | null,
+): SeedState {
+  const pristine = isPristineSeed(dataDir, localHash, getSeedTemplatePath());
+  if (!pristine) return { isPristineSeed: false, goldenNewerThanRemote: false };
+  const manifest = readGoldenManifest(getGoldenManifestPath());
+  return {
+    isPristineSeed: true,
+    goldenNewerThanRemote: isGoldenNewerThanRemote(manifest, localHash, remoteModifiedTime),
+  };
+}
+
+// ─── Data Safety Pack v2 · F-05 — بوابة «قيد المراجعة» ───────────────────────
+
+/**
+ * توقف المزامنة **التلقائية** حين تكون القاعدة قيد المراجعة بعد استعادة.
+ *
+ * تُستدعى من مزامنتَي البدء والإغلاق **فقط** — لا من أي عملية يبدأها المستخدم، لأن
+ * الضغط على الزرّ هو المراجعة نفسها.
+ *
+ * الاتجاهان محجوبان معًا عمدًا:
+ *   • **الرفع** كان يدفع نسخة مستعادة قديمة فوق النسخة السحابية الحالية بلا حوار،
+ *     لأن `localChanged=true` و`remoteChanged=false` ⇒ القرار `UPLOAD` بلا تعارض.
+ *   • **التنزيل** كان يجلب النسخة السحابية الأحدث عند إعادة التشغيل التالية
+ *     ⇒ **يُلغي الاستعادة التي طلبها المستخدم للتوّ**.
+ *
+ * تُعيد `true` حين تحجب، وقد سجّلت الحالة والسبب قبل ذلك.
+ */
+function blockedByPendingReview(dataDir: string, direction: 'UPLOAD' | 'DOWNLOAD'): boolean {
+  if (!isPendingReview(dataDir)) return false;
+
+  const mark = readPendingReview(dataDir);
+  const detail = mark?.detail ? ` (${mark.detail})` : '';
+  const message =
+    `قاعدة البيانات قيد المراجعة بعد استعادة نسخة احتياطية${detail} — أُوقفت المزامنة التلقائية ` +
+    'في الاتجاهين حتى تقرّر بنفسك: «رفع» لدفع النسخة المستعادة إلى Google Drive، أو «تنزيل» ' +
+    'لجلب النسخة السحابية، أو «مزامنة الآن» ليقرّر النظام بعد فحص كامل.';
+
+  setStatus('READY', message);
+  saveMetadata(
+    dataDir,
+    appendLog(dataDir, loadMetadata(dataDir), { action: direction, result: 'SKIPPED', message }),
+  );
+  return true;
 }
 
 // ─── أثر تشخيصي (Production UX & Diagnostics Pack v1) ────────────────────────
@@ -660,23 +804,33 @@ function buildConflict(
  * الفحص السلبي للواجهة. جمع الحقائق هنا؛ **القواعد** نفسها في `syncDecision.pure.ts`
  * حيث هي مُغطّاة بالاختبارات بالكامل (P0-10).
  */
-async function decide(client: OAuth2Client, dbPath: string, dataDir: string): Promise<SyncDecision> {
+async function decide(
+  client: OAuth2Client,
+  dbPath: string,
+  dataDir: string,
+  signal?: AbortSignal,
+): Promise<SyncDecision> {
+  throwIfAborted(signal);
   const metadata = loadMetadata(dataDir);
   const dbExists = fs.existsSync(dbPath);
   const localHash = dbExists ? await sha256File(dbPath) : null;
+  throwIfAborted(signal);
   // إعادة محاولة خفيفة وبلا تسجيل دائم — مجرّد فحص أولي؛ الرفع/التنزيل الفعلي
   // أدناه له إعادة محاولة كاملة مع تسجيل عند تنفيذ الإجراء المُقرَّر.
-  const remote = await withRetry(() => findRemoteSyncFile(client), {
+  const remote = await withRetry(() => findRemoteSyncFile(client, signal), {
     maxAttempts: 2,
     isRetryable: isRetryableSyncError,
     getRetryDelayMs: syncRetryDelay,
   });
 
+  const seedState = evaluateSeedState(dataDir, localHash, remote?.modifiedTime ?? null);
+
   const decision = decideSyncAction({
     localHash,
     remote,
     metadata: { lastSyncedHash: metadata.lastSyncedHash, lastSyncedLocalHash: metadata.lastSyncedLocalHash },
-    isPristineSeed: isPristineSeed(dataDir, localHash, getSeedTemplatePath()),
+    isPristineSeed: seedState.isPristineSeed,
+    goldenNewerThanRemote: seedState.goldenNewerThanRemote,
   });
 
   if (decision.action === 'CONFLICT' && remote && localHash) {
@@ -723,14 +877,35 @@ export async function checkForConflict(dbPath: string, dataDir: string): Promise
 
 // ─── رفع ────────────────────────────────────────────────────────────────────
 
-interface ActionOptions {
-  /** يُوسَم به إدخال السجلّ عند كون هذا الرفع/التنزيل ناتجًا عن حلّ تعارض صريح. */
+interface DownloadOptions {
+  /** يُوسَم به إدخال السجلّ عند كون هذا التنزيل ناتجًا عن حلّ تعارض صريح. */
   resolvesConflict?: boolean;
+  /** F-02 — إشارة الإلغاء؛ تُفحص قبل كل خطوة مغيِّرة وتُمرَّر إلى نداءات Drive. */
+  signal?: AbortSignal;
+}
+
+interface UploadOptions {
+  /** يُوسَم به إدخال السجلّ عند كون هذا الرفع ناتجًا عن حلّ تعارض صريح. */
+  resolvesConflict?: boolean;
+  /** F-02 — إشارة الإلغاء؛ تُفحص قبل كل خطوة مغيِّرة وتُمرَّر إلى نداءات Drive. */
+  signal?: AbortSignal;
   /**
    * P0-7 — لقطة الملف السحابي التي بُني عليها قرار الرفع. إن تغيّر الملف البعيد
    * عنها وقت التنفيذ، يُرفض الرفع ويُحوَّل إلى تعارض بدل الكتابة الصامتة فوقه.
+   *
+   * ── Data Safety Pack v2 · F-01 — لماذا صار **إلزاميًا** ────────────────────
+   *
+   * كان اختياريًا، وكان الفحص مشروطًا بـ`opts.expectedRemote !== undefined`. فمسار
+   * «رفع الآن» — وهو المسار الوحيد الذي لم يكن يستدعي `decide()` أصلًا — كان يمرّ
+   * بلا لقطة مرجعية، فيُلغي الشرطُ الطبقةَ الأولى من حماية فقدان التحديث كاملةً
+   * ويرفع فوق نسخة سحابية أحدث بلا أي حوار تعارض.
+   *
+   * جعله إلزاميًا يحوّل الضمانة من «فحص وقت تشغيل يمكن نسيانه» إلى **شرط ترجمة**:
+   * أي مسار مستقبلي يستدعي `uploadInternal` بلا لقطة مرجعية **لا يُترجم**. و`null`
+   * قيمة صريحة مشروعة تعني «لا نسخة سحابية وقت القرار»، وتُقارَن كما تُقارَن أي
+   * لقطة أخرى — فلا تفتح ثغرة.
    */
-  expectedRemote?: RemoteSnapshot | null;
+  expectedRemote: RemoteSnapshot | null;
 }
 
 export interface UploadResult {
@@ -743,12 +918,19 @@ export interface UploadResult {
   needsReauth?: boolean;
   /** رُفضت العملية لوجود مزامنة أخرى جارية (P0-4). */
   busy?: boolean;
+  /** F-02 — أُلغيت العملية لانتهاء المهلة قبل أي كتابة. ليست فشلًا. */
+  aborted?: boolean;
+  /**
+   * F-01 — القرار الذي اتخذه المحرّك لهذا الطلب. موجود فقط في مسار «رفع الآن»
+   * الذي صار يمرّ بـ`decide()`، ليعرف المستهلك سبب عدم تنفيذ الرفع.
+   */
+  action?: SyncActionKind;
 }
 
 async function uploadInternal(
   dbPath: string,
   dataDir: string,
-  opts: ActionOptions = {},
+  opts: UploadOptions,
 ): Promise<UploadResult> {
   if (!fs.existsSync(dbPath)) return { ok: false, error: 'ملف قاعدة البيانات المحلي غير موجود' };
 
@@ -758,6 +940,7 @@ async function uploadInternal(
   const startedAt = new Date().toISOString();
 
   try {
+    throwIfAborted(opts.signal);
     setStatus('UPLOADING', 'جارٍ تجهيز لقطة متسقة والتحقق من سلامة قاعدة البيانات...');
     // تفريغ WAL أولًا — بلا أثر في وضع الـjournal الافتراضي، ويبقى صحيحًا لو
     // فُعّل WAL مستقبلًا. أفضل جهد.
@@ -777,6 +960,7 @@ async function uploadInternal(
     const snapshotIntegrity = await checkSqliteIntegrity(snapshotPath);
     if (!snapshotIntegrity.valid) throw new Error(`فشل فحص سلامة اللقطة قبل الرفع: ${snapshotIntegrity.reason}`);
 
+    throwIfAborted(opts.signal);
     const { client } = requireSession(dataDir);
     const hash = await sha256File(snapshotPath);
     // بصمة الملف المحلي نفسه — تختلف عن بصمة اللقطة (VACUUM INTO يُعيد الكتابة)،
@@ -784,16 +968,22 @@ async function uploadInternal(
     const localHash = await sha256File(dbPath);
     const device = getOrCreateDeviceIdentity(dataDir);
     const retryOpts = driveRetryOptions(dataDir, 'UPLOAD');
-    const remote = await withRetry(() => findRemoteSyncFile(client), retryOpts);
+    const remote = await withRetry(() => findRemoteSyncFile(client, opts.signal), retryOpts);
 
     /**
-     * حارس أخير: لا تُرفع بذرة القالب فوق نسخة سحابية قائمة — أبدًا.
+     * حارس أخير: لا تُرفع بذرة القالب فوق نسخة سحابية قائمة.
      *
-     * `decide()` لا يُنتج تعارضًا في هذه الحالة أصلًا، فلا يصل مستخدم عادي إلى هنا.
-     * لكن `sync:upload` (زر «رفع الآن») و`resolveConflict('LOCAL')` مسارا IPC
-     * مباشران؛ هذا الحارس يجعل الحماية بنيوية لا معتمدة على إخفاء زرّ في الواجهة.
+     * يستخدم **نفس** `evaluateSeedState` التي يستخدمها `decide()` — فلا ينحرف
+     * الحارسان عن بعضهما ولا يمنع أحدهما ما يسمح به الآخر.
+     *
+     * Data Safety Pack v2 — F-03: الاستثناء الوحيد هو أن يُثبت بيان القالب المشحون
+     * أن بيانات القالب **أحدث** من نسخة Drive. عندها لم يعد الرفع «قالبًا فارغًا فوق
+     * بيانات حقيقية» بل العكس تمامًا. ويبقى غير تلقائي إطلاقًا: `decide()` يُنتج
+     * `CONFLICT` في هذه الحالة، فلا يمرّ الرفع إلا عبر اختيار صريح من المستخدم في
+     * حوار حلّ التعارض، ومحميًّا بطبقتَي التزامن المتفائل أدناه.
      */
-    if (remote && isPristineSeed(dataDir, localHash, getSeedTemplatePath())) {
+    const seedState = evaluateSeedState(dataDir, localHash, remote?.modifiedTime ?? null);
+    if (remote && seedState.isPristineSeed && !seedState.goldenNewerThanRemote) {
       throw new Error(
         'رُفض الرفع: قاعدة البيانات المحلية ما زالت قالب التهيئة الأوّلي ولم تُدخَل فيها أي بيانات، ' +
           'وتوجد نسخة حقيقية على Google Drive. رفعها كان سيستبدل بياناتك السحابية بقالب فارغ. ' +
@@ -804,8 +994,11 @@ async function uploadInternal(
     /**
      * P0-7 · الطبقة الأولى — مقارنة بما بُني عليه **القرار** (قد يكون قبل دقائق:
      * حوار حلّ التعارض يبقى مفتوحًا بانتظار المستخدم). هذه هي النافذة الواسعة.
+     *
+     * F-01: الشرط `!== undefined` أُزيل. صار `expectedRemote` إلزاميًا في النوع،
+     * فالمقارنة تجري **دائمًا** ولا يوجد مسار يتخطّاها.
      */
-    if (opts.expectedRemote !== undefined && remoteChangedSince(opts.expectedRemote, remote)) {
+    if (remoteChangedSince(opts.expectedRemote, remote)) {
       throw new RemoteChangedError(
         remote
           ? buildConflict(dataDir, dbPath, localHash, remote)
@@ -821,8 +1014,9 @@ async function uploadInternal(
      * P0-7 · الطبقة الثانية — إعادة قراءة **مباشرة قبل الكتابة**. تُضيّق النافذة
      * المتبقّية إلى أجزاء من الثانية بدل مدّة تجهيز اللقطة وحساب البصمات كاملة.
      */
+    throwIfAborted(opts.signal);
     setStatus('UPLOADING', 'جارٍ التحقق من عدم تغيّر النسخة على Google Drive...');
-    const freshRemote = await withRetry(() => findRemoteSyncFile(client), retryOpts);
+    const freshRemote = await withRetry(() => findRemoteSyncFile(client, opts.signal), retryOpts);
     if (remoteChangedSince(remote, freshRemote)) {
       throw new RemoteChangedError(
         freshRemote
@@ -833,6 +1027,10 @@ async function uploadInternal(
       );
     }
 
+    // F-02 · **نقطة اللاعودة للرفع.** آخر فحص إلغاء في هذا المسار: بعد بدء الكتابة
+    // على Drive لا يُفحص الإلغاء إطلاقًا، فمقاطعة الرفع في منتصفه ثم ترك الحالة
+    // المحلية بلا تحديث أسوأ من إكمال عملية استغرقت ثانية إضافية.
+    throwIfAborted(opts.signal);
     setStatus('UPLOADING', 'جارٍ رفع قاعدة البيانات إلى Google Drive...');
     const uploaded = await withRetry(
       () => uploadDatabase(client, snapshotPath, {
@@ -841,7 +1039,7 @@ async function uploadInternal(
         version,
         deviceId: device.deviceId,
         deviceName: device.deviceName,
-      }),
+      }, opts.signal),
       retryOpts,
     );
 
@@ -872,6 +1070,23 @@ async function uploadInternal(
     return { ok: true };
   } catch (err) {
     // فشل الرفع لا يمسّ dbPath إطلاقًا — القاعدة السابقة تبقى كما هي دون أي تغيير.
+
+    // F-02 — الإلغاء ليس فشلًا سحابيًا: لم يُكتب شيء على Drive ولا على القرص، والقاعدة
+    // المحلية سليمة كما كانت. يُسجَّل `SKIPPED` لا `FAILED`، ولا تُنشأ نسخة إنقاذ هنا —
+    // المُستدعي (مزامنة البدء/الإغلاق) هو من يقرّر إنشاءها، فلا تتولّد نسختان عن حدث واحد.
+    if (isAbortedError(err)) {
+      const message = err instanceof Error ? err.message : 'أُلغيت العملية لانتهاء المهلة الزمنية';
+      saveMetadata(
+        dataDir,
+        appendLog(dataDir, loadMetadata(dataDir), {
+          action: 'UPLOAD',
+          result: 'SKIPPED',
+          message,
+          ...timing(startedAt),
+        }),
+      );
+      return { ok: false, error: message, aborted: true };
+    }
 
     // P0-7 — تغيّر النسخة السحابية ليس فشلًا يستحق نسخة إنقاذ: لم تُنفَّذ أي كتابة،
     // والقاعدة المحلية سليمة، والمطلوب قرار من المستخدم لا إعادة محاولة.
@@ -918,12 +1133,82 @@ function busyResult(busy: MutexBusy): { ok: false; busy: true; error: string } {
   return { ok: false, busy: true, error: busy.message };
 }
 
-export async function performUpload(
-  dbPath: string,
-  dataDir: string,
-  opts: ActionOptions = {},
-): Promise<UploadResult> {
-  const outcome = await syncMutex.run('UPLOAD', () => uploadInternal(dbPath, dataDir, opts));
+/**
+ * Data Safety Pack v2 — F-01 · «رفع الآن» صار عملية **قائمة على قرار**.
+ *
+ * ── العطل الذي يغلقه ───────────────────────────────────────────────────────────
+ *
+ * كان هذا المسار يستدعي `uploadInternal` مباشرة بلا `decide()` وبلا لقطة مرجعية.
+ * والطبقة الثانية من التزامن المتفائل لا تسدّ الثغرة: هي تقارن قراءتين متتاليتين
+ * للملف البعيد فتكشف تغيّرًا يقع **أثناء** العملية، ولا تكشف أبدًا أن المحلي
+ * **متخلّف** عن السحابة أصلًا. فجهاز لم يزامن منذ أيام كان يضغط «رفع الآن» فيستبدل
+ * بيانات جهاز آخر أحدث، بلا حوار تعارض ولا تحذير.
+ *
+ * ── العقد الآن ─────────────────────────────────────────────────────────────────
+ *
+ * لا رفع إلا بعد قرار. والقرارات الأربعة كلها مُعالَجة صراحةً — لا فرع صامت:
+ *   • `UPLOAD`   ⇒ يُنفَّذ الرفع، ومعه لقطة القرار كمرجع للطبقة الأولى.
+ *   • `CONFLICT` ⇒ يُعرض الحوار؛ الرفع لا يُنفَّذ.
+ *   • `DOWNLOAD` ⇒ **يُرفض** برسالة صريحة. الزرّ اسمه «رفع»، فلا يجوز أن يستبدل
+ *     القاعدة المحلية بعملية لم يطلبها المستخدم.
+ *   • `NONE`     ⇒ «محدّث بالفعل»، بلا أي عملية شبكية إضافية.
+ */
+export async function performUpload(dbPath: string, dataDir: string): Promise<UploadResult> {
+  const outcome = await syncMutex.run('UPLOAD', async (): Promise<UploadResult> => {
+    // F-05 — عملية بدأها المستخدم صراحةً: الضغط على الزرّ **هو** المراجعة.
+    clearPendingReview(dataDir);
+    try {
+      const { client } = requireSession(dataDir);
+      const decision = await decide(client, dbPath, dataDir);
+      recordRemoteObservation(dataDir, decision.remote);
+      recordConflictCheck(dataDir);
+
+      if (decision.action === 'UPLOAD') {
+        return uploadInternal(dbPath, dataDir, { expectedRemote: decision.remote });
+      }
+
+      if (decision.action === 'CONFLICT') {
+        lastConflictRemote = decision.remote;
+        setStatus('CONFLICT', decision.reason);
+        saveMetadata(
+          dataDir,
+          appendLog(dataDir, loadMetadata(dataDir), {
+            action: 'CONFLICT',
+            result: 'SKIPPED',
+            message: decision.reason,
+          }),
+        );
+        return { ok: false, action: 'CONFLICT', error: decision.reason, conflict: decision.conflict };
+      }
+
+      if (decision.action === 'DOWNLOAD') {
+        const message =
+          'النسخة الموجودة على Google Drive أحدث من قاعدة البيانات المحلية — لم يُنفَّذ أي رفع ' +
+          'حتى لا تُستبدل بيانات أحدث ببيانات أقدم. استخدم «تنزيل» أو «مزامنة الآن».';
+        setStatus('READY', message);
+        saveMetadata(
+          dataDir,
+          appendLog(dataDir, loadMetadata(dataDir), { action: 'UPLOAD', result: 'SKIPPED', message }),
+        );
+        return { ok: false, action: 'DOWNLOAD', error: message };
+      }
+
+      setStatus('READY');
+      return { ok: true, action: 'NONE' };
+    } catch (err) {
+      // فشل قبل بلوغ الرفع أصلًا (جلسة، مصادقة، تعذّر الفحص) — نفس معالجة
+      // `syncNowInternal` حرفيًا، بما فيها ضمانة النسخة المحلية.
+      const message = toUserFacingSyncError(err);
+      const needsReauth = handleGrantDeath(dataDir, err);
+      if (!needsReauth) setStatus('FAILED', message);
+      saveMetadata(
+        dataDir,
+        appendLog(dataDir, loadMetadata(dataDir), { action: 'UPLOAD', result: 'FAILED', message }),
+      );
+      const rescueBackup = await guaranteeRescueBackup(dbPath, dataDir, 'رفع إلى Google Drive');
+      return { ok: false, error: message, rescueBackup, needsReauth: needsReauth || undefined };
+    }
+  });
   return outcome.ok ? outcome.value : busyResult(outcome);
 }
 
@@ -937,12 +1222,14 @@ export interface DownloadResult {
   rescueBackup?: RescueBackupOutcome;
   needsReauth?: boolean;
   busy?: boolean;
+  /** F-02 — أُلغيت العملية لانتهاء المهلة قبل أي استبدال. ليست فشلًا. */
+  aborted?: boolean;
 }
 
 async function downloadInternal(
   dbPath: string,
   dataDir: string,
-  opts: ActionOptions = {},
+  opts: DownloadOptions = {},
 ): Promise<DownloadResult> {
   const tempPath = path.join(dataDir, `sync-tmp-download-${Date.now()}.db`);
   const startedAt = new Date().toISOString();
@@ -954,13 +1241,15 @@ async function downloadInternal(
   let backendStopped = false;
 
   try {
+    throwIfAborted(opts.signal);
     setStatus('DOWNLOADING', 'جارٍ تنزيل النسخة الاحتياطية من Google Drive...');
     const { client } = requireSession(dataDir);
     const retryOpts = driveRetryOptions(dataDir, 'DOWNLOAD');
-    const remote = await withRetry(() => findRemoteSyncFile(client), retryOpts);
+    const remote = await withRetry(() => findRemoteSyncFile(client, opts.signal), retryOpts);
     if (!remote) throw new Error('لا توجد نسخة قاعدة بيانات على Google Drive بعد');
 
-    await withRetry(() => downloadDatabase(client, remote.id, tempPath), retryOpts);
+    throwIfAborted(opts.signal);
+    await withRetry(() => downloadDatabase(client, remote.id, tempPath, opts.signal), retryOpts);
 
     setStatus('DOWNLOADING', 'جارٍ التحضير للاستعادة...');
     // فحص سلامة حقيقي عبر محرّك SQLite (PRAGMA integrity_check) فور التنزيل —
@@ -972,6 +1261,16 @@ async function downloadInternal(
     if (remote.sha256 && remote.sha256 !== downloadedHash) {
       throw new Error('بصمة الملف المُنزَّل لا تطابق البصمة المسجّلة على Google Drive');
     }
+
+    /**
+     * F-02 · **نقطة اللاعودة للتنزيل.** آخر فحص إلغاء في هذا المسار.
+     *
+     * كل ما يليه سلسلة واحدة غير قابلة للتجزئة: نسخة أمان ← إيقاف الخادم ← استبدال
+     * ذرّي ← إعادة تشغيل الخادم ← تحديث الحالة. مقاطعتها في المنتصف تترك التطبيق بلا
+     * خادم خلفي أو بقاعدة مستبدَلة وحالة مزامنة غير محدَّثة — وكلاهما أسوأ بكثير من
+     * إكمال عملية تجاوزت مهلتها بثوانٍ.
+     */
+    throwIfAborted(opts.signal);
 
     // نسخة أمان تلقائية قبل أي استبدال — تُتيح تراجعًا يدويًا لاحقًا عبر صفحة النسخ الاحتياطي
     if (fs.existsSync(dbPath)) {
@@ -1035,6 +1334,23 @@ async function downloadInternal(
     // نفسها (بلا إعادة تشغيل يدوية) حتى تعكس بيانات القاعدة الجديدة.
     return { ok: true, requiresRestart: false, backendRestarted: backendWasRunning };
   } catch (err) {
+    // F-02 — الإلغاء قبل نقطة اللاعودة: لم يُستبدل أي ملف ولم يُوقف أي خادم. تُنظَّف
+    // اللقطة المؤقتة ويُسجَّل `SKIPPED`، بلا نسخة إنقاذ (المُستدعي يقرّرها).
+    if (isAbortedError(err)) {
+      const message = err instanceof Error ? err.message : 'أُلغيت العملية لانتهاء المهلة الزمنية';
+      try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch { /* أفضل جهد فقط */ }
+      saveMetadata(
+        dataDir,
+        appendLog(dataDir, loadMetadata(dataDir), {
+          action: 'DOWNLOAD',
+          result: 'SKIPPED',
+          message,
+          ...timing(startedAt),
+        }),
+      );
+      return { ok: false, error: message, aborted: true };
+    }
+
     const message = toUserFacingSyncError(err);
     const needsReauth = handleGrantDeath(dataDir, err);
 
@@ -1078,9 +1394,13 @@ async function downloadInternal(
 export async function performDownload(
   dbPath: string,
   dataDir: string,
-  opts: ActionOptions = {},
+  opts: DownloadOptions = {},
 ): Promise<DownloadResult> {
-  const outcome = await syncMutex.run('DOWNLOAD', () => downloadInternal(dbPath, dataDir, opts));
+  const outcome = await syncMutex.run('DOWNLOAD', () => {
+    // F-05 — عملية بدأها المستخدم صراحةً: الضغط على الزرّ **هو** المراجعة.
+    clearPendingReview(dataDir);
+    return downloadInternal(dbPath, dataDir, opts);
+  });
   return outcome.ok ? outcome.value : busyResult(outcome);
 }
 
@@ -1101,6 +1421,8 @@ export async function resolveConflict(
 ): Promise<UploadResult & DownloadResult> {
   const expectedRemote = lastConflictRemote;
   const outcome = await syncMutex.run('RESOLVE_CONFLICT', async () => {
+    // F-05 — اختيار صريح في حوار التعارض: هذه هي المراجعة بعينها.
+    clearPendingReview(dataDir);
     if (choice === 'LOCAL') {
       return uploadInternal(dbPath, dataDir, { resolvesConflict: true, expectedRemote });
     }
@@ -1196,7 +1518,11 @@ async function syncNowInternal(dbPath: string, dataDir: string): Promise<SyncNow
 }
 
 export async function performSyncNow(dbPath: string, dataDir: string): Promise<SyncNowResult> {
-  const outcome = await syncMutex.run('SYNC_NOW', () => syncNowInternal(dbPath, dataDir));
+  const outcome = await syncMutex.run('SYNC_NOW', () => {
+    // F-05 — عملية بدأها المستخدم صراحةً: الضغط على الزرّ **هو** المراجعة.
+    clearPendingReview(dataDir);
+    return syncNowInternal(dbPath, dataDir);
+  });
   return outcome.ok ? outcome.value : { ...busyResult(outcome), action: 'NONE' };
 }
 
@@ -1206,6 +1532,9 @@ export async function performSyncNow(dbPath: string, dataDir: string): Promise<S
 export async function performStartupSync(dbPath: string, dataDir: string): Promise<void> {
   await syncMutex.run('STARTUP_SYNC', async () => {
     try {
+      // F-05 — بوابة «قيد المراجعة»، قبل أي نداء شبكي.
+      if (blockedByPendingReview(dataDir, 'DOWNLOAD')) return;
+
       const session = openDriveSession(dataDir);
       if (!session.ok) {
         // منحة ميتة مُكتشَفة محليًا: تُسجَّل وتُعرض، ولا تُعطّل بدء التطبيق.
@@ -1213,18 +1542,20 @@ export async function performStartupSync(dbPath: string, dataDir: string): Promi
         return;
       }
 
-      const online = await withTimeout(checkConnectivity(3000), 3500, false);
+      // `checkConnectivity` محدودة داخليًا بـ`AbortSignal.timeout` فلا يمكن أن تعلّق —
+      // فالسباق الخارجي الذي كان حولها كان طبقة زائدة بلا فائدة، وحُذف مع `withTimeout`.
+      const online = await checkConnectivity(3000);
       probeCache.internet = online ? 'ok' : 'fail';
       if (!online) {
         setStatus('OFFLINE');
         return;
       }
 
-      const decision = await withTimeout(decide(session.client, dbPath, dataDir), STARTUP_TIMEOUT_MS, {
-        action: 'NONE' as SyncAction,
-        reason: 'انتهت مهلة الفحص',
-        remote: null,
-      });
+      const decision = await withDeadline<SyncDecision>(
+        STARTUP_TIMEOUT_MS,
+        (signal) => decide(session.client, dbPath, dataDir, signal),
+        () => ({ action: 'NONE' as SyncAction, reason: 'انتهت مهلة الفحص', remote: null }),
+      );
       recordConflictCheck(dataDir);
 
       if (decision.action === 'CONFLICT') {
@@ -1234,10 +1565,11 @@ export async function performStartupSync(dbPath: string, dataDir: string): Promi
         return;
       }
       if (startupSyncActsOn(decision.action)) {
-        const result = await withTimeout(downloadInternal(dbPath, dataDir), STARTUP_TIMEOUT_MS, {
-          ok: false,
-          error: 'انتهت المهلة',
-        } as DownloadResult);
+        const result = await withDeadline(
+          STARTUP_TIMEOUT_MS,
+          (signal) => downloadInternal(dbPath, dataDir, { signal }),
+          () => ({ ok: false, error: 'انتهت المهلة', aborted: true }) as DownloadResult,
+        );
         // انتهاء المهلة يعني أن `downloadInternal` لم تصل إلى مسار الفشل الداخلي بعد،
         // فلم تُنشئ نسخة. الضمانة تُستكمل هنا — وشرط `!rescueBackup` يمنع التكرار.
         if (!result.ok && !result.rescueBackup) {
@@ -1259,6 +1591,10 @@ export async function performStartupSync(dbPath: string, dataDir: string): Promi
 export async function performShutdownSync(dbPath: string, dataDir: string): Promise<void> {
   await syncMutex.run('SHUTDOWN_SYNC', async () => {
     try {
+      // F-05 — بوابة «قيد المراجعة»، قبل أي نداء شبكي. هذا هو المسار الذي كان يرفع
+      // نسخة مستعادة قديمة فوق النسخة السحابية الحالية بلا حوار ولا تحذير.
+      if (blockedByPendingReview(dataDir, 'UPLOAD')) return;
+
       const session = openDriveSession(dataDir);
       if (!session.ok) {
         if (session.reason === 'GRANT_DEAD') handleGrantDeath(dataDir, session.error);
@@ -1266,15 +1602,15 @@ export async function performShutdownSync(dbPath: string, dataDir: string): Prom
       }
       if (!fs.existsSync(dbPath)) return;
 
-      const online = await withTimeout(checkConnectivity(3000), 3500, false);
+      const online = await checkConnectivity(3000);
       probeCache.internet = online ? 'ok' : 'fail';
       if (!online) return;
 
-      const decision = await withTimeout(decide(session.client, dbPath, dataDir), SHUTDOWN_TIMEOUT_MS / 2, {
-        action: 'NONE' as SyncAction,
-        reason: 'انتهت مهلة الفحص',
-        remote: null,
-      });
+      const decision = await withDeadline<SyncDecision>(
+        SHUTDOWN_TIMEOUT_MS / 2,
+        (signal) => decide(session.client, dbPath, dataDir, signal),
+        () => ({ action: 'NONE' as SyncAction, reason: 'انتهت مهلة الفحص', remote: null }),
+      );
 
       if (decision.action === 'CONFLICT') {
         lastConflictRemote = decision.remote;
@@ -1283,10 +1619,10 @@ export async function performShutdownSync(dbPath: string, dataDir: string): Prom
         return;
       }
       if (shutdownSyncActsOn(decision.action)) {
-        const result = await withTimeout(
-          uploadInternal(dbPath, dataDir, { expectedRemote: decision.remote }),
+        const result = await withDeadline(
           SHUTDOWN_TIMEOUT_MS,
-          { ok: false, error: 'انتهت المهلة' } as UploadResult,
+          (signal) => uploadInternal(dbPath, dataDir, { expectedRemote: decision.remote, signal }),
+          () => ({ ok: false, error: 'انتهت المهلة', aborted: true }) as UploadResult,
         );
         // أهمّ مسار في هذه الحزمة: رفع الإغلاق يفشل غالبًا بـ`invalid_grant`، والخادم
         // الخلفي متوقّف هنا عمدًا — فتتولّى اللقطة المباشرة إنشاء النسخة. شرط

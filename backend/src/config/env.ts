@@ -15,6 +15,12 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET يجب أن يكون 32 حرفًا على الأقل'),
   JWT_EXPIRES_IN: z.string().default('12h'),
   BACKUP_DIR: z.string().default('./data/backups'),
+  /**
+   * Data Safety Pack v2 — F-05 · مجلد بيانات المستخدم، تُمرّره طبقة Electron كمسار
+   * مطلق. اختياري لأن الخدمة تعمل مستقلةً في التطوير والاختبارات؛ عند غيابه يُشتقّ
+   * من `BACKUP_DIR` (مجلده الأب) — وهو صحيح في البيئتين.
+   */
+  DATA_DIR: z.string().optional(),
   ATTACHMENTS_DIR: z.string().default('./data/attachments'),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   INTERNAL_SECRET: z.string().optional().default(''),

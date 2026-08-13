@@ -20,6 +20,41 @@ function timestamp(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+/**
+ * Data Safety Pack v2 — F-05 · وسم «قيد المراجعة» بعد الاستعادة.
+ *
+ * نظير مصغَّر لـ`electron/services/pendingReview.ts`. لا يمكن استيراد ذاك هنا:
+ * الخدمة الخلفية عملية منفصلة، و`backend/dist` يُشحن بلا أي مصدر من `electron/`.
+ * **الاسم والصيغة يجب أن يبقيا متطابقين مع النظير**، والدلالة هي **وجود الملف**
+ * لا محتواه — فملف مبتور يبقى وسمًا صالحًا، وهو الاتجاه الآمن.
+ */
+const PENDING_REVIEW_FILENAME = 'sync-pending-review.json';
+
+/**
+ * مجلد بيانات المستخدم. `DATA_DIR` تُمرّره طبقة Electron كمسار مطلق؛ وعند غيابه
+ * (تشغيل مستقل للخدمة، اختبارات) يُشتقّ من مجلد النسخ الأب — صحيح في البيئتين.
+ */
+function resolveDataDir(): string {
+  if (env.DATA_DIR) return path.resolve(env.DATA_DIR);
+  return path.dirname(path.resolve(process.cwd(), env.BACKUP_DIR));
+}
+
+/** يُعيد `false` عند الفشل بدل الرمي — الاستعادة نجحت فعلًا ولا يجوز التراجع عنها. */
+function markPendingReview(detail: string): boolean {
+  try {
+    const dataDir = resolveDataDir();
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dataDir, PENDING_REVIEW_FILENAME),
+      JSON.stringify({ since: new Date().toISOString(), source: 'RESTORE', detail }, null, 2),
+      { mode: 0o600, encoding: 'utf8' },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** تصنيف النسخة — يظهر في سجلّ مركز النسخ الاحتياطي ويحدّد سياسة الاحتفاظ. */
 export type BackupType = 'MANUAL' | 'AUTO' | 'SCHEDULED' | 'RESCUE';
 
@@ -120,6 +155,13 @@ export class BackupService {
     await disconnectDatabase();
     fs.copyFileSync(sourcePath, dbPath);
     logger.warn(`تمت استعادة قاعدة البيانات من ${backup.fileName} — يجب إعادة تشغيل الخدمة`);
+
+    // Data Safety Pack v2 — F-05: بلا هذا الوسم كانت مزامنة الإغلاق التالية ترى
+    // «تغييرًا محليًا بلا تغيير سحابي» فترفع النسخة المستعادة فوق النسخة السحابية
+    // الحالية بلا حوار. فشل الوسم لا يُفشل الاستعادة — القاعدة استُبدلت فعلًا.
+    if (!markPendingReview(backup.fileName)) {
+      logger.warn('[Backup] تعذّر وسم القاعدة «قيد المراجعة» بعد الاستعادة — قد تُستأنف المزامنة التلقائية');
+    }
 
     return { restored: true, requiresRestart: true, fileName: backup.fileName };
   }

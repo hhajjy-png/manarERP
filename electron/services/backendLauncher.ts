@@ -4,7 +4,8 @@ import fs from 'fs';
 import { fork, ChildProcess } from 'child_process';
 import { randomBytes, randomUUID } from 'crypto';
 import { markSeeded, sha256FileSync } from './dbBootstrapState';
-import { ensureDataLayout, seedCompanionFiles } from './dataDirBootstrap';
+import { ensureDataLayout } from './dataDirBootstrap';
+import { GOLDEN_MANIFEST_FILENAME } from './goldenManifest';
 import {
   BackendStartupError as BackendStartupErrorImpl,
   appendStderrTail,
@@ -109,19 +110,28 @@ function bootstrapDataDir(isDev: boolean, backendCwd: string, dataDir: string, d
     }
   }
 
-  // ملفات الحالة المرافقة (سجلّ المزامنة وربط ملف Drive) — الناقصة فقط، في
-  // الإنتاج وحده. في التطوير `dataDir` هو مجلد عمل المطوّر ولا يُبذَر أبدًا.
-  if (!isDev) {
-    const seeded = seedCompanionFiles(dataDir, path.join(resourcesPath, 'seed-data'));
-    if (seeded.copied.length > 0) {
-      // eslint-disable-next-line no-console
-      console.log(`[Bootstrap] نُسخت ملفات الحالة المبدئية: ${seeded.copied.join(', ')}`);
-    }
-    for (const f of seeded.failed) {
-      // eslint-disable-next-line no-console
-      console.warn(`[Bootstrap] تعذّر نسخ ${f.file}: ${f.error} — يُنشأ تلقائيًا عند الحاجة.`);
-    }
-  }
+  // Data Safety Pack v2 — F-04: لا تُنسخ أي ملفات حالة من المثبّت بعد الآن.
+  // `sync-metadata.json` كان يمنح الجهاز الجديد تاريخ مزامنة جهاز البناء فيُحوّل
+  // تعارضًا آمنًا إلى رفع صامت، و`gdrive-account.json` كان يسرّب بريد المطوّر بلا
+  // فائدة. مجلد البيانات يبدأ نظيفًا، وكل ملف حالة يُولَّد محليًا عند أول حاجة.
+  // التفصيل الكامل في `dataDirBootstrap.ts`.
+}
+
+/**
+ * مسار بيان القالب الذهبي المشحون مع المثبّت — أو `null` حين لا ينطبق.
+ *
+ * يُقرأ **من مكانه في `resources` مباشرة** ولا يُنسخ إلى مجلد بيانات المستخدم: نسخُه
+ * كان سيتركه قديمًا بعد أول تحديث للتطبيق، فيصف قالبًا لم يعد هو المشحون.
+ *
+ * يُعيد `null` في بيئة التطوير لنفس سبب `getSeedTemplatePath`: لا مفهوم «قالب» هناك
+ * أصلًا، فلا معنى لبيان يصفه. وغيابه في الإنتاج (مثبّت أقدم من هذه الحزمة) حالة
+ * طبيعية تمامًا تُسقط النظام إلى السلوك السابق حرفيًا.
+ */
+export function getGoldenManifestPath(): string | null {
+  const { isDev } = getUserDataPaths();
+  if (isDev) return null;
+  const manifestPath = path.join(resourcesPath, 'seed-data', GOLDEN_MANIFEST_FILENAME);
+  return fs.existsSync(manifestPath) ? manifestPath : null;
 }
 
 /**

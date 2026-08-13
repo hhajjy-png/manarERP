@@ -41,6 +41,10 @@ function input(overrides: Partial<DecisionInput> = {}): DecisionInput {
     remote: remote(),
     metadata: { lastSyncedHash: HASH_A, lastSyncedLocalHash: HASH_A },
     isPristineSeed: false,
+    // Data Safety Pack v2 — F-03. الافتراضي `false` هو **قيمة السقوط الآمن**: كل
+    // الحالات السابقة تبقى معبَّرة عن السلوك نفسه حرفيًا، فأي تغيّر في نتائجها كان
+    // سيكون انحدارًا حقيقيًا لا مجرّد تعديل توقيع.
+    goldenNewerThanRemote: false,
     ...overrides,
   };
 }
@@ -378,5 +382,70 @@ describe('remoteChangedSince — حماية فقدان التحديث (P0-7)', (
   it('يكتشف التغيير حتى حين تغيب البصمة من الطرفين ويبقى الوقت وحده مختلفًا', () => {
     const base = remote({ sha256: null, version: null });
     expect(remoteChangedSince(base, { ...base, modifiedTime: '2026-08-02T00:00:00.000Z' })).toBe(true);
+  });
+});
+
+// ─── Data Safety Pack v2 · F-03 — حماية القالب الذهبي ────────────────────────
+
+describe('decideSyncAction — القالب الذهبي أحدث من النسخة السحابية (F-03)', () => {
+  it('لا يُنزّل فوق بذرة يُثبت البيان أنها أحدث — بل يُحوّلها تعارضًا يقرّره المستخدم', () => {
+    const result = decideSyncAction(
+      input({ localHash: HASH_SEED, isPristineSeed: true, goldenNewerThanRemote: true }),
+    );
+    expect(result.action).toBe('CONFLICT');
+    expect(result.reason).toContain('أحدث من النسخة الموجودة على Google Drive');
+  });
+
+  it('يُنزّل كالسابق حين لا يُثبت البيان أحدثية القالب — السقوط الآمن', () => {
+    const result = decideSyncAction(
+      input({ localHash: HASH_SEED, isPristineSeed: true, goldenNewerThanRemote: false }),
+    );
+    expect(result.action).toBe('DOWNLOAD');
+    expect(result.reason).toContain('أول تشغيل');
+  });
+
+  it('حارس الأحدثية لا يُفعَّل على قاعدة مستخدم حقيقية مهما كانت قيمة العلَم', () => {
+    // `goldenNewerThanRemote` لا يُقرأ خارج فرع البذرة إطلاقًا. لو تسرّب إلى مقارنات
+    // التغيير لكان قادرًا على قلب قرار قاعدة حقيقية — وهذا ما يمنعه هذا الاختبار.
+    const result = decideSyncAction(
+      input({
+        localHash: HASH_B,
+        remote: remote({ sha256: 'e'.repeat(64) }), // السحابي تغيّر عن آخر مزامنة
+        isPristineSeed: false,
+        goldenNewerThanRemote: true,
+        metadata: { lastSyncedHash: HASH_A, lastSyncedLocalHash: HASH_B }, // المحلي لم يتغيّر
+      }),
+    );
+    expect(result.action).toBe('DOWNLOAD');
+    expect(result.reason).toContain('أحدث على Google Drive');
+  });
+
+  it('التطابق التامّ يسبق حارس الأحدثية — لا تعارض لملف مطابق بايتًا ببايت', () => {
+    // القاعدة (2) تسبق القاعدة (4). بلا هذا الترتيب كان جهاز رفع قالبه للتوّ يرى
+    // تعارضًا مع نسخته هو.
+    const result = decideSyncAction(
+      input({
+        localHash: HASH_A,
+        remote: remote({ sha256: HASH_A }),
+        isPristineSeed: true,
+        goldenNewerThanRemote: true,
+      }),
+    );
+    expect(result.action).toBe('NONE');
+  });
+
+  it('بذرة أحدث بلا نسخة سحابية ⇒ رفع لا تعارض — لا شيء يُهدَّد بالاستبدال', () => {
+    const result = decideSyncAction(
+      input({ remote: null, localHash: HASH_SEED, isPristineSeed: true, goldenNewerThanRemote: true }),
+    );
+    expect(result.action).toBe('UPLOAD');
+  });
+
+  it('غياب القاعدة المحلية يسبق حارس الأحدثية — تنزيل حصرًا', () => {
+    const result = decideSyncAction(
+      input({ localHash: null, isPristineSeed: true, goldenNewerThanRemote: true }),
+    );
+    expect(result.action).toBe('DOWNLOAD');
+    expect(result.reason).toContain('لا توجد قاعدة بيانات محلية');
   });
 });

@@ -234,9 +234,19 @@ describe('MEDIUM-1 — إثبات البذرة من القالب عند فقد �
     expect(launcher).toContain('if (path.resolve(templateDb) === path.resolve(dbPath)) return null;');
   });
 
-  it('كلا مُستدعيَي البذرة يمرّران القالب', () => {
+  it('حساب حالة البذرة مركزيّ — مُستدعٍ واحد يمرّر القالب، ومستهلكاه يقرآن منه', () => {
+    // Data Safety Pack v2: كان لكلٍّ من `decide()` و`uploadInternal` حساب مستقلّ
+    // لنفس الشرط. حارسان يحسبان الشرط نفسه بطريقتين هو أوسع باب لانحرافهما، وحينها
+    // يمنع أحدهما ما يسمح به الآخر. الآن مصدر واحد (`evaluateSeedState`) ومستهلكان.
     const calls = syncEngine.match(/isPristineSeed\(dataDir, localHash, getSeedTemplatePath\(\)\)/g) ?? [];
-    expect(calls).toHaveLength(2);   // decide() + performUpload()
+    expect(calls).toHaveLength(1);
+    expect(syncEngine).toContain('function evaluateSeedState(');
+
+    // كلا المستهلكَين يمرّان بالمصدر الموحّد.
+    const usages = syncEngine.match(/evaluateSeedState\(dataDir, localHash/g) ?? [];
+    expect(usages.length).toBeGreaterThanOrEqual(2);   // decide() + uploadInternal()
+
+    // ولا يبقى أي استدعاء يُسقط مسار القالب (شبكة الأمان عند فقد الوسم).
     expect(syncEngine).not.toMatch(/isPristineSeed\(dataDir, localHash\)\s*\)/);
   });
 });
@@ -251,17 +261,27 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
     expect(launcher).toMatch(/!isDev && !fs\.existsSync\(dbPath\)[\s\S]{0,900}markSeeded\(/);
   });
 
-  it('🔴 أول تشغيل + وجود remote ⇒ DOWNLOAD حصرًا، فلا CONFLICT ولا خيار LOCAL', () => {
+  it('🔴 أول تشغيل + وجود remote ⇒ لا يصل القرار أبدًا إلى مقارنات التغيير', () => {
     // `decide()` تجمع الحقيقة، و`decideSyncAction` تطبّق القاعدة — كلاهما مُلزَم.
-    expect(syncEngine).toContain('isPristineSeed: isPristineSeed(dataDir, localHash, getSeedTemplatePath())');
+    expect(syncEngine).toContain('isPristineSeed: seedState.isPristineSeed');
+    expect(syncEngine).toContain('goldenNewerThanRemote: seedState.goldenNewerThanRemote');
 
     const rules = syncDecision.slice(at(syncDecision, 'export function decideSyncAction'));
     const guard = rules.indexOf('if (isPristineSeed) {');
-    const conflict = rules.indexOf("action: 'CONFLICT'");
+    const changeConflict = rules.indexOf('if (remoteChanged && localChanged) {');
     expect(guard).toBeGreaterThan(-1);
-    // الحارس يسبق فرع التعارض ⇒ لا يمكن أن يُنتَج تعارض على بذرة.
-    expect(guard).toBeLessThan(conflict);
-    expect(rules.slice(guard, guard + 300)).toContain("action: 'DOWNLOAD'");
+
+    // الضمانة الجوهرية: حارس البذرة يسبق **تعارض المقارنة** ويعود دائمًا، فلا يمكن
+    // لبذرة أن تُصنَّف «تغييرًا محليًا» فتُعرض كخيار رفع فوق بيانات Drive.
+    expect(guard).toBeLessThan(changeConflict);
+
+    // Data Safety Pack v2 (F-03): داخل الحارس مخرجان اثنان لا ثالث لهما —
+    // تعارض حين يُثبت البيان أن القالب أحدث، وتنزيل فيما عدا ذلك.
+    const guardBlock = rules.slice(guard, changeConflict);
+    expect(guardBlock).toContain('goldenNewerThanRemote');
+    expect(guardBlock).toContain("action: 'CONFLICT'");
+    expect(guardBlock).toContain("action: 'DOWNLOAD'");
+    expect(guardBlock).not.toContain("action: 'UPLOAD'");   // لا رفع تلقائي لبذرة أبدًا
   });
 
   it('أول تشغيل بلا remote ⇒ التهيئة المحلية المعتادة تبقى كما هي', () => {
@@ -276,11 +296,58 @@ describe('First-Run Bootstrap Safety — البذرة لا تنافس Drive', ()
 
   it('🔴 حارس بنيوي: رفض رفع البذرة فوق نسخة سحابية قائمة (يغطّي «رفع الآن» وresolveConflict)', () => {
     const up = syncEngine.slice(at(syncEngine, 'async function uploadInternal('));
-    const guard = up.indexOf('remote && isPristineSeed(dataDir, localHash, getSeedTemplatePath())');
+    const guard = up.indexOf('remote && seedState.isPristineSeed && !seedState.goldenNewerThanRemote');
     const upload = up.indexOf('uploadDatabase(client, snapshotPath');
     expect(guard).toBeGreaterThan(-1);
     expect(guard).toBeLessThan(upload); // يمنع قبل الرفع الفعلي
     expect(up.slice(guard, guard + 500)).toContain('رُفض الرفع');
+  });
+
+  it('🔴 F-01: لا مسار رفع واحد يتخطّى محرّك القرار', () => {
+    // العطل الأصلي: `performUpload` كان يستدعي `uploadInternal` مباشرة بلا `decide()`
+    // وبلا لقطة مرجعية، فيلغي الطبقة الأولى من حماية فقدان التحديث كاملةً.
+    const perform = syncEngine.slice(
+      at(syncEngine, 'export async function performUpload('),
+      at(syncEngine, 'async function downloadInternal('),
+    );
+    expect(perform).toContain('await decide(client, dbPath, dataDir)');
+    expect(perform).toContain('expectedRemote: decision.remote');
+
+    // وضمانة الترجمة: الحقل إلزامي في النوع، والفحص غير مشروط.
+    expect(syncEngine).toMatch(/interface UploadOptions[\s\S]{0,1500}\n\s*expectedRemote: RemoteSnapshot \| null;/);
+    expect(syncEngine).toContain('if (remoteChangedSince(opts.expectedRemote, remote))');
+    // الشكل الشرطي القديم (`... !== undefined &&`) هو ما كان يُلغي الفحص. يُفحص
+    // بصيغته الكودية تحديدًا حتى لا يلتقط التعليق الذي يشرح سبب إزالته.
+    expect(syncEngine).not.toContain('opts.expectedRemote !== undefined &&');
+  });
+
+  it('🔴 F-02: المهلة تُلغي العملية ولا تسابقها', () => {
+    // `Promise.race` كان يترك العملية تعمل في الخلفية بعد انتهاء المهلة، فيُحرَّر
+    // القفل مبكرًا وتُستبدل القاعدة تحت المستخدم بعد أن فُتحت النافذة.
+    // `Promise.race([` بصيغتها الكودية — التعليق الذي يشرح لماذا حُذفت لا يطابقها.
+    expect(syncEngine).not.toContain('Promise.race([');
+    expect(syncEngine).toContain('async function withDeadline<T>');
+    expect(syncEngine).toContain('return await run(controller.signal);');
+    expect(syncEngine).toContain('controller.abort(new SyncAbortedError())');
+
+    // نقطتا اللاعودة محميّتان بفحص إلغاء يسبقهما مباشرة.
+    const up = syncEngine.slice(at(syncEngine, 'async function uploadInternal('));
+    expect(up.indexOf('throwIfAborted(opts.signal)')).toBeLessThan(up.indexOf('uploadDatabase(client, snapshotPath'));
+    const dl = syncEngine.slice(at(syncEngine, 'async function downloadInternal('));
+    expect(dl.indexOf('throwIfAborted(opts.signal)')).toBeLessThan(dl.indexOf('fs.renameSync(tempPath, dbPath)'));
+  });
+
+  it('🔴 F-05: المزامنة التلقائية وحدها محكومة ببوابة «قيد المراجعة»', () => {
+    // البوابة تُوقف الاتجاهين التلقائيين، ولا تُطبَّق على أي عملية يبدأها المستخدم
+    // (وإلا لتعذّر الخروج من الحالة أصلًا).
+    const startup = syncEngine.slice(at(syncEngine, 'export async function performStartupSync('));
+    const shutdown = syncEngine.slice(at(syncEngine, 'export async function performShutdownSync('));
+    expect(startup).toContain("blockedByPendingReview(dataDir, 'DOWNLOAD')");
+    expect(shutdown).toContain("blockedByPendingReview(dataDir, 'UPLOAD')");
+
+    // ومسح العلامة يحدث في العمليات الصريحة الأربع فقط.
+    const clears = syncEngine.match(/clearPendingReview\(dataDir\)/g) ?? [];
+    expect(clears).toHaveLength(4);   // performSyncNow · performUpload · performDownload · resolveConflict
   });
 
   it('🔴 الترقية إلى REAL بعد نجاح التنزيل فقط — الفشل يُبقيها بذرة', () => {
