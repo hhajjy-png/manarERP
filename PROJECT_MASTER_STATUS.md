@@ -40,9 +40,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 |---|---|---|
 | **Current branch** | `production` | High |
 | **Current HEAD** | `cbe0734f` — merge of `feature/employee-compensation-v1` (**Employee Compensation v1**: monthly compensation engine + Kuwait Labour Law validation + UI/UX corrective pack + debt & advances ledger; documentation commit to follow) | High |
-| **Current stable tag** | `stable-employee-compensation-v1` (merge commit `cbe0734f`) | High |
-| **Previous stable tag** | `stable-production-release-2026.3.2` (merge commit `a24cc25b`) | High |
-| **Application version** | `2026.3.2` — new installer build; installer `AlManarERP-Setup-2026.3.2.exe` (131.76 MiB, Windows 10/11 x64, per-user install under `%AppData%`) | High |
+| **Current stable tag** | `stable-production-release-2026.4.0` (merge commit `f8f7a581`) | High |
+| **Previous stable tag** | `stable-employee-compensation-v1` (merge commit `cbe0734f`) | High |
+| **Application version** | `2026.4.0` — new installer build; installer `AlManarERP-Setup-2026.4.0.exe` (131.83 MiB, 138,240,953 bytes, SHA-256 `83c298e3790b8df60b0632ed9f3db92a6e09ba1c5b0a1a09ad0fcf5f1de6b8c9`, Windows 10/11 x64, per-user install under `%AppData%`). Golden Database SHA-256 `6b35cf750eeeb170505344e761670bf6588ff1fdb22fa030707bde6df93c821a` (3,289,088 bytes · 61 applied migrations · 75 tables · `integrity_check = ok`) verified byte-identical inside the installer | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
 | **Backend port** | `127.0.0.1:48211` (localhost only) | High |
