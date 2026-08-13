@@ -27,6 +27,7 @@ export async function authenticate(
       select: {
         id: true,
         isActive: true,
+        roleId: true,
         role: {
           select: {
             name: true,
@@ -40,7 +41,9 @@ export async function authenticate(
       throw AppError.unauthorized('الحساب غير مفعّل أو محذوف');
     }
 
-    req.user = payload;
+    // الدور يُقرأ من قاعدة البيانات لا من الرمز، حتى ينعكس أي تغيير دور فورًا
+    // (رمز قديم يحمل SYSTEM_ADMIN لا يجوز أن يتجاوز الصلاحيات بعد تخفيض الدور)
+    req.user = { ...payload, roleId: user.roleId, roleName: user.role.name };
     req.permissions = user.role.rolePermissions.map((rp) => rp.permission.key);
     next();
   } catch (err) {

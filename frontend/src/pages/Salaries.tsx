@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useT } from '../lib/i18n';
@@ -168,44 +168,58 @@ export default function Salaries() {
   const canExport = hasPermission('reports.export') || hasPermission('payroll.read');
   const canImport = hasPermission('import.create');
 
+  // حراس ضد الاستجابات المتأخرة: تغيير الشهر/السنة/الفلاتر بسرعة يُطلق طلبات متتالية
+  // وترتيب وصولها غير مضمون — لا يُسمح بالكتابة في الحالة إلا لصاحب الرقم الأحدث
+  // (نفس نمط reqIdRef المعتمد في Invoices.tsx). حارس مستقل لكل مُحمِّل.
+  const payrollReqRef = useRef(0);
+  const statsReqRef = useRef(0);
+  const historyReqRef = useRef(0);
+
   async function loadPayroll() {
+    const reqId = ++payrollReqRef.current;
     setLoading(true);
     try {
       const res = await api.get('/payroll', {
         params: { page, pageSize: 12, month, year, employeeId: employeeId || undefined, status: status || undefined, ...(sort.sortBy ? { sortBy: sort.sortBy, sortDir: sort.sortDir } : {}) },
       });
+      if (reqId !== payrollReqRef.current) return; // استجابة تجاوزها طلب أحدث — تُهمَل
       setRows(res.data.data.data ?? []);
       setMeta(res.data.data.meta ?? null);
     } finally {
-      setLoading(false);
+      if (reqId === payrollReqRef.current) setLoading(false);
     }
   }
 
   async function loadStats() {
+    const reqId = ++statsReqRef.current;
     setStatsLoading(true);
     setStatsError(false);
     try {
       const res = await api.get('/payroll/stats', {
         params: { month, year, employeeId: employeeId || undefined, status: status || undefined },
       });
+      if (reqId !== statsReqRef.current) return;
       setStats(res.data.data ?? null);
     } catch {
+      if (reqId !== statsReqRef.current) return;
       // On failure, surface a neutral fallback rather than misleading page-only totals.
       setStats(null);
       setStatsError(true);
     } finally {
-      setStatsLoading(false);
+      if (reqId === statsReqRef.current) setStatsLoading(false);
     }
   }
 
   async function loadHistory() {
+    const reqId = ++historyReqRef.current;
     setHistoryLoading(true);
     try {
       const res = await api.get('/salaries', { params: { page: historyPage, pageSize: 12, search: historyQuery, ...(historySort.sortBy ? { sortBy: historySort.sortBy, sortDir: historySort.sortDir } : {}) } });
+      if (reqId !== historyReqRef.current) return;
       setHistoryRows(res.data.data.data ?? []);
       setHistoryMeta(res.data.data.meta ?? null);
     } finally {
-      setHistoryLoading(false);
+      if (reqId === historyReqRef.current) setHistoryLoading(false);
     }
   }
 

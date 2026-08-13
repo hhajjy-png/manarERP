@@ -169,8 +169,9 @@ describe('الحارس نفسه — لا يمرّ فراغًا ولا يعطي �
 describe('الأعمدة التي رصدتها المراجعات — عناوينها من المصدر المشترك', () => {
   it('دفتر اليومية: مدين/دائن (N-1)', () => {
     const src = read('components/financial/JournalBookTable.tsx');
-    expect(src).toContain("fcMoneyHeader('مدين')");
-    expect(src).toContain("fcMoneyHeader('دائن')");
+    // العناوين انتقلت من النص الحرفي إلى مفاتيح i18n — الحارس يتبع الشكل الحالي.
+    expect(src).toContain("fcMoneyHeader(t('acc.balance.debit'))");
+    expect(src).toContain("fcMoneyHeader(t('acc.balance.credit'))");
     expect(src).not.toContain('fcCurrency(');   // لا رمز في الخليّة
   });
 
@@ -186,7 +187,7 @@ describe('الأعمدة التي رصدتها المراجعات — عناوي
 
   it('الصفحات الثلاث من H-1', () => {
     expect(read('pages/Prices.tsx')).toContain("fcMoneyHeader(t('col.prices.unit_price'))");
-    expect(read('pages/Invoices.tsx')).toContain("fcMoneyHeader('السعر')");
+    expect(read('pages/Invoices.tsx')).toContain("fcMoneyHeader(t('agreements.usage.col.price'))");
     expect(read('pages/Accounting.tsx')).toContain("fcMoneyHeader(t('col.acc.total_debit_lbl'))");
   });
 

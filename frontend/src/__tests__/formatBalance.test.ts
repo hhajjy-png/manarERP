@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+// سلسلة الاستيراد تمرّ بـ uiStore الذي يقرأ localStorage عند التحميل — يلزم jsdom.
 import { describe, it, expect } from 'vitest';
 import { formatBalance } from '../components/financial/BalanceDisplay';
 import { formatNumber } from '../lib/format';

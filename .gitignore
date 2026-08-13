@@ -53,6 +53,13 @@ frontend/src/pages/index.html
 /phase[A-H]-*.png
 /smk-*.png
 /v2-*.png
+/ui-*.png
+/compose-full.png
+/design-mode-*.png
+/fontpicker-open.png
+/kpi-after-fix.png
+/letter-compose*.png
+/letter-composer-*.png
 
 # One-off text dumps of Gemini/manual review output
 /review-*.txt

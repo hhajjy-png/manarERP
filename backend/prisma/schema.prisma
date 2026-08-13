@@ -1313,7 +1313,11 @@ model BankStatementImport {
   transactions BankStatementTransaction[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // ‏@default(now()) يصف العمود كما هو فعلًا في قاعدة البيانات: المهاجرة اليدوية
+  // 20260625100000 أنشأته بـ DEFAULT CURRENT_TIMESTAMP. بدون هذا الوصف يرى
+  // `migrate dev` فرقًا دائمًا ويقترح إعادة بناء الجدول. لا أثر على السلوك —
+  // Prisma تكتب updatedAt في كل عملية كتابة، والافتراضي يخدم الإدراج الخام وحده.
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([bankName])
   @@index([status])
@@ -1369,7 +1373,8 @@ model BankStatementTransaction {
   transactionFingerprint String? // SHA-256 hash (first 32 hex chars) of key transaction fields
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  // ‏@default(now()) — انظر الشرح نفسه في BankStatementImport أعلاه.
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([importId])
   @@index([reconcileStatus])

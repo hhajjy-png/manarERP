@@ -129,9 +129,10 @@ describe('العيب 2 — خيارات التكبير مقروءة', () => {
   });
 
   it('الوضع الداكن مغطّى صراحةً', () => {
-    const dark = css.slice(css.indexOf('@media (prefers-color-scheme: dark)'));
-    expect(dark).toMatch(/\.pc-select\s*\{[^}]*color:\s*#f1f5f9\s*!important/);
-    expect(dark).toMatch(/\.pc-select option\s*\{[^}]*background-color:\s*#1e293b\s*!important/);
+    // التغطية انتقلت من @media (prefers-color-scheme) إلى محدِّد سمة التطبيق
+    // html[data-theme="dark"] — نفس الضمان، مصدر الحقيقة صار سمة الواجهة لا نظام التشغيل.
+    expect(css).toMatch(/html\[data-theme="dark"\] \.pc-select\s*\{[^}]*color:\s*#f1f5f9\s*!important/);
+    expect(css).toMatch(/html\[data-theme="dark"\] \.pc-select option\s*\{[^}]*background-color:\s*#1e293b\s*!important/);
   });
 
   it('حالة disabled لا تعتمد على الشفافية وحدها', () => {
@@ -230,7 +231,7 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
     const preview = at("t('btn.accurate_preview')");
     const pdf = at('⬇️ PDF');
     const edit = at("t('action.edit')");
-    const template = at('قالب الطباعة');
+    const template = at("t('btn.print_template')"); // التسمية انتقلت إلى مفتاح i18n
     expect(print).toBeLessThan(preview);
     expect(preview).toBeLessThan(pdf);
     expect(pdf).toBeLessThan(edit);
@@ -284,8 +285,8 @@ describe('شريط الإجراءات — الترتيب والحجم', () => {
       invoiceCode.indexOf('invx-actions'),
       invoiceCode.indexOf('invx-doc-settings'),
     );
-    expect(bar).toContain('قالب الطباعة');
-    expect(bar).toMatch(/className="btn secondary"[\s\S]{0,600}قالب الطباعة/); // لا primary
+    expect(bar).toContain("t('btn.print_template')"); // التسمية عبر مفتاح i18n
+    expect(bar).toMatch(/className="btn secondary"[\s\S]{0,600}t\('btn\.print_template'\)/); // لا primary
     expect(bar).toContain("setPreviewMode(m => m === 'legacy' ? 'engine' : 'legacy')"); // نفس السلوك
     expect(bar).toContain('dashboard_customize'); // أيقونة واضحة لا زخرفية
   });

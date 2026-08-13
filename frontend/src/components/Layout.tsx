@@ -209,7 +209,19 @@ export default function Layout() {
             >
               {lang === 'ar' ? 'EN' : 'ع'}
             </button>
-            <div className="user" onClick={onLogout} title={t('layout.logout')}>
+            <div
+              className="user"
+              onClick={onLogout}
+              title={t('layout.logout')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onLogout();
+                }
+              }}
+            >
               <div className="user-info">
                 <strong>{user?.fullName ?? t('layout.user_fallback')}</strong>
                 <small>{user?.role.displayName}</small>

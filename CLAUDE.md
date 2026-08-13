@@ -59,7 +59,7 @@ manarERP/
 | Zod | 3.23.8 | Request validation |
 | Helmet | 7.1.0 | Security headers |
 | ExcelJS | 4.4.0 | Excel export |
-| PDFKit | 0.15.0 | PDF generation |
+| HTML report engine + Electron printToPDF | — | PDF generation (html.service.ts → pdf.ipc.ts) |
 | Vitest | 2.0.0 | Unit testing |
 
 ### Electron
@@ -126,7 +126,7 @@ shared/
   services/
     backup.service.ts               # File I/O for DB backups
     reportEngine/excel.service.ts   # ExcelJS wrapper
-    reportEngine/pdf.service.ts     # PDFKit wrapper
+    reportEngine/html.service.ts    # HTML report builder (PDF via Electron printToPDF)
 ```
 
 ### Electron (`electron/`)
@@ -331,7 +331,7 @@ At all other times, automatic production release remains prohibited.
 
 ### Context7 (`mcp__plugin_context7_context7__*`)
 **Use for:** Fetching current documentation before using any library API.
-**Trigger:** Any time you're about to write code using Prisma, Express, React, Vite, Zod, ExcelJS, PDFKit, Electron, electron-builder, or any other dependency.
+**Trigger:** Any time you're about to write code using Prisma, Express, React, Vite, Zod, ExcelJS, Electron, electron-builder, or any other dependency.
 **Commands:** `resolve-library-id` then `query-docs`
 
 ### TypeScript LSP (`LSP`)

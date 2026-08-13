@@ -35,7 +35,7 @@ export const payrollController = {
     ok(res, await payrollService.cancel(parsePayrollRouteId(req.params.id), req), 'تم إلغاء الكشف');
   },
   async markPaid(req: Request, res: Response) {
-    ok(res, await payrollService.markPaid(parsePayrollRouteId(req.params.id), req.body, req), 'تم صرف الراتب وترحيل القيد المحاسبي');
+    ok(res, await payrollService.markPaid(parsePayrollRouteId(req.params.id), req.body, req), 'تم صرف الراتب — يُسجَّل المصروف يدويًا عبر وحدة المصروفات');
   },
   async createAllowance(req: Request, res: Response) {
     created(res, await payrollService.createAllowance(req.body, req));
