@@ -56,6 +56,12 @@ export const leaveSchema = z.object({
     startDate: dateOnlySchema,
     endDate: dateOnlySchema,
     reason: z.string().optional(),
+    /**
+     * تاريخ العودة المتوقَّع — بيانات طلب الإجازة المطبوع، اختياري.
+     * `days` و`status` غائبان عمدًا: الأول يشتقّه `requestLeave` عبر `diffDays`،
+     * والثاني يفرضه `PENDING`. قبولهما من العميل يفتح بابًا لتجاوز كليهما.
+     */
+    expectedReturnDate: dateOnlySchema.optional(),
   }),
 });
 

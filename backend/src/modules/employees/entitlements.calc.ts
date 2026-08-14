@@ -159,7 +159,17 @@ export interface EntitlementResult {
   annualEntitlementDays: number; // 30 دائمًا (نسبة الاستحقاق القانونية)
   accruedLeaveDays: number | null; // الرصيد المستحق حتى asOf من تاريخ التعيين (يحتاج تاريخ التعيين + إتمام 6 أشهر)
   usedLeaveDays: number; // الأيام المستخدمة (معروف دائمًا)
-  remainingLeaveDays: number | null; // الأيام المتبقية = المستحق − المستخدم
+  remainingLeaveDays: number | null; // الأيام المتبقية = المستحق − المستخدم، بحدٍّ أدنى صفر
+
+  /**
+   * أيام التجاوز = ما استُهلك فوق المستحق (`used − accrued` حين يكون موجبًا، وإلا صفر).
+   *
+   * موجود كي لا يبتلع الحدّ الأدنى (صفر) في `remainingLeaveDays` حقيقةً يراها المستخدم:
+   * رصيدٌ صفر بسبب استهلاك مساوٍ للاستحقاق يختلف عن رصيدٍ صفر بسبب استهلاك يتجاوزه.
+   * رقم **تفسيري** فقط — لا يُحوَّل إلى قيمة مالية سالبة، لأن النظام لا يملك مفهوم
+   * «دَين إجازة» على الموظف، واختلاق واحد هنا يعني التزامًا ماليًا بلا سند.
+   */
+  overusedLeaveDays: number;
 
   dailyWage: number | null; // يحتاج الأجر المعتمد
   leaveAllowanceDays: number | null; // الأيام المستحقة للصرف = المتبقية
@@ -254,6 +264,35 @@ export function computeEffectiveAnnualLeaveDays(
   return effectiveDays;
 }
 
+/**
+ * يقصّ فترة إجازة عند تاريخ الاحتساب: يُبقي الجزء **الواقع فعلًا** حتى `asOf` شاملًا،
+ * ويُعيد `null` لفترة لم تبدأ بعد.
+ *
+ * ═══ لماذا ═══
+ * الرصيد يُستهلك بيوم إجازة **يُقضى**، لا بيوم إجازة **يُعتمَد**. اعتماد إجازة تبدأ غدًا
+ * لا يُنقص رصيد اليوم؛ ولو خُصمت كاملةً لأظهر النظام رصيدًا (وقيمةً ماليةً) أقلّ مما
+ * يملكه الموظف فعلًا في تاريخ الاحتساب — وهو ما كان يحدث: إجازة مستقبلية من ٩٢ يومًا
+ * كانت تُخصم بالكامل فتُصفّر بدل الإجازة قبل أن يبدأ الموظف إجازته أصلًا.
+ *
+ * الطرفان شاملان: إجازة تبدأ وتنتهي في `asOf` نفسه = يوم واحد.
+ * دالة نقيّة حتمية — لا `new Date()` ولا قراءة حالة خارجية.
+ */
+export function clipLeaveIntervalToAsOf(leaveInterval: DateInterval, asOf: Date): DateInterval | null {
+  const start = dayIndex(leaveInterval.start);
+  const end = dayIndex(leaveInterval.end);
+  const lo = Math.min(start, end);
+  const hi = Math.max(start, end);
+  const cut = dayIndex(asOf);
+
+  if (lo > cut) return null; // لم تبدأ بعد ⇒ لا استهلاك إطلاقًا
+
+  const clippedStart = lo === start ? leaveInterval.start : leaveInterval.end;
+  // النهاية الفعّالة = الأقرب بين نهاية الإجازة وتاريخ الاحتساب.
+  const clippedEnd = hi <= cut ? (hi === end ? leaveInterval.end : leaveInterval.start) : asOf;
+
+  return { start: clippedStart, end: clippedEnd };
+}
+
 /** نسبة مكافأة الاستقالة وفق سنوات الخدمة (المادة 53، عقد غير محدد المدة). */
 function resolveResignationFraction(serviceYears: number): number {
   if (serviceYears < 3) return RESIGNATION_FRACTION_UNDER_3_YEARS;
@@ -328,6 +367,8 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
         : 0
       : null;
   const remainingLeaveDays = accruedLeaveDays !== null ? round2(Math.max(0, accruedLeaveDays - usedLeaveDays)) : null;
+  // التجاوز يُعرض ولا يُصرف: الرصيد يقف عند صفر، والفائض يُسمّى صراحةً بدل أن يُطمس.
+  const overusedLeaveDays = accruedLeaveDays !== null ? round2(Math.max(0, usedLeaveDays - accruedLeaveDays)) : 0;
 
   // قيمة يومية خام واحدة (غير مقرَّبة) يُشتق منها كل من dailyWage المعروض وبدل الإجازة —
   // لا حساب مكرر للقاسم (DAILY_WAGE_DIVISOR) في أكثر من موضع.
@@ -354,6 +395,7 @@ export function calculateEntitlements(input: EntitlementInput): EntitlementResul
     accruedLeaveDays,
     usedLeaveDays,
     remainingLeaveDays,
+    overusedLeaveDays,
     dailyWage,
     leaveAllowanceDays,
     leaveAllowanceValue,

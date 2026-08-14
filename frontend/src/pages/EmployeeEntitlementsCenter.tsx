@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
 import { useT } from '../lib/i18n';
+import { useToast } from '../stores/toastStore';
 import { dateText } from '../config/modules';
 import { formatMoneyCell } from '../lib/format/currency';
 import PrivateAmount from '../components/PrivateAmount';
@@ -20,6 +21,8 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import EntitlementPaymentDialog from '../components/employee/EntitlementPaymentDialog';
+import AddLeaveDialog from '../components/employee/AddLeaveDialog';
+import { toDateOnly, type LeavePrintPrefill } from '../components/employee/leaveRequestFields';
 import FinalSettlementDialog from '../components/employee/FinalSettlementDialog';
 import FinalSettlementApproveDialog from '../components/employee/FinalSettlementApproveDialog';
 import SettlementPaymentDialog from '../components/employee/SettlementPaymentDialog';
@@ -30,11 +33,12 @@ import {
   type PayableCategory,
   type PaymentRow,
   type SettlementPaymentRow,
+  type LeaveRow,
   CATEGORY_LABEL,
   PAYMENT_METHOD_LABEL,
   TERMINATION_REASON_LABEL,
   SETTLEMENT_STATUS,
-  LEAVE_TYPE_LABEL,
+  leaveTypeLabelKey,
   LEAVE_STATUS,
   formatDurationLong,
   daysText,
@@ -57,26 +61,52 @@ const LEAVE_ALLOWANCE_CATEGORY: PayableCategory = 'LEAVE_ALLOWANCE';
 /**
  * قسم قابل للطيّ — الوسيلة الوحيدة للإفصاح التدريجي في هذه الصفحة.
  * `meta` يظهر في السطر المطويّ نفسه، فيبقى جوهر القسم مقروءًا دون فتحه.
+ *
+ * وضعان: **غير مُتحكَّم** (الافتراضي، سلوك كل الأقسام كما كان بالضبط عبر `defaultOpen`)،
+ * و**مُتحكَّم** حين يُمرَّر `open` — يستخدمه قسم سجل الإجازات وحده كي ينفتح تلقائيًا بعد
+ * إضافة إجازة، فلا يضيف المستخدمُ سجلًّا ثم لا يرى شيئًا لأن القسم مطويّ.
+ *
+ * `actions` تُعرض داخل رأس القسم؛ نقرها لا يطوي القسم ولا يفتحه لأن `<summary>` يبتلع
+ * النقر افتراضيًا — لذا يوقف الغلافُ الانتشارَ ويلغي السلوك الافتراضي.
  */
 function Disclosure({
   title,
   icon,
   meta,
+  actions,
   defaultOpen = false,
+  open,
+  onOpenChange,
   children,
 }: {
   title: string;
   icon: string;
   meta?: ReactNode;
+  actions?: ReactNode;
   defaultOpen?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: ReactNode;
 }) {
+  const controlled = open !== undefined;
   return (
-    <details className="xpl-card entc-collapsible" open={defaultOpen}>
+    <details
+      className="xpl-card entc-collapsible"
+      open={controlled ? open : defaultOpen}
+      onToggle={controlled ? (e) => onOpenChange?.((e.currentTarget as HTMLDetailsElement).open) : undefined}
+    >
       <summary className="entc-collapsible-summary">
         <span className="material-symbols-outlined" aria-hidden="true">{icon}</span>
         <span className="entc-collapsible-title">{title}</span>
         {meta != null && <span className="entc-collapsible-meta">{meta}</span>}
+        {actions != null && (
+          <span
+            className="entc-collapsible-actions"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+          >
+            {actions}
+          </span>
+        )}
         <span className="material-symbols-outlined entc-collapsible-chevron" aria-hidden="true">expand_more</span>
       </summary>
       <div className="xpl-card--pad">{children}</div>
@@ -134,15 +164,26 @@ export default function EmployeeEntitlementsCenter() {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const toast = useToast();
   const canRead = hasPermission('employees.read');
   // تسجيل الدفعة يعيد استخدام صلاحية تعديل الموظف (لا مفتاح صلاحية جديد).
   const canManage = hasPermission('employees.update');
+  // إدارة الإجازات — نفس مفاتيح الصلاحيات التي تحرسها مسارات الخادم بالفعل، بلا مفتاح
+  // جديد: الإنشاء `employees.create`، والاعتماد/الرفض `employees.update` (canManage).
+  // إخفاء الزر راحةٌ للمستخدم لا حاجز أمان — حارس الخادم يبقى السلطة النهائية.
+  const canCreateLeave = hasPermission('employees.create');
 
   const [data, setData] = useState<EntitlementsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [reloadKey, setReloadKey] = useState(0);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  // ── إدارة الإجازات (Leave Management UI Pack v1) ──
+  const [showAddLeave, setShowAddLeave] = useState(false);
+  // القسم مُتحكَّم به كي ينفتح تلقائيًا بعد إضافة إجازة.
+  const [leaveSectionOpen, setLeaveSectionOpen] = useState(false);
+  // معرّف الإجازة التي يجري اعتمادها/رفضها — يعطّل أزرار صفّها ويمنع الإرسال المزدوج.
+  const [leaveActionId, setLeaveActionId] = useState<number | null>(null);
   // تصحيح سجل الدفعات: تعديل حركة قائمة، أو حذفها بعد تأكيد صريح.
   const [editingPayment, setEditingPayment] = useState<PaymentRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<PaymentRow | null>(null);
@@ -182,6 +223,60 @@ export default function EmployeeEntitlementsCenter() {
     () => (data ? buildTimeline(data.leaveHistory, data.payments.entries, t) : []),
     [data, t],
   );
+
+  /**
+   * اعتماد إجازة معلّقة أو رفضها — يستدعي مسار الخادم القائم مباشرةً.
+   *
+   * محرّك الاستحقاقات يقرأ الإجازات بحالة `APPROVED` وحدها، فأي تغيير حالة قد يغيّر
+   * أيام الإجازة المستهلكة ورصيدها. لذلك يُعاد تحميل **نموذج القراءة الموحّد كاملًا**
+   * بعد نجاح العملية (`setReloadKey`) بدل تعديل أي رقم محليًا: كل قيمة معروضة تبقى
+   * قادمة من الخادم، ولا تُحتسب أي قيمة في الواجهة.
+   */
+  const setLeaveStatus = async (leaveId: number, action: 'approve' | 'reject') => {
+    // منع الإرسال المزدوج: نقرة ثانية أثناء تنفيذ عملية لا تُطلق طلبًا آخر.
+    if (leaveActionId !== null) return;
+    setLeaveActionId(leaveId);
+    setRowError('');
+    try {
+      await api.patch(`/employees/leaves/${leaveId}/${action}`);
+      toast.ok(t(action === 'approve' ? 'msg.ent.leave_approved' : 'msg.ent.leave_rejected'));
+      setReloadKey((k) => k + 1);
+    } catch (e) {
+      const msg = errorMessage(e);
+      setRowError(msg);
+      toast.error(msg);
+    } finally {
+      setLeaveActionId(null);
+    }
+  };
+
+  /**
+   * اختصار «طباعة نموذج الإجازة» — تنقّل وتعبئة مسبقة **لا أكثر**.
+   *
+   * يفتح نموذج طلب الإجازة الإداري القائم على مساره القائم
+   * (`/forms/leave-request/:employeeId`) — لا قالب طباعة جديد، ولا محرّك طباعة أو
+   * مسار PDF جديد، ولا كتابة في قاعدة البيانات: لا تُنشأ إجازة ولا تُعدَّل حالتها.
+   *
+   * هوية الموظف تسافر في مسار الرابط نفسه — وهي الآلية التي يعرّف بها ذلك النموذج
+   * موظفه أصلًا ويجلب اسمه من الخادم، فلا نُكرِّر اسمًا يملكه الخادم داخل حالة العميل.
+   * ما يسافر في `state` هو حقول **سجل الإجازة المختار** وحدها، لأن النموذج بغيرها
+   * يعرض آخر إجازة أُنشئت لا الإجازة التي ضغط المستخدم زرَّها.
+   *
+   * `state` هو نمط التمرير المعتمد في المشروع (نفس ما تستعمله `Salaries.tsx` في
+   * الربط العميق) — لا تخزين محلي جديد ولا معاملات استعلام جديدة.
+   */
+  const openLeaveForm = (l: LeaveRow) => {
+    const prefill: LeavePrintPrefill = {
+      id: l.id,
+      type: l.type as LeavePrintPrefill['type'],
+      startDate: toDateOnly(l.startDate),
+      endDate: toDateOnly(l.endDate),
+      days: l.days,
+      reason: l.reason ?? '',
+      expectedReturnDate: toDateOnly(l.expectedReturnDate),
+    };
+    navigate(`/forms/leave-request/${employeeId}`, { state: { leavePrefill: prefill } });
+  };
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
@@ -328,16 +423,36 @@ export default function EmployeeEntitlementsCenter() {
         </div>
       )}
 
-      {/* ══ ج. استحقاق الإجازة السنوية — الأرقام الثلاثة + إجراء الدفع ══ */}
-      <SectionCard title={t('section.ent.leave_entitlement')} icon="beach_access">
+      {/* ══ ج. تفاصيل رصيد الإجازة — الأيام ثم المال، في بطاقة واحدة ══
+          صفّان متمايزان عمدًا: الأول يجيب «كم يومًا؟» والثاني «كم دينارًا؟». الخلط
+          بينهما هو ما كان يجعل رصيدًا صفرًا يبدو بلا تفسير — فالأيام تُستهلك بالإجازة،
+          والمال يُستهلك بالدفع، وهما مساران مستقلان لا يُغني أحدهما عن الآخر. */}
+      <SectionCard title={t('section.ent.leave_balance_details')} icon="beach_access">
         <div className="entc-figures">
+          <Figure label={t('field.ent.accrued_leave_days')} value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)} />
+          <Figure label={t('field.ent.used_leave_days')} value={daysText(r.usedLeaveDays, t)} />
           <Figure
             label={t('field.ent.current_leave_balance')}
             value={r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : daysOrIncomplete(null, leaveReason)}
+            tone="accent"
           />
-          <Figure label={t('field.ent.daily_wage')} value={money(r.dailyWage, moneyReason)} />
-          <Figure label={t('field.ent.leave_allowance_value')} value={money(balances.leaveAllowance.entitlement, moneyReason)} tone="accent" />
+          {r.overusedLeaveDays > 0 && (
+            <Figure label={t('field.ent.overused_days')} value={daysText(r.overusedLeaveDays, t)} />
+          )}
         </div>
+
+        <div className="entc-figures">
+          <Figure label={t('field.ent.daily_wage')} value={money(r.dailyWage, moneyReason)} />
+          <Figure label={t('field.ent.leave_allowance_value')} value={money(balances.leaveAllowance.entitlement, moneyReason)} />
+          <Figure label={t('field.ent.leave_payments_recorded')} value={<PrivateAmount value={balances.leaveAllowance.paid} level={1} />} />
+          <Figure
+            label={t('field.ent.leave_net_remaining_value')}
+            value={money(balances.leaveAllowance.remaining, moneyReason)}
+            tone="accent"
+          />
+        </div>
+
+        <p className="entc-inline-note">{t('msg.ent.leave_financial_reconciliation_note')}</p>
 
         {r.firstYearEligible === false && (
           <p className="entc-inline-note">{t('msg.ent.not_yet_eligible_full')}</p>
@@ -654,14 +769,15 @@ export default function EmployeeEntitlementsCenter() {
           />
         </DataGroup>
 
+        {/* أساس الاحتساب: الأجر المعتمد والمعدّل القانوني وحدهما. الأجر اليومي
+            والاستحقاق المتراكم انتقلا إلى بطاقة «تفاصيل رصيد الإجازة» حيث يُستعملان
+            فعلًا في التسوية — لا تكرار للرقم نفسه في بطاقتين. */}
         <DataGroup title={t('section.ent.calc_basis')}>
           <Datum
             label={t('field.ent.salary_used')}
             value={wageBase.total > 0 ? <PrivateAmount value={wageBase.total} level={1} /> : (moneyReason ? <Incomplete reason={moneyReason} t={t} /> : '—')}
           />
-          <Datum label={t('field.ent.daily_wage')} value={money(r.dailyWage, moneyReason)} />
           <Datum label={t('field.ent.annual_entitlement')} value={daysText(r.annualEntitlementDays, t)} />
-          <Datum label={t('field.ent.total_legal_entitlement')} value={daysOrIncomplete(r.accruedLeaveDays, leaveReason)} />
         </DataGroup>
 
         <p className="entc-inline-note">{t('msg.ent.salary_source_note')}</p>
@@ -673,41 +789,55 @@ export default function EmployeeEntitlementsCenter() {
               <span className="ent-recon-step-label">{t('field.ent.legal_entitlement')}</span>
               <span className="ent-recon-step-val">{daysText(r.accruedLeaveDays, t)}</span>
             </div>
-            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-            <div className="ent-recon-step">
-              <span className="ent-recon-step-label">{t('field.ent.gross_annual_leave')}</span>
-              <span className="ent-recon-step-val">{daysText(brk.grossAnnualLeaveDays, t)}</span>
-            </div>
-            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-            <div className="ent-recon-step ent-recon-step--exclude">
-              <span className="ent-recon-step-label">{t('field.ent.holidays_excluded_note')}</span>
-              <span className="ent-recon-step-val">{daysText(brk.holidaysExcludedDays, t)}</span>
-            </div>
-            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-            <div className="ent-recon-step ent-recon-step--exclude">
-              <span className="ent-recon-step-label">{t('field.ent.sick_excluded_note')}</span>
-              <span className="ent-recon-step-val">{daysText(brk.sickExcludedDays, t)}</span>
-            </div>
-            <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
-            <div className="ent-recon-step ent-recon-step--subtotal">
-              <span className="ent-recon-step-label">{t('field.ent.net_leave_used')}</span>
-              <span className="ent-recon-step-val">{daysText(r.usedLeaveDays, t)}</span>
-            </div>
+            {/* خطوات الاستثناء (المادة 70) تُعرض حين يوجد استهلاك فعلًا. بلا استهلاك
+                تكون كلها أصفارًا بين رقمين متساويين، فتُطوى — والطرفان يبقيان دائمًا،
+                فالمستخدم يرى «المستحق ← المتبقي» في كل الأحوال. */}
+            {r.usedLeaveDays > 0 && (
+              <>
+                <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+                <div className="ent-recon-step">
+                  <span className="ent-recon-step-label">{t('field.ent.gross_annual_leave')}</span>
+                  <span className="ent-recon-step-val">{daysText(brk.grossAnnualLeaveDays, t)}</span>
+                </div>
+                <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+                <div className="ent-recon-step ent-recon-step--exclude">
+                  <span className="ent-recon-step-label">{t('field.ent.holidays_excluded_note')}</span>
+                  <span className="ent-recon-step-val">{daysText(brk.holidaysExcludedDays, t)}</span>
+                </div>
+                <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+                <div className="ent-recon-step ent-recon-step--exclude">
+                  <span className="ent-recon-step-label">{t('field.ent.sick_excluded_note')}</span>
+                  <span className="ent-recon-step-val">{daysText(brk.sickExcludedDays, t)}</span>
+                </div>
+                <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
+                <div className="ent-recon-step ent-recon-step--subtotal">
+                  <span className="ent-recon-step-label">{t('field.ent.net_leave_used')}</span>
+                  <span className="ent-recon-step-val">{daysText(r.usedLeaveDays, t)}</span>
+                </div>
+              </>
+            )}
             <span className="ent-recon-arrow material-symbols-outlined" aria-hidden="true">arrow_downward</span>
             <div className="ent-recon-step ent-recon-step--primary">
               <span className="ent-recon-step-label">{t('field.ent.final_remaining_balance')}</span>
               <span className="ent-recon-step-val">{r.remainingLeaveDays !== null ? daysText(r.remainingLeaveDays, t) : '—'}</span>
             </div>
+            {/* التجاوز يُسمّى بدل أن يُطمس خلف صفر: الرصيد يقف عند الصفر، والفائض يُعرض
+                كرقم مستقل — ولا يُترجَم إلى مبلغ سالب، فالنظام لا يملك مفهوم دَين إجازة. */}
+            {r.overusedLeaveDays > 0 && (
+              <div className="ent-recon-step ent-recon-step--exclude">
+                <span className="ent-recon-step-label">{t('field.ent.overused_days')}</span>
+                <span className="ent-recon-step-val">{daysText(r.overusedLeaveDays, t)}</span>
+              </div>
+            )}
+            <p className="entc-inline-note">{t('msg.ent.leave_usage_rule_note')}</p>
           </div>
         ) : (
           <div className="ent-fields"><DrawerField label={t('field.ent.reconciliation')} value={leaveReason ? <Incomplete reason={leaveReason} t={t} /> : '—'} /></div>
         )}
 
-        <div className="entc-total-line">
-          <span>{t('field.ent.leave_allowance_value')}</span>
-          <span>{money(balances.leaveAllowance.entitlement, moneyReason)}</span>
-        </div>
-
+        {/* سطر «قيمة بدل الإجازة» أُزيل من هنا: الرقم نفسه صار معروضًا في بطاقة
+            «تفاصيل رصيد الإجازة» ضمن تسويته المالية الكاملة (قيمة · مدفوع · صافٍ)،
+            وتكراره هنا كان يعرض نصف الصورة في موضعين. */}
         <div className="ent-recon-note">
           <span className="material-symbols-outlined" aria-hidden="true">info</span>
           <span>{t('msg.ent.payment_does_not_consume_leave')}</span>
@@ -812,27 +942,78 @@ export default function EmployeeEntitlementsCenter() {
         )}
       </Disclosure>
 
-      {/* ══ ط. سجل الإجازات — مطويّ ══ */}
-      <Disclosure title={t('section.ent.leave_history')} icon="event_available">
+      {/* ══ ط. سجل الإجازات — مطويّ، مع إضافة/اعتماد/رفض ══
+          البيانات والمسارات كلها قائمة أصلًا؛ هذه الحزمة تصل الواجهة بها فقط. */}
+      <Disclosure
+        title={t('section.ent.leave_history')}
+        icon="event_available"
+        open={leaveSectionOpen}
+        onOpenChange={setLeaveSectionOpen}
+        actions={canCreateLeave ? (
+          <Button variant="secondary" icon="add" small onClick={() => setShowAddLeave(true)}>
+            {t('page.ent.add_leave')}
+          </Button>
+        ) : undefined}
+      >
         {leaveHistory.length === 0 ? (
           <EmptyState icon="event_busy" title={t('msg.ent.no_leave_history_title')} message={t('msg.ent.no_leave_history_message')} tone="neutral" />
         ) : (
           <div className="xpl-table-wrap">
             <table className="xpl-table">
               <thead>
-                <tr><th>{t('col.type')}</th><th>{t('field.start_date')}</th><th>{t('field.end_date')}</th><th>{t('field.ent.days_count')}</th><th>{t('col.status')}</th></tr>
+                <tr>
+                  <th>{t('col.type')}</th><th>{t('field.start_date')}</th><th>{t('field.end_date')}</th><th>{t('field.ent.days_count')}</th><th>{t('col.status')}</th>
+                  {canManage && <th>{t('col.actions')}</th>}
+                </tr>
               </thead>
               <tbody>
                 {leaveHistory.map((l) => {
                   const st = LEAVE_STATUS[l.status] ?? { key: '', tone: 'neutral' as const, icon: 'help' };
                   const stLabel = st.key ? t(st.key) : l.status;
+                  // الاعتماد والرفض صالحان للحالة المعلّقة وحدها — سجل معتمد أو مرفوض
+                  // لا يعرض إجراءً لا يقبله الخادم أصلًا.
+                  const isPending = l.status === 'PENDING';
+                  const busy = leaveActionId === l.id;
                   return (
                     <tr key={l.id}>
-                      <td>{LEAVE_TYPE_LABEL[l.type] ? t(LEAVE_TYPE_LABEL[l.type]) : l.type}</td>
+                      <td>{leaveTypeLabelKey(l.type) ? t(leaveTypeLabelKey(l.type)!) : l.type}</td>
                       <td>{dateText(l.startDate)}</td>
                       <td>{dateText(l.endDate)}</td>
                       <td>{daysText(l.days, t)}</td>
                       <td><StatusChip tone={st.tone} icon={st.icon}>{stLabel}</StatusChip></td>
+                      {canManage && (
+                        <td>
+                          {isPending ? (
+                            <div className="entc-row-actions">
+                              <Button
+                                variant="secondary" icon="task_alt" small
+                                busy={busy}
+                                disabled={leaveActionId !== null}
+                                onClick={() => setLeaveStatus(l.id, 'approve')}
+                              >
+                                {t('action.approve')}
+                              </Button>
+                              <Button
+                                variant="ghost" icon="block" small
+                                busy={busy}
+                                disabled={leaveActionId !== null}
+                                onClick={() => setLeaveStatus(l.id, 'reject')}
+                              >
+                                {t('action.reject')}
+                              </Button>
+                            </div>
+                          ) : l.status === 'APPROVED' ? (
+                            <div className="entc-row-actions">
+                              <Button
+                                variant="ghost" icon="print" small
+                                onClick={() => openLeaveForm(l)}
+                              >
+                                {t('page.ent.print_leave_form')}
+                              </Button>
+                            </div>
+                          ) : '—'}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
@@ -841,6 +1022,22 @@ export default function EmployeeEntitlementsCenter() {
           </div>
         )}
       </Disclosure>
+
+      {showAddLeave && (
+        <AddLeaveDialog
+          employeeId={employeeId}
+          onClose={() => setShowAddLeave(false)}
+          onSaved={() => {
+            setShowAddLeave(false);
+            toast.ok(t('msg.ent.leave_added'));
+            // القسم يُفتح كي يرى المستخدم السجل الجديد فورًا، ونموذج القراءة يُعاد
+            // تحميله كاملًا — الإجازة الجديدة `PENDING` بحكم الخادم، فلا تغيّر أي رقم
+            // استحقاق بعد، لكن المصدر يبقى واحدًا في كل الأحوال.
+            setLeaveSectionOpen(true);
+            setReloadKey((k) => k + 1);
+          }}
+        />
+      )}
 
       {showPaymentDialog && (
         <EntitlementPaymentDialog

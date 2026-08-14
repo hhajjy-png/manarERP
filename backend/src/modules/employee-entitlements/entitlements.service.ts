@@ -5,6 +5,7 @@ import { recordAudit } from '../../core/middleware/audit';
 import { roundMoney } from '../../shared/utils/money';
 import {
   calculateEntitlements,
+  clipLeaveIntervalToAsOf,
   computeEffectiveAnnualLeaveDays,
   DateInterval,
   EntitlementResult,
@@ -19,8 +20,12 @@ import { finalSettlementService } from './finalSettlement.service';
  *
  * ═══ حدود الوحدة ═══
  * تقرأ فقط ما تحتاجه فعلًا من حقائق النظام: الموظف (المعرّف/الاسم/الحالة/تاريخ التعيين/
- * `Employee.salary`)، سجلات الإجازات المعتمدة، والعطلات الرسمية. ولا تكتب إلا في سجلّها
- * الخاص (`EmployeeEntitlementLedger`).
+ * `Employee.salary`). ولا تكتب إلا في سجلّها الخاص (`EmployeeEntitlementLedger`).
+ *
+ * **سجل الإجازات (`Leave`) يدخل الاحتساب بقدرٍ قانوني محدَّد وحده**: الإجازة السنوية
+ * المعتمدة، وبجزئها **المنقضي حتى تاريخ الاحتساب** فقط (`computeLeaveUsage`). ما عدا
+ * ذلك — المرضية وبدون راتب والطارئة، والمعلّقة والمرفوضة، والأيام المستقبلية — سجلّ
+ * إداري للعرض والطباعة لا أثر له على أي رقم.
  *
  * لا تُنشئ ولا تُعدّل: قيود اليومية، الحسابات، الالتزامات المحاسبية، الرواتب، لقطات
  * الرواتب، `SalaryPayment`، تصدير البنك، ولا سجلات الإجازة نفسها. صرف مبلغ نقدي هنا
@@ -55,9 +60,13 @@ export type PayableCategory = (typeof PAYABLE_CATEGORIES)[number];
 const EOS_ACTIVATION_MECHANISM = 'FINAL_SETTLEMENT' as const;
 
 /**
- * تفصيل استهلاك رصيد الإجازة السنوية لأغراض العرض فقط. netUsedLeaveDays مُشتقّة رياضيًا
- * من نفس منطق الاستثناء المركزي (computeEffectiveAnnualLeaveDays) فتساوي دائمًا الأيام
- * المستخدمة الفعلية — لا يمكن لعرض التسوية أن ينحرف عن الرصيد القانوني.
+ * تفكيك الأيام السنوية المستهلكة حتى `asOf` — كل أرقامه مقصوصة عند تاريخ الاحتساب،
+ * فلا يعرض «خامًا» أكبر مما استُهلك فعلًا.
+ *
+ *   grossAnnualLeaveDays  الأيام التقويمية المنقضية داخل الإجازات السنوية المعتمدة
+ *   − holidaysExcludedDays  عطلات رسمية وقعت داخلها (المادة 70)
+ *   − sickExcludedDays      أيام مرضية معتمدة تداخلت معها (المادة 70)
+ *   = netUsedLeaveDays      المستهلك القانوني — وهو وحده ما يخصم من الرصيد
  */
 export interface LeaveExclusionBreakdown {
   grossAnnualLeaveDays: number;
@@ -134,7 +143,7 @@ class EntitlementsService {
     asOf: Date,
   ): Promise<{ result: EntitlementResult; wageBase: WageBaseComposition; leaveExclusionBreakdown: LeaveExclusionBreakdown }> {
     const wageBase = this.resolveWageBase(employee.salary);
-    const leaveExclusionBreakdown = await this.computeLeaveExclusionBreakdown(employeeId, employee.hireDate);
+    const leaveExclusionBreakdown = await this.computeLeaveUsage(employeeId, employee.hireDate, asOf);
 
     const result = calculateEntitlements({
       hireDate: employee.hireDate,
@@ -147,13 +156,27 @@ class EntitlementsService {
   }
 
   /**
-   * تفصيل استهلاك رصيد الإجازة السنوية. الرقم القانوني الفعلي (netUsedLeaveDays) يُحتسب
-   * حصريًا عبر الدالة النقيّة المركزية (computeEffectiveAnnualLeaveDays) — لا تكرار
-   * للقاعدة. التفكيك «خام/عطلات مستثناة/مرضي مستثنى» تصنيف عرضي إضافي فقط.
+   * الأيام السنوية المستهلكة فعليًا حتى `asOf` — المصدر الحسابي الوحيد لـ «المستخدم».
+   *
+   * ═══ ما يُخصم ═══
+   * سجل `Leave` بالشروط الثلاثة معًا فقط:
+   *   ١) `type === 'ANNUAL'`  — المرضية وبدون راتب والطارئة لا تمسّ الرصيد السنوي.
+   *   ٢) `status === 'APPROVED'` — المعلّقة والمرفوضة لا تستهلك شيئًا.
+   *   ٣) الجزء **الواقع فعلًا حتى `asOf`** — عبر `clipLeaveIntervalToAsOf`.
+   *
+   * الشرط الثالث هو جوهر هذه الحزمة: يوم الإجازة يستهلك الرصيد حين **يُقضى** لا حين
+   * **يُعتمَد**. إجازة تبدأ غدًا لا تُنقص رصيد اليوم، وإجازة جارية تُخصم بجزئها المنقضي.
+   *
+   * ═══ ما يُستثنى داخل الإجازة (المادة 70) ═══
+   * العطلات الرسمية وأيام الإجازة المرضية المعتمدة الواقعة داخل الإجازة السنوية —
+   * عبر الدالة النقيّة المركزية `computeEffectiveAnnualLeaveDays` بلا تكرار للقاعدة.
+   *
+   * حتمية: نفس البيانات + نفس `asOf` ⇒ نفس الناتج. لا `new Date()` في المسار.
    */
-  private async computeLeaveExclusionBreakdown(
+  private async computeLeaveUsage(
     employeeId: number,
     hireDate: Date | null,
+    asOf: Date,
   ): Promise<LeaveExclusionBreakdown> {
     const [annualLeaves, holidays, sickLeaves] = await Promise.all([
       prisma.leave.findMany({
@@ -161,7 +184,9 @@ class EntitlementsService {
           employeeId,
           type: 'ANNUAL',
           status: 'APPROVED',
-          ...(hireDate ? { startDate: { gte: hireDate } } : {}),
+          // لا تُقرأ أصلًا إجازة تبدأ بعد تاريخ الاحتساب — نفس نتيجة القصّ، بقراءة أضيق.
+          // والحدّ الأدنى بتاريخ التعيين هو القيد القائم أصلًا (لا رصيد قبل التعيين).
+          startDate: hireDate ? { gte: hireDate, lte: asOf } : { lte: asOf },
         },
         select: { startDate: true, endDate: true },
       }),
@@ -175,11 +200,11 @@ class EntitlementsService {
     const holidayDates = holidays.map((h) => h.date);
     const sickIntervals: DateInterval[] = sickLeaves.map((s) => ({ start: s.startDate, end: s.endDate }));
 
-    const dayIndex = (d: Date) => Math.floor(toCalendarDayUtc(d).getTime() / MS_PER_DAY);
-    const holidaySet = new Set(holidayDates.map(dayIndex));
+    const dayIdx = (d: Date) => Math.floor(toCalendarDayUtc(d).getTime() / MS_PER_DAY);
+    const holidaySet = new Set(holidayDates.map(dayIdx));
     const sickRanges = sickIntervals.map((s) => {
-      const a = dayIndex(s.start);
-      const b = dayIndex(s.end);
+      const a = dayIdx(s.start);
+      const b = dayIdx(s.end);
       return { lo: Math.min(a, b), hi: Math.max(a, b) };
     });
     const isSickDay = (day: number) => sickRanges.some((r) => day >= r.lo && day <= r.hi);
@@ -190,16 +215,15 @@ class EntitlementsService {
     let netUsedLeaveDays = 0;
 
     for (const leave of annualLeaves) {
-      netUsedLeaveDays += computeEffectiveAnnualLeaveDays(
-        { start: leave.startDate, end: leave.endDate },
-        holidayDates,
-        sickIntervals,
-      );
+      // القصّ أولًا: الجزء المنقضي وحده هو ما يدخل الاحتساب والتفكيك معًا، فلا يعرض
+      // التفكيك «خامًا» أكبر مما استُهلك فعلًا.
+      const elapsed = clipLeaveIntervalToAsOf({ start: leave.startDate, end: leave.endDate }, asOf);
+      if (!elapsed) continue;
 
-      const a = dayIndex(leave.startDate);
-      const b = dayIndex(leave.endDate);
-      const lo = Math.min(a, b);
-      const hi = Math.max(a, b);
+      netUsedLeaveDays += computeEffectiveAnnualLeaveDays(elapsed, holidayDates, sickIntervals);
+
+      const lo = dayIdx(elapsed.start);
+      const hi = dayIdx(elapsed.end);
       grossAnnualLeaveDays += hi - lo + 1;
       for (let day = lo; day <= hi; day++) {
         if (holidaySet.has(day)) holidaysExcludedDays += 1;
@@ -306,7 +330,14 @@ class EntitlementsService {
       prisma.leave.findMany({
         where: { employeeId },
         orderBy: { startDate: 'desc' },
-        select: { id: true, type: true, startDate: true, endDate: true, days: true, status: true },
+        // `reason` و`expectedReturnDate` بيانات **طلب** الإجازة المطبوع — تُقرأ هنا كي
+        // يتمكّن اختصار «طباعة نموذج الإجازة» من إعادة طباعة الطلب نفسه بقيمه
+        // المحفوظة. لا يدخل أيٌّ منهما أي احتساب: محرّك الاستحقاقات يقرأ النوع
+        // والتواريخ والحالة وحدها (انظر `computeLeaveExclusionBreakdown` أعلاه).
+        select: {
+          id: true, type: true, startDate: true, endDate: true, days: true, status: true,
+          reason: true, expectedReturnDate: true,
+        },
       }),
       // التصفية النهائية تُقرأ ضمن نفس نموذج القراءة الموحَّد — لا نقطة قراءة ثانية للواجهة.
       finalSettlementService.getSettlement(employeeId),

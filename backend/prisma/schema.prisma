@@ -216,6 +216,13 @@ model Leave {
   status     String   @default("PENDING") // PENDING | APPROVED | REJECTED
   reason     String?
 
+  /// تاريخ العودة المتوقَّع — بيانات **طلب** الإجازة الإداري، لا مدخلًا لأي احتساب.
+  /// كان الحقل الوحيد في نموذج طلب الإجازة المطبوع بلا أي تخزين: يُكتب في الصفحة عند
+  /// كل طباعة ويضيع بعدها، فلا يمكن إعادة طباعة الطلب نفسه لاحقًا. اختياري لأن كل
+  /// سجلّات الإجازة السابقة أُنشئت بدونه، ولأنه ليس شرطًا لاعتماد الإجازة.
+  /// لا يمسّ محرّك المستحقات إطلاقًا — ذاك يقرأ النوع والتواريخ والحالة وحدها.
+  expectedReturnDate DateTime?
+
   employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
