@@ -66,7 +66,38 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.0
+## Latest Release — Employee Entitlements Bilingual One-Page Statement Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Entitlements Bilingual One-Page Statement Pack v1 — renames the monthly employee entitlements module and rebuilds its official statement as a single bilingual A4 page with a narrowed QR payload |
+| **Release status** | RELEASED — Product Owner manual visual review **completed** and explicitly confirmed prior to release authorization |
+| **Release date** | 2026-08-14 |
+| **Application version** | `2026.5.0` (unchanged — presentation-only pack, no installer rebuild) |
+| **Feature branch** | `feature/employee-entitlements-bilingual-one-page-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `edcfe589` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-employee-entitlements-bilingual-one-page-v1` → `edcfe589` (annotated) |
+| **Feature commit** | `dc2fd0cf` |
+| **Production merge commit** | `274eff82` |
+| **Stable tag** | `stable-employee-entitlements-bilingual-one-page-v1` → merge `274eff82` (annotated) |
+| **Rename** | `nav.employee_compensation` and `ecmp.title` carry «مستحقات الموظف الشهرية» / «Monthly Employee Entitlements» in both dictionaries. `ecmp.doc.statement_title` becomes one bilingual line, **deliberately identical in `ar` and `en`**: it titles the printed sheet, which is bilingual on every row regardless of UI language, so a language-dependent heading would print two different titles from one document. Route, backend module names, API, Prisma models and the calculation engine untouched |
+| **Bilingual values — no invented translations** | The English half of a **value** comes only from an approved source: stored `Employee.fullNameEn` (name) · the approved translation table plus Settings overrides via a new strict `lookupJobTitleEn` that returns `null` instead of echoing the Arabic back as if it were a translation (job title) · `MONTH_NAMES_EN` against the month **already in the calculation record** (period, never `new Date()`). No approved source ⇒ the Arabic alone prints. `statementBilingual.ts` derives all three once and feeds both the sheet and the QR, so the two can never disagree |
+| **English-name source (documented trade-off)** | The historical snapshot has no English column, and adding one would mean a database migration for a printed line. `getStatementData` therefore performs one **read-only** `prisma.employee.findUnique({ select: { fullNameEn: true } })`. Consequence: correcting an employee's English name later changes a reprinted old statement's English half while the Arabic stays at its snapshot value. The pre-existing snapshot test was rewritten to prove the other six identity fields still come from the snapshot, and `moduleIsolation.test.ts` already forbids any write to `employee` |
+| **One page** | The statement-date row and **both** old approval blocks (`الإقرار والاستلام` in the template · `اعتماد المدير المباشر` in the `FormLayout` footer, suppressed via the existing `hideApprovalSection`) are replaced by one horizontal `الاعتماد والاستلام / Approval & Receipt` section holding the employee receipt signature and the manager approval side by side. Padding, line height, section gaps and title size tightened. **The compact styles are local to this template** — the shared `formStyles` is untouched, so the fourteen other administrative forms are byte-identical. No `overflow`, no `transform: scale`, no clipping, no paper-size change |
+| **20mm document offset** | Applied through `FormLayout`'s existing `contentTopOffset`, which renders inside the single `.form-page` node that accurate preview, Save PDF and print all clone — so the offset is identical in all three by construction. Page padding is zeroed by `@media print` and a first-child `margin-top` collapses out of the parent once that padding is zero; either alternative would make the preview disagree with the sheet |
+| **Theme-CSS leak fixed** | `app/theme.css` carries unscoped `tbody tr:nth-child(even) td` and `tbody tr:hover td` background rules that reach **every** table in the app, including printed documents. They had been shading some statement line items but never the totals rows, which already carry an inline background that outranks a stylesheet. Corrected with an explicit inline background on this template's item cell — `theme.css` and every other table in the system are untouched |
+| **QR payload** | This statement only: employee name · net entitlement · period, and nothing else. The new optional `payloadLines` short-circuits `formatQrText` **before** the default lines are built, so no current or future `QRData` field can leak into a QR whose content was specified. Absent on every other form ⇒ their encoded text is byte-identical (guarded by test). The printed reference under the code remains the document number, which was never part of the payload |
+| **Shared-component changes** | Two additive, opt-in props defaulting to previous behaviour: `FormQRCode.payloadLines` and `FormLayout.titleFontSize` (default `22`) |
+| **Validation** | Backend/Frontend `tsc --noEmit` ✅ · `prisma validate` ✅ · `build:back` / `build:front` ✅ · Backend 194 files/3022 tests ✅ · Frontend 211 files/3866 tests ✅. The merged tree is byte-identical to the reviewed branch tree (`git diff feature..production` empty), so these results carry to `production` verbatim |
+| **Tests added** | 28 frontend contract tests (`employeeMonthlyEntitlementsStatementV1.test.tsx`) covering the rename, bilingual values and their sources, refusal to invent a translation, the five identity fields, the two-column table, both removed approval blocks, the new section's horizontal DOM container, the three-line QR and its non-leakage, QR/statement net-amount equality, period derived from the record, other documents' QR immutability, 3-decimal KWD, and the no-clipping/A4 layout contract · 3 backend tests (`statementBilingualSource.test.ts`) proving `fullNameEn` is a pre-existing schema field read read-only and absent from every total |
+| **Schema impact** | None — zero migration, zero Prisma model change. `fullNameEn` has existed on `model Employee` since the model was written |
+| **Permission impact** | None |
+| **Calculation impact** | None — every amount before and after this pack is identical |
+| **Files** | 14 (11 modified, 3 new); backend 3, frontend 11. No Electron change |
+| **Known non-blocking item** | `frontend/src/__scratch__/dump.test.tsx` — a diagnostic render-dump written during development. It is **untracked and outside this release**, but three deletion attempts (`rm -rf`, `Remove-Item`, path-scoped `git clean`) were refused by the session's permission layer, so removing it is left as user housekeeping. While present it adds one passing test file to local frontend runs |
+| **Excluded from this release** | Left untracked and unstaged, unchanged from the previous release: the debug probe `frontend/src/components/explorer/__tests__/zz-probe.test.tsx` and two unreferenced fonts under `frontend/src/assets/fonts/نموذج كتاب رسمي خطوط/` |
+
+## Previous Release — Production Release 2026.5.0
 
 | Field | Value |
 |-------|-------|
