@@ -633,3 +633,224 @@ describe('recordPayment — module boundary is respected', () => {
     expect(created.createdBy).toBe(7);
   });
 });
+
+/* ════════════════════════════════════════════════════════════════════════════
+   بيانات **طلب** الإجازة لا تدخل أي احتساب
+   (Employee Leave — Full Leave Request Data Capture v1)
+
+   أضافت تلك الحزمة عمودًا واحدًا (`expectedReturnDate`) إلى جدول الإجازات، وأتاحت
+   قراءة `reason` معه في نموذج القراءة. كلاهما بيانات مستند مطبوع. هذه الاختبارات
+   تثبت أنهما لا يمسّان محرّك الاستحقاقات: نفس المُدخَلات القانونية (النوع، التاريخان،
+   الحالة) تُنتج نفس الأرقام سواء حمل السجل هذين الحقلين أم لا.
+   ════════════════════════════════════════════════════════════════════════════ */
+describe('بيانات طلب الإجازة (السبب / تاريخ العودة) لا تغيّر أي احتساب', () => {
+  /** إجازة سنوية معتمدة من خمسة أيام — المُدخَل الوحيد الذي يقرؤه المحرّك. */
+  const APPROVED_ANNUAL = { startDate: new Date('2025-03-01T00:00:00Z'), endDate: new Date('2025-03-05T00:00:00Z') };
+
+  async function computeWith(leaveRows: Record<string, unknown>[]) {
+    setupReads();
+    // المحرّك يقرأ الإجازات مرتين (سنوية ثم مرضية) قبل قراءة سجل العرض.
+    p.leave.findMany.mockResolvedValue(leaveRows);
+    return entitlementsService.getStatement(1, ASOF);
+  }
+
+  it('نفس الأرقام بالضبط مع الحقلين وبدونهما', async () => {
+    const withoutRequestData = await computeWith([{ ...APPROVED_ANNUAL }]);
+    const withRequestData = await computeWith([
+      { ...APPROVED_ANNUAL, reason: 'ظرف عائلي', expectedReturnDate: new Date('2025-03-06T00:00:00Z') },
+    ]);
+
+    expect(withRequestData.result).toEqual(withoutRequestData.result);
+    expect(withRequestData.leaveExclusionBreakdown).toEqual(withoutRequestData.leaveExclusionBreakdown);
+    expect(withRequestData.balances).toEqual(withoutRequestData.balances);
+  });
+
+  it('قراءتا الاحتساب تنتقيان التاريخين وحدهما — والثالثة وحدها للعرض', async () => {
+    await computeWith([{ ...APPROVED_ANNUAL }]);
+
+    // (1) السنوية للاحتساب (2) المرضية للاستثناء (3) السجل الكامل للعرض والطباعة.
+    expect(p.leave.findMany).toHaveBeenCalledTimes(3);
+    for (const call of p.leave.findMany.mock.calls.slice(0, 2)) {
+      expect(call[0].select).toEqual({ startDate: true, endDate: true });
+    }
+    const displaySelect = p.leave.findMany.mock.calls[2][0].select;
+    expect(displaySelect).toHaveProperty('reason', true);
+    expect(displaySelect).toHaveProperty('expectedReturnDate', true);
+  });
+});
+
+/* ════════════════════════════════════════════════════════════════════════════
+   رصيد الإجازة القانوني — الاستهلاك المقصوص عند تاريخ الاحتساب
+   (Legal Leave Balance & Payments Reconciliation Pack v1)
+
+   العقد: يُخصم من الرصيد **فقط** ما اجتمعت فيه الشروط الثلاثة — إجازة سنوية،
+   معتمدة، وواقعة فعلًا حتى `asOf`. وما عدا ذلك سجلّ إداري بلا أثر حسابي.
+   ════════════════════════════════════════════════════════════════════════════ */
+const D = (s: string) => new Date(s + 'T00:00:00Z');
+
+/** إجازة سنوية معتمدة من عشرة أيام، منتهية قبل تاريخ الاحتساب القياسي. */
+const PAST_ANNUAL = {
+  id: 1, type: 'ANNUAL', status: 'APPROVED', days: 10,
+  startDate: D('2025-03-01'), endDate: D('2025-03-10'),
+};
+
+/** يوجّه قراءتَي الاحتساب (السنوية ثم المرضية) وقراءة العرض، بهذا الترتيب. */
+async function leaveStatement(opts: {
+  annual?: Record<string, unknown>[];
+  sick?: Record<string, unknown>[];
+  holidays?: Date[];
+  asOf?: Date;
+  payments?: { entryType: string; amount: number }[];
+} = {}) {
+  setupReads({ payments: opts.payments });
+  p.holiday.findMany.mockResolvedValue((opts.holidays ?? []).map((date) => ({ date })));
+  const annual = opts.annual ?? [];
+  p.leave.findMany
+    .mockResolvedValueOnce(annual)
+    .mockResolvedValueOnce(opts.sick ?? [])
+    .mockResolvedValueOnce(annual);
+  return entitlementsService.getStatement(1, opts.asOf ?? ASOF);
+}
+
+describe('الأيام السنوية المستهلكة — الشروط الثلاثة', () => {
+  it('١. بلا أي إجازة: المستهلك صفر والرصيد = المستحق كاملًا', async () => {
+    const st = await leaveStatement();
+    expect(st.result.usedLeaveDays).toBe(0);
+    expect(st.result.remainingLeaveDays).toBe(st.result.accruedLeaveDays);
+    expect(st.result.overusedLeaveDays).toBe(0);
+  });
+
+  it('٢. إجازة مستقبلية معتمدة لا تُخصم — القيد في الاستعلام نفسه', async () => {
+    const st = await leaveStatement({ annual: [] });
+    expect(st.result.usedLeaveDays).toBe(0);
+
+    const where = p.leave.findMany.mock.calls[0][0].where;
+    expect(where).toMatchObject({ type: 'ANNUAL', status: 'APPROVED' });
+    expect(where.startDate).toHaveProperty('lte', ASOF); // القيد الحاسم
+  });
+
+  it('٣. في منتصف الإجازة يُخصم الجزء المنقضي فقط', async () => {
+    // 20/12/2025 → 20/01/2026 وتاريخ الاحتساب 01/01/2026 ⇒ 13 يومًا منقضية.
+    const st = await leaveStatement({
+      annual: [{ ...PAST_ANNUAL, startDate: D('2025-12-20'), endDate: D('2026-01-20') }],
+    });
+    expect(st.result.usedLeaveDays).toBe(13);
+    expect(st.leaveExclusionBreakdown.grossAnnualLeaveDays).toBe(13);
+  });
+
+  it('٤. بعد انتهائها تُخصم كامل أيامها القانونية', async () => {
+    const st = await leaveStatement({ annual: [PAST_ANNUAL] });
+    expect(st.result.usedLeaveDays).toBe(10);
+    expect(st.result.remainingLeaveDays).toBe(Math.round((st.result.accruedLeaveDays! - 10) * 100) / 100);
+  });
+
+  it('٥ و٦ و٧. الاستعلام يحصر الخصم في ANNUAL + APPROVED وحدهما', async () => {
+    const st = await leaveStatement({ annual: [] });
+    expect(st.result.usedLeaveDays).toBe(0);
+    // المعلّقة والمرفوضة والمرضية وبدون راتب والطارئة كلها خارج قراءة الخصم.
+    expect(p.leave.findMany.mock.calls[0][0].where).toMatchObject({ type: 'ANNUAL', status: 'APPROVED' });
+    // القراءة الثانية تطلب SICK لغرض **الاستثناء** لا الخصم.
+    expect(p.leave.findMany.mock.calls[1][0].where).toMatchObject({ type: 'SICK', status: 'APPROVED' });
+  });
+
+  it('٨. العطلات الرسمية والمرضية داخل الإجازة تُستثنى (المادة 70)', async () => {
+    const st = await leaveStatement({
+      annual: [PAST_ANNUAL], // 01/03 → 10/03 = 10 أيام
+      holidays: [D('2025-03-03'), D('2025-03-04')],
+      sick: [{ startDate: D('2025-03-06'), endDate: D('2025-03-06') }],
+    });
+    expect(st.leaveExclusionBreakdown).toMatchObject({
+      grossAnnualLeaveDays: 10, holidaysExcludedDays: 2, sickExcludedDays: 1, netUsedLeaveDays: 7,
+    });
+    expect(st.result.usedLeaveDays).toBe(7);
+  });
+
+  it('٩ و١٠. التجاوز يُسمّى صراحةً ولا يُصفَّر الرصيد بلا تفسير', async () => {
+    const accrued = (await leaveStatement()).result.accruedLeaveDays!;
+    const st = await leaveStatement({
+      annual: [{ ...PAST_ANNUAL, startDate: D('2020-06-01'), endDate: D('2021-06-01') }],
+    });
+
+    expect(st.leaveExclusionBreakdown.netUsedLeaveDays).toBe(st.result.usedLeaveDays);
+    expect(st.result.usedLeaveDays).toBeGreaterThan(accrued);
+    expect(st.result.remainingLeaveDays).toBe(0);
+    expect(st.result.overusedLeaveDays).toBe(Math.round((st.result.usedLeaveDays - accrued) * 100) / 100);
+    expect(st.result.leaveAllowanceValue).toBe(0); // لا قيمة سالبة
+  });
+
+  it('عدة إجازات تُجمَع، وكلٌّ منها مقصوصة عند تاريخ الاحتساب', async () => {
+    const st = await leaveStatement({
+      annual: [
+        { ...PAST_ANNUAL, startDate: D('2025-03-01'), endDate: D('2025-03-10') },          // 10
+        { ...PAST_ANNUAL, id: 2, startDate: D('2025-06-01'), endDate: D('2025-06-05') },   // 5
+        { ...PAST_ANNUAL, id: 3, startDate: D('2025-12-28'), endDate: D('2026-01-05') },   // 5 حتى asOf
+      ],
+    });
+    expect(st.result.usedLeaveDays).toBe(20);
+  });
+
+  it('١٥. حتمية: نفس البيانات ونفس asOf ⇒ نفس النتيجة', async () => {
+    const a = await leaveStatement({ annual: [PAST_ANNUAL] });
+    const b = await leaveStatement({ annual: [PAST_ANNUAL] });
+    expect(b.result).toEqual(a.result);
+    expect(b.leaveExclusionBreakdown).toEqual(a.leaveExclusionBreakdown);
+  });
+
+  it('١٢. الاحتساب صحيح لأي asOf — قبل الإجازة وأثناءها وبعدها', async () => {
+    const before = await leaveStatement({ annual: [], asOf: D('2025-02-01') });
+    const during = await leaveStatement({ annual: [PAST_ANNUAL], asOf: D('2025-03-05') });
+    const after = await leaveStatement({ annual: [PAST_ANNUAL], asOf: D('2025-06-01') });
+
+    expect(before.result.usedLeaveDays).toBe(0);
+    expect(during.result.usedLeaveDays).toBe(5); // 01→05 مارس
+    expect(after.result.usedLeaveDays).toBe(10);
+  });
+});
+
+describe('التسوية المالية — الأيام شيء والدفعات شيء آخر', () => {
+  it('١١. الدفع لا يغيّر عدد الأيام ولا قيمة الاستحقاق', async () => {
+    const unpaid = await leaveStatement({ annual: [PAST_ANNUAL] });
+    const paid = await leaveStatement({
+      annual: [PAST_ANNUAL], payments: [{ entryType: 'LEAVE_ALLOWANCE', amount: 500 }],
+    });
+
+    expect(paid.result.usedLeaveDays).toBe(unpaid.result.usedLeaveDays);
+    expect(paid.result.remainingLeaveDays).toBe(unpaid.result.remainingLeaveDays);
+    expect(paid.result.leaveAllowanceDays).toBe(unpaid.result.leaveAllowanceDays);
+    expect(paid.balances.leaveAllowance.entitlement).toBe(unpaid.balances.leaveAllowance.entitlement);
+  });
+
+  it('١٢. دفعة بدل الإجازة وحدها تخفض الصافي المالي', async () => {
+    const st = await leaveStatement({
+      annual: [PAST_ANNUAL], payments: [{ entryType: 'LEAVE_ALLOWANCE', amount: 500 }],
+    });
+    const gross = st.balances.leaveAllowance.entitlement!;
+    expect(st.balances.leaveAllowance.paid).toBe(500);
+    expect(st.balances.leaveAllowance.remaining).toBe(Math.round((gross - 500) * 1000) / 1000);
+  });
+
+  it('دفعة نهاية الخدمة لا تُخصم من قيمة رصيد الإجازة', async () => {
+    const st = await leaveStatement({
+      annual: [PAST_ANNUAL], payments: [{ entryType: 'END_OF_SERVICE', amount: 900 }],
+    });
+    expect(st.balances.leaveAllowance.paid).toBe(0);
+    expect(st.balances.leaveAllowance.remaining).toBe(st.balances.leaveAllowance.entitlement);
+  });
+
+  it('١٣. بلا دفعات: الصافي المالي = القيمة الإجمالية', async () => {
+    const st = await leaveStatement({ annual: [PAST_ANNUAL] });
+    expect(st.balances.leaveAllowance.paid).toBe(0);
+    expect(st.balances.leaveAllowance.remaining).toBe(st.balances.leaveAllowance.entitlement);
+  });
+
+  it('الأربعة معًا متاحة للمستخدم: أيام · أجر يومي · قيمة · مدفوع · صافٍ', async () => {
+    const st = await leaveStatement({
+      annual: [PAST_ANNUAL], payments: [{ entryType: 'LEAVE_ALLOWANCE', amount: 200 }],
+    });
+    expect(st.result.remainingLeaveDays).toBeGreaterThan(0);
+    expect(st.result.dailyWage).toBeGreaterThan(0);
+    expect(st.balances.leaveAllowance.entitlement).toBeGreaterThan(0);
+    expect(st.balances.leaveAllowance.paid).toBe(200);
+    expect(st.balances.leaveAllowance.remaining).toBeGreaterThan(0);
+  });
+});

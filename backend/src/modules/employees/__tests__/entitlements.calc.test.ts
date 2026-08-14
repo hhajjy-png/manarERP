@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateEntitlements, computeEffectiveAnnualLeaveDays } from '../entitlements.calc';
+import { calculateEntitlements, clipLeaveIntervalToAsOf, computeEffectiveAnnualLeaveDays } from '../entitlements.calc';
 
 /**
  * اختبارات حاسبة الاستحقاقات (قانون 6/2010، المواد 51 و53 و55 و62 و70 و73 و74).
@@ -498,3 +498,96 @@ describe('computeEffectiveAnnualLeaveDays — official holiday & sick leave excl
     expect(computeEffectiveAnnualLeaveDays(leave, holidays, sick)).toBe(10);
   });
 });
+
+/* ════════════════════════════════════════════════════════════════════════════
+   قصّ فترة الإجازة عند تاريخ الاحتساب
+   (Legal Leave Balance & Payments Reconciliation Pack v1)
+
+   القاعدة: يوم الإجازة يستهلك الرصيد حين **يُقضى** لا حين **يُعتمَد**. لذلك يُقصّ كل
+   سجل إجازة عند `asOf` قبل عدّ أيامه. دالة نقيّة حتمية — بلا `new Date()`.
+   ════════════════════════════════════════════════════════════════════════════ */
+describe('clipLeaveIntervalToAsOf', () => {
+  const d = (s: string) => new Date(s + 'T00:00:00Z');
+  const daysOf = (start: string, end: string, asOf: string) => {
+    const clipped = clipLeaveIntervalToAsOf({ start: d(start), end: d(end) }, d(asOf));
+    return clipped ? computeEffectiveAnnualLeaveDays(clipped, [], []) : 0;
+  };
+
+  it('إجازة مستقبلية لا تُخصم إطلاقًا — سيناريو المتطلّب حرفيًا', () => {
+    // asOf = 15/08/2026 · الإجازة 16/08/2026 → 15/11/2026 ⇒ صفر يوم.
+    expect(clipLeaveIntervalToAsOf({ start: d('2026-08-16'), end: d('2026-11-15') }, d('2026-08-15'))).toBeNull();
+    expect(daysOf('2026-08-16', '2026-11-15', '2026-08-15')).toBe(0);
+  });
+
+  it('إجازة تبدأ في يوم الاحتساب نفسه = يوم واحد', () => {
+    expect(daysOf('2026-08-15', '2026-11-15', '2026-08-15')).toBe(1);
+  });
+
+  it('إجازة جارية تُخصم بجزئها المنقضي فقط', () => {
+    // 01/08 → 15/08 منقضية من أصل إجازة تمتد إلى 15/11.
+    expect(daysOf('2026-08-01', '2026-11-15', '2026-08-15')).toBe(15);
+  });
+
+  it('إجازة منتهية تُخصم كاملةً', () => {
+    expect(daysOf('2026-01-01', '2026-01-10', '2026-08-15')).toBe(10);
+    expect(daysOf('2026-08-01', '2026-08-15', '2026-08-15')).toBe(15); // تنتهي في asOf
+  });
+
+  it('يوم واحد يساوي تاريخ الاحتساب', () => {
+    expect(daysOf('2026-08-15', '2026-08-15', '2026-08-15')).toBe(1);
+  });
+
+  it('إجازة تمتد بين شهرين وأخرى بين سنتين تُعدّان تقويميًا بلا انقطاع', () => {
+    expect(daysOf('2026-01-25', '2026-02-05', '2026-08-15')).toBe(12);
+    expect(daysOf('2025-12-20', '2026-01-10', '2026-08-15')).toBe(22);
+  });
+
+  it('حتمية: نفس المدخلات تعطي نفس الناتج دائمًا', () => {
+    const once = daysOf('2026-08-01', '2026-11-15', '2026-08-15');
+    for (let i = 0; i < 5; i++) expect(daysOf('2026-08-01', '2026-11-15', '2026-08-15')).toBe(once);
+  });
+
+  it('لا يتأثر القصّ بمكوّن الوقت داخل التواريخ المخزَّنة', () => {
+    const clipped = clipLeaveIntervalToAsOf(
+      { start: new Date('2026-08-01T23:59:59Z'), end: new Date('2026-11-15T06:30:00Z') },
+      new Date('2026-08-15T18:42:11Z'),
+    );
+    expect(computeEffectiveAnnualLeaveDays(clipped!, [], [])).toBe(15);
+  });
+
+  it('العطلات الرسمية والمرضية داخل الجزء المنقضي تُستثنى (المادة 70)', () => {
+    const clipped = clipLeaveIntervalToAsOf({ start: d('2026-08-01'), end: d('2026-11-15') }, d('2026-08-15'))!;
+    // عطلتان رسميتان داخل الجزء المنقضي + يوم مرضي واحد ⇒ 15 − 3 = 12.
+    const days = computeEffectiveAnnualLeaveDays(
+      clipped,
+      [d('2026-08-05'), d('2026-08-06')],
+      [{ start: d('2026-08-10'), end: d('2026-08-10') }],
+    );
+    expect(days).toBe(12);
+  });
+});
+
+describe('calculateEntitlements — تجاوز الرصيد يُسمّى ولا يُطمس', () => {
+  const base = { hireDate: new Date('2020-01-01T00:00:00Z'), monthlyWageBase: 520, asOf: new Date('2026-01-01T00:00:00Z') };
+
+  it('الرصيد لا ينزل تحت الصفر، والفائض يظهر في overusedLeaveDays', () => {
+    const accrued = calculateEntitlements({ ...base, usedAnnualLeaveDays: 0 }).accruedLeaveDays!;
+    const r = calculateEntitlements({ ...base, usedAnnualLeaveDays: accrued + 5 });
+
+    expect(r.remainingLeaveDays).toBe(0);
+    expect(r.overusedLeaveDays).toBe(5);
+    // لا قيمة مالية سالبة — النظام لا يملك مفهوم دَين إجازة.
+    expect(r.leaveAllowanceValue).toBe(0);
+  });
+
+  it('بلا تجاوز يكون overusedLeaveDays صفرًا و remaining = accrued − used', () => {
+    const r = calculateEntitlements({ ...base, usedAnnualLeaveDays: 30 });
+    expect(r.overusedLeaveDays).toBe(0);
+    expect(r.remainingLeaveDays).toBe(round2Helper(r.accruedLeaveDays! - 30));
+  });
+});
+
+/** تقريب موضعي مطابق لتقريب المحرّك (خانتان) — للمقارنة فقط. */
+function round2Helper(n: number): number {
+  return Math.round(n * 100) / 100;
+}

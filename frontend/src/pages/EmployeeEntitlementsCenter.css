@@ -490,3 +490,16 @@
 .entc-cancelled-item .xpl-table-wrap {
   margin-top: 10px;
 }
+
+/* ── إجراءات رأس القسم القابل للطيّ (Leave Management UI Pack v1) ───────────────
+   زر «إضافة إجازة» يعيش داخل <summary>، فيلزم عزله عن مساحة النقر التي تطوي القسم:
+   المكوّن يوقف الانتشار ويلغي السلوك الافتراضي، وهذه القاعدة تمنحه فقط تباعدًا
+   مناسبًا قبل السهم. إضافة خالصة — لا قاعدة قائمة تتغيّر. */
+.entc-collapsible-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-inline-start: 4px;
+  /* الوزن الافتراضي للـ<summary> عريض؛ الأزرار تحمل وزنها الخاص من ExplorerKit. */
+  font-weight: 400;
+}

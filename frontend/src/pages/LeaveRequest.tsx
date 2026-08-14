@@ -18,6 +18,7 @@ import FormVariantToggle from '../forms/shared/FormVariantToggle';
 import { FormDocVariant, DEFAULT_FORM_DOC_VARIANT, toLayoutLang } from '../forms/shared/formVariant';
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../styles/fontRegistry';
+import { toDateOnly, type LeavePrintPrefill } from '../components/employee/leaveRequestFields';
 
 const FORM_KEY = 'leave-request';
 
@@ -41,7 +42,15 @@ function calcDays(start: string, end: string): number {
 export default function LeaveRequest() {
   const { t } = useT();
   const { employeeId } = useParams<{ employeeId: string }>();
-  const { search } = useLocation();
+  const { search, state } = useLocation();
+  /**
+   * سجل إجازة محفوظ، مُمرَّر من اختصار «طباعة نموذج الإجازة» في صفحة مستحقات الموظف.
+   *
+   * وجوده **اختياري بحت**: فتح النموذج بالطريقة المعتادة لا يحمل حالة، فيسلك النموذج
+   * مسلكه السابق حرفيًا. لا شيء يُكتب في قاعدة البيانات بسبب هذا التمرير، ولا سجل
+   * إجازة يُعدَّل — لا عند الفتح ولا عند الطباعة ولا عند تعديل الحقول أدناه.
+   */
+  const leavePrefill = (state as { leavePrefill?: LeavePrintPrefill } | null)?.leavePrefill ?? null;
   const formNumber = useMemo(() => generateFormNumber('leave-request'), []);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [data, setData] = useState<any>(null);
@@ -66,12 +75,21 @@ export default function LeaveRequest() {
   const [profile, setProfile] = usePrintProfileMemory(FORM_KEY, getProfileIdFromSearch(search));
   const daysManuallyEdited = useRef(false);
   const [printFields, setPrintFields] = useState({
-    expectedReturnDate: '',
-    leaveType: '' as '' | 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY',
-    startDate: '',
-    endDate: '',
-    days: '',
-    reason: '',
+    ...INITIAL_PRINT_FIELDS,
+    // تعبئة مسبقة من سجل الإجازة المختار — **كل** بيانات الطلب المحفوظة، بقيمها كما
+    // خُزّنت: بلا تاريخ اليوم وبلا إعادة احتساب مدة. تنزل في الحقول القابلة للتحرير
+    // نفسها، فيراجعها المستخدم ويعدّلها قبل الطباعة، وتعديله لا يمسّ السجل المحفوظ.
+    // بلا اختصار: الحالة الابتدائية لم تتغيّر إطلاقًا.
+    ...(leavePrefill
+      ? {
+          leaveType: leavePrefill.type as typeof INITIAL_PRINT_FIELDS.leaveType,
+          startDate: toDateOnly(leavePrefill.startDate),
+          endDate: toDateOnly(leavePrefill.endDate),
+          days: String(leavePrefill.days),
+          reason: leavePrefill.reason ?? '',
+          expectedReturnDate: toDateOnly(leavePrefill.expectedReturnDate),
+        }
+      : {}),
   });
 
   useEffect(() => {
@@ -152,7 +170,19 @@ export default function LeaveRequest() {
       </div>
     );
 
-  const latestLeave = data.latestLeave;
+  /**
+   * الإجازة التي يقرأ منها المستند مباشرةً.
+   *
+   * بلا اختصار ⇒ `data.latestLeave` كما كان تمامًا (آخر إجازة أُنشئت، من الخادم):
+   * تُعرض بقيمها وتُخفى حقول الإدخال اليدوية — السلوك السابق حرفيًا.
+   *
+   * مع الاختصار ⇒ `null` عمدًا. القيم لم تُفقد: هي في `printFields` أعلاه، والقوالب
+   * الثلاثة تسقط إليها تلقائيًا (`latestLeave ?? printFields ?? blankLine`). الفائدة
+   * أن حقول الإدخال تظهر **معبّأة وقابلة للتحرير**، فيراجع المستخدم الطلب ويصحّحه
+   * قبل الطباعة — وهو المقصود من الاختصار. كما يضمن ذلك طباعة **السجل المختار** لا
+   * آخر إجازة أُنشئت، حين يختلفان.
+   */
+  const latestLeave = leavePrefill ? null : data.latestLeave;
 
   return (
     <>

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import PrivateAmount from '../PrivateAmount';
 import { StatusChip, type Tone } from '../explorer/ExplorerKit';
+import type { LeaveTypeValue } from './leaveRequestFields';
 
 /**
  * أنواع وأدوات مشتركة بين ملخّص «الاستحقاقات» في درج الموظف (EmployeeEntitlementsTab.tsx)
@@ -29,6 +30,8 @@ export interface EntitlementResult {
   accruedLeaveDays: number | null;
   usedLeaveDays: number;
   remainingLeaveDays: number | null;
+  /** ما استُهلك فوق المستحق — يُعرض ولا يُصرف (لا قيمة مالية سالبة). */
+  overusedLeaveDays: number;
   dailyWage: number | null;
   leaveAllowanceDays: number | null;
   leaveAllowanceValue: number | null;
@@ -64,6 +67,9 @@ export interface LeaveRow {
   endDate: string;
   days: number;
   status: string;
+  /** بيانات **طلب** الإجازة المطبوع — تُقرأ لإعادة الطباعة، ولا تدخل أي احتساب. */
+  reason?: string | null;
+  expectedReturnDate?: string | null;
 }
 
 /**
@@ -222,12 +228,29 @@ export const PAYMENT_METHOD_LABEL: Record<string, string> = {
   OTHER: 'cat.other',
 };
 
-export const LEAVE_TYPE_LABEL: Record<string, string> = {
+/**
+ * ألفاظ سياق **سجل الإجازات** (أوجز من ألفاظ نموذج الطلب: «سنوية» لا «إجازة سنوية»).
+ * النوع `Record<LeaveTypeValue, …>` يربطها بقائمة القيم الواحدة في
+ * `leaveRequestFields.ts`، فإضافة نوع خامس تكسر البناء هنا بدل أن تمرّ صامتة.
+ */
+export const LEAVE_TYPE_LABEL: Record<LeaveTypeValue, string> = {
   ANNUAL: 'opt.ent.leave_type.annual',
   SICK: 'opt.ent.leave_type.sick',
   UNPAID: 'opt.ent.leave_type.unpaid',
   EMERGENCY: 'opt.ent.leave_type.emergency',
 };
+
+/**
+ * مفتاح ترجمة النوع، أو `undefined` لقيمة غير معروفة.
+ *
+ * عمود `Leave.type` نصّ حرّ في قاعدة البيانات، فقد يحمل صفٌّ تاريخي قيمة خارج
+ * القائمة. هذا الوسيط يحفظ صرامة `Record<LeaveTypeValue, …>` أعلاه (التي تكسر البناء
+ * عند إضافة نوع جديد بلا ترجمة) ويسمح في الوقت نفسه بالبحث بقيمة نصّية، فيسقط
+ * المستدعي إلى عرض القيمة الخام بدل الانهيار.
+ */
+export function leaveTypeLabelKey(type: string): string | undefined {
+  return (LEAVE_TYPE_LABEL as Record<string, string | undefined>)[type];
+}
 
 export const LEAVE_STATUS: Record<string, { key: string; tone: Tone; icon: string }> = {
   APPROVED: { key: 'opt.ent.leave_status.approved', tone: 'green', icon: 'task_alt' },
@@ -298,8 +321,13 @@ export function buildWarnings(
     warnings.push({ id: 'first-year', tone: 'orange', icon: 'hourglass_empty', text: t('msg.ent.warning.first_year_pending') });
   }
 
-  if (r.accruedLeaveDays !== null && r.usedLeaveDays > r.accruedLeaveDays) {
-    warnings.push({ id: 'over-used', tone: 'red', icon: 'warning', text: t('msg.ent.warning.over_used') });
+  // تحذير التجاوز يحمل الرقم صراحةً: «الرصيد صفر» وحده لا يفسّر شيئًا، أما «تجاوز
+  // بمقدار ٥ أيام» فيقول للمستخدم كم تجاوز وكيف وصل الرصيد إلى الصفر.
+  if (r.overusedLeaveDays > 0) {
+    warnings.push({
+      id: 'over-used', tone: 'red', icon: 'warning',
+      text: t('msg.ent.warning.over_used_days', { days: r.overusedLeaveDays }),
+    });
   }
 
   if (breakdown.grossAnnualLeaveDays > 0 && breakdown.holidaysConfiguredCount === 0) {
@@ -342,7 +370,7 @@ export function buildTimeline(
       dateIso: l.startDate,
       icon: st.icon,
       tone: st.tone,
-      title: t('msg.ent.timeline.leave_title', { type: LEAVE_TYPE_LABEL[l.type] ? t(LEAVE_TYPE_LABEL[l.type]) : l.type, days: daysText(l.days, t) }),
+      title: t('msg.ent.timeline.leave_title', { type: leaveTypeLabelKey(l.type) ? t(leaveTypeLabelKey(l.type)!) : l.type, days: daysText(l.days, t) }),
       meta: <StatusChip tone={st.tone} icon={st.icon}>{stLabel}</StatusChip>,
     });
   }
