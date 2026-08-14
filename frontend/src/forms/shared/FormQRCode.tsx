@@ -15,6 +15,17 @@ export interface QRData {
    */
   subject?: string;
   details?: string;
+  /**
+   * **محتوى الرمز حرفيًا** — حين يُمرَّر، هذه الأسطر هي كل ما يُرمَّز: لا نوع مستند،
+   * ولا رقم مستند، ولا رقم مرجعي، ولا موضوع، ولا بيانات إضافية.
+   *
+   * أُضيف لكشف مستحقات الموظف الشهرية وحده، الذي يقصر محتوى رمزه على ثلاثة عناصر
+   * (الاسم · صافي المستحق · الفترة). غائب عن كل نموذج آخر، فنصّها المُرمَّز يخرج
+   * مطابقًا حرفًا بحرف لما كان — الحقول أدناه لا تُقرأ أصلًا حين يوجد هذا الحقل.
+   *
+   * لا يمسّ السطر النصّي أسفل الرمز: ذاك يبقى `formNumber` كما هو في كل النماذج.
+   */
+  payloadLines?: string[];
 }
 
 /**
@@ -51,7 +62,11 @@ const FORM_TYPE_LABEL_AR: Record<string, string> = {
  * `formNumber` و`entityName` غير فارغين ولا تعرف الحقلين الجديدين، فنصّها المُرمَّز
  * يخرج مطابقًا حرفًا بحرف لما كان — هذا هو ضمان عدم الارتداد، لا مجرّد ترتيب.
  */
-function formatQrText(data: QRData): string {
+export function formatQrText(data: QRData): string {
+  // محتوى صريح ⇒ هو المحتوى كاملًا. الخروج هنا قبل بناء الأسطر الافتراضية هو ما
+  // يضمن ألّا يتسرّب حقل قائم — أو حقل يُضاف مستقبلًا — إلى رمزٍ حُدِّد محتواه.
+  if (data.payloadLines) return data.payloadLines.join('\n');
+
   const lines = [FORM_TYPE_LABEL_AR[data.formType] ?? data.formType];
   if (data.formNumber.trim()) lines.push(`رقم المستند: ${data.formNumber.trim()}`);
   if (data.entityName.trim()) lines.push(`الاسم: ${data.entityName.trim()}`);

@@ -206,6 +206,12 @@ export interface StatementData {
   employee: {
     code: string;
     fullName: string;
+    /**
+     * الاسم الإنجليزي المخزَّن في ملف الموظف (`Employee.fullNameEn`) — **عرض فقط**،
+     * ولا يدخل أي حساب. اختياري لأن مسار «التقرير التفصيلي» يشتقّ نوعه من هذا النوع
+     * ولا يرسله؛ وغيابه يعني «لا مصدر معتمد» فيُعرض الاسم العربي وحده.
+     */
+    fullNameEn?: string | null;
     jobTitle: string | null;
     department: string | null;
     nationality: string | null;

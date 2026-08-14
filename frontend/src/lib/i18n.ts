@@ -4976,7 +4976,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ca.print.collection_range': 'مدى التحصيل',
     'ca.print.generated': 'تاريخ التوليد',
     // ── مستحقات الموظف الشهرية (وحدة مستقلة عن الرواتب والمحاسبة) ──────────
-    'nav.employee_compensation': 'مستحقات الموظف',
+    'nav.employee_compensation': 'مستحقات الموظف الشهرية',
     'ecmp.title': 'مستحقات الموظف الشهرية',
     'ecmp.subtitle': 'حساب مستحقات كل موظف شهريًا وفق قانون العمل الكويتي — سجل مستقل لكل شهر',
     'ecmp.year': 'السنة',
@@ -5090,7 +5090,9 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ecmp.msg.copied': 'تم نسخ بنود شهر {month} كمسودة جديدة',
     'ecmp.msg.copied_salary_changed': 'تم نسخ بنود شهر {month}. تنبيه: الراتب الأساسي المعتمد لهذا الشهر هو {newSalary} بدلًا من {oldSalary} في الشهر المنسوخ منه.',
     'ecmp.confirm.delete': 'هل تريد حذف حسبة {month} {year} بالكامل؟ سيُحذف السجل وكل بنوده، ويعود الشهر إلى حالة «لم يتم الإنشاء». لا يؤثّر هذا على أي وحدة أخرى.',
-    'ecmp.doc.statement_title': 'كشف مستحقات موظف',
+    // عنوان المستند ثنائي اللغة في سطر واحد — الكشف نفسه عربي/English معًا، فلا
+    // نسخة إنجليزية منفصلة منه ولا مبدّل لغة عليه.
+    'ecmp.doc.statement_title': 'كشف مستحقات الموظف الشهرية / Monthly Employee Entitlements Statement',
     'ecmp.doc.detailed_title': 'تفاصيل احتساب مستحقات موظف',
     // ── سجل المديونيات والسلف ──
     'ecmp.action.open_debts': 'فتح السجل',
@@ -10120,8 +10122,8 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ca.print.collection_range': 'Collection range',
     'ca.print.generated': 'Generated on',
     // -- Employee Monthly Compensation (standalone; not payroll, not accounting) --
-    'nav.employee_compensation': 'Employee Compensation',
-    'ecmp.title': 'Employee Monthly Compensation',
+    'nav.employee_compensation': 'Monthly Employee Entitlements',
+    'ecmp.title': 'Monthly Employee Entitlements',
     'ecmp.subtitle': 'Monthly entitlement calculation per employee under Kuwait Labour Law - one independent record per month',
     'ecmp.year': 'Year',
     'ecmp.module_only_note': 'Scoped to this module only - never posted to payroll or accounting',
@@ -10234,7 +10236,11 @@ const DICT: Record<Lang, Record<string, string>> = {
     'ecmp.msg.copied': 'Copied the items from {month} as a new draft',
     'ecmp.msg.copied_salary_changed': 'Copied the items from {month}. Note: the basic salary used for this month is {newSalary} instead of {oldSalary} in the copied month.',
     'ecmp.confirm.delete': 'Delete the entire {month} {year} calculation? The record and all its lines will be removed and the month returns to "Not created". Nothing in any other module is affected.',
-    'ecmp.doc.statement_title': 'Employee Entitlement Statement',
+    // Deliberately identical to the Arabic entry: this is the PRINTED document's own
+    // title, and the document itself is bilingual on every line regardless of the UI
+    // language. A UI-language-dependent heading would make the same sheet print two
+    // different titles.
+    'ecmp.doc.statement_title': 'كشف مستحقات الموظف الشهرية / Monthly Employee Entitlements Statement',
     'ecmp.doc.detailed_title': 'Employee Entitlement Calculation Details',
     // -- Debt & advances ledger --
     'ecmp.action.open_debts': 'Open ledger',

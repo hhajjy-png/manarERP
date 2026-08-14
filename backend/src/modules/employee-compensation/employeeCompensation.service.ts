@@ -690,6 +690,20 @@ export const employeeCompensationService = {
   async getStatementData(id: number) {
     const c = await loadCalculation(id);
 
+    /**
+     * الاسم الإنجليزي — **عرض فقط**، للكشف الثنائي اللغة.
+     *
+     * يُقرأ من ملف الموظف لا من اللقطة، لأن اللقطة لا تحمل حقلًا إنجليزيًا ولن
+     * تحمله: إضافة عمود لقطة جديد تعني هجرة قاعدة بيانات لأجل سطر مطبوع. القراءة
+     * وحدها (`findUnique`)، ولا يدخل هذا الحقل أي حساب ولا إجمالي ولا تدقيق —
+     * فأرقام الكشف قبل هذه الإضافة وبعدها متطابقة. غيابه ⇒ `null`، ويعرض الكشف
+     * الاسم العربي وحده بدل اختراع ترجمة.
+     */
+    const employeeRecord = await prisma.employee.findUnique({
+      where: { id: c.employeeId },
+      select: { fullNameEn: true },
+    });
+
     const overtimeByType = new Map<string, { hours: number; amount: number }>();
     for (const l of c.overtimeLines) {
       const agg = overtimeByType.get(l.overtimeType) ?? { hours: 0, amount: 0 };
@@ -709,6 +723,7 @@ export const employeeCompensationService = {
       employee: {
         code: c.employeeNumberSnapshot,
         fullName: c.employeeNameSnapshot,
+        fullNameEn: employeeRecord?.fullNameEn ?? null,
         jobTitle: c.jobTitleSnapshot,
         department: c.departmentSnapshot,
         nationality: c.nationalitySnapshot,

@@ -15,7 +15,11 @@ import { useLocation, useParams } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { compensationApi } from '../employee-compensation/api';
 import StatementTemplate from '../employee-compensation/StatementTemplate';
-import { monthNameAr } from '../employee-compensation/labels';
+import {
+  buildStatementQrLines,
+  joinBilingual,
+  periodBilingual,
+} from '../employee-compensation/statementBilingual';
 import type { StatementData } from '../employee-compensation/types';
 import FormLayout from '../forms/shared/FormLayout';
 import { getProfileIdFromSearch } from '../forms/shared/printProfiles';
@@ -43,10 +47,17 @@ export default function EmployeeCompensationStatement() {
   }, [id]);
 
   const docTitle = t('ecmp.doc.statement_title');
+  // الفترة مشتقّة من `data.year`/`data.month` — سجل الحسبة نفسه، لا تاريخ اليوم.
   const periodLabel = useMemo(
-    () => (data ? `${monthNameAr(data.month)} ${data.year}` : ''),
+    () => (data ? joinBilingual(periodBilingual(data.year, data.month)) : ''),
     [data],
   );
+
+  /**
+   * محتوى الرمز — ثلاثة أسطر يبنيها المصدر المشترك نفسه الذي يغذّي الكشف، فلا
+   * يمكن أن يختلف صافي المستحق أو الفترة بين الورقة والرمز.
+   */
+  const qrPayloadLines = useMemo(() => (data ? buildStatementQrLines(data) : []), [data]);
 
   /**
    * المعاينة الدقيقة — تستهلك **نفس** العقدة المطبوعة و**نفس** دالة الطباعة عبر
@@ -76,6 +87,26 @@ export default function EmployeeCompensationStatement() {
         profile={profile}
         formType={FORM_KEY}
         lang="ar"
+        // العنوان ثنائي اللغة على سطر واحد — 22px كانت تلفّه إلى سطر ثانٍ.
+        titleFontSize={17}
+        /**
+         * إنزال **كامل** محتوى الكشف ٢ سم كوحدة واحدة (الترويسة والعنوان والأقسام
+         * والتذييل ورمز التحقق معًا). لا إزاحة أفقية ولا تغيير في أي حجم أو ترتيب.
+         *
+         * لماذا هذه الآلية بالذات: `contentTopOffset` تُصيَّر فاصلًا حقيقيًا **داخل**
+         * عقدة `.form-page` — وهي العقدة الوحيدة التي تستنسخها المعاينة الدقيقة و«حفظ
+         * PDF» والطباعة جميعًا، فالإزاحة واحدة في المسارات الثلاثة حتمًا. البديلان
+         * الآخران يتفرّقان: `padding` على `.form-page` يُصفَّر بـ`padding: 0 !important`
+         * في وسيط الطباعة، و`margin-top` على أول ابن ينهار (margin collapsing) خارج
+         * الأب حين يصير حشوه صفرًا عند الطباعة — كلاهما يعني معاينة تخالف الورقة.
+         */
+        contentTopOffset="20mm"
+        /**
+         * قسم «اعتماد المدير المباشر» في تذييل الغلاف أُلغي لهذا الكشف: بديله هو
+         * «الاعتماد والاستلام» الأفقي داخل القالب. إبقاؤهما معًا هو ما كان يدفع
+         * الجزء الأخير ورمز التحقق إلى صفحة ثانية. رمز التحقق يبقى في التذييل.
+         */
+        hideApprovalSection
         onPrintApiReady={setPrintApi}
         toolbarExtra={
           <>
@@ -85,9 +116,13 @@ export default function EmployeeCompensationStatement() {
         }
         qrData={{
           formType: FORM_KEY,
+          // يبقى المرجع النصّي المطبوع أسفل الرمز (رقم المستند) كما هو — عنصر تعريف
+          // على الورقة، وليس جزءًا من المحتوى المُرمَّز.
           formNumber: `ECS-${data.year}-${String(data.month).padStart(2, '0')}-${data.employee.code}`,
           entityName: data.employee.fullName,
-          entityId: data.id,
+          // المحتوى المُرمَّز حصرًا: الاسم · صافي المستحق · الفترة. لا رقم مستند،
+          // ولا رقم مرجعي، ولا رقم وظيفي/مدني، ولا تواريخ، ولا حالة اعتماد.
+          payloadLines: qrPayloadLines,
         }}
       >
         <StatementTemplate data={data} />

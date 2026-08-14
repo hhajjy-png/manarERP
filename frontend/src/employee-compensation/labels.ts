@@ -71,12 +71,40 @@ export const MONTH_NAMES_AR = [
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
 ];
 
+/**
+ * أسماء الأشهر بالإنجليزية — تسميات **نظام** ثابتة (لا بيانات موظف)، مقابلة سطرًا
+ * بسطر لـ `MONTH_NAMES_AR`، تخدم الكشف الثنائي اللغة. لا تُشتقّ من `Intl` حتى لا
+ * تتبدّل بلغة الجهاز: المستند المطبوع يجب أن يخرج واحدًا على كل جهاز.
+ */
+export const MONTH_NAMES_EN = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
 /** اسم الشهر من رقمه (١..١٢). يرمي على رقم خارج المدى بدل إعادة `undefined` بصمت. */
 export function monthNameAr(month: number): string {
   const name = MONTH_NAMES_AR[month - 1];
   if (!name) throw new Error(`رقم شهر غير صالح: ${month}`);
   return name;
 }
+
+/** نظير `monthNameAr` بالإنجليزية — نفس التحقّق من المدى، نفس السلوك عند الخطأ. */
+export function monthNameEn(month: number): string {
+  const name = MONTH_NAMES_EN[month - 1];
+  if (!name) throw new Error(`رقم شهر غير صالح: ${month}`);
+  return name;
+}
+
+/**
+ * تسميات العمل الإضافي بالإنجليزية — تسميات نظام مقابلة لـ `OVERTIME_LABEL_AR`
+ * حرفًا بحرف (نفس المفاتيح، نفس المعنى). لا مرجع قانوني ولا معامل هنا: الكشف
+ * الموقَّع لا يعرضهما.
+ */
+export const OVERTIME_LABEL_EN: Record<OvertimeType, string> = {
+  REGULAR: 'Overtime',
+  WEEKLY_REST: 'Weekly Rest Day Work',
+  OFFICIAL_HOLIDAY: 'Official Holiday Work',
+};
 
 /**
  * السنوات المعروضة في مبدّل السنة: من ٢٠٢٠ حتى السنة القادمة.
