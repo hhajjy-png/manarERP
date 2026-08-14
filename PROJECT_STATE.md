@@ -66,7 +66,26 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee Entitlements Bilingual One-Page Statement Pack v1
+## Latest Release — Docs Backfill Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Docs Backfill Pack v1 — backfills three release narratives that were missing from `PROJECT_MASTER_STATUS.md`'s release-history section (Production Release 2026.5.0 · Production Release 2026.4.0 · Employee Compensation v1), removing the temporary "Narrative backlog" note that had flagged the gap instead of filling it |
+| **Release status** | RELEASED — Product Owner review **completed** and explicitly approved prior to release authorization |
+| **Release date** | 2026-08-14 |
+| **Application version** | `2026.5.0` (unchanged — docs-only pack, no installer rebuild) |
+| **Feature branch** | `docs/master-status-backfill-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `3212b367` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-docs-master-status-backfill-v1` → `3212b367` (annotated) |
+| **Feature commit** | `4bfaaa1a` |
+| **Production merge commit** | `692644c2` |
+| **Stable tag** | `stable-docs-master-status-backfill-v1` → merge `692644c2` (annotated) |
+| **Scope** | Every added fact is sourced only from `PROJECT_STATE.md` and `AI_CONTEXT.md` — nothing invented or reinterpreted. Entries follow the section's existing style (bold lead-in with scope/file-count, bulleted facts, closing validation line) and existing separator convention |
+| **Files** | 1 — `PROJECT_MASTER_STATUS.md` only. No code, Prisma, schema, migration, permission-key, or test file touched |
+| **Validation** | Docs-only change with no code/test/schema input changed — `build`/`tsc`/test suites were **not re-run**, per the same rule that skips them for a pack that touches nothing they cover. The merged tree is byte-identical to the reviewed branch tree (`git diff feature..production` empty) |
+| **Calculation / Schema / Permission impact** | None |
+
+## Previous Release — Employee Entitlements Bilingual One-Page Statement Pack v1
 
 | Field | Value |
 |-------|-------|
