@@ -12,6 +12,7 @@ import { downloadBlob } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import PrivateAmount from '../components/PrivateAmount';
 import PayrollBankExport from '../components/salaries/PayrollBankExport';
+import EntitlementsBankExport from '../components/salaries/EntitlementsBankExport';
 import DateInput from '../components/DateInput';
 import { toLocalDateOnly } from '../lib/date';
 import {
@@ -103,7 +104,7 @@ export default function Salaries() {
   const { t } = useT();
   const navigate = useNavigate();
   const location = useLocation();
-  const [tab, setTab] = usePersistedState<'payroll' | 'history' | 'bankExport'>('sal:tab', 'payroll');
+  const [tab, setTab] = usePersistedState<'payroll' | 'history' | 'bankExport' | 'entitlementsBankExport'>('sal:tab', 'payroll');
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   // A deep-linked employee (e.g. on-leave/terminated) may be absent from the
   // ACTIVE-only `employees` dropdown; keep it here so the filter shows the real
@@ -403,7 +404,9 @@ export default function Salaries() {
   }
 
   return (
-    <div className="xpl-scope xpl-page">
+    // ضغط المسافة بين الرأس وشريط التبويبات والمحتوى — **في تبويب كشف المستحقات وحده**.
+    // بقية التبويبات تحتفظ بفجوة `.xpl-page` الأصلية (18px) التي صُمّمت لبطاقات المؤشّرات.
+    <div className={`xpl-scope xpl-page${tab === 'entitlementsBankExport' ? ' ebx-page-tight' : ''}`}>
       <ExecutiveHeader
         icon="payments"
         title={t('page.salaries.title')}
@@ -417,7 +420,7 @@ export default function Salaries() {
         aside={tab === 'payroll' && canGenerate ? <Button variant="primary" icon="bolt" busy={busy} onClick={generatePayroll}>{t('page.salaries.generate')}</Button> : undefined}
       />
 
-      <Tabs<'payroll' | 'history' | 'bankExport'>
+      <Tabs<'payroll' | 'history' | 'bankExport' | 'entitlementsBankExport'>
         active={tab}
         onChange={setTab}
         tabs={[
@@ -425,6 +428,11 @@ export default function Salaries() {
           { key: 'history', label: t('page.salaries.tab_history'), icon: 'history' },
           ...(hasPermission('payroll.read')
             ? [{ key: 'bankExport' as const, label: t('page.salaries.tab_bank_export'), icon: 'account_balance' }]
+            : []),
+          // كشف المستحقات الشهرية — مصدره وحدة مستحقات الموظف لا مسير الرواتب، فحارسه
+          // صلاحية تلك الوحدة: من يملك صلاحية الرواتب وحدها لا يرى هذا التبويب.
+          ...(hasPermission('employeeCompensation.read')
+            ? [{ key: 'entitlementsBankExport' as const, label: t('page.salaries.tab_entitlements_bank'), icon: 'savings' }]
             : []),
         ]}
       />
@@ -434,6 +442,8 @@ export default function Salaries() {
 
       {tab === 'bankExport' ? (
         <PayrollBankExport />
+      ) : tab === 'entitlementsBankExport' ? (
+        <EntitlementsBankExport canApprove={hasPermission('employeeCompensation.approve')} />
       ) : tab === 'payroll' ? (
         <>
           <div className="salx-metrics">
