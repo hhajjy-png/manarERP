@@ -139,13 +139,187 @@ manual visual review was completed and explicitly approved.
   two-column table, both removed sections, the new section's horizontal container,
   the three-line QR and its non-leakage, and other documents' QR immutability.
 
-> **Narrative backlog.** The release sections below jump from this entry back to
-> `stable-view-zoom-persistence-pack-v1` (2026-08-08). The releases in between —
-> including Production Release 2026.4.0 and 2026.5.0 and Employee Compensation v1 —
-> are recorded in full in `PROJECT_STATE.md`'s release ledger and in the Current
-> Production State table above; they were never narrated in this section. Do not
-> read the next heading as this release's immediate predecessor.
+### Previous Release — `stable-production-release-2026.5.0` (`6ae6536b`, 2026-08-14)
 
+**Production Release 2026.5.0** — releases three units together: a **Full Project
+Engineering Audit** (six specialist review agents run in parallel over the whole
+repository — backend core/security · business modules · React frontend ·
+Electron/IPC security · build/packaging/Prisma schema · dead code & hygiene, every
+finding re-verified against the actual source before any fix), the **Prisma
+Schema & Migration Reconciliation Pack v1**, and the **Invoice Items Foreign Key
+Reconciliation Pack v1**. Version `2026.4.0` → `2026.5.0`, new installer build.
+24 files (23 modified, 1 new migration). Feature branch
+`audit/full-project-audit-2026-08-13`, checkpoint tag
+`checkpoint-production-release-2026.5.0` (`017f95e9`), feature commit `bf30f7d4`.
+The packs named in the original release request — Google Drive Data Safety Pack
+v2, Test Isolation Pack v1, Golden Database / Golden Manifest, Production
+Resource Integrity Fix, View Zoom Manual Save — were verified against Git
+history to already be released (inside `stable-production-release-2026.4.0` or
+earlier, each with its own tag); this release carries only the three units
+above, the sole unreleased approved work on the branch.
+
+- **RBAC-01 (CRITICAL)** — a demoted `SYSTEM_ADMIN` retained full privileges for
+  up to 12 h: `authenticate` set `req.user` from the raw JWT payload and
+  refreshed only `req.permissions` from the database, while
+  `requirePermission`/`requireRole` short-circuit on
+  `req.user.roleName === SYSTEM_ADMIN` — baked into the token at login and never
+  re-derived — and `PATCH /api/users/:id` invalidates no session anywhere, so the
+  bypass outlived the demotion until token expiry. Fixed by overwriting
+  `roleId`/`roleName` from the live DB row on every request, at zero extra query
+  cost (the row was already fetched).
+- **RACE-01** — stale list responses overwrote fresher ones across
+  `ResourcePage.load` (every generic CRUD module), three `Salaries` loaders and
+  three `Accounting` tab loaders; the `reqIdRef` guard already proven in
+  `Invoices.tsx` is now applied to all seven.
+- **Other audit fixes** — **A11Y-01** keyboard-reachable topbar logout ·
+  **SEC-01** rate limit on the public `GET /api/verify/:uuid` · **SEC-02**
+  `crypto.timingSafeEqual` on the internal backup secret · **MONEY-01** KWD
+  rounding (`roundMoney`/`sumMoney`) in the salaries summary · **MSG-01** a
+  payroll message claiming a journal posting that never happens · **HYGIENE**
+  `vitest` declared at the workspace root, unused `cross-env` removed,
+  `CLAUDE.md`'s PDF-engine entries corrected.
+- **TEST-01** — 26 frontend tests across 8 files had been failing on
+  `production` itself, proven pre-existing by running them against the stashed
+  tree; all three root causes were tests lagging behind the code (i18n-key
+  migration, a stale `useUI` mock, two files needing the jsdom environment). No
+  production source changed; frontend is now 3837/3837, retiring a baseline
+  carried across two releases.
+- **Prisma reconciliation** — official tooling only (`migrate status`,
+  `validate`, `migrate diff` in three directions, `db pull`) proved
+  `schema.prisma`, not the database, was the drifted side: two `updatedAt`
+  columns a hand-written migration had created with `DEFAULT CURRENT_TIMESTAMP`
+  regained `@default(now())`, with zero database change.
+- **Invoice Items FK** — `schema.prisma` had declared
+  `price ProjectPrice? @relation(..., onDelete: Restrict)` since the relation
+  was added, but the migration that added the column used
+  `ALTER TABLE ADD COLUMN`, which SQLite cannot use to attach a constraint — so
+  the database enforced no referential integrity between invoice line items and
+  price agreements. Migration `20260814010000_add_invoice_items_price_fk`,
+  generated verbatim by `migrate diff --script`, adds
+  `invoice_items.priceId → project_prices.id ON DELETE RESTRICT ON UPDATE CASCADE`,
+  verified with a SHA-256-checked backup beforehand and an unchanged
+  row-content SHA-256 afterwards, with the constraint proven enforced at
+  runtime. `migrate diff --from-migrations --to-schema-datamodel` now reports an
+  empty migration.
+
+Validation: backend/frontend/Electron `tsc --noEmit` ✅ · `build:back` /
+`build:front` / `electron:build` / `npm run dist` ✅ · backend 193 files/3018
+tests ✅ · frontend 209 files/3837 tests ✅ · Electron 26 files/499 tests ✅ ·
+Prisma `validate` ✅ · `migrate status` clean (59 migrations) ✅. Product Owner
+manual visual review **completed** and explicitly confirmed prior to release
+authorization.
+
+---
+### Previous Release — `stable-production-release-2026.4.0` (`f8f7a581`, 2026-08-13)
+
+**Production Release 2026.4.0** — packages **Google Drive Data Safety Pack v2**
+and **Test Isolation Pack v1** into a new self-contained Windows installer.
+Feature branch `feature/gdrive-data-safety-pack-v2`. Version `2026.3.2` →
+`2026.4.0`. 27 files (19 modified, 8 new); Electron main process + backend +
+frontend + build pipeline. No Prisma/schema/migration change, no new permission
+key, no UI layout change.
+
+- **F-01** — «رفع الآن» (manual upload) bypassed the decision engine entirely,
+  calling `uploadInternal` directly with no `decide()` call and an
+  optimistic-concurrency guard conditional on `expectedRemote !== undefined`, so
+  it could silently overwrite a newer cloud copy with no conflict dialog. Now
+  decision-driven, and `expectedRemote` became a REQUIRED field of
+  `UploadOptions`, turning the bypass into a compile error.
+- **F-02** — `withTimeout` used `Promise.race`, which never cancels the losing
+  promise, so a timeout stopped the *waiting* but not the *work* — releasing the
+  sync mutex and runtime lock while an operation was still running. Replaced by
+  `withDeadline`, which awaits real settlement and threads a merged
+  `AbortSignal` into every Drive call.
+- **F-03** — the decision engine's rule (4) downloaded over a pristine seed with
+  no recency comparison, which was correct for an empty template but wrong for a
+  Golden Database carrying the latest production snapshot — replacing it with an
+  older cloud copy. `prepare-seed-data.js` now emits a `golden-manifest.json`
+  (sha256 · sizeBytes · `dataModifiedAt`) that the rule consults, yielding
+  CONFLICT instead of an automatic DOWNLOAD when it matches.
+- **F-04** — the installer shipped `sync-metadata.json` and
+  `gdrive-account.json` from the *build machine*, granting a new device a sync
+  history it never earned and leaking the developer's Google account address.
+  State-file seeding is removed entirely.
+- **F-05** — restore left sync state untouched, so the next decision saw «local
+  changed, remote unchanged» and uploaded a weeks-old restored database over the
+  current cloud copy with no dialog. Both restore paths now write
+  `sync-pending-review.json`, blocking both automatic directions until an
+  explicit user operation clears it.
+- **Test Isolation Pack v1** — `backup.verify.test.ts` had been executing
+  INSERT + DELETE against the developer's own database through the real Prisma
+  singleton; `vitest.setup.ts` now redirects `DATABASE_URL`/`BACKUP_DIR`/
+  `ATTACHMENTS_DIR`/`DATA_DIR` to a per-worker sandbox before any application
+  module loads, and `vitest.globalSetup.ts` hashes the development database
+  before and after the full run to fail loudly if anything still reaches it.
+  Also fixed a stale `electronBuilderPackaging.test.ts` assertion pinned to the
+  literal `2026.2.`, which had been failing since 2026.3.0.
+
+Golden Database: `backend/data/manar.db`, 3,289,088 bytes, SHA-256
+`6b35cf750eeeb170505344e761670bf6588ff1fdb22fa030707bde6df93c821a`,
+`integrity_check = ok`, 61 applied migrations, 75 tables — verified
+byte-identical in source, `win-unpacked/resources` and extracted from inside
+`Setup.exe`. Installer `AlManarERP-Setup-2026.4.0.exe`, 138,240,953 bytes
+(131.83 MiB), SHA-256
+`83c298e3790b8df60b0632ed9f3db92a6e09ba1c5b0a1a09ad0fcf5f1de6b8c9`. Validation:
+backend 193 files/3018 tests ✅ · Electron 26 files/499 tests ✅ (the
+long-standing single failure resolved by the versioning fix) · frontend
+3787/3813 with the pre-existing 26-test/8-file i18n baseline unchanged in count
+and identity · TypeScript zero errors on all three surfaces. Product Owner
+manual visual review **completed** prior to release authorization.
+
+---
+### Previous Release — `stable-employee-compensation-v1` (`cbe0734f`, 2026-08-12)
+
+**Employee Compensation v1** — releases three interlocking packs as one unit:
+Employee Monthly Compensation v1 · Legal/Accounting Validation + UI/UX
+Corrective Pack · Employee Compensation Debt & Advances Ledger Pack v1. A new,
+architecturally isolated module. Feature branch `feature/employee-compensation-v1`,
+checkpoint tag `checkpoint-employee-compensation-v1` (`435ba6d0`), feature commit
+`5561c2c3`. Two additive migrations
+(`20260812120000_add_employee_monthly_compensation` — 4 tables;
+`20260812180000_add_employee_compensation_debt_ledger` — 2 tables + one nullable
+FK column), zero `DROP`, zero rebuild of any pre-existing table. New permission
+key `employeeCompensation` (`read/create/update/delete/approve/print`), seeded
+via `upsert` only — no existing grant removed.
+
+- **Historical snapshot** — exactly one calculation per employee/year/month
+  (unique constraint), with employee/salary data snapshotted once at creation so
+  later edits to the employee record never alter a past statement.
+- **Kuwait Labour Law overtime engine** — Art. 66 regular overtime (×1.25),
+  Art. 67 weekly rest (×1.50 + compensatory day), Art. 68 official holiday
+  (×2.00 + compensatory day). Hourly rate = basic ÷ 208 (26 × 8), the divisor
+  imported from `DAILY_WAGE_DIVISOR` so it can never diverge from the project's
+  documented daily-wage baseline. `LEGAL_RULES_VERSION = KW-LL-6/2010-v2`.
+- **Limit handling** — the 180 h/year limit is genuinely verified against the
+  database (`STATUTORY`); the 2 h/day, 3 days/week and 90 days/year limits are
+  **disclosed as unverified** (`DISCLOSURE`, no daily timesheet exists) rather
+  than silently implied, and a derived ~26 h monthly ceiling is labelled
+  `DERIVED` and never blocks saving.
+- **Reverse overtime** — turns a target amount into hours, rounding any
+  part-hour up in the employee's favour, with no trace of the method on the
+  signed statement. Approved records stay fully editable and deletable —
+  approval is an organisational status, not a lock.
+- **Debt & Advances Ledger** — stores no balance at all;
+  `remaining = original − Σ(movements)` is always derived. Monthly repayments
+  are keyed `(calculationId, debtId)` so editing a deduction updates the same
+  movement instead of stacking a second one; deleting a month retracts its
+  repayment and the balance rebounds; deleting a debt that carries movements is
+  refused explicitly.
+- **Isolation** — no Payroll/Accounting/GL/Expense writes and no Employee
+  mutation, enforced by a source-scanning test that also forbids merely
+  *reading* thirteen unrelated financial Prisma models. Measured before/after a
+  live smoke test: `payroll_lines` 54, `transactions` 103, `journal_entries`
+  460, `expenses` 240, `employees` 31 — all unchanged.
+
+Validation: backend/frontend/Electron `tsc --noEmit` ✅ · `build:back` /
+`build:front` ✅ · backend 3,006/3,006 across 192 files ✅ · frontend 3,787
+passed with the known 26-failure baseline unchanged (zero new) ✅ · module
+suites 132 backend + 96 frontend ✅. Release status: Claude Code self-verified
+(typechecks ×3, full suites, both builds, live API smoke, browser UI smoke on
+12 surfaces) — no separate Product Owner visual sign-off is recorded for this
+release.
+
+---
 ### Previous Release — `stable-view-zoom-persistence-pack-v1` (`e0467d62`, 2026-08-08)
 
 **View Zoom Persistence Pack v1** — persists the last zoom level chosen from the
