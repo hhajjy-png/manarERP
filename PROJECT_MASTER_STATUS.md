@@ -2,7 +2,7 @@
 
 > **Official master status reference, reconstructed from the Git repository.**
 > Git history and repository contents are authoritative. Where PROJECT_STATE.md conflicts with Git, Git wins.
-> Last refreshed: 2026-08-14 (previously 2026-08-11, 2026-08-10, 2026-08-10, 2026-08-10, 2026-08-09, 2026-08-08, 2026-08-08, 2026-08-08, 2026-08-07, 2026-08-07, 2026-08-07, 2026-08-06, 2026-08-06, 2026-08-05, 2026-08-05, 2026-08-04, 2026-08-04, 2026-08-04, 2026-08-04, 2026-08-04, 2026-08-03, 2026-08-03, 2026-08-02, 2026-08-02, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · This refresh is a release-tracking update, not a read-only audit — it accompanies **Employee Entitlements Bilingual One-Page Statement Pack v1**: renames the monthly employee entitlements module to «مستحقات الموظف الشهرية» / «Monthly Employee Entitlements» and rebuilds its official statement as a single bilingual A4 page (one horizontal Approval & Receipt section replacing both former approval blocks, the statement-date row removed, compact styles kept local to the template so the other fourteen administrative forms stay byte-identical), narrows that statement's QR payload to employee name · net entitlement · period, and corrects an unscoped `tbody tr:nth-child(even) td` rule in `app/theme.css` that had been shading printed line items. Presentation only: zero calculation, permission-key, Prisma-model or migration change. 14 files (11 modified, 3 new). The prior refresh accompanied Production Release 2026.5.0.
+> Last refreshed: 2026-08-14 (previously 2026-08-11, 2026-08-10, 2026-08-10, 2026-08-10, 2026-08-09, 2026-08-08, 2026-08-08, 2026-08-08, 2026-08-07, 2026-08-07, 2026-08-07, 2026-08-06, 2026-08-06, 2026-08-05, 2026-08-05, 2026-08-04, 2026-08-04, 2026-08-04, 2026-08-04, 2026-08-04, 2026-08-03, 2026-08-03, 2026-08-02, 2026-08-02, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-08-01, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-31, 2026-07-30, 2026-07-30, 2026-07-30, 2026-07-25, 2026-07-25, 2026-07-24, 2026-07-24, 2026-07-23, 2026-07-23, 2026-07-23, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-20, 2026-07-19, 2026-07-17, 2026-07-01) · This refresh is a release-tracking update, not a read-only audit — it accompanies **Monthly Entitlements Bank Statement Pack v1**: adds a second, fully independent bank transfer statement («كشف المستحقات الشهرية» / Monthly Entitlements) alongside the existing Salary Bank Statement, on a new Salaries-page tab. Transfer amount = `roundMoney(netAmount − basicSalarySnapshot)`, read from the same APPROVED monthly Employee Compensation calculation, never the live employee salary. The NBK bank-file builder was extracted verbatim from the salary export into a new shared `shared/services/bankExport` engine so both statements produce a byte-identical workbook (proven by test), differing only in amount source and file name. Approval snapshots every bank-file value into two new additive Prisma tables — `entitlements_bank_statements` / `_lines` — so a later edit to the source compensation calculation can never silently change an already-approved bank file; unapproving is the only way to change it, and is audited. Writes to exactly those two tables plus `AuditLog` — zero GL/Expense/Payroll/SalaryPayment/EmployeeCompensation writes (asserted by test), and the pre-existing Salary Bank Statement's 23 tests pass unchanged. No new permission key (reuses `employeeCompensation.read`/`.approve`). Includes a UI Polish Pack for the new tab and per-row/select-all checkbox selection with `indeterminate` state, scoped to new `.ebx-*` classes only. Additive migration only, no installer rebuild. 21 files (5 modified, 16 new). The prior refresh accompanied Employee Entitlements Bilingual One-Page Statement Pack v1.
 > Method: `git for-each-ref`/`--merged` over all tags + four codebase surveys (Banking, Printing, AI, ExplorerKit) + direct module/schema reads.
 > Evidence confidence is marked per section. Anything not confirmable from the repo is marked **UNKNOWN**.
 >
@@ -39,9 +39,9 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 | Field | Value | Confidence |
 |---|---|---|
 | **Current branch** | `production` | High |
-| **Current HEAD** | `692644c2` — merge of `docs/master-status-backfill-v1` (**Docs Backfill Pack v1**: backfills three release narratives that were missing from this file's own release-history section — Production Release 2026.5.0, Production Release 2026.4.0, and Employee Compensation v1 — sourced only from `PROJECT_STATE.md` and `AI_CONTEXT.md`, matching the section's existing narrative style and separator convention, with nothing invented or reinterpreted; removes the temporary "Narrative backlog" note the gap had been flagged with. Docs-only: this file is the sole file touched, so no build or test suite was re-run. 1 file changed) · Previous HEAD `274eff82` — merge of `feature/employee-entitlements-bilingual-one-page-v1` (**Employee Entitlements Bilingual One-Page Statement Pack v1**: renames the monthly employee entitlements module to «مستحقات الموظف الشهرية» / «Monthly Employee Entitlements» and rebuilds its official statement as a single bilingual A4 page. Every row carries Arabic and English on one line, Arabic-first RTL with the English half isolated in `<bdi dir="ltr">`; the English half of a **value** comes only from an approved source — stored `Employee.fullNameEn`, the approved job-title translation table plus Settings overrides through a new strict `lookupJobTitleEn` that returns `null` rather than echoing the Arabic back as a pseudo-translation, and `MONTH_NAMES_EN` against the month already in the calculation record — with the Arabic printed alone when no approved source exists. The statement-date row and both former approval blocks are replaced by one horizontal `الاعتماد والاستلام / Approval & Receipt` section; compact styles stay local to this template so the other fourteen administrative forms remain byte-identical; the document sits 20mm lower via `FormLayout`'s existing `contentTopOffset`, which renders inside the single `.form-page` node that accurate preview, Save PDF and print all clone. The QR payload for this statement alone is employee name · net entitlement · period, short-circuited before the default lines are built so no future `QRData` field can leak in, leaving every other document's encoded text byte-identical. Also corrects an unscoped `tbody tr:nth-child(even) td` rule in `app/theme.css` that had been shading printed line items but never the totals rows, which already carry an inline background. Presentation only — zero calculation, business-rule, permission-key, Prisma-model or migration change; the single backend edit is a read-only lookup of an existing column for display. 14 files, 11 modified and 3 new) · Previous HEAD `6ae6536b` — merge of `audit/full-project-audit-2026-08-13` (**Production Release 2026.5.0**: Full Project Engineering Audit — a six-agent parallel review of the whole repository, closing a CRITICAL RBAC bypass in which a demoted `SYSTEM_ADMIN` kept full privileges until token expiry because the admin short-circuit read `roleName` from the JWT rather than the database, a stale-response race across seven list loaders, a keyboard-unreachable logout, a missing rate limit on the public verification route, a non-constant-time internal-secret comparison, raw floating-point KWD accumulation in the salaries summary, and a payroll message claiming a journal posting that never happens; plus 26 frontend tests that had been failing on `production` itself, all from tests lagging behind the code, now green with zero production-source change — **Prisma Schema & Migration Reconciliation Pack v1** aligning two `updatedAt` fields with what the hand-written migration actually created, with zero database change — **Invoice Items Foreign Key Reconciliation Pack v1** adding the `invoice_items.priceId → project_prices.id` constraint (`ON DELETE RESTRICT` / `ON UPDATE CASCADE`) that `schema.prisma` had declared but no migration ever created, since SQLite cannot attach a foreign key through `ALTER TABLE ADD COLUMN`; `migrate diff --from-migrations --to-schema-datamodel` now reports an empty migration) | High |
-| **Current stable tag** | `stable-docs-master-status-backfill-v1` (merge commit `692644c2`) | High |
-| **Previous stable tag** | `stable-employee-entitlements-bilingual-one-page-v1` (merge commit `274eff82`) | High |
+| **Current HEAD** | `3b8e968d` — merge of `feature/monthly-entitlements-bank-statement-v1` (**Monthly Entitlements Bank Statement Pack v1**: adds a second, fully independent bank transfer statement («كشف المستحقات الشهرية» / Monthly Entitlements) alongside the existing Salary Bank Statement, on a new tab in the Salaries page. Transfer amount is always `roundMoney(netAmount − basicSalarySnapshot)`, both operands read from the same APPROVED `EmployeeCompensationCalculation` row for the selected year/month — never the live `Employee.salary` — and no other formula exists. Eligibility is server-enforced: an employee is exportable only with an APPROVED calculation for the exact period, passing bank-field validation, and a positive transfer amount; every ineligible employee stays visible with an explicit reason instead of being hidden. The NBK workbook builder (sheets, headers, column order/widths, Bank Codes reference list, validation, KWD 3-decimal rounding) was extracted verbatim from `payrollBankExport`'s salary profile into a new `shared/services/bankExport` engine, so both statements produce byte-identical output (asserted by test) and are told apart only by file name (`NBK_Entitlements_<year>_<MM>.xls` vs `NBK_Salary_<year>_<MM>.xls`). Approving a statement snapshots every bank-file value (net, basic, transfer amount, English name, civil ID, bank account) into two new additive tables — `entitlements_bank_statements` / `entitlements_bank_statement_lines` — so the bank file is built only from that frozen snapshot; a later edit to the source calculation cannot silently change an already-approved statement, proven by test (net 350→900 post-approval still exports 200.000). `@@unique([year, month])` allows one approved statement per month; unapproving is the only way to change it and is audited. Isolation proven by test: every path spies on Payroll/SalaryPayment/EmployeeCompensation/GL/Expense writes and asserts none occurs, and the pre-existing salary bank export's 23 tests pass unchanged on `production` post-merge. No new permission key — reuses `employeeCompensation.read`/`.approve`. Includes a UI Polish Pack (compressed spacing, compact alert, approve-then-export action order, LTR-isolated money cells via `MoneyText`/`MoneyCell`) and per-row/select-all checkbox selection with `indeterminate` state, scoped entirely to new `.ebx-*` classes — the existing Salary Bank Statement tab is unchanged. Additive Prisma migration `20260814120000_add_entitlements_bank_statement` only, zero existing table/column/index altered; no installer rebuild. Backend 196 files/3059 tests ✅ · Frontend 211 files/3875 tests ✅ · zero TypeScript errors · `prisma validate` ✅ · `migrate status` 60/60 applied ✅. 21 files, 5 modified and 16 new) · Previous HEAD `692644c2` — merge of `docs/master-status-backfill-v1` (**Docs Backfill Pack v1**: backfills three release narratives that were missing from this file's own release-history section — Production Release 2026.5.0, Production Release 2026.4.0, and Employee Compensation v1 — sourced only from `PROJECT_STATE.md` and `AI_CONTEXT.md`, matching the section's existing narrative style and separator convention, with nothing invented or reinterpreted; removes the temporary "Narrative backlog" note the gap had been flagged with. Docs-only: this file is the sole file touched, so no build or test suite was re-run. 1 file changed) · Previous HEAD `274eff82` — merge of `feature/employee-entitlements-bilingual-one-page-v1` (**Employee Entitlements Bilingual One-Page Statement Pack v1**: renames the monthly employee entitlements module to «مستحقات الموظف الشهرية» / «Monthly Employee Entitlements» and rebuilds its official statement as a single bilingual A4 page. Every row carries Arabic and English on one line, Arabic-first RTL with the English half isolated in `<bdi dir="ltr">`; the English half of a **value** comes only from an approved source — stored `Employee.fullNameEn`, the approved job-title translation table plus Settings overrides through a new strict `lookupJobTitleEn` that returns `null` rather than echoing the Arabic back as a pseudo-translation, and `MONTH_NAMES_EN` against the month already in the calculation record — with the Arabic printed alone when no approved source exists. The statement-date row and both former approval blocks are replaced by one horizontal `الاعتماد والاستلام / Approval & Receipt` section; compact styles stay local to this template so the other fourteen administrative forms remain byte-identical; the document sits 20mm lower via `FormLayout`'s existing `contentTopOffset`, which renders inside the single `.form-page` node that accurate preview, Save PDF and print all clone. The QR payload for this statement alone is employee name · net entitlement · period, short-circuited before the default lines are built so no future `QRData` field can leak in, leaving every other document's encoded text byte-identical. Also corrects an unscoped `tbody tr:nth-child(even) td` rule in `app/theme.css` that had been shading printed line items but never the totals rows, which already carry an inline background. Presentation only — zero calculation, business-rule, permission-key, Prisma-model or migration change; the single backend edit is a read-only lookup of an existing column for display. 14 files, 11 modified and 3 new) · Previous HEAD `6ae6536b` — merge of `audit/full-project-audit-2026-08-13` (**Production Release 2026.5.0**: Full Project Engineering Audit — a six-agent parallel review of the whole repository, closing a CRITICAL RBAC bypass in which a demoted `SYSTEM_ADMIN` kept full privileges until token expiry because the admin short-circuit read `roleName` from the JWT rather than the database, a stale-response race across seven list loaders, a keyboard-unreachable logout, a missing rate limit on the public verification route, a non-constant-time internal-secret comparison, raw floating-point KWD accumulation in the salaries summary, and a payroll message claiming a journal posting that never happens; plus 26 frontend tests that had been failing on `production` itself, all from tests lagging behind the code, now green with zero production-source change — **Prisma Schema & Migration Reconciliation Pack v1** aligning two `updatedAt` fields with what the hand-written migration actually created, with zero database change — **Invoice Items Foreign Key Reconciliation Pack v1** adding the `invoice_items.priceId → project_prices.id` constraint (`ON DELETE RESTRICT` / `ON UPDATE CASCADE`) that `schema.prisma` had declared but no migration ever created, since SQLite cannot attach a foreign key through `ALTER TABLE ADD COLUMN`; `migrate diff --from-migrations --to-schema-datamodel` now reports an empty migration) | High |
+| **Current stable tag** | `stable-monthly-entitlements-bank-statement-v1` (merge commit `3b8e968d`) | High |
+| **Previous stable tag** | `stable-docs-master-status-backfill-v1` (merge commit `692644c2`) | High |
 | **Application version** | `2026.5.0` — new installer build; installer `AlManarERP-Setup-2026.5.0.exe` (131.85 MiB, 138,256,649 bytes, SHA-256 `53d29a4478ee3f9a791f5f4aa8a455e9ad4d49e571dd74787de58910ad1d3489`, Windows 10/11 x64, per-user install under `%AppData%`). Golden Database SHA-256 `977b8ef2f94ddaf813f74000b94e6b24947f66c3b6d40ecac0fae8361bdaf525` (3,309,568 bytes · 59 migration folders · `integrity_check = ok` · `foreign_key_check` empty) — the approved development database **after** the invoice-items foreign-key migration, verified byte-identical across source · `win-unpacked` · extracted from inside `Setup.exe`, and recorded identically in `seed-data/golden-manifest.json` | High |
 | **DB path (dev)** | `backend/data/manar.db` | High |
 | **DB path (prod)** | `userData/data/manar.db` | High |
@@ -69,7 +69,95 @@ The system covers accounting/finance, invoicing, procurement-adjacent flows, HR/
 > scope for a quantitative-tables-only refresh) — do not cite that specific 100% figure as current. Re-verify
 > it the next time this file gets a full re-audit rather than a table-only refresh like this one.
 
-### Latest Release — `stable-docs-master-status-backfill-v1` (`692644c2`, 2026-08-14)
+### Latest Release — `stable-monthly-entitlements-bank-statement-v1` (`3b8e968d`, 2026-08-14)
+
+**Monthly Entitlements Bank Statement Pack v1** — a second, fully
+independent bank transfer statement («كشف المستحقات الشهرية» / Monthly
+Entitlements), alongside the existing Salary Bank Statement, on a new tab
+in the Salaries page. Feature commit `af932e62` · merge `3b8e968d` ·
+checkpoint tag `checkpoint-monthly-entitlements-bank-statement-v1`
+(`2fb42ac4`) · stable tag `stable-monthly-entitlements-bank-statement-v1`
+(`3b8e968d`). 21 files (5 modified, 16 new).
+
+- **The only new financial rule:**
+  `bankEntitlementAmount = roundMoney(netAmount − basicSalarySnapshot)`,
+  both operands read from the same APPROVED
+  `EmployeeCompensationCalculation` row for the selected year/month —
+  never the live `Employee.salary`, never a recomputed overtime/bonus/
+  deduction. No other formula exists anywhere in this pack.
+- **Server-enforced eligibility, not UI-only:** an employee is exportable
+  only with an APPROVED calculation for the exact period, bank fields
+  passing the same validator the salary statement uses, and a positive
+  transfer amount. Every ineligible employee stays visible with an
+  explicit reason (`NO_CALCULATION` / `NOT_APPROVED` / `NO_AMOUNT` /
+  `BANK_DATA_INCOMPLETE`) instead of being silently hidden.
+- **Shared bank-export engine:** the NBK workbook builder — sheets,
+  headers, column order/widths, the Bank Codes reference list, numeric
+  cell types, English-name-only/civil-id/account validation, KWD
+  3-decimal rounding — was extracted verbatim from
+  `payrollBankExport/profiles/nbkSalaryXlsProfile.ts` into a new
+  `shared/services/bankExport/` engine (`nbkTransferCore.ts` +
+  `types.ts`). Both statements now call the same
+  `buildNbkTransferResult()`; byte-for-byte identical output between the
+  two profiles is asserted by test. They are told apart only by file
+  name — `NBK_Entitlements_<year>_<MM>.xls` vs
+  `NBK_Salary_<year>_<MM>.xls` — the sheet name stays `Salary Details` in
+  both because that is the bank template's own required sheet name.
+- **Approval / snapshot lifecycle:** approving writes a full frozen
+  snapshot per employee (net amount, basic salary, transfer amount,
+  English name, civil ID, bank account, source `calculationId`) into two
+  new additive tables. The bank file is built only from that snapshot —
+  proven by test: editing the source calculation after approval (net
+  350→900) leaves the already-approved file reporting 200.000,
+  unchanged. `@@unique([year, month])` allows exactly one approved
+  statement per month; the only way to change one is an explicit,
+  audited unapprove, which deletes the snapshot. No foreign keys to
+  `Employee` or the calculation by design — an approved statement is a
+  historical document that must survive deletion of either.
+- **Isolation:** the module writes to exactly two tables —
+  `entitlements_bank_statements` / `entitlements_bank_statement_lines` —
+  plus `AuditLog`. Every read/approve/unapprove/export path is tested to
+  spy on Payroll/SalaryPayment/EmployeeCompensation/GL/Expense writes and
+  assert none occurs. The pre-existing Salary Bank Statement's 23 tests
+  pass unchanged, re-run directly on `production` post-merge as a
+  targeted regression check.
+- **No new permission key:** read/preview/export gate on the existing
+  `employeeCompensation.read`; approve/unapprove gate on the existing
+  `employeeCompensation.approve` — reusing the same reasoning the
+  original salary export used for `payroll.read`.
+- **UI:** new tab reusing `ExplorerKit`/`.pbx-*` conventions, plus a UI
+  Polish Pack scoped to new `.ebx-*` classes (compressed vertical
+  spacing, one-line description with tooltip detail, fixed-width filter
+  row, compact approval alert, approve-first/export-second action
+  ordering, LTR-isolated money via `MoneyText`/`MoneyCell` with the
+  currency in the column header, compact state column). Per-row and
+  select-all checkboxes with `indeterminate` state select only READY
+  employees; approval and export act on the selection, not the full
+  month; selection clears on period change and on a failed reload. No
+  existing rule or other Salaries tab was modified.
+- **Prisma / migration:** two new additive tables only — migration
+  `20260814120000_add_entitlements_bank_statement`. Zero existing table,
+  column, or index altered. `prisma validate` ✅; `migrate status`
+  reports all 60 migrations applied, schema up to date.
+- **Known non-blocking item:** `npx prisma generate` fails on the dev
+  machine with `EPERM` renaming the query-engine binary — some process
+  holds a lock on the file (not force-killed, to avoid disrupting
+  unrelated sessions). Verified non-blocking: the client's JS/DMMF layer
+  regenerated correctly (confirmed via direct `require` —
+  `prisma.entitlementsBankStatement.findMany`/`.count()` both execute
+  against the live dev database), and the engine binary is unchanged
+  since the last successful generate (no Prisma version bump).
+
+Application version stays `2026.5.0` — additive migration only, no
+installer rebuild. Validation: Backend/Frontend `tsc --noEmit` ✅ ·
+`build:back` / `build:front` ✅ · `prisma validate` ✅ · `migrate status`
+(60/60) ✅ · Backend 196 files/3059 tests ✅ · Frontend 211 files/3875
+tests ✅. The merged tree is byte-identical to the reviewed branch tree
+(`git diff feature..production` empty). Product Owner manual visual
+review: **completed** and explicitly approved prior to release
+authorization.
+
+### Previous Release — `stable-docs-master-status-backfill-v1` (`692644c2`, 2026-08-14)
 
 **Docs Backfill Pack v1** — backfills the three release narratives that had
 been missing from this file's own release-history section: Production Release
