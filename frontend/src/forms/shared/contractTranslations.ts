@@ -101,10 +101,24 @@ export function getNationalityEn(ar: string | null | undefined): string {
   return _natOverrides[key] ?? BASE_NATIONALITY_EN[key] ?? ar;
 }
 
+/**
+ * البحث **الصارم** عن المسمى الإنجليزي: يعيد القيمة المعتمدة (تجاوز الإعدادات ثم
+ * الجدول الأساسي)، و`null` حين لا يوجد مصدر معتمد — فلا يُخترع نصّ إنجليزي ولا
+ * يُعاد النصّ العربي متنكّرًا في هيئة ترجمة.
+ *
+ * `getJobTitleEn` أدناه يبقى كما كان حرفًا بحرف (يتراجع إلى العربي) لأن النماذج
+ * الإنجليزية القائمة تعتمد على ذلك التراجع؛ هذا الباب الصارم أُضيف للكشف الثنائي
+ * اللغة الذي يجب أن يُخفي الشقّ الإنجليزي بدل تكرار العربي.
+ */
+export function lookupJobTitleEn(ar: string | null | undefined): string | null {
+  if (!ar) return null;
+  const key = ar.trim();
+  return _jobOverrides[key] ?? BASE_JOB_TITLE_EN[key] ?? null;
+}
+
 export function getJobTitleEn(ar: string | null | undefined): string {
   if (!ar) return '—';
-  const key = ar.trim();
-  return _jobOverrides[key] ?? BASE_JOB_TITLE_EN[key] ?? ar;
+  return lookupJobTitleEn(ar) ?? ar;
 }
 
 const PRIORITY_EN: Record<string, string> = {

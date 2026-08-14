@@ -326,14 +326,37 @@ describe('بيانات الطباعة', () => {
     }
   });
 
-  it('الكشف المختصر يُبنى من اللقطة لا من ملف الموظف', async () => {
+  /**
+   * كل حقل **له لقطة** يأتي من اللقطة — هذا هو العقد الأصلي وما زال قائمًا حرفيًا.
+   *
+   * الاستثناء الوحيد `fullNameEn`: لا عمود لقطة له (وإضافة عمود تعني هجرة قاعدة
+   * بيانات لأجل سطر مطبوع)، فيُقرأ من ملف الموظف قراءةً واحدة، وللعرض وحده. لا يدخل
+   * أي حساب ولا إجمالي، ولا يغيّر أي رقم في الكشف — والحقول الستّة الأخرى أدناه
+   * تُثبت أنها ما زالت تأتي من اللقطة لا من الملف.
+   */
+  it('الكشف المختصر يُبنى من اللقطة — والاسم الإنجليزي وحده يُقرأ من ملف الموظف للعرض', async () => {
     p.employeeCompensationCalculation.findUnique.mockResolvedValue(storedCalculation());
+    p.employee.findUnique.mockResolvedValue({ fullNameEn: 'TEST EMPLOYEE' });
     const s = await service.getStatementData(100);
     expect(s.employee).toEqual({
       code: 'E-001', fullName: 'موظف تجريبي', jobTitle: 'سائق',
       department: 'العمليات', nationality: 'كويتي', civilId: '290010100001',
+      fullNameEn: 'TEST EMPLOYEE',
     });
-    expect(p.employee.findUnique).not.toHaveBeenCalled();
+    // قراءة واحدة، ولا شيء منها إلا الاسم الإنجليزي.
+    expect(p.employee.findUnique).toHaveBeenCalledTimes(1);
+    expect(p.employee.findUnique.mock.calls[0][0]).toEqual({
+      where: { id: storedCalculation().employeeId },
+      select: { fullNameEn: true },
+    });
+  });
+
+  it('بلا اسم إنجليزي مخزَّن: `null` — لا اختراع ولا تراجع إلى الاسم العربي', async () => {
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(storedCalculation());
+    p.employee.findUnique.mockResolvedValue({ fullNameEn: null });
+    const s = await service.getStatementData(100);
+    expect(s.employee.fullNameEn).toBeNull();
+    expect(s.employee.fullName).toBe('موظف تجريبي');
   });
 
   it('الكشف المختصر يعرض سداد المديونية كبند نهائي بلا أي أثر للدفتر', async () => {

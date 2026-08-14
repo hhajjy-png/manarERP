@@ -168,6 +168,17 @@ interface FormLayoutProps {
    * function resolving a value is always usable where `void` was expected.
    */
   onPrintApiReady?: (api: { getNode: () => HTMLElement | null; print: () => Promise<PrintResult> }) => void;
+  /**
+   * Opt-in override for the document title's font size (px). Off by default —
+   * every existing form keeps the original 22px heading exactly as before.
+   *
+   * Exists for a title that carries BOTH languages on one line (the bilingual
+   * Monthly Employee Entitlements statement): at 22px that string wraps to a
+   * second heading line and costs the one-page layout vertical space it does not
+   * have. Only the heading's own font size changes — the surrounding block, the
+   * rule beneath it, the margins and every other form are untouched.
+   */
+  titleFontSize?: number;
 }
 
 /**
@@ -271,6 +282,7 @@ export default function FormLayout({
   useLogoHeader = false,
   logoTintColor,
   contentTopOffset,
+  titleFontSize = 22,
 }: FormLayoutProps) {
   const navigate = useNavigate();
 
@@ -749,7 +761,7 @@ ${logoHeaderIsOverlay ? `
           </div>
           <h1
             style={{
-              fontSize: 22,
+              fontSize: titleFontSize,
               fontWeight: 800,
               color: '#1d4e6f',
               margin: '0 0 6px',

@@ -9,7 +9,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import StatementTemplate from '../employee-compensation/StatementTemplate';
 import type { StatementData } from '../employee-compensation/types';
 
@@ -45,12 +45,16 @@ const DATA: StatementData = {
 };
 
 describe('الكشف الرسمي المختصر — ما يعرضه', () => {
+  // التسميات صارت ثنائية اللغة داخل نفس السطر («البند / Description»)، فنصّ السطر
+  // موزَّع على عقد نصّية وعنصر `<bdi>`؛ `getByText` تقرأ العقد النصّية المباشرة وحدها،
+  // فالفحص على نصّ الشجرة. المُتحقَّق منه هو نفسه: البنود ومبالغها وساعات الإضافي.
   it('يعرض البنود النهائية بمبالغها، وعدد ساعات العمل الإضافي ضمن نصّ البند', () => {
-    render(<StatementTemplate data={DATA} />);
-    expect(screen.getByText('موظف تجريبي')).toBeTruthy();
-    expect(screen.getByText(/عمل إضافي — 11 ساعة/)).toBeTruthy();
-    expect(screen.getByText('مكافأة أداء')).toBeTruthy();
-    expect(screen.getByText('صافي المستحق')).toBeTruthy();
+    const { container } = render(<StatementTemplate data={DATA} />);
+    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain('موظف تجريبي');
+    expect(text).toMatch(/عمل إضافي \/ Overtime — 11 ساعة/);
+    expect(text).toContain('مكافأة أداء');
+    expect(text).toContain('صافي المستحق / Net Entitlement');
   });
 });
 
