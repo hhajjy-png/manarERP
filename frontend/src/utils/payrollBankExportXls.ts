@@ -68,19 +68,26 @@ export function buildBankExportXlsArray(result: PayrollBankExportResult): Uint8A
   return new Uint8Array(XLSX.write(wb, { bookType: 'xls', type: 'array' }) as ArrayBuffer);
 }
 
-/** Deterministic file name: NBK_Salary_<year>_<MM>.xls */
-export function bankExportFileName(result: PayrollBankExportResult): string {
+/**
+ * Deterministic file name: <prefix>_<year>_<MM>.xls — `NBK_Salary_2026_08.xls` by default.
+ *
+ * The prefix is the ONLY thing that distinguishes the salary file from the monthly
+ * entitlements file: both workbooks are intentionally identical in layout (the bank
+ * accepts exactly one), so the operator must be able to tell them apart in the file
+ * picker and the bank portal without opening them.
+ */
+export function bankExportFileName(result: PayrollBankExportResult, prefix = 'NBK_Salary'): string {
   const mm = String(result.month).padStart(2, '0');
-  return `NBK_Salary_${result.year}_${mm}.${result.fileExtension}`;
+  return `${prefix}_${result.year}_${mm}.${result.fileExtension}`;
 }
 
 /** Generate the .xls and trigger a browser download. */
-export function downloadBankExportXls(result: PayrollBankExportResult): void {
+export function downloadBankExportXls(result: PayrollBankExportResult, prefix = 'NBK_Salary'): void {
   const data = buildBankExportXlsArray(result);
   const blob = new Blob([data as unknown as BlobPart], { type: 'application/vnd.ms-excel' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = bankExportFileName(result);
+  a.download = bankExportFileName(result, prefix);
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

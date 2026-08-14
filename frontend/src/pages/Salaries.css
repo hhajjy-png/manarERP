@@ -75,3 +75,113 @@
 .pbx-total-value { font-size: 18px; font-weight: 800; color: var(--xpl-text, var(--text)); font-variant-numeric: tabular-nums; }
 .pbx-totals .btn, .pbx-totals .xpl-btn { margin-inline-start: auto; }
 .pbx-table .pbx-num { font-variant-numeric: tabular-nums; text-align: left; direction: ltr; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Monthly Entitlements Bank Statement (.ebx-*) — UI Polish Pack.
+
+   ADDITIVE ONLY: not one existing rule above is modified. The salary bank-export
+   tab keeps its own `.pbx-*` presentation byte-for-byte; these classes are used
+   exclusively by EntitlementsBankExport.tsx, so no other Salaries tab can shift.
+   Tokens, radii and spacing steps are the Explorer Kit's own — no new design system.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ① ضغط المساحات الرأسية — يُطبَّق على الصفحة **فقط** أثناء هذا التبويب.
+   `.xpl-page` تفصل أبناءها بـ 18px، وهي فجوة مصمّمة لبطاقات المؤشّرات في تبويب
+   الرواتب؛ هنا (رأس + تبويبات + محتوى واحد) تترك فراغًا زائدًا. */
+.xpl-page.ebx-page-tight { gap: 12px; }
+
+/* حزمة محتوى التبويب — `.xpl-stack` بلا تعريف CSS في المشروع، فكانت الكتل تتلاصق
+   بلا إيقاع. هذه تعطيها إيقاعًا واحدًا صريحًا. */
+.ebx-stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* ② وصف مختصر بسطر واحد + أيقونة تحمل الشرح التفصيلي في tooltip أصلي (نفس نمط
+   `title` المستخدم في SortableHeader) — لا Component جديد. */
+.ebx-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--xpl-muted);
+}
+.ebx-help .material-symbols-outlined {
+  font-size: 16px !important;
+  color: var(--xpl-primary);
+  cursor: help;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ③ صف الفلاتر — عرض ثابت لكل حقل ومحاذاة سفلية واحدة. */
+.ebx-filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.ebx-filters .xpl-field { min-width: 0; }
+.ebx-f-profile { width: 240px; }
+.ebx-f-month   { width: 130px; }
+.ebx-f-year    { width: 110px; }
+.ebx-filters .ebx-f-action { margin-inline-start: auto; }
+
+/* ④ تنبيه مضغوط — بديل شريط التحقّق الطويل. لا يغيّر أي قاعدة منع تصدير. */
+.ebx-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.ebx-alert .material-symbols-outlined { font-size: 17px !important; flex-shrink: 0; }
+.ebx-alert--warn { background: rgba(245,158,11,.09); border-color: rgba(245,158,11,.28); color: var(--xpl-orange, #b45309); }
+.ebx-alert--ok   { background: rgba(16,185,129,.08); border-color: rgba(16,185,129,.25); color: var(--xpl-green, #10b981); }
+.ebx-alert-note { font-weight: 500; opacity: .85; }
+@media (max-width: 780px) { .ebx-alert { align-items: flex-start; } .ebx-alert-note { display: block; } }
+
+/* ⑥ شريط الملخّص + الإجراءات — أخفض من `.pbx-totals`، والمبلغ أبرز من العدد. */
+.ebx-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 9px 14px;
+  background: var(--xpl-surface);
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+}
+.ebx-stat { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.ebx-stat-label { font-size: 11.5px; font-weight: 600; color: var(--xpl-muted); white-space: nowrap; }
+.ebx-stat-value { font-size: 14px; font-weight: 700; color: var(--xpl-text); font-variant-numeric: tabular-nums; }
+/* المبلغ هو الرقم الذي يُتَّخذ عليه القرار — أبرز من العدد، بلا بطاقة كبيرة. */
+.ebx-stat--amount .ebx-stat-value { font-size: 19px; font-weight: 800; }
+.ebx-sep { width: 1px; align-self: stretch; min-height: 24px; background: var(--xpl-border); }
+.ebx-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-inline-start: auto; }
+
+/* ⑦ الجدول — نفس الأعمدة والبيانات؛ الحشو والمحاذاة وارتفاع الصف فقط. */
+.ebx-table th { padding: 9px 12px; vertical-align: middle; }
+.ebx-table td { padding: 8px 12px; }
+.ebx-table .ebx-col-check { width: 42px; text-align: center; padding-inline: 6px; }
+.ebx-table .ebx-col-serial { width: 44px; color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
+.ebx-table .ebx-col-code { width: 110px; }
+/* أعمدة مالية بعرض ثابت ومحاذاة رقمية — العملة في رأس العمود (fcMoneyHeader)
+   والخليّة رقم وحده داخل `.money-cell`، فلا يقلب BiDi ترتيب الرقم مع الرمز. */
+.ebx-table .ebx-col-money { width: 150px; text-align: end; }
+.ebx-table td.ebx-col-money { font-variant-numeric: tabular-nums; }
+.ebx-table .ebx-col-money .money-cell { font-weight: 600; }
+.ebx-table .ebx-col-transfer .money-cell { font-weight: 800; color: var(--xpl-text); }
+.ebx-table .ebx-col-state { width: 210px; }
+.ebx-table .ebx-col-calc { width: 130px; }
+.ebx-check { width: 15px; height: 15px; cursor: pointer; accent-color: var(--xpl-primary); }
+.ebx-check:disabled { cursor: not-allowed; opacity: .4; }
+
+/* ⑧ خليّة الحالة — الشريحة في سطر، والسبب أسفلها بخطّ أهدأ وعند الحاجة فقط. */
+.ebx-state { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.ebx-reason { font-size: 11px; line-height: 1.55; color: var(--xpl-muted); font-weight: 500; }
+
+/* ⑨ الصفوف غير المؤهلة — خافتة لا صاخبة؛ الشريحة وحدها تشرح السبب.
+   والصف الجاهز أوضح قليلًا بلا تمييز مبالغ فيه. */
+.ebx-table tr.ebx-row--muted td { color: var(--xpl-muted); }
+.ebx-table tr.ebx-row--muted .ebx-emp-name { font-weight: 600; color: var(--xpl-muted); }
+.ebx-table tr.ebx-row--ready .ebx-emp-name { font-weight: 700; color: var(--xpl-text); }
+.ebx-table tr.ebx-row--picked { background: var(--xpl-faint); }

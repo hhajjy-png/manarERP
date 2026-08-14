@@ -2136,3 +2136,84 @@ model EmployeeCompensationDebtPayment {
   @@index([calculationId])
   @@map("employee_compensation_debt_payments")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  كشف المستحقات الشهرية البنكي — Monthly Entitlements Bank Statement v1
+//
+//  جدولان **إضافيان بالكامل**: لا جدول قائم يُعدَّل، ولا عمود يُحذف أو يُعاد تسميته.
+//  الكشف مستقل تمامًا عن مسير الرواتب وعن كشف الرواتب البنكي: اعتماده أو إلغاؤه لا
+//  يمسّ Payroll ولا SalaryPayment ولا EmployeeCompensation ولا دفتر الأستاذ ولا
+//  المصروفات — لا قيد، لا ترحيل، لا تحديث حالة في أي وحدة أخرى.
+//
+//  **لماذا لا توجد مفاتيح أجنبية إلى Employee ولا إلى الحسبة الشهرية؟**
+//  لأن السطر المعتمد **مستند تاريخي مجمَّد**. حذف موظف أو حذف حسبة شهر لا يجوز أن
+//  يمحو — أو يغيّر — كشفًا بنكيًا صدر فعلًا وذهب إلى البنك. المعرّفان محفوظان كأرقام
+//  للتتبّع والربط، والقيم النقدية والبنكية محفوظة كلقطة مستقلة عن مصدرها.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// رأس كشف المستحقات الشهري المعتمد لشهر/سنة واحدة.
+/// `@@unique([year, month])`: كشف معتمد واحد لكل شهر — الحارس البنيوي ضد ازدواج
+/// تحويل غير مقصود لنفس الموظف في نفس الشهر.
+model EntitlementsBankStatement {
+  id    Int @id @default(autoincrement())
+  year  Int
+  month Int // 1..12
+
+  /// معرّف ملف البنك المستخدم وقت الاعتماد (`nbk_entitlements_xls`).
+  profileId String
+  currency  String @default("KWD")
+
+  /// APPROVED فقط في v1 — الكشف لا يوجد إلا معتمدًا؛ إلغاء الاعتماد يحذف السجل
+  /// بإجراء صريح مسجَّل، لا بتغيير صامت في قيمه.
+  status String @default("APPROVED")
+
+  /// إجماليات وقت الاعتماد — مجمّدة، لا تُحتسب من جديد عند القراءة.
+  employeeCount Int   @default(0)
+  totalAmount   Float @default(0)
+
+  approvedAt     DateTime @default(now())
+  approvedById   Int?
+  approvedByName String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lines EntitlementsBankStatementLine[]
+
+  @@unique([year, month])
+  @@index([year, month])
+  @@map("entitlements_bank_statements")
+}
+
+/// سطر موظف واحد داخل كشف مستحقات معتمد — لقطة كاملة لما ذهب إلى البنك.
+model EntitlementsBankStatementLine {
+  id          Int                       @id @default(autoincrement())
+  statementId Int
+  statement   EntitlementsBankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  /// مرجع للتتبّع فقط — بلا مفتاح أجنبي (انظر شرح الجدولين أعلاه).
+  employeeId Int
+  /// معرّف حسبة المستحقات الشهرية المصدر — للتتبّع فقط، بلا مفتاح أجنبي: تعديل تلك
+  /// الحسبة أو حذفها لاحقًا لا يغيّر ولا يحذف هذا السطر.
+  calculationId Int?
+
+  // ── لقطة الموظف والبيانات البنكية وقت الاعتماد ──
+  employeeCodeSnapshot   String
+  employeeNameSnapshot   String
+  employeeNameEnSnapshot String?
+  civilIdSnapshot        String?
+  bankAccountSnapshot    String?
+
+  // ── لقطة الأرقام: المعادلة الوحيدة هي transferAmount = net − basic ──
+  netAmountSnapshot    Float
+  basicSalarySnapshot  Float
+  transferAmount       Float
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  /// موظف واحد لا يظهر مرتين في نفس الكشف.
+  @@unique([statementId, employeeId])
+  @@index([statementId])
+  @@index([employeeId])
+  @@map("entitlements_bank_statement_lines")
+}
