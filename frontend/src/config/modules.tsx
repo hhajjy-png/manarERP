@@ -6,6 +6,7 @@ import { formatCurrency, formatMoneyParts, formatMoneyCell } from '../lib/format
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 import { t as translate } from '../lib/i18n';
 import { useUI } from '../stores/uiStore';
+import { usePrivacyMode, buildLevel1Mask } from '../components/PrivateAmount';
 import { expenseCategoryArMap } from './expenseCategories';
 import { NameCell, ExpiryCell } from '../components/employees/employeeCells';
 import { RegRemainingCell } from '../components/equipment/equipmentCells';
@@ -32,7 +33,18 @@ export function moneyParts(v: unknown): { number: string; currency: string } {
  * الرمز يتبع إعداد لغة العملة (KWD / د.ك)، والأرقام غربية دائمًا.
  */
 export function MoneyText({ value }: { value: unknown }) {
-  return <span className="money-cell">{money(value)}</span>;
+  const masked = usePrivacyMode();
+  const formatted = money(value);
+  return (
+    <span className="money-cell">
+      <span className="pm-mask" style={{ display: masked ? 'inline' : 'none' }} aria-hidden={!masked}>
+        {buildLevel1Mask(formatted)}
+      </span>
+      <span className="pm-real" style={{ display: masked ? 'none' : 'inline' }} aria-hidden={masked}>
+        {formatted}
+      </span>
+    </span>
+  );
 }
 
 /**
@@ -79,7 +91,21 @@ export function TextWithMoney({ text }: { text?: string | null }) {
  * لا تُستعمل في بطاقة أو Drawer بلا عنوان يحمل الرمز — هناك `MoneyText` (رقم + رمز).
  */
 export function MoneyCell({ value }: { value: unknown }) {
-  return <span className="money-cell">{formatMoneyCell(value)}</span>;
+  const masked = usePrivacyMode();
+  const formatted = formatMoneyCell(value);
+  // "—" (not-applicable) isn't a financial figure — never mask it, so empty cells
+  // stay visually distinct from a genuinely masked zero/amount.
+  if (formatted === '—') return <span className="money-cell">{formatted}</span>;
+  return (
+    <span className="money-cell">
+      <span className="pm-mask" style={{ display: masked ? 'inline' : 'none' }} aria-hidden={!masked}>
+        {buildLevel1Mask(formatted)}
+      </span>
+      <span className="pm-real" style={{ display: masked ? 'none' : 'inline' }} aria-hidden={masked}>
+        {formatted}
+      </span>
+    </span>
+  );
 }
 
 export function dateText(v: unknown): string {

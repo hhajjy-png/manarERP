@@ -50,7 +50,13 @@ function getFormatted(value: number | string, currency: string): string {
   return str;
 }
 
-function buildLevel1Mask(formatted: string): string {
+/**
+ * Level-1 mask for a formatted amount — shared with any other money display
+ * primitive (e.g. `MoneyText`/`MoneyCell` in `config/modules.tsx`) so every
+ * consumer of `usePrivacyMode()` masks identically instead of re-implementing
+ * the bullet algorithm.
+ */
+export function buildLevel1Mask(formatted: string): string {
   // Replace every character with ● to match visual length proportionally
   const bullets = '●'.repeat(formatted.length);
   return `🔒 ${bullets}`;
