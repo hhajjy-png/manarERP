@@ -1,7 +1,7 @@
 {
   "name": "manar-erp",
   "productName": "Al Manar ERP",
-  "version": "2026.5.0",
+  "version": "2026.5.1",
   "private": true,
   "description": "نظام إدارة أعمال شركة المنار — Electron + React + Express + Prisma + SQLite (الكويت)",
   "author": "شركة المنار الدولية",
