@@ -33,12 +33,12 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `e8fea376` (merge of `feature/production-release-2026.5.1` — **Production Release 2026.5.1**. Packages a new self-contained Windows installer including everything merged onto `production` since the 2026.5.0 installer: Employee Entitlements Bilingual One-Page Statement Pack v1, Monthly Entitlements Bank Statement Pack v1, Employee Entitlements Leave Management Pack v1, and Privacy Toggle Tier A v1 — all four already merged, tagged, and documented individually; `package.json` version `2026.5.0` → `2026.5.1` is the only additional tracked-file change. Full validation before packaging: Backend/Frontend/Electron `tsc --noEmit` clean, `prisma validate`/`migrate status` clean (61/61 applied), Backend 196 files/3087 tests, Frontend 215 files/3943 tests, Electron 26 files/499 tests — all green. Packaging content directly audited (`app.asar`/`extraResources`, zero leaked dev/test/source-map/secret files). Golden Database verified byte-identical across source, `win-unpacked`, and extracted from inside `Setup.exe`. 1 file changed. Full detail: `PROJECT_STATE.md`'s release ledger.) · Previous merge `7cb1c738` (merge of `feature/privacy-toggle-tier-a-v1` — **Privacy Toggle Tier A v1**. Audit + fix of the top-bar lock button's "hide/show financial numbers" feature. Root cause: the button was never broken — `togglePrivacy()` is a plain boolean flip with no stale closures or memoization — the defect was coverage: `privacyMode` was read in only 3 files out of ~90 that display money, since most amounts went through separate helpers (`money()`, `MoneyText`, `MoneyCell`, `fcCurrency()`, chart formatters, print templates) that never consulted the privacy store. Fix: `MoneyText`/`MoneyCell` in `config/modules.tsx` now read `usePrivacyMode()` and render through `PrivateAmount`'s existing `pm-mask`/`pm-real` dual-span pattern, reusing its exported `buildLevel1Mask()` — one shared mechanism, no parallel system, zero changes to ~60 existing call sites. Print output unaffected (real values always print). Tier B (`money()`/`fcCurrency()` calls outside JSX, chart tooltip/axis formatters, print-preview screens, the AI `ResultCard`) deferred by design, documented explicitly as out of scope. 4 files (2 modified, 2 new).) · Previous merge `90868cb1` (merge of `feature/employee-entitlements-leave-management-ui-v1` — **Employee Entitlements Leave Management Pack v1**. Bundles four packs: wires the pre-existing, previously-unreachable Leave CRUD (create/approve/reject) into the Employee Entitlements page with no new permission key; a print-leave-form shortcut that opens the existing `LeaveRequest` form prefilled from the **selected** approved leave record (not the latest one), no new template; persists `reason` + new `expectedReturnDate` (one additive column) so a leave request can be reprinted with its original data later; and corrects annual-leave balance consumption — a leave now deducts the balance only for days elapsed as of the calculation date (`clipLeaveIntervalToAsOf`), not the full duration on approval, so a future 92-day leave no longer zeroes the balance before it starts. New `overusedLeaveDays` explains a zero balance from over-consumption instead of hiding it, never as a negative amount. Final Settlement unaffected in code — same canonical `computeAt()` engine, its 51 tests re-verified on `production` post-merge. Weekly rest days documented as NOT excluded (no data source; none invented). 16 files (11 modified, 5 new).) |
-| **Current Documentation Commit** | `40d9983e` |
-| **Current Stable Tag** | `stable-privacy-toggle-tier-a-v1` (previous: `stable-employee-entitlements-leave-management-ui-v1`) |
-| **Current Release Date** | 2026-08-15 |
-| **Application Version** | `2026.5.0` — **unchanged** by the current release: presentation-only frontend fix, no installer rebuild; the artifact below is still the one shipped with Production Release 2026.5.0. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.0.exe` (131.85 MiB, 138,256,649 bytes, SHA-256 `53d29a4478ee3f9a791f5f4aa8a455e9ad4d49e571dd74787de58910ad1d3489`, Windows 10/11 x64, per-user install under `%AppData%`). Golden Database SHA-256 `977b8ef2f94ddaf813f74000b94e6b24947f66c3b6d40ecac0fae8361bdaf525` (3,309,568 bytes · 59 migration folders · `integrity_check = ok` · `foreign_key_check` empty) — the approved development database **after** the invoice-items foreign-key migration, verified byte-identical in three places (source · `win-unpacked` · extracted from inside `Setup.exe`) and recorded identically in `seed-data/golden-manifest.json`. **Note:** the dev database is unchanged by this release — no schema/migration impact |
-| **Total Stable Releases** | 431 (window 2026-06-07 → 2026-08-15) — `git tag -l "stable-*"` count |
+| **Current Merge Commit** | `310fcaa7` (merge of `feature/employee-compensation-configurable-overtime-rate-v1` — **Employee Compensation — Configurable Company Overtime Rate Pack v1**. Lets Employee Compensation choose the company overtime hourly rate from the system instead of it being fixed in code, while the Kuwait Labour Law engine stays the single source of legal minimums. New `Company Overtime Rate` concept, kept strictly separate from the law: `policy/companyOvertimePolicy.ts` derives per-type company rates (REGULAR ×1.00 · WEEKLY_REST ×1.50 · OFFICIAL_HOLIDAY ×2.00) from one base rate, versioned independently as `COMPANY_OVERTIME_POLICY_VERSION = MANAR-COP-v1` — never touching `LEGAL_RULES_VERSION = KW-LL-6/2010-v2`. `engine/effectiveOvertimeRate.ts` is the single point resolving `effectiveRate = max(statutoryMinimumRate, companyDerivedRate)`; a below-floor company choice is accepted, floored, and surfaced as an explicit `COMPANY_OVERTIME_RATE_BELOW_STATUTORY` warning, never a silent cut. Storage: the company-wide default lives in the existing `Setting` table (key `employeeCompensation.companyOvertimeBaseRate`) — no new settings mechanism — and changing it touches zero saved calculations, since each month snapshots its own rate (`companyOvertimeBaseRateSnapshot` + `companyOvertimePolicyVersion`) and every overtime line snapshots its statutory/company/effective rates and source. Additive migration `20260816120000_add_company_overtime_rate` (7 nullable columns, hand-written to avoid an unrelated `RedefineTables` rebuild); `NULL` means "no company policy" and is computed with the original pre-pack formula byte-for-byte, so re-saving an old month never moves its amount — proven live against a seeded pre-pack calculation. Reverse overtime now derives hours from the effective rate of the selected type; copying a previous month follows the current default, not the copied month's snapshot, reporting the difference explicitly. The short official statement never exposes any rate; the internal detailed report shows statutory/company/effective side by side. No Payroll/Accounting/GL/Expense write and no Employee mutation — enforced by the module's source-scanning isolation test, extended to cover the new `Setting` access. Verified live end-to-end on an isolated database/backend copy (default → month create → override → approve → edit-after-approval → copy-previous → statutory floor → validation), confirming the dev database and Payroll/Accounting/GL tables were untouched. 36 new backend tests. Backend 3129 tests/Frontend 3952 tests all green pre-merge; `tsc --noEmit` clean and `prisma validate`/`migrate status` clean re-verified post-merge. 27 files (22 modified, 5 new). Full detail: `PROJECT_STATE.md`'s release ledger.) · Previous merge `e8fea376` (merge of `feature/production-release-2026.5.1` — **Production Release 2026.5.1**. Packages a new self-contained Windows installer including everything merged onto `production` since the 2026.5.0 installer: Employee Entitlements Bilingual One-Page Statement Pack v1, Monthly Entitlements Bank Statement Pack v1, Employee Entitlements Leave Management Pack v1, and Privacy Toggle Tier A v1 — all four already merged, tagged, and documented individually; `package.json` version `2026.5.0` → `2026.5.1` is the only additional tracked-file change. Full validation before packaging: Backend/Frontend/Electron `tsc --noEmit` clean, `prisma validate`/`migrate status` clean (61/61 applied), Backend 196 files/3087 tests, Frontend 215 files/3943 tests, Electron 26 files/499 tests — all green. Packaging content directly audited (`app.asar`/`extraResources`, zero leaked dev/test/source-map/secret files). Golden Database verified byte-identical across source, `win-unpacked`, and extracted from inside `Setup.exe`. 1 file changed. Full detail: `PROJECT_STATE.md`'s release ledger.) · Previous merge `7cb1c738` (merge of `feature/privacy-toggle-tier-a-v1` — **Privacy Toggle Tier A v1**. Audit + fix of the top-bar lock button's "hide/show financial numbers" feature. Root cause: the button was never broken — `togglePrivacy()` is a plain boolean flip with no stale closures or memoization — the defect was coverage: `privacyMode` was read in only 3 files out of ~90 that display money, since most amounts went through separate helpers (`money()`, `MoneyText`, `MoneyCell`, `fcCurrency()`, chart formatters, print templates) that never consulted the privacy store. Fix: `MoneyText`/`MoneyCell` in `config/modules.tsx` now read `usePrivacyMode()` and render through `PrivateAmount`'s existing `pm-mask`/`pm-real` dual-span pattern, reusing its exported `buildLevel1Mask()` — one shared mechanism, no parallel system, zero changes to ~60 existing call sites. Print output unaffected (real values always print). Tier B (`money()`/`fcCurrency()` calls outside JSX, chart tooltip/axis formatters, print-preview screens, the AI `ResultCard`) deferred by design, documented explicitly as out of scope. 4 files (2 modified, 2 new).) · Previous merge `90868cb1` (merge of `feature/employee-entitlements-leave-management-ui-v1` — **Employee Entitlements Leave Management Pack v1**. Bundles four packs: wires the pre-existing, previously-unreachable Leave CRUD (create/approve/reject) into the Employee Entitlements page with no new permission key; a print-leave-form shortcut that opens the existing `LeaveRequest` form prefilled from the **selected** approved leave record (not the latest one), no new template; persists `reason` + new `expectedReturnDate` (one additive column) so a leave request can be reprinted with its original data later; and corrects annual-leave balance consumption — a leave now deducts the balance only for days elapsed as of the calculation date (`clipLeaveIntervalToAsOf`), not the full duration on approval, so a future 92-day leave no longer zeroes the balance before it starts. New `overusedLeaveDays` explains a zero balance from over-consumption instead of hiding it, never as a negative amount. Final Settlement unaffected in code — same canonical `computeAt()` engine, its 51 tests re-verified on `production` post-merge. Weekly rest days documented as NOT excluded (no data source; none invented). 16 files (11 modified, 5 new).) |
+| **Current Documentation Commit** | PENDING (a commit cannot contain its own hash; filled in by the closure commit that follows this one) |
+| **Current Stable Tag** | `stable-employee-compensation-configurable-overtime-rate-v1` (previous: `stable-privacy-toggle-tier-a-v1`) |
+| **Current Release Date** | 2026-08-16 |
+| **Application Version** | `2026.5.1` — **unchanged** by the current release: backend/frontend feature pack, no installer rebuild; the artifact below is still the one shipped with Production Release 2026.5.1. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.1.exe` (131.87 MiB, 138,282,665 bytes, SHA-256 `e95021e4735572f9bb493c7b87e09d7edbd9a94bea481eb55a40e0ab5d831931`, Windows 10/11 x64, per-user install under `%AppData%`). Golden Database SHA-256 `da769b8c70f372c0ab56cc2d5670e3316f27af6781c48bbd65074005b7bfdf24` (3,358,720 bytes · 61 migration folders) verified byte-identical across source · `win-unpacked` · extracted from inside `Setup.exe`, recorded identically in `seed-data/golden-manifest.json`. **Note:** the dev database gains one additive migration (`20260816120000_add_company_overtime_rate`, 7 nullable columns) beyond that Golden Database's 61 — the installer/Golden Database are unaffected because this release did not repackage; the dev-only `manar.db` at `backend/data/manar.db` now has 62 applied migrations |
+| **Total Stable Releases** | 433 (window 2026-06-07 → 2026-08-16) — `git tag -l "stable-*"` count |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -415,6 +415,72 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Employee Compensation — Configurable Company Overtime Rate Pack v1**
+  (2026-08-16, `stable-employee-compensation-configurable-overtime-rate-v1`) —
+  lets Employee Compensation choose the company overtime hourly rate from the
+  system instead of it being fixed in code, while the Kuwait Labour Law engine
+  stays the single source of legal minimums. Released after the Product
+  Owner's manual visual review was completed and explicitly approved.
+  New `Company Overtime Rate` concept, kept strictly separate from the law:
+  `policy/companyOvertimePolicy.ts` derives per-type company rates
+  (`REGULAR` ×1.00 · `WEEKLY_REST` ×1.50 · `OFFICIAL_HOLIDAY` ×2.00) from one
+  base rate, versioned independently as `COMPANY_OVERTIME_POLICY_VERSION =
+  MANAR-COP-v1` — never touching `LEGAL_RULES_VERSION = KW-LL-6/2010-v2`.
+  **Statutory floor protection** is structural, not advisory:
+  `engine/effectiveOvertimeRate.ts` is the single point that resolves
+  `effectiveRate = max(statutoryMinimumRate, companyDerivedRate)`, and no
+  other code path can produce a lower rate. A below-floor company choice is
+  accepted, floored, and surfaced as an explicit
+  `COMPANY_OVERTIME_RATE_BELOW_STATUTORY` warning — never a silent cut, never
+  a rejected request.
+  **Two independent levels**: a company-wide **default** lives in the
+  existing `Setting` table (key `employeeCompensation.companyOvertimeBaseRate`,
+  group `employeeCompensation`) — no new settings mechanism — editable from a
+  compact dialog reused by both the module list header and the month editor,
+  with quick presets (3.000 / 4.000 / 5.000 د.ك) alongside free entry; and a
+  per-**month override**, editable even after approval like every other field
+  in this module. Changing the default touches **zero** saved calculations:
+  each month snapshots its own rate (`companyOvertimeBaseRateSnapshot` +
+  `companyOvertimePolicyVersion`) and every overtime line snapshots its
+  statutory/company/effective rate and which one won
+  (`statutoryMinimumRate`/`companyBaseRate`/`companyDerivedRate`/
+  `effectiveRate`/`rateSource`).
+  **Historical snapshot protection**: additive migration
+  `20260816120000_add_company_overtime_rate` adds seven nullable columns only
+  (hand-written to avoid an unrelated `RedefineTables` rebuild, the same
+  approach the module's two prior migrations took); `NULL` means "no company
+  policy" and is computed with the exact pre-pack formula
+  (`hours × hourlyRate × multiplier`, single final rounding) byte-for-byte, so
+  re-saving an old month never moves its amount by a single fils — proven
+  live against a seeded pre-pack calculation, not merely by unit test.
+  **Reverse overtime** now derives hours from the *effective* rate of the
+  selected overtime type rather than the statutory rate alone, so the amount
+  it promises is the amount that gets stored. **Copying a previous month**
+  follows the *current* default, not the copied month's snapshot — a
+  deliberate choice, since the rate is a live administrative decision, not a
+  template field — and the UI reports the difference explicitly when the two
+  disagree.
+  **Printing stays split exactly as before**: the short official statement
+  never exposes any rate, source, or policy version (verified by a
+  source-scanning frontend test in addition to the backend simply never
+  sending those fields); the internal detailed report shows the statutory
+  minimum, the company-derived rate, and the effective rate side by side, with
+  the winning source labelled.
+  **No Payroll/Accounting/GL/Expense write and no Employee mutation** —
+  enforced by the module's pre-existing source-scanning isolation test,
+  extended to require every `Setting` access to go through the new centralized
+  key constant.
+  Verified live end-to-end on an isolated database/backend copy (port 48299,
+  scratch SQLite file): default configuration → month creation → global
+  default change leaving the old month untouched → new month inheriting the
+  new default → per-month override → approval → editing the rate of an
+  *approved* month with recalculation → copy-previous-month using the current
+  default → statutory floor on a high salary with a low company rate → input
+  validation — every check passed, and the shared development database was
+  confirmed untouched throughout (0 rows in any Payroll/Accounting/GL/Expense
+  table, employee salary unchanged). 36 new backend tests plus isolation/UI
+  guard-test extensions; 27 files (22 modified, 5 new).
 
 - **Docs Backfill Pack v1** (2026-08-14, `stable-docs-master-status-backfill-v1`) —
   docs-only pack that backfills the three release narratives missing from
