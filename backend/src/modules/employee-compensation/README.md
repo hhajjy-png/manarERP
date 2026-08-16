@@ -39,9 +39,11 @@ TABLE` واحد على أي جدول قائم.
 
 ```
 legal/kuwaitLabourLaw.ts        المعاملات والحدود القانونية + مراجعها. المصدر الوحيد.
+policy/companyOvertimePolicy.ts سياسة الشركة لسعر ساعة الإضافي — مفهوم منفصل عن القانون.
 engine/
   rounding.ts                   تقريب النقود (مُعاد تصديره) + تقريب الساعات لأعلى.
   hourlyRate.ts                 أجر الساعة من الراتب الشهري.
+  effectiveOvertimeRate.ts      max(الحد القانوني، سعر الشركة) — حيث تُفرض الأرضية.
   overtimeCalculator.ts         سطور الإضافي + فحص الحدود القانونية.
   reverseOvertimeCalculator.ts  الحسبة العكسية (مبلغ ← ساعات).
   compensationTotals.ts         الحسبة الكاملة والإجماليات — نقطة الدخول.
@@ -67,6 +69,36 @@ employeeCompensation.{schema,service,controller,routes}.ts
 
 **التجاوز يُنبَّه عليه ولا يُقصّ ولا يُخفى**: الساعات تبقى كما أُدخلت، والمبلغ يُحتسب
 كاملًا، ويرافقه تحذير يذكر الحد والفرق.
+
+## سعر ساعة الإضافي المعتمد من الشركة
+
+مفهوم **منفصل عن القانون** أُضيف في حزمة
+`20260816120000_add_company_overtime_rate`: القانون يحدّد **نِسَبًا** (٢٥٪ · ٥٠٪ · أجر
+مضاعف) تُضرب في أجر الساعة، والشركة تحدّد **سعرًا نقديًّا** لساعة الإضافي.
+
+```
+basicSalary → statutoryHourlyRate → statutoryMinimumRate (لكل نوع)
+companyBaseRate                   → companyRateByType    (لكل نوع)
+effectiveRate = max(statutoryMinimumRate, companyRateByType)
+amount        = roundMoney(hours × effectiveRate)
+```
+
+| المفهوم | المصدر | الإصدار | قابل للتعديل من الواجهة |
+|---|---|---|---|
+| نِسَب القانون | `legal/kuwaitLabourLaw.ts` | `LEGAL_RULES_VERSION` | **لا** |
+| معاملات سعر الشركة (١٫٠٠ / ١٫٥٠ / ٢٫٠٠) | `policy/companyOvertimePolicy.ts` | `COMPANY_OVERTIME_POLICY_VERSION` | لا |
+| قيمة السعر الأساسي | جدول `Setting` + لقطة كل شهر | — | **نعم** |
+
+- **الافتراضي العام**: مفتاح واحد في جدول `Setting` القائم
+  (`employeeCompensation.companyOvertimeBaseRate`، مجموعة `employeeCompensation`).
+  تغييره **لا يُصدر تحديثًا واحدًا على أي حسبة محفوظة**.
+- **لقطة الشهر**: `companyOvertimeBaseRateSnapshot` — كل شهر يحتفظ بالسعر الذي احتُسب به.
+  الشهر الجديد يبدأ من الافتراضي، ويمكن تجاوزه لذلك الشهر وحده، حتى بعد الاعتماد.
+- **`NULL` ليس خطأً**: حسبة محفوظة قبل الحزمة. تُحتسب بالحد القانوني وحده وبالصيغة
+  الأصلية `hours × hourlyRate × multiplier` بتقريب واحد — فإعادة حفظها لا تحرّك مبلغها.
+- **لا Backfill**: الهجرة إضافية بالكامل (سبعة أعمدة NULLABLE)، ولا تعيد احتساب صفّ واحد.
+- **الطباعة**: الكشف الرسمي المختصر لا يحمل أي سعر (البند والمبلغ فقط)؛ التقرير التفصيلي
+  وحده يعرض الحد القانوني وسعر الشركة والمستخدم فعليًا ومصدره.
 
 ### ما يفحصه النظام فعلًا — وما لا يفحصه
 

@@ -33,6 +33,34 @@ export {
 
 export { computeHourlyRate } from './hourlyRate';
 
+/**
+ * سياسة الشركة — تُصدَّر من الواجهة العامة نفسها كي لا يستورد أحد من `policy/` مباشرةً
+ * ويتفرّع مسارُ الوصول. القانون وسياسة الشركة مفهومان منفصلان، لكن بابهما إلى بقية
+ * النظام واحد.
+ */
+export {
+  COMPANY_OVERTIME_FACTORS,
+  COMPANY_OVERTIME_POLICY_VERSION,
+  COMPANY_OVERTIME_RATE_SETTING_KEY,
+  COMPANY_OVERTIME_SETTING_GROUP,
+  FALLBACK_COMPANY_OVERTIME_BASE_RATE,
+  MAX_COMPANY_OVERTIME_BASE_RATE,
+  MIN_COMPANY_OVERTIME_BASE_RATE,
+  companyOvertimeFactor,
+  companyOvertimeRateTable,
+  companyRateForType,
+  normalizeCompanyOvertimeBaseRate,
+  parseStoredCompanyOvertimeBaseRate,
+} from '../policy/companyOvertimePolicy';
+
+export {
+  amountFromEffectiveRate,
+  rateForHoursDerivation,
+  resolveEffectiveOvertimeRate,
+  type EffectiveOvertimeRate,
+  type OvertimeRateSource,
+} from './effectiveOvertimeRate';
+
 export {
   checkOvertimeLimits,
   computeOvertimeLine,
@@ -44,6 +72,7 @@ export {
   type ComputedOvertimeLine,
   type OvertimeCalculationMethod,
   type OvertimeLineInput,
+  type OvertimeLineOptions,
 } from './overtimeCalculator';
 
 export {

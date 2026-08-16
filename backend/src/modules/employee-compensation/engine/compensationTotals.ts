@@ -8,7 +8,9 @@
  * المعادلة النهائية:
  *   الراتب الأساسي + الإضافي + الاستحقاقات الأخرى − الاستقطاعات = صافي المستحق
  */
-import { LEGAL_RULES_VERSION } from '../legal/kuwaitLabourLaw';
+import { LEGAL_RULES_VERSION, OVERTIME_TYPES, type OvertimeType } from '../legal/kuwaitLabourLaw';
+import { normalizeCompanyOvertimeBaseRate } from '../policy/companyOvertimePolicy';
+import { resolveEffectiveOvertimeRate, type EffectiveOvertimeRate } from './effectiveOvertimeRate';
 import { computeHourlyRate } from './hourlyRate';
 import {
   checkOvertimeLimits,
@@ -93,12 +95,30 @@ export interface CompensationInput {
    * يُغفَل عند الإنشاء فيُشتقّ من الراتب.
    */
   hourlyRateOverride?: number | null;
+  /**
+   * سعر ساعة الإضافي المعتمد من الشركة لهذا الشهر — **لقطة الشهر لا الافتراضي الحيّ**.
+   *
+   * الخدمة هي من تحسم أي رقم يصل هنا (لقطة السجل المحفوظ، أو اختيار المستخدم، أو
+   * افتراضي الشركة عند الإنشاء)؛ والمحرّك لا يقرأ إعدادًا ولا يعرف أن هناك «افتراضيًا»
+   * أصلًا. `null` أو الغياب = حسبة بالحد القانوني وحده (سجلّ ما قبل الحزمة).
+   */
+  companyOvertimeBaseRate?: number | null;
 }
 
 export interface CompensationResult {
   legalRulesVersion: string;
+  /** إصدار سياسة الشركة المطبَّقة، أو `null` إن لم يكن للشهر سعر شركة. */
+  companyOvertimePolicyVersion: string | null;
   basicSalary: number;
   hourlyRate: number;
+  /** السعر الأساسي المعتمد للشهر — `null` = بالحد القانوني وحده. */
+  companyOvertimeBaseRate: number | null;
+  /**
+   * جدول الأسعار الثلاثة كاملًا (قانوني · شركة · فعلي) — يُحتسب حتى لو لم يوجد سطر
+   * إضافي واحد، فتستطيع الواجهة أن تعرض أثر السعر المختار قبل إدخال أي ساعة، بلا أن
+   * تكرّر معادلة `max` في React.
+   */
+  overtimeRates: Record<OvertimeType, EffectiveOvertimeRate>;
   overtimeLines: ComputedOvertimeLine[];
   earningLines: ComputedEarningLine[];
   deductionLines: ComputedDeductionLine[];
@@ -135,7 +155,17 @@ export function computeCompensation(input: CompensationInput): CompensationResul
       ? roundMoney(input.hourlyRateOverride)
       : computeHourlyRate(basicSalary);
 
-  const overtimeLines = computeOvertimeLines(input.overtime, hourlyRate);
+  // التحقّق من سعر الشركة يقع **هنا** لا في الواجهة ولا في Zod وحده: أي مستدعٍ (واجهة،
+  // نسخ شهر، استدعاء API مباشر) يمرّ من هذه النقطة، فلا يدخل سعر تالف إلى أي حسبة.
+  const companyOvertimeBaseRate =
+    input.companyOvertimeBaseRate == null ? null : normalizeCompanyOvertimeBaseRate(input.companyOvertimeBaseRate);
+
+  const overtimeRates = {} as Record<OvertimeType, EffectiveOvertimeRate>;
+  for (const type of OVERTIME_TYPES) {
+    overtimeRates[type] = resolveEffectiveOvertimeRate(type, hourlyRate, companyOvertimeBaseRate);
+  }
+
+  const overtimeLines = computeOvertimeLines(input.overtime, hourlyRate, companyOvertimeBaseRate);
 
   const earningLines: ComputedEarningLine[] = input.earnings.map((e, index) => ({
     type: e.type,
@@ -174,8 +204,11 @@ export function computeCompensation(input: CompensationInput): CompensationResul
 
   return {
     legalRulesVersion: LEGAL_RULES_VERSION,
+    companyOvertimePolicyVersion: overtimeRates.REGULAR.policyVersion,
     basicSalary,
     hourlyRate,
+    companyOvertimeBaseRate,
+    overtimeRates,
     overtimeLines,
     earningLines,
     deductionLines,
@@ -184,6 +217,41 @@ export function computeCompensation(input: CompensationInput): CompensationResul
     grossEntitlements: gross,
     totalDeductions: deductionsTotal,
     netAmount: roundMoney(gross - deductionsTotal),
-    warnings: checkOvertimeLimits(overtimeLines, input.priorRegularOvertimeHoursThisYear ?? 0),
+    warnings: [
+      ...statutoryFloorWarnings(overtimeRates),
+      ...checkOvertimeLimits(overtimeLines, input.priorRegularOvertimeHoursThisYear ?? 0),
+    ],
   };
 }
+
+/**
+ * تحذير «سعر الشركة دون الحد القانوني» — واحد لكل نوع متأثّر.
+ *
+ * يُصدَر من **جدول الأسعار** لا من السطور، فيظهر للمستخدم لحظة اختياره سعرًا منخفضًا
+ * وقبل أن يُدخل ساعة واحدة. الصياغة تقول ما جرى فعلًا لا ما «قد» يجري: النظام **استعمل**
+ * السعر القانوني الأعلى بالفعل، ولا يوجد أي مسار يدفع أقل منه.
+ */
+function statutoryFloorWarnings(
+  rates: Readonly<Record<OvertimeType, EffectiveOvertimeRate>>,
+): CompensationWarning[] {
+  return OVERTIME_TYPES.filter((type) => rates[type].companyBelowStatutory).map((type) => {
+    const r = rates[type];
+    return {
+      code: 'COMPANY_OVERTIME_RATE_BELOW_STATUTORY' as const,
+      basis: 'STATUTORY' as const,
+      limit: r.statutoryMinimumRate,
+      actual: r.companyDerivedRate ?? 0,
+      messageAr:
+        `سعر الشركة المحدَّد لـ«${OVERTIME_TYPE_LABELS[type]}» (${r.companyDerivedRate?.toFixed(3)} د.ك للساعة) ` +
+        `أقل من الحد الأدنى القانوني (${r.statutoryMinimumRate.toFixed(3)} د.ك للساعة)، ` +
+        `لذلك استخدم النظام السعر القانوني الأعلى. لا يُصرف للموظف أقلّ من استحقاقه القانوني في أي حال.`,
+    };
+  });
+}
+
+/** تسميات مختصرة للأنواع داخل نصّ التحذير — لا مرجع قانوني هنا، فذلك شأن `legal/`. */
+const OVERTIME_TYPE_LABELS: Readonly<Record<OvertimeType, string>> = {
+  REGULAR: 'العمل الإضافي العادي',
+  WEEKLY_REST: 'العمل في يوم الراحة الأسبوعية',
+  OFFICIAL_HOLIDAY: 'العمل في عطلة رسمية',
+};

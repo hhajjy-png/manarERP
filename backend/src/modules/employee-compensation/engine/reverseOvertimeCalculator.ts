@@ -17,7 +17,13 @@
  * ولا شيء غير ذلك. فرض ذلك ليس مسؤولية هذا الملف بل مسؤولية بنّاء الكشف، لكنه مذكور
  * هنا لأن أي مستدعٍ جديد يجب أن يعرفه قبل أن يمرّر هذه الحقول إلى واجهة عرض.
  */
-import { overtimeRule, type OvertimeType } from '../legal/kuwaitLabourLaw';
+import { type OvertimeType } from '../legal/kuwaitLabourLaw';
+import {
+  amountFromEffectiveRate,
+  rateForHoursDerivation,
+  resolveEffectiveOvertimeRate,
+  type OvertimeRateSource,
+} from './effectiveOvertimeRate';
 import { ceilHoursInFavourOfEmployee, normalizeHours, roundMoney } from './rounding';
 
 export interface ReverseOvertimeInput {
@@ -26,6 +32,11 @@ export interface ReverseOvertimeInput {
   overtimeType: OvertimeType;
   /** أجر الساعة العادي المقرَّب (`computeHourlyRate`). */
   hourlyRate: number;
+  /**
+   * سعر الشركة الأساسي — الحسبة العكسية تشتقّ الساعات من **السعر الفعلي** للنوع
+   * المختار (المتطلب ١٤)، لا من سعر واحد يسري على الأنواع كلها.
+   */
+  companyOvertimeBaseRate?: number | null;
 }
 
 export interface ReverseOvertimeResult {
@@ -33,6 +44,13 @@ export interface ReverseOvertimeResult {
   targetAmount: number;
   hourlyRate: number;
   multiplier: number;
+  /** الحد الأدنى القانوني لساعة هذا النوع. */
+  statutoryMinimumRate: number;
+  /** سعر الشركة المشتقّ للنوع، أو `null` إن لم تُمرَّر سياسة شركة. */
+  companyDerivedRate: number | null;
+  /** السعر المستخدم فعلًا في الاشتقاق وفي إعادة حساب المبلغ. */
+  effectiveRate: number;
+  rateSource: OvertimeRateSource;
   /** الساعات الخام قبل التقريب — للتقرير الداخلي وحده. */
   rawHours: number;
   /** الساعات النهائية المعتمدة (عدد صحيح، مرفوعة لصالح الموظف). */
@@ -62,18 +80,24 @@ export function reverseOvertimeFromAmount(input: ReverseOvertimeInput): ReverseO
     throw new Error('أجر الساعة يجب أن يكون أكبر من صفر لتنفيذ الحسبة العكسية');
   }
 
-  const rule = overtimeRule(overtimeType);
-  const effectiveHourly = hourlyRate * rule.multiplier;
+  const rate = resolveEffectiveOvertimeRate(overtimeType, hourlyRate, input.companyOvertimeBaseRate ?? null);
+  const divisor = rateForHoursDerivation(rate);
 
-  const rawHours = normalizeHours(targetAmount / effectiveHourly);
-  const hours = ceilHoursInFavourOfEmployee(targetAmount / effectiveHourly);
-  const amount = roundMoney(hours * hourlyRate * rule.multiplier);
+  const rawHours = normalizeHours(targetAmount / divisor);
+  const hours = ceilHoursInFavourOfEmployee(targetAmount / divisor);
+  // المبلغ يُعاد حسابه من الساعات المقرَّبة بنفس الدالة التي يستعملها سطر الإضافي —
+  // فما يعد به هذا الحوار هو حرفيًا ما سيُخزَّن بعد إضافة السطر.
+  const amount = amountFromEffectiveRate(hours, rate);
 
   return {
     overtimeType,
     targetAmount: roundMoney(targetAmount),
     hourlyRate,
-    multiplier: rule.multiplier,
+    multiplier: rate.statutoryMultiplier,
+    statutoryMinimumRate: rate.statutoryMinimumRate,
+    companyDerivedRate: rate.companyDerivedRate,
+    effectiveRate: rate.effectiveRate,
+    rateSource: rate.source,
     rawHours,
     hours,
     amount,

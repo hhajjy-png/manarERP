@@ -25,17 +25,24 @@ import {
   DEBT_TYPE_LABEL_AR,
   DEDUCTION_LABEL_AR,
   EARNING_LABEL_AR,
+  OVERTIME_LABEL_AR,
   OVERTIME_LABEL_LONG_AR,
   SELECTABLE_DEDUCTION_TYPES,
   monthNameAr,
 } from '../employee-compensation/labels';
+import CompanyOvertimeRateDialog, {
+  isValidRateText,
+  RATE_PRESETS,
+} from '../employee-compensation/CompanyOvertimeRateDialog';
 import type {
   Calculation,
   CalculationDraft,
+  CompanyOvertimeSettings,
   CompensationWarning,
   Debt,
   DeductionType,
   EarningType,
+  EffectiveOvertimeRate,
   OvertimeType,
   PreviewResult,
   ReverseResult,
@@ -57,6 +64,7 @@ import { money } from '../config/modules';
 import { withFormOpenIntent } from '../forms/shared/formOpenIntent';
 import { formatDate } from '../lib/date';
 import { useT } from '../lib/i18n';
+import { useAuth } from '../stores/authStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  حالة التحرير — نصوص لا أرقام
@@ -102,6 +110,7 @@ const toNumber = (v: string): number => {
 
 export default function EmployeeCompensationMonth() {
   const { t } = useT();
+  const { hasPermission } = useAuth();
   const navigate = useNavigate();
   const { employeeId, year: yearParam, month: monthParam } = useParams<{ employeeId: string; year: string; month: string }>();
   const employeeIdNum = Number(employeeId);
@@ -126,6 +135,38 @@ export default function EmployeeCompensationMonth() {
   const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copyNotice, setCopyNotice] = useState<string | null>(null);
+
+  // ── سعر ساعة الإضافي المعتمد من الشركة ─────────────────────────────────────
+  //
+  // حالتان مفصولتان عمدًا:
+  //   `companyRateText` — نصّ الحقل كما يكتبه المستخدم، وقد يمرّ بحالة غير صالحة
+  //                       («٤٫» أو فراغ) في منتصف الكتابة.
+  //   `appliedRate`     — القيمة **الصالحة الأخيرة** وهي وحدها ما يُرسل للمعاينة والحفظ.
+  //
+  // الفصل يمنع أن يومض المحرّر بأسعار قانونية للحظة لمجرّد أن المستخدم مسح الحقل ليعيد
+  // كتابته — ويمنع بالأخص أن يُحفظ ذلك الفراغ العابر كقرار «بلا سياسة شركة».
+  // القيمة `null` في كليهما ليست خطأً: هي شهر بلا سياسة شركة (محفوظ قبل هذه الحزمة).
+  const [companyRateText, setCompanyRateText] = useState<string | null>(null);
+  const [appliedRate, setAppliedRate] = useState<number | null>(null);
+  const [rateSettings, setRateSettings] = useState<CompanyOvertimeSettings | null>(null);
+  const [rateDialogOpen, setRateDialogOpen] = useState(false);
+
+  const canEditRate = hasPermission('employeeCompensation.update');
+
+  const rateTextInvalid =
+    companyRateText !== null &&
+    rateSettings != null &&
+    !isValidRateText(companyRateText, rateSettings.minBaseRate, rateSettings.maxBaseRate);
+
+  useEffect(() => {
+    if (companyRateText === null) {
+      setAppliedRate(null);
+      return;
+    }
+    const value = Number(companyRateText.trim());
+    // القيمة غير الصالحة **لا تُطبَّق ولا تُصفّر** — تبقى الأخيرة الصالحة سارية.
+    if (companyRateText.trim() !== '' && Number.isFinite(value) && value > 0) setAppliedRate(value);
+  }, [companyRateText]);
 
   const monthLabel = useMemo(() => (month >= 1 && month <= 12 ? monthNameAr(month) : String(month)), [month]);
 
@@ -158,6 +199,10 @@ export default function EmployeeCompensationMonth() {
       })),
     );
     setNotes(calc.notes ?? '');
+    // من **لقطة الشهر** لا من الافتراضي العام: فتح شهر قديم يجب أن يُظهر سعره هو.
+    const snapshot = calc.companyOvertimeBaseRateSnapshot;
+    setCompanyRateText(snapshot == null ? null : String(snapshot));
+    setAppliedRate(snapshot);
   }, []);
 
   /** التحميل الأوّلي: سجل محفوظ إن وُجد، وإلا رأس الموظف وراتبه الحالي لحسبة جديدة. */
@@ -169,7 +214,12 @@ export default function EmployeeCompensationMonth() {
     compensationApi
       .month(employeeIdNum, year, month)
       .then(async (calc) => {
+        // الافتراضي العام يُقرأ في الحالتين: الشهر الجديد يبدأ منه، والشهر المحفوظ
+        // يحتاجه لحدود التحقّق ولزرّ «تطبيق سعر الشركة» على أشهر ما قبل الحزمة.
+        const settings = await compensationApi.overtimeRateSettings();
         if (cancelled) return;
+        setRateSettings(settings);
+
         if (calc) {
           hydrate(calc);
           return;
@@ -179,6 +229,8 @@ export default function EmployeeCompensationMonth() {
         setSaved(null);
         setBasicSalary(file.employee.currentBasicSalary);
         setEmployeeHeader({ code: file.employee.code, fullName: file.employee.fullName, jobTitle: file.employee.jobTitle });
+        setCompanyRateText(String(settings.baseRate));
+        setAppliedRate(settings.baseRate);
       })
       .catch((e) => !cancelled && setError(errorMessage(e)))
       .finally(() => !cancelled && setLoading(false));
@@ -223,8 +275,11 @@ export default function EmployeeCompensationMonth() {
           notes: r.notes.trim() || null, debtId: r.debtId,
         })),
       notes: notes.trim() || null,
+      // يُرسَل صراحةً دائمًا (رقمًا أو `null`) لا مُغفَلًا: الإغفال يعني للخادم «أبقِ
+      // المحفوظ»، وهو ليس ما يقصده محرّرٌ يعرض للمستخدم قيمةً بعينها على الشاشة.
+      companyOvertimeBaseRate: appliedRate,
     }),
-    [overtime, earnings, deductions, notes],
+    [overtime, earnings, deductions, notes, appliedRate],
   );
 
   /**
@@ -316,6 +371,15 @@ export default function EmployeeCompensationMonth() {
       // سطور سداد المديونيات لا تُنسخ — يُقال صراحةً بدل أن يكتشفه المستخدم بنفسه.
       if (from && from.skippedDebtRepayments > 0) {
         setCopyNotice((prev) => `${prev ?? ''} ${t('ecmp.msg.copied_debt_skipped', { count: from.skippedDebtRepayments })}`.trim());
+      }
+      // سعر الشركة يتبع الافتراضي الحالي لا لقطة الشهر المنسوخ — واختلافه يُقال صراحةً.
+      if (from && from.companyOvertimeBaseRateSnapshot !== from.newCompanyOvertimeBaseRateSnapshot) {
+        setCopyNotice((prev) =>
+          `${prev ?? ''} ${t('ecmp.msg.copied_rate_changed', {
+            oldRate: from.companyOvertimeBaseRateSnapshot == null ? t('ecmp.rate.none') : money(from.companyOvertimeBaseRateSnapshot),
+            newRate: from.newCompanyOvertimeBaseRateSnapshot == null ? t('ecmp.rate.none') : money(from.newCompanyOvertimeBaseRateSnapshot),
+          })}`.trim(),
+        );
       }
       reloadOpenDebts();
     });
@@ -421,7 +485,8 @@ export default function EmployeeCompensationMonth() {
 
       {totals && totals.warnings.length > 0 && (
         <div className="ecmp-warnings">
-          {totals.warnings.map((w) => <WarningRow key={w.code} warning={w} />)}
+          {/* المفتاح يضمّ الفهرس: تحذير «السعر دون القانون» قد يتكرّر بنوع مختلف. */}
+          {totals.warnings.map((w, i) => <WarningRow key={`${w.code}-${i}`} warning={w} />)}
         </div>
       )}
 
@@ -451,6 +516,22 @@ export default function EmployeeCompensationMonth() {
         }
         padded={false}
       >
+        {/* شريط سعر الشركة — يعيش داخل بطاقة العمل الإضافي حيث يُستعمل، لا في صفحة إعدادات بعيدة. */}
+        <OvertimeRateBar
+          text={companyRateText}
+          onChangeText={setCompanyRateText}
+          onApplyCompanyPolicy={() => {
+            if (!rateSettings) return;
+            setCompanyRateText(String(rateSettings.baseRate));
+            setAppliedRate(rateSettings.baseRate);
+          }}
+          rates={totals?.overtimeRates ?? null}
+          settings={rateSettings}
+          invalid={rateTextInvalid}
+          canEdit={canEditRate}
+          onOpenSettings={() => setRateDialogOpen(true)}
+        />
+
         {overtime.length === 0 ? (
           <InlineEmpty icon="schedule" text={t('ecmp.overtime.empty')} />
         ) : (
@@ -460,8 +541,10 @@ export default function EmployeeCompensationMonth() {
                 <tr>
                   <th>{t('ecmp.col.ot_type')}</th>
                   <th className="ecmp-col-num">{t('ecmp.col.hours')}</th>
-                  <th className="ecmp-col-num">{t('ecmp.col.hourly_rate')}</th>
-                  <th className="ecmp-col-num">{t('ecmp.col.multiplier')}</th>
+                  {/* عمود واحد للسعر **المستخدم فعلًا**: عرض «أجر الساعة × المعامل»
+                      صار مضلّلًا بعد سياسة الشركة، لأن المبلغ لم يعد ناتجهما دائمًا.
+                      تفصيل القانوني مقابل الشركة يعيش في التقرير التفصيلي. */}
+                  <th className="ecmp-col-num">{t('ecmp.col.effective_rate')}</th>
                   <th className="ecmp-col-num">{t('ecmp.col.amount')}</th>
                   <th>{t('ecmp.col.notes')}</th>
                   <th aria-label={t('ecmp.col.actions')} />
@@ -510,8 +593,18 @@ export default function EmployeeCompensationMonth() {
                           }
                         />
                       </td>
-                      <td className="ecmp-col-num ecmp-derived">{computed ? money(computed.hourlyRate) : '—'}</td>
-                      <td className="ecmp-col-num ecmp-derived">{computed ? `×${computed.multiplier}` : '—'}</td>
+                      <td className="ecmp-col-num ecmp-derived">
+                        {computed?.effectiveRate == null ? (
+                          '—'
+                        ) : (
+                          <>
+                            {money(computed.effectiveRate)}
+                            <span className="ecmp-rate-source">
+                              {t(computed.rateSource === 'COMPANY_POLICY' ? 'ecmp.rate.src_company' : 'ecmp.rate.src_statutory')}
+                            </span>
+                          </>
+                        )}
+                      </td>
                       <td className="ecmp-col-num ecmp-amount">{computed ? money(computed.amount) : '—'}</td>
                       <td>
                         <input
@@ -687,15 +780,38 @@ export default function EmployeeCompensationMonth() {
         {saved && (
           <p className="ecmp-meta-line">
             {t('ecmp.month.meta', { rules: saved.legalRulesVersion, rate: money(saved.hourlyRateSnapshot) })}
+            {saved.companyOvertimeBaseRateSnapshot != null && (
+              <>
+                {' · '}
+                {t('ecmp.month.meta_company', {
+                  rate: money(saved.companyOvertimeBaseRateSnapshot),
+                  policy: saved.companyOvertimePolicyVersion ?? '—',
+                })}
+              </>
+            )}
           </p>
         )}
       </SectionCard>
 
       {/* ── الإجراءات: أساسي · مستند · ثانوي ─────────────────────────────── */}
       <div className="ecmp-actions">
+        {/* الحفظ محجوب ما دام حقل السعر غير صالح: حفظُ حالةٍ وسطى كان سيخزّن قرارًا
+            («بلا سياسة شركة») لم يقصده أحد. الرسالة تظهر في الشريط نفسه لا في تلميح خفي. */}
         <div className="ecmp-actions-group">
-          <Button variant="primary" icon="save" busy={busy} onClick={handleSave}>{t('ecmp.action.save')}</Button>
-          <Button variant="secondary" icon="verified" busy={busy} onClick={handleApprove}>{t('ecmp.action.approve')}</Button>
+          <Button
+            variant="primary" icon="save" busy={busy} disabled={rateTextInvalid}
+            title={rateTextInvalid ? t('ecmp.rate.fix_before_save') : undefined}
+            onClick={handleSave}
+          >
+            {t('ecmp.action.save')}
+          </Button>
+          <Button
+            variant="secondary" icon="verified" busy={busy} disabled={rateTextInvalid}
+            title={rateTextInvalid ? t('ecmp.rate.fix_before_save') : undefined}
+            onClick={handleApprove}
+          >
+            {t('ecmp.action.approve')}
+          </Button>
         </div>
 
         <span className="ecmp-actions-sep" />
@@ -732,7 +848,23 @@ export default function EmployeeCompensationMonth() {
       )}
 
       {reverseOpen && (
-        <ReverseDialog basicSalary={basicSalary} hourlyRate={saved?.hourlyRateSnapshot ?? null} onApply={applyReverse} onClose={() => setReverseOpen(false)} />
+        <ReverseDialog
+          basicSalary={basicSalary}
+          hourlyRate={saved?.hourlyRateSnapshot ?? null}
+          // سعر الشهر الجاري تحريره — لا الافتراضي العام: الحسبة العكسية يجب أن تشتقّ
+          // الساعات بالسعر الذي سيُحفظ فعلًا، وإلا وعدت بمبلغ ثم خزّنت غيره.
+          companyOvertimeBaseRate={appliedRate}
+          onApply={applyReverse}
+          onClose={() => setReverseOpen(false)}
+        />
+      )}
+
+      {rateDialogOpen && (
+        <CompanyOvertimeRateDialog
+          canEdit={canEditRate}
+          onClose={() => setRateDialogOpen(false)}
+          onSaved={setRateSettings}
+        />
       )}
 
       {confirmDelete && (
@@ -777,6 +909,115 @@ function WarningRow({ warning }: { warning: CompensationWarning }) {
         <strong>{t(titleKey)}</strong>
         <p>{warning.messageAr}</p>
       </div>
+    </div>
+  );
+}
+
+/**
+ * شريط سعر ساعة الإضافي المعتمد من الشركة — **مضغوط ولا يزاحم الجدول** (المتطلب ١٦).
+ *
+ * ═══ لا معادلة هنا ═══
+ * الأسعار المعروضة لكل نوع تصل من `preview.overtimeRates` — أي من المحرّك نفسه الذي
+ * سيحفظ. هذا المكوّن لا يضرب السعر الأساسي في أي معامل ولا يقارن سعرين: لو فعل، لصارت
+ * معاملات السياسة مكتوبة في React نسخةً ثانية تتباعد عن `policy/` أول مرة تتغيّر.
+ *
+ * ═══ حالة «بلا سياسة شركة» ليست خطأً ═══
+ * الأشهر المحفوظة قبل هذه الحزمة لا تحمل سعر شركة. تُعرض كما هي مع زرّ صريح لتطبيق
+ * السعر — ولا يُطبَّق تلقائيًا، لأن ذلك كان سيغيّر مبلغ شهر محفوظ بمجرّد فتحه.
+ */
+function OvertimeRateBar({
+  text, onChangeText, onApplyCompanyPolicy, rates, settings, invalid, canEdit, onOpenSettings,
+}: {
+  text: string | null;
+  onChangeText: (value: string) => void;
+  onApplyCompanyPolicy: () => void;
+  rates: Record<OvertimeType, EffectiveOvertimeRate> | null;
+  settings: CompanyOvertimeSettings | null;
+  invalid: boolean;
+  canEdit: boolean;
+  onOpenSettings: () => void;
+}) {
+  const { t } = useT();
+
+  if (text === null) {
+    return (
+      <div className="ecmp-rate-bar ecmp-rate-bar--legacy">
+        <span className="material-symbols-outlined" aria-hidden="true">history</span>
+        <span className="ecmp-rate-legacy-text">{t('ecmp.rate.legacy_month')}</span>
+        {settings && canEdit && (
+          <Button small variant="secondary" icon="price_change" onClick={onApplyCompanyPolicy}>
+            {t('ecmp.rate.apply_company', { amount: money(settings.baseRate) })}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="ecmp-rate-bar">
+      <div className="ecmp-rate-bar-main">
+        <label className="ecmp-rate-input">
+          <span>{t('ecmp.rate.month_label')}</span>
+          <input
+            type="number" lang="en" inputMode="decimal" step="0.001"
+            min={settings?.minBaseRate} max={settings?.maxBaseRate}
+            aria-label={t('ecmp.rate.month_label')}
+            value={text} disabled={!canEdit}
+            onChange={(e) => onChangeText(e.target.value)}
+          />
+        </label>
+
+        <div className="ecmp-rate-presets" role="group" aria-label={t('ecmp.rate.presets')}>
+          {RATE_PRESETS.map((preset) => (
+            <button
+              key={preset}
+              type="button"
+              className={`ecmp-rate-preset${Number(text) === preset ? ' is-active' : ''}`}
+              disabled={!canEdit}
+              onClick={() => onChangeText(String(preset))}
+            >
+              {money(preset)}
+            </button>
+          ))}
+        </div>
+
+        <span className="ecmp-rate-spacer" />
+
+        <Button small variant="ghost" icon="tune" onClick={onOpenSettings}>
+          {t('ecmp.rate.open_settings')}
+        </Button>
+      </div>
+
+      {invalid && settings && (
+        <p className="ecmp-rate-error" role="alert">
+          {t('ecmp.rate.invalid', { min: money(settings.minBaseRate), max: money(settings.maxBaseRate) })}
+        </p>
+      )}
+
+      {rates && (
+        <div className="ecmp-rate-derived">
+          {(Object.keys(OVERTIME_LABEL_LONG_AR) as OvertimeType[]).map((type) => {
+            const r = rates[type];
+            if (!r) return null;
+            const belowFloor = r.companyBelowStatutory;
+            return (
+              <span key={type} className={`ecmp-rate-chip${belowFloor ? ' is-floored' : ''}`}>
+                <span className="ecmp-rate-chip-label">{OVERTIME_LABEL_AR[type]}</span>
+                <strong>{money(r.effectiveRate)}</strong>
+                {belowFloor ? (
+                  <span className="ecmp-rate-chip-note" title={t('ecmp.rate.floor_applied_title')}>
+                    {t('ecmp.rate.floor_applied', { company: money(r.companyDerivedRate ?? 0) })}
+                  </span>
+                ) : (
+                  <span className="ecmp-rate-chip-ok" title={t('ecmp.rate.above_floor_title', { legal: money(r.statutoryMinimumRate) })}>
+                    ✓
+                  </span>
+                )}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -904,10 +1145,11 @@ function ActionMenu({ label, items }: { label: string; items: MenuItem[] }) {
  * يعود. الرفع إلى الساعة الكاملة والفرق الناتج قرارٌ قانوني يملكه المحرّك وحده.
  */
 function ReverseDialog({
-  basicSalary, hourlyRate, onApply, onClose,
+  basicSalary, hourlyRate, companyOvertimeBaseRate, onApply, onClose,
 }: {
   basicSalary: number;
   hourlyRate: number | null;
+  companyOvertimeBaseRate: number | null;
   onApply: (r: ReverseResult) => void;
   onClose: () => void;
 }) {
@@ -927,7 +1169,13 @@ function ReverseDialog({
     setBusy(true);
     setError('');
     compensationApi
-      .reverseOvertime({ targetAmount: target, overtimeType: type, basicSalary, hourlyRate: hourlyRate ?? undefined })
+      .reverseOvertime({
+        targetAmount: target,
+        overtimeType: type,
+        basicSalary,
+        hourlyRate: hourlyRate ?? undefined,
+        companyOvertimeBaseRate,
+      })
       .then(setResult)
       .catch((e) => setError(errorMessage(e)))
       .finally(() => setBusy(false));
@@ -968,6 +1216,16 @@ function ReverseDialog({
 
       {result && (
         <div className="ecmp-reverse-result">
+          {/* السعر المستعمل يُعرض أولًا: هو الرقم الذي يفسّر كل ما تحته. */}
+          <div>
+            <span>{t('ecmp.reverse.rate_used')}</span>
+            <strong>
+              {money(result.effectiveRate)}
+              <span className="ecmp-rate-source">
+                {t(result.rateSource === 'COMPANY_POLICY' ? 'ecmp.rate.src_company' : 'ecmp.rate.src_statutory')}
+              </span>
+            </strong>
+          </div>
           <div><span>{t('ecmp.reverse.raw_hours')}</span><strong>{result.rawHours}</strong></div>
           <div className="is-key">
             <span>{t('ecmp.reverse.final_hours')}</span>

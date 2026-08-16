@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { compensationApi } from '../employee-compensation/api';
+import CompanyOvertimeRateDialog from '../employee-compensation/CompanyOvertimeRateDialog';
 import { monthNameAr, selectableYears } from '../employee-compensation/labels';
 import type { EmployeeSummary } from '../employee-compensation/types';
 import {
@@ -33,6 +34,7 @@ import '../components/explorer/explorer-kit.css';
 import './EmployeeCompensation.css';
 import { money } from '../config/modules';
 import { useT } from '../lib/i18n';
+import { useAuth } from '../stores/authStore';
 
 type StatusFilter = 'ACTIVE' | 'ALL';
 
@@ -59,6 +61,8 @@ export default function EmployeeCompensation() {
   const [rows, setRows] = useState<EmployeeSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [rateDialogOpen, setRateDialogOpen] = useState(false);
+  const { hasPermission } = useAuth();
 
   const load = useCallback(() => {
     setLoading(true);
@@ -107,13 +111,19 @@ export default function EmployeeCompensation() {
           </>
         }
         aside={
-          <div className="ecmp-year-switch">
-            <label htmlFor="ecmp-year">{t('ecmp.year')}</label>
-            <select id="ecmp-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-              {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+          <div className="ecmp-header-aside">
+            <div className="ecmp-year-switch">
+              <label htmlFor="ecmp-year">{t('ecmp.year')}</label>
+              <select id="ecmp-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+                {years.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+            {/* إعدادات الوحدة — حوار مضغوط لا صفحة إعدادات ثانية (المتطلب ١٨). */}
+            <Button icon="tune" onClick={() => setRateDialogOpen(true)}>
+              {t('ecmp.rate.open_settings')}
+            </Button>
           </div>
         }
       />
@@ -202,6 +212,13 @@ export default function EmployeeCompensation() {
           </div>
         )}
       </SectionCard>
+
+      {rateDialogOpen && (
+        <CompanyOvertimeRateDialog
+          canEdit={hasPermission('employeeCompensation.update')}
+          onClose={() => setRateDialogOpen(false)}
+        />
+      )}
     </div>
   );
 }

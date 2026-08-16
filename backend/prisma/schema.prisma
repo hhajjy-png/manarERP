@@ -1957,6 +1957,15 @@ model EmployeeCompensationCalculation {
   /// بنفس أرقامه حتى لو تغيّر القاسم القانوني في إصدار لاحق من المحرك.
   hourlyRateSnapshot Float
 
+  /// سعر ساعة العمل الإضافي **المعتمد من الشركة** لهذا الشهر — لقطة لا مرجع حيّ.
+  /// تغيير الافتراضي العام لاحقًا لا يمسّ هذا العمود، فتبقى الأشهر المحفوظة كما احتُسبت.
+  /// NULL = حسبة محفوظة قبل حزمة سعر الشركة: تُحتسب بالحد الأدنى القانوني وحده.
+  companyOvertimeBaseRateSnapshot Float?
+
+  /// إصدار سياسة الشركة المطبَّقة وقت الحفظ (`policy/companyOvertimePolicy.ts`).
+  /// منفصل عن `legalRulesVersion` عمدًا: القانون وسياسة الشركة مفهومان لا يُخلطان.
+  companyOvertimePolicyVersion String?
+
   // ── الإجماليات المشتقّة (تُعاد كتابتها في كل حفظ من محرك واحد) ──
   totalOvertimeAmount Float @default(0)
   totalOtherEarnings  Float @default(0)
@@ -1997,9 +2006,26 @@ model OvertimeLine {
   /// REGULAR | WEEKLY_REST | OFFICIAL_HOLIDAY
   overtimeType String
   hours        Float
+  /// أجر الساعة العادي القانوني وقت الاحتساب.
   hourlyRate   Float
+  /// المعامل القانوني للنوع (١٫٢٥ / ١٫٥٠ / ٢٫٠٠).
   multiplier   Float
   amount       Float
+
+  // ── أسعار السطر: قانوني · شركة · فعلي ──
+  // كلها NULLABLE لأن السطور المحفوظة قبل هذه الحزمة لا تحملها. غيابها يعني «احتُسب
+  // بالحد القانوني وحده»، وهو ما كان عليه السلوك فعلًا — لا تخمين ولا إعادة احتساب.
+
+  /// الحد الأدنى القانوني لساعة هذا النوع = hourlyRate × multiplier.
+  statutoryMinimumRate Float?
+  /// سعر الشركة الأساسي المعتمد للشهر وقت احتساب هذا السطر.
+  companyBaseRate      Float?
+  /// سعر الشركة المشتقّ لهذا النوع = companyBaseRate × معامل السياسة.
+  companyDerivedRate   Float?
+  /// السعر المستخدم فعلًا = max(statutoryMinimumRate, companyDerivedRate).
+  effectiveRate        Float?
+  /// COMPANY_POLICY | STATUTORY_FLOOR — أيّ السعرين غلب. للتقرير التفصيلي وحده.
+  rateSource           String?
 
   /// MANUAL_HOURS | REVERSE_FROM_AMOUNT
   calculationMethod  String  @default("MANUAL_HOURS")

@@ -7,7 +7,13 @@
  */
 import { z } from 'zod';
 import { OVERTIME_TYPES } from '../employee-compensation/legal/kuwaitLabourLaw';
-import { DEBT_TYPES, DEDUCTION_TYPES, EARNING_TYPES } from './engine';
+import {
+  DEBT_TYPES,
+  DEDUCTION_TYPES,
+  EARNING_TYPES,
+  MAX_COMPANY_OVERTIME_BASE_RATE,
+  MIN_COMPANY_OVERTIME_BASE_RATE,
+} from './engine';
 
 /** أضيق سنة معقولة لسجل تشغيلي — تمنع `year=0` و`year=99999` من الوصول إلى الفهرس. */
 const yearField = z.coerce.number().int().min(2000).max(2100);
@@ -54,12 +60,43 @@ const deductionLineSchema = z.object({
   debtId: idField.nullable().optional(),
 });
 
+/**
+ * سعر ساعة الإضافي المعتمد من الشركة — **حدّ الطلب لا القاعدة**.
+ *
+ * الحدّان الأدنى والأعلى مستورَدان من وحدة السياسة لا مكتوبين رقمين هنا: قيمة واحدة
+ * تحكم Zod والمحرّك والواجهة معًا، فلا يقبل أحدهما ما يرفضه الآخر. أما فرض «لا يقلّ عن
+ * القانون» فليس من شأن هذه الطبقة إطلاقًا — ذلك قرار يملكه `effectiveOvertimeRate.ts`
+ * وحده، ويسري حتى لو مرّ سعر منخفض من هنا (وهو ممرّ مسموح عمدًا: النظام يقبل الاختيار
+ * ثم يرفعه إلى الحد القانوني ويُظهر تحذيرًا، بدل أن يرفض الطلب ويترك المستخدم يخمّن).
+ */
+const companyOvertimeBaseRateField = z
+  .number()
+  .finite()
+  .min(MIN_COMPANY_OVERTIME_BASE_RATE, 'سعر ساعة الإضافي يجب أن يكون أكبر من صفر')
+  .max(MAX_COMPANY_OVERTIME_BASE_RATE, 'سعر ساعة الإضافي يتجاوز الحد التشغيلي');
+
 /** جسم الحسبة المشترك بين الإنشاء والتحديث والمعاينة. */
 export const calculationBodySchema = z.object({
   overtime: z.array(overtimeLineSchema).max(50).default([]),
   earnings: z.array(earningLineSchema).max(50).default([]),
   deductions: z.array(deductionLineSchema).max(50).default([]),
   notes: z.string().max(2000).nullable().optional(),
+  /**
+   * ثلاث حالات لا حالتان، وكلٌّ منها لها معنى مختلف في الخدمة:
+   *   · غياب الحقل (`undefined`) ⇒ عند الإنشاء: خذ افتراضي الشركة. عند التحديث: أبقِ
+   *     ما هو محفوظ كما هو (فلا يمحو مستدعٍ قديم لا يعرف الحقل سعرَ شهرٍ محفوظ).
+   *   · رقم                      ⇒ سعر هذا الشهر وحده. لا يمسّ الافتراضي العام.
+   *   · `null`                   ⇒ لا سياسة شركة لهذا الشهر: بالحد القانوني وحده.
+   */
+  companyOvertimeBaseRate: companyOvertimeBaseRateField.nullable().optional(),
+});
+
+/**
+ * تعديل **الافتراضي العام للشركة** — إعداد إداري واحد لكل الوحدة.
+ * لا مفتاح صلاحية جديد له: يُحرَس بـ`employeeCompensation.update` (المتطلب ١٩).
+ */
+export const updateCompanyOvertimeRateSchema = z.object({
+  body: z.object({ baseRate: companyOvertimeBaseRateField }),
 });
 
 export const createCalculationSchema = z.object({
@@ -91,6 +128,8 @@ export const reverseOvertimeSchema = z.object({
     overtimeType: z.enum(OVERTIME_TYPES),
     basicSalary: z.number().finite().positive().optional(),
     hourlyRate: z.number().finite().positive().optional(),
+    /** سعر الشركة المعمول به في الشهر الجاري تحريره — يشتقّ منه السعر الفعلي للنوع. */
+    companyOvertimeBaseRate: companyOvertimeBaseRateField.nullable().optional(),
   }),
 });
 

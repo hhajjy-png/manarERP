@@ -581,3 +581,148 @@
 
 /* صفوف قابلة للاختيار داخل حوار «استقطاع من مديونية» */
 .ecmp-table input[type='radio'] { accent-color: var(--xpl-primary); cursor: pointer; }
+
+/* ── سعر ساعة الإضافي المعتمد من الشركة ───────────────────────────────────────
+   شريط داخل ترويسة بطاقة العمل الإضافي، لا بطاقة رابعة: السعر مدخل من مدخلات
+   الإضافي لا قسم مستقل، ورفعُه إلى بطاقة خاصة كان سيضيف تمريرة كاملة إلى شاشة
+   بُنيت أصلًا على الكثافة. الألوان كلها توكينات — لا لون حرفي واحد. */
+.ecmp-rate-bar {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--xpl-border);
+  background: var(--xpl-surface-2);
+}
+.ecmp-rate-bar--legacy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--xpl-muted);
+}
+.ecmp-rate-bar--legacy .material-symbols-outlined { font-size: 17px !important; color: var(--xpl-orange); }
+.ecmp-rate-legacy-text { flex: 1 1 auto; line-height: 1.5; }
+
+.ecmp-rate-bar-main {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.ecmp-rate-spacer { flex: 1 1 auto; }
+
+.ecmp-rate-input {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--xpl-muted);
+}
+.ecmp-rate-input input {
+  width: 120px;
+  padding: 6px 9px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 8px;
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ecmp-rate-input input:focus {
+  outline: none;
+  border-color: var(--xpl-primary);
+  box-shadow: 0 0 0 3px var(--xpl-faint);
+}
+
+/* الاختصارات **اقتراحات**: الإدخال الحر فوقها يبقى المصدر، فلا تُقرأ كخيارات وحيدة. */
+.ecmp-rate-presets { display: flex; gap: 5px; }
+.ecmp-rate-preset {
+  padding: 6px 10px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 8px;
+  background: var(--xpl-surface);
+  color: var(--xpl-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ecmp-rate-preset:hover:not(:disabled) { border-color: var(--xpl-primary); color: var(--xpl-text); }
+.ecmp-rate-preset.is-active {
+  background: color-mix(in oklab, var(--xpl-primary) 12%, transparent);
+  border-color: color-mix(in oklab, var(--xpl-primary) 32%, transparent);
+  color: var(--xpl-primary-2);
+}
+.ecmp-rate-preset:disabled { opacity: .55; cursor: not-allowed; }
+
+/* شريط الأسعار المشتقّة — يعرض أثر الاختيار قبل إدخال ساعة واحدة. */
+.ecmp-rate-derived {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.ecmp-rate-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 999px;
+  background: var(--xpl-surface);
+  font-size: 11.5px;
+  color: var(--xpl-muted);
+}
+.ecmp-rate-chip strong { color: var(--xpl-text); font-variant-numeric: tabular-nums; }
+.ecmp-rate-chip-ok { color: var(--xpl-green); font-weight: 800; }
+.ecmp-rate-chip.is-floored {
+  background: color-mix(in oklab, var(--xpl-orange) 12%, transparent);
+  border-color: color-mix(in oklab, var(--xpl-orange) 32%, transparent);
+}
+.ecmp-rate-chip-note { color: var(--xpl-orange); font-weight: 700; }
+
+.ecmp-rate-error { margin: 8px 0 0; font-size: 11.5px; font-weight: 700; color: var(--xpl-red); }
+
+/* وسم مصدر السعر داخل خلايا الجدول ونتيجة الحسبة العكسية. */
+.ecmp-rate-source {
+  display: block;
+  margin-top: 1px;
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--xpl-muted);
+}
+
+/* ── حوار الافتراضي العام ─────────────────────────────────────────────────── */
+.ecmp-rate-editor { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 10px; }
+.ecmp-rate-table {
+  margin-top: 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ecmp-rate-table-head {
+  padding: 7px 12px;
+  background: var(--xpl-surface-2);
+  border-bottom: 1px solid var(--xpl-border);
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+}
+.ecmp-rate-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  color: var(--xpl-text);
+  border-bottom: 1px solid var(--xpl-border);
+}
+.ecmp-rate-row:last-child { border-bottom: none; }
+.ecmp-rate-row strong { font-variant-numeric: tabular-nums; }
+.ecmp-rate-hint { margin: 8px 0 0; font-size: 11.5px; line-height: 1.55; color: var(--xpl-muted); }
+.ecmp-rate-note { margin: 12px 0 0; font-size: 11.5px; line-height: 1.6; color: var(--xpl-muted); }
+.ecmp-rate-meta { margin: 4px 0 0; font-size: 10.5px; color: var(--xpl-muted); font-family: monospace; }
+
+/* ترويسة قائمة الوحدة: مبدّل السنة + زر الإعدادات في صفّ واحد. */
+.ecmp-header-aside { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

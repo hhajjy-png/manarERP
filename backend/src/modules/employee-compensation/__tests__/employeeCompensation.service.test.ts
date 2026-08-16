@@ -16,6 +16,8 @@ vi.mock('../../../config/database', () => ({
     // سجل المديونيات — تُستدعى من مسار المزامنة داخل المعاملة، ولو بلا سطور سداد.
     employeeCompensationDebt: { findMany: vi.fn(), findUnique: vi.fn() },
     employeeCompensationDebtPayment: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    // الافتراضي العام لسعر ساعة الإضافي — صفّ واحد في جدول الإعدادات القائم.
+    setting: { findUnique: vi.fn(), upsert: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -147,14 +149,30 @@ describe('الإنشاء واللقطة التاريخية', () => {
     p.employee.findUnique.mockResolvedValue(EMPLOYEE);
     p.employeeCompensationCalculation.findUnique.mockResolvedValue(null);
     p.employeeCompensationCalculation.create.mockResolvedValue(storedCalculation());
+    // سعر شركة معتمد ٤٫٠٠٠ — وهو أعلى من الحد القانوني (٢٫٠٠٠ × ١٫٢٥ = ٢٫٥٠٠)، فيغلب.
+    p.setting.findUnique.mockResolvedValue({ value: '4' });
 
     await service.create(1, 2026, 6, BODY, req);
 
     const data = p.employeeCompensationCalculation.create.mock.calls[0][0].data;
-    expect(data.totalOvertimeAmount).toBe(25); // 10 × 2.000 × 1.25
+    expect(data.totalOvertimeAmount).toBe(40); // 10 ساعات × ٤٫٠٠٠ (سعر الشركة)
     expect(data.totalOtherEarnings).toBe(50);
-    expect(data.grossEntitlements).toBe(491); // 416 + 25 + 50
+    expect(data.grossEntitlements).toBe(506); // 416 + 40 + 50
     expect(data.totalDeductions).toBe(30);
+    expect(data.netAmount).toBe(476);
+  });
+
+  it('حسبة بلا سياسة شركة تبقى على الحد القانوني وحده — سلوك ما قبل الحزمة حرفيًا', async () => {
+    p.employee.findUnique.mockResolvedValue(EMPLOYEE);
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(null);
+    p.employeeCompensationCalculation.create.mockResolvedValue(storedCalculation());
+
+    await service.create(1, 2026, 6, { ...BODY, companyOvertimeBaseRate: null }, req);
+
+    const data = p.employeeCompensationCalculation.create.mock.calls[0][0].data;
+    expect(data.companyOvertimeBaseRateSnapshot).toBeNull();
+    expect(data.totalOvertimeAmount).toBe(25); // 10 × 2.000 × 1.25
+    expect(data.grossEntitlements).toBe(491); // 416 + 25 + 50
     expect(data.netAmount).toBe(461);
   });
 

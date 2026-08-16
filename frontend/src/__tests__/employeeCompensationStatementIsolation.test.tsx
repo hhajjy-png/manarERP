@@ -83,6 +83,45 @@ describe('الكشف الرسمي المختصر — ما لا يعرضه أبد
       expect(code, `القالب المختصر يقرأ الحقل الداخلي «${field}»`).not.toContain(field);
     }
   });
+
+  /**
+   * سعر الشركة والحد القانوني **بيانات حسبة داخلية** لا بنود كشف (المتطلب ٢٠).
+   *
+   * الخادم يحرسها بنيويًا (مسار `/statement` لا يرسلها أصلًا)، وهذا الحارس على الطرف
+   * الآخر: أن القالب لا يخترعها ولا يستوردها من مكان آخر. الموظف يوقّع على «العمل
+   * الإضافي: ١١ ساعة — ٢٧٫٥٠٠ د.ك»، لا على شرح كيف اختارت الشركة سعر ساعته.
+   */
+  it('لا سعر شركة ولا حد قانوني ولا إصدار سياسة في الكشف الموقَّع', () => {
+    const { container } = render(<StatementTemplate data={DATA} />);
+    const text = container.textContent ?? '';
+    for (const forbidden of ['سعر الشركة', 'الحد القانوني', 'المستخدم فعليًا', 'سياسة الشركة']) {
+      expect(text, `تسرّب «${forbidden}» إلى الكشف الرسمي`).not.toContain(forbidden);
+    }
+
+    const code = readFileSync('src/employee-compensation/StatementTemplate.tsx', 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/.*$/gm, '');
+    for (const field of [
+      'companyBaseRate',
+      'companyDerivedRate',
+      'effectiveRate',
+      'statutoryMinimumRate',
+      'rateSource',
+      'companyOvertimeBaseRate',
+      'companyOvertimePolicyVersion',
+    ]) {
+      expect(code, `القالب المختصر يقرأ «${field}»`).not.toContain(field);
+    }
+  });
+
+  it('نوع `StatementData` نفسه لا يحمل أي حقل سعر — الحارس في النوع لا في القالب وحده', () => {
+    const types = readFileSync('src/employee-compensation/types.ts', 'utf8');
+    const statementType = types.match(/export interface StatementData \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(statementType, 'لم يُعثر على StatementData').not.toBe('');
+    for (const field of ['effectiveRate', 'companyBaseRate', 'statutoryMinimumRate', 'rateSource']) {
+      expect(statementType, `«${field}» داخل نوع الكشف الموقَّع`).not.toContain(field);
+    }
+  });
 });
 
 describe('فصل مسارَي الطباعة', () => {

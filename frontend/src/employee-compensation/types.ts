@@ -11,13 +11,51 @@ export type OvertimeMethod = 'MANUAL_HOURS' | 'REVERSE_FROM_AMOUNT';
 export type EarningType = 'BONUS' | 'GRANT' | 'INCENTIVE' | 'ALLOWANCE' | 'EXPENSE_REIMBURSEMENT' | 'CUSTOM';
 export type DeductionType = 'ABSENCE' | 'ADVANCE' | 'PENALTY' | 'DISCOUNT' | 'CUSTOM' | 'DEBT_REPAYMENT';
 export type CalculationStatus = 'DRAFT' | 'APPROVED';
+/** أيّ السعرين غلب في سطر العمل الإضافي. */
+export type OvertimeRateSource = 'COMPANY_POLICY' | 'STATUTORY_FLOOR';
+
+/**
+ * السعر الفعلي لنوع واحد كما حسمه الخادم.
+ *
+ * الواجهة **لا تحسب `max` بنفسها** ولا تضرب السعر الأساسي في أي معامل: كل رقم هنا وصل
+ * من `engine/effectiveOvertimeRate.ts`. تكرار المعادلة في React كان يعني أن يعرض
+ * المحرّر سعرًا ويخزّن الخادم آخر.
+ */
+export interface EffectiveOvertimeRate {
+  overtimeType: OvertimeType;
+  statutoryHourlyRate: number;
+  statutoryMultiplier: number;
+  statutoryMinimumRate: number;
+  companyBaseRate: number | null;
+  companyFactor: number | null;
+  companyDerivedRate: number | null;
+  effectiveRate: number;
+  source: OvertimeRateSource;
+  companyBelowStatutory: boolean;
+  policyVersion: string | null;
+}
+
+/** إعداد الافتراضي العام لسعر ساعة الإضافي — يخصّ الوحدة كلها. */
+export interface CompanyOvertimeSettings {
+  baseRate: number;
+  /** `false` = لم يختره المستخدم بعد، والمعروض هو نقطة البدء الاحتياطية. */
+  isConfigured: boolean;
+  fallbackBaseRate: number;
+  minBaseRate: number;
+  maxBaseRate: number;
+  policyVersion: string;
+  factors: Record<OvertimeType, number>;
+  /** أسعار الأنواع الثلاثة المشتقّة من الافتراضي — محسوبة على الخادم. */
+  rates: Record<OvertimeType, number>;
+}
 
 export interface CompensationWarning {
   code:
     | 'OVERTIME_ANNUAL_LIMIT_EXCEEDED'
     | 'OVERTIME_MONTHLY_DERIVED_CEILING_EXCEEDED'
     | 'COMPENSATORY_REST_DAY_DUE'
-    | 'OVERTIME_DAILY_LIMITS_NOT_VERIFIABLE';
+    | 'OVERTIME_DAILY_LIMITS_NOT_VERIFIABLE'
+    | 'COMPANY_OVERTIME_RATE_BELOW_STATUTORY';
   messageAr: string;
   /**
    * أساس التنبيه — ثلاث حالات لا يجوز خلطها بصريًا:
@@ -35,8 +73,16 @@ export interface OvertimeLine {
   id?: number;
   overtimeType: OvertimeType;
   hours: number;
+  /** أجر الساعة العادي القانوني. */
   hourlyRate: number;
+  /** المعامل القانوني للنوع. */
   multiplier: number;
+  // أسعار السطر — `null` في السطور المحفوظة قبل حزمة سعر الشركة.
+  statutoryMinimumRate: number | null;
+  companyBaseRate: number | null;
+  companyDerivedRate: number | null;
+  effectiveRate: number | null;
+  rateSource: OvertimeRateSource | null;
   amount: number;
   calculationMethod: OvertimeMethod;
   reverseTargetAmount: number | null;
@@ -84,6 +130,9 @@ export interface Calculation {
   basicSalarySnapshot: number;
   hourlyRateSnapshot: number;
   legalRulesVersion: string;
+  /** سعر الشركة المعتمد لهذا الشهر. `null` = محفوظ قبل الحزمة: بالحد القانوني وحده. */
+  companyOvertimeBaseRateSnapshot: number | null;
+  companyOvertimePolicyVersion: string | null;
   totalOvertimeAmount: number;
   totalOtherEarnings: number;
   grossEntitlements: number;
@@ -105,6 +154,9 @@ export interface Calculation {
     month: number;
     basicSalarySnapshot: number;
     newBasicSalarySnapshot: number;
+    /** سعر شركة الشهر المنسوخ منه وسعر الشهر الجديد — للمقارنة وإبلاغ المستخدم. */
+    companyOvertimeBaseRateSnapshot: number | null;
+    newCompanyOvertimeBaseRateSnapshot: number | null;
     /** سطور سداد المديونيات لا تُنسخ — عددها هنا كي لا يحدث الإسقاط بصمت. */
     skippedDebtRepayments: number;
   };
@@ -113,8 +165,12 @@ export interface Calculation {
 /** نتيجة المعاينة — نفس أرقام الحفظ، بلا كتابة. */
 export interface PreviewResult {
   legalRulesVersion: string;
+  companyOvertimePolicyVersion: string | null;
   basicSalary: number;
   hourlyRate: number;
+  companyOvertimeBaseRate: number | null;
+  /** جدول الأسعار الثلاثة — يصل محسوبًا حتى بلا سطر إضافي واحد. */
+  overtimeRates: Record<OvertimeType, EffectiveOvertimeRate>;
   overtimeLines: Array<Omit<OvertimeLine, 'id'> & { labelAr: string; compensatoryRestDay: boolean }>;
   earningLines: Array<Omit<EarningLine, 'id' | 'entryDate'> & { entryDate: string | null }>;
   deductionLines: Array<Omit<DeductionLine, 'id'>>;
@@ -131,6 +187,11 @@ export interface ReverseResult {
   targetAmount: number;
   hourlyRate: number;
   multiplier: number;
+  statutoryMinimumRate: number;
+  companyDerivedRate: number | null;
+  /** السعر المستعمل في الاشتقاق وفي إعادة حساب المبلغ. */
+  effectiveRate: number;
+  rateSource: OvertimeRateSource;
   rawHours: number;
   hours: number;
   amount: number;
@@ -251,6 +312,9 @@ export interface DetailedReportData extends Omit<StatementData, 'overtime' | 'ea
   createdAt: string;
   updatedAt: string;
   legalRulesVersion: string;
+  /** إصدار سياسة الشركة وسعرها الأساسي — `null` لشهر بلا سياسة شركة. */
+  companyOvertimePolicyVersion: string | null;
+  companyOvertimeBaseRate: number | null;
   hourlyRate: number;
   /** أساس اشتقاق أجر الساعة — يصل من المحرّك، ولا يُكتب نصًّا في القالب. */
   hourlyRateBasis: { daysDivisor: number; hoursPerDay: number; monthlyHours: number };
@@ -259,6 +323,11 @@ export interface DetailedReportData extends Omit<StatementData, 'overtime' | 'ea
     hours: number;
     hourlyRate: number;
     multiplier: number;
+    statutoryMinimumRate: number | null;
+    companyBaseRate: number | null;
+    companyDerivedRate: number | null;
+    effectiveRate: number | null;
+    rateSource: OvertimeRateSource | null;
     amount: number;
     calculationMethod: OvertimeMethod;
     reverseTargetAmount: number | null;
@@ -296,6 +365,13 @@ export interface CalculationDraft {
   }>;
   deductions: Array<{ type: DeductionType; label: string; amount: number; notes?: string | null; debtId?: number | null }>;
   notes?: string | null;
+  /**
+   * سعر ساعة الإضافي المعتمد من الشركة لهذا الشهر.
+   *   · رقم    ⇒ اعتمده لهذا الشهر وحده (لا يمسّ الافتراضي العام).
+   *   · `null` ⇒ بالحد القانوني وحده.
+   *   · الغياب ⇒ عند الإنشاء: خذ الافتراضي. عند التحديث: أبقِ المحفوظ.
+   */
+  companyOvertimeBaseRate?: number | null;
 }
 
 // ─── سجل المديونيات والسلف ────────────────────────────────────────────────────

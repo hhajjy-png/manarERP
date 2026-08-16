@@ -9,6 +9,8 @@ vi.mock('../../../config/database', () => {
     compensationDeductionLine: { deleteMany: vi.fn(), count: vi.fn() },
     employeeCompensationDebt: { findMany: vi.fn(), findUnique: vi.fn() },
     employeeCompensationDebtPayment: { findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    // الافتراضي العام لسعر ساعة الإضافي — يُقرأ عند كل إنشاء حسبة.
+    setting: { findUnique: vi.fn(), upsert: vi.fn() },
     $transaction: vi.fn(),
   };
   return { prisma: tx };

@@ -16,7 +16,12 @@ import {
   overtimeRule,
   type OvertimeType,
 } from '../legal/kuwaitLabourLaw';
-import { normalizeHours, roundMoney, sumMoney } from './rounding';
+import {
+  amountFromEffectiveRate,
+  resolveEffectiveOvertimeRate,
+  type OvertimeRateSource,
+} from './effectiveOvertimeRate';
+import { normalizeHours, sumMoney } from './rounding';
 
 /** طريقة الوصول إلى عدد الساعات — بيانات تدقيق داخلية، لا تظهر في الكشف الرسمي. */
 export type OvertimeCalculationMethod = 'MANUAL_HOURS' | 'REVERSE_FROM_AMOUNT';
@@ -38,8 +43,20 @@ export interface ComputedOvertimeLine {
   overtimeType: OvertimeType;
   labelAr: string;
   hours: number;
+  /** أجر الساعة العادي القانوني — يبقى كما كان، ولم يعد وحده مَن يحدّد المبلغ. */
   hourlyRate: number;
+  /** المعامل القانوني للنوع. */
   multiplier: number;
+  /** الحد الأدنى القانوني لساعة هذا النوع = `hourlyRate × multiplier`. */
+  statutoryMinimumRate: number;
+  /** سعر الشركة الأساسي المعتمد لهذا الشهر. `null` = حسبة ما قبل سياسة الشركة. */
+  companyBaseRate: number | null;
+  /** سعر الشركة المشتقّ لهذا النوع. `null` = لا سياسة شركة. */
+  companyDerivedRate: number | null;
+  /** السعر المستخدم فعلًا = `max(الحد القانوني، سعر الشركة)`. */
+  effectiveRate: number;
+  /** `COMPANY_POLICY` أو `STATUTORY_FLOOR` — يُطبع في التقرير التفصيلي وحده. */
+  rateSource: OvertimeRateSource;
   amount: number;
   calculationMethod: OvertimeCalculationMethod;
   reverseTargetAmount: number | null;
@@ -55,7 +72,9 @@ export type CompensationWarningCode =
   | 'OVERTIME_ANNUAL_LIMIT_EXCEEDED'
   | 'OVERTIME_MONTHLY_DERIVED_CEILING_EXCEEDED'
   | 'COMPENSATORY_REST_DAY_DUE'
-  | 'OVERTIME_DAILY_LIMITS_NOT_VERIFIABLE';
+  | 'OVERTIME_DAILY_LIMITS_NOT_VERIFIABLE'
+  /** سعر الشركة المختار دون الحد القانوني — استُعمل القانون بدله. */
+  | 'COMPANY_OVERTIME_RATE_BELOW_STATUTORY';
 
 export interface CompensationWarning {
   code: CompensationWarningCode;
@@ -73,15 +92,29 @@ export interface CompensationWarning {
   excess?: number;
 }
 
-/** حساب سطر واحد. `hourlyRate` يأتي مقرَّبًا من `computeHourlyRate`. */
+/** خيارات حساب السطر — بديل عن معاملات موضعية تتكاثر مع كل حقل جديد. */
+export interface OvertimeLineOptions {
+  /** سعر الشركة الأساسي للشهر. غيابه أو `null` = حسبة بالحد القانوني وحده. */
+  companyOvertimeBaseRate?: number | null;
+  sortOrder?: number;
+}
+
+/**
+ * حساب سطر واحد. `hourlyRate` يأتي مقرَّبًا من `computeHourlyRate`.
+ *
+ * السعر الفعلي يُحسم في `resolveEffectiveOvertimeRate` — وهي الجهة الوحيدة التي تفرض
+ * `max(القانون، سعر الشركة)`. هذا الملف لا يقارن سعرين بنفسه ولا يعرف أيّهما أعلى.
+ */
 export function computeOvertimeLine(
   input: OvertimeLineInput,
   hourlyRate: number,
-  sortOrder = 0,
+  options: OvertimeLineOptions = {},
 ): ComputedOvertimeLine {
   const rule = overtimeRule(input.overtimeType);
   const hours = normalizeHours(input.hours);
   if (hours < 0) throw new Error('عدد ساعات العمل الإضافي لا يمكن أن يكون سالبًا');
+
+  const rate = resolveEffectiveOvertimeRate(rule.type, hourlyRate, options.companyOvertimeBaseRate ?? null);
 
   return {
     overtimeType: rule.type,
@@ -89,25 +122,33 @@ export function computeOvertimeLine(
     hours,
     hourlyRate,
     multiplier: rule.multiplier,
-    // تقريب **واحد** في النهاية: `hours × rate × multiplier`. تقريب المعدّل المضروب
-    // أولًا ثم ضربه في الساعات كان سيُراكم فرقًا يعلو مع عدد الساعات.
-    amount: roundMoney(hours * hourlyRate * rule.multiplier),
+    statutoryMinimumRate: rate.statutoryMinimumRate,
+    companyBaseRate: rate.companyBaseRate,
+    companyDerivedRate: rate.companyDerivedRate,
+    effectiveRate: rate.effectiveRate,
+    rateSource: rate.source,
+    // تقريب **واحد** في النهاية. صيغة الضرب نفسها تختلف بين سجلّ ما قبل الحزمة وسجلّ
+    // يحمل سعر شركة — والسبب موثَّق في `effectiveOvertimeRate.ts`.
+    amount: amountFromEffectiveRate(hours, rate),
     calculationMethod: input.calculationMethod ?? 'MANUAL_HOURS',
     reverseTargetAmount: input.reverseTargetAmount ?? null,
     rawHoursBeforeCeiling: input.rawHoursBeforeCeiling ?? null,
     legalReference: rule.legalReference,
     compensatoryRestDay: rule.compensatoryRestDay,
     notes: input.notes ?? null,
-    sortOrder,
+    sortOrder: options.sortOrder ?? 0,
   };
 }
 
-/** حساب كل السطور مرتَّبة. */
+/** حساب كل السطور مرتَّبة، بسعر شركة واحد يسري على الشهر كله. */
 export function computeOvertimeLines(
   inputs: readonly OvertimeLineInput[],
   hourlyRate: number,
+  companyOvertimeBaseRate: number | null = null,
 ): ComputedOvertimeLine[] {
-  return inputs.map((line, index) => computeOvertimeLine(line, hourlyRate, index));
+  return inputs.map((line, index) =>
+    computeOvertimeLine(line, hourlyRate, { companyOvertimeBaseRate, sortOrder: index }),
+  );
 }
 
 /** إجمالي مبالغ العمل الإضافي — مجموع واحد مقرَّب مرة واحدة. */

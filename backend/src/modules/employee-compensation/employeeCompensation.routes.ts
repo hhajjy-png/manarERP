@@ -28,6 +28,7 @@ import {
   previewCalculationSchema,
   reverseOvertimeSchema,
   updateCalculationSchema,
+  updateCompanyOvertimeRateSchema,
 } from './employeeCompensation.schema';
 
 const router = Router();
@@ -45,6 +46,13 @@ router.get('/summaries', READ, validate(listSummariesSchema), asyncHandler(contr
 router.get('/employees/:employeeId/years/:year', READ, validate(annualFileSchema), asyncHandler(controller.getAnnualFile));
 router.get('/employees/:employeeId/years/:year/months/:month', READ, validate(monthParamsSchema), asyncHandler(controller.getMonth));
 router.get('/calculations/:id', READ, validate(idParamsSchema), asyncHandler(controller.getById));
+
+// ── إعداد سعر ساعة الإضافي المعتمد من الشركة ─────────────────────────────────
+// إعداد إداري واحد للوحدة كلها. **لا مفتاح صلاحية جديد** (المتطلب ١٩): القراءة بـ
+// `read` لأن كل محرّر شهر يحتاج الافتراضي ليبدأ منه، والتعديل بأعلى صلاحية تحرير في
+// الوحدة (`update`). ولا مفتاح `payroll.*` هنا ولا في أي مكان من هذه الوحدة.
+router.get('/settings/overtime-rate', READ, asyncHandler(controller.getCompanyOvertimeSettings));
+router.put('/settings/overtime-rate', UPDATE, validate(updateCompanyOvertimeRateSchema), asyncHandler(controller.updateCompanyOvertimeSettings));
 
 // ── أدوات حساب بلا أثر تخزيني ────────────────────────────────────────────────
 // تُصنَّف قراءةً لأنها لا تكتب شيئًا: تستدعي المحرّك الخالص وتعيد النتيجة.
