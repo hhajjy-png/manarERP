@@ -18,7 +18,7 @@ const CHEQUES_SORTABLE: SortWhitelist = {
   paymentVoucherNumber: { field: 'paymentVoucherNumber', nullable: true },
 };
 const CHEQUES_DEFAULT_ORDER = [{ createdAt: 'desc' as const }];
-import { localDateRange } from '../../core/utils/dateWindows';
+import { localDateRange, toLocalDateString } from '../../core/utils/dateWindows';
 import {
   CreateChequeInput,
   UpdateChequeInput,
@@ -137,7 +137,10 @@ export class ChequesService {
 
   async create(input: CreateChequeInput, req: Request) {
     const existing = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });
-    if (existing) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${existing.beneficiaryName}، التاريخ: ${String(existing.chequeDate).slice(0, 10)})`);
+    // `chequeDate` عمود DateTime، فـ`String(date)` ينتج صيغة Date الكاملة بالإنجليزية
+    // ("Sat Aug 16 2026 03:00:00 GMT+0300…") و`slice(0,10)` يقتطع منها "Sat Aug 16":
+    // اسم يوم إنجليزي بلا سنة داخل رسالة عربية. `toLocalDateString` هو المُنسّق المعتمد.
+    if (existing) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${existing.beneficiaryName}، التاريخ: ${toLocalDateString(existing.chequeDate)})`);
 
     const cheque = await prisma.cheque.create({
       data: {
@@ -196,7 +199,7 @@ export class ChequesService {
 
     if (input.chequeNumber && input.chequeNumber !== current.chequeNumber) {
       const dup = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });
-      if (dup) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${dup.beneficiaryName}، التاريخ: ${String(dup.chequeDate).slice(0, 10)})`);
+      if (dup) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${dup.beneficiaryName}، التاريخ: ${toLocalDateString(dup.chequeDate)})`);
     }
 
     const cheque = await prisma.cheque.update({

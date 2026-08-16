@@ -43,8 +43,11 @@ describe('حدود التخزين مطبَّعة فعلًا', () => {
     expect(src).toContain('const paymentAmount = roundMoney(input.amount);');
     expect(src).toContain('amount: paymentAmount,');
     // لا مصدرين: المجموع الجديد يُحسب من المبلغ المطبَّع نفسه لا من الخام.
-    expect(src).toContain('round3(invoice.paidAmount + roundMoney(input.amount))');
+    expect(src).toContain('round3(current.paidAmount + paymentAmount)');
     expect(src).not.toContain('amount: input.amount,');
+    // ...ومن قراءة **داخل** المعاملة: القراءة قبلها كانت تسمح بتحديث مفقود يجعل
+    // `Σ payments.amount` ينحرف عن `invoice.paidAmount` عند إرسالين متزامنين.
+    expect(src).toContain('const current = await tx.invoice.findUnique({ where: { id } });');
   });
 
   it('القيد اليدوي: debit/credit يُطبَّعان قبل الكتابة', () => {

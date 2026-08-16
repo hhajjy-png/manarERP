@@ -462,33 +462,11 @@ export class InvoicesService {
 
   /** تسجيل دفعة/تحصيل وتحديث حالة الفاتورة. */
   async addPayment(id: number, input: AddPaymentInput, req: Request) {
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
-    if (!invoice) throw AppError.notFound('الفاتورة غير موجودة');
-    if (invoice.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تحصيل فاتورة ملغاة');
-
-    // لا رصيد مستحق (فاتورة مسددة بالكامل — بما فيها الشراء النقدي/البنكي المُسوّى فورًا).
-    // يمنع تسجيل دفعة زائدة تُنشئ قيدًا محاسبيًا مكررًا (خطأ C1).
-    const remainingDue = round3(invoice.total - invoice.paidAmount);
-    if (remainingDue <= 0) {
-      throw AppError.badRequest('الفاتورة مسددة بالكامل — لا يوجد مبلغ مستحق');
-    }
-
-    // نفس المبلغ المطبَّع الذي سيُخزَّن — لا مصدرين بدقّتين مختلفتين.
-    const newPaid = round3(invoice.paidAmount + roundMoney(input.amount));
-    if (overpaymentExceeds(invoice.total, newPaid)) {
-      throw AppError.badRequest('المبلغ يتجاوز المتبقي على الفاتورة');
-    }
-
     // تاريخ التحصيل — official collection date (drives the GL entry date + all collection
     // reports). Defaults to now() when the user keeps today's date. Resolved once so the
     // persisted value and the audit record can never diverge. `createdAt` is set
     // automatically by the DB as the system-entry audit stamp.
     const collectionDate = input.date ?? new Date();
-
-    // تحصيل قبل تاريخ إصدار الفاتورة: حالة مشروعة (دفعة مقدّمة أو إدخال تاريخي)،
-    // لكنها قد تكون خطأ مطبعيًا في التاريخ. لا نرفض — نسجّل تحذيرًا في التدقيق
-    // ونُعيده في نتيجة العملية. (لا واجهة إقرار حاليًا، فالرفض كان مسارًا مسدودًا.)
-    const paymentBeforeIssue = !!invoice.issueDate && collectionDate < invoice.issueDate;
 
     /**
      * تطبيع عند حدود التخزين.
@@ -500,7 +478,33 @@ export class InvoicesService {
      */
     const paymentAmount = roundMoney(input.amount);
 
-    const updated = await prisma.$transaction(async (tx) => {
+    /**
+     * القراءة والتحقّق والكتابة **داخل** معاملة واحدة.
+     *
+     * كانت قراءة الفاتورة وحساب `newPaid` تجري قبل المعاملة، و`paidAmount` يُكتب قيمةً
+     * مطلقة مشتقّة من تلك القراءة القديمة. فإرسالان متزامنان (نقرة مزدوجة أو مستخدمان)
+     * يقرآن كلاهما `paidAmount = 0`، ويُنشئ كلٌّ منهما دفعة وقيدًا، ثم يكتبان نفس القيمة:
+     * دفعتان في `payments` مقابل `paidAmount` واحدة — فينحرف `Σ payments.amount` عن
+     * `invoice.paidAmount` دائمًا، ويبقى على الفاتورة رصيد لم يعد قائمًا.
+     */
+    const { updated, invoice, paymentBeforeIssue } = await prisma.$transaction(async (tx) => {
+      const current = await tx.invoice.findUnique({ where: { id } });
+      if (!current) throw AppError.notFound('الفاتورة غير موجودة');
+      if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن تحصيل فاتورة ملغاة');
+
+      // لا رصيد مستحق (فاتورة مسددة بالكامل — بما فيها الشراء النقدي/البنكي المُسوّى فورًا).
+      // يمنع تسجيل دفعة زائدة تُنشئ قيدًا محاسبيًا مكررًا (خطأ C1).
+      const remainingDue = round3(current.total - current.paidAmount);
+      if (remainingDue <= 0) {
+        throw AppError.badRequest('الفاتورة مسددة بالكامل — لا يوجد مبلغ مستحق');
+      }
+
+      // نفس المبلغ المطبَّع الذي سيُخزَّن — لا مصدرين بدقّتين مختلفتين.
+      const newPaid = round3(current.paidAmount + paymentAmount);
+      if (overpaymentExceeds(current.total, newPaid)) {
+        throw AppError.badRequest('المبلغ يتجاوز المتبقي على الفاتورة');
+      }
+
       const payment = await tx.payment.create({
         data: {
           invoiceId: id,
@@ -516,11 +520,20 @@ export class InvoicesService {
       //   مشتريات → Dr AP,          Cr Cash/Bank (سداد لمورد)
       await postPaymentToGL(tx, payment.id);
       await postPurchasePaymentToGL(tx, payment.id);
-      return tx.invoice.update({
+      const saved = await tx.invoice.update({
         where: { id },
-        data: { paidAmount: newPaid, status: nextStatus(invoice.total, newPaid) },
+        data: { paidAmount: newPaid, status: nextStatus(current.total, newPaid) },
         include: FULL_INCLUDE,
       });
+
+      // تحصيل قبل تاريخ إصدار الفاتورة: حالة مشروعة (دفعة مقدّمة أو إدخال تاريخي)،
+      // لكنها قد تكون خطأ مطبعيًا في التاريخ. لا نرفض — نسجّل تحذيرًا في التدقيق
+      // ونُعيده في نتيجة العملية. (لا واجهة إقرار حاليًا، فالرفض كان مسارًا مسدودًا.)
+      return {
+        updated: saved,
+        invoice: current,
+        paymentBeforeIssue: !!current.issueDate && collectionDate < current.issueDate,
+      };
     });
 
     // التدقيق يسجّل المبلغ **كما خُزّن** لا كما وصل — وإلا روى السجلّ رقمًا لا وجود له.
