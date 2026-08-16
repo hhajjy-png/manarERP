@@ -2,7 +2,7 @@ import { app, BrowserWindow, Menu, dialog, Notification } from 'electron';
 import { createMainWindow } from './windows/mainWindow';
 import { beginSyncProgressUI } from './windows/syncProgressWindow';
 import { registerMainWindow, shouldQuitOnAllWindowsClosed } from './windows/windowLifecycle';
-import { startBackend, stopBackend, getUserDataPaths, getInternalSecret, BackendStartupError } from './services/backendLauncher';
+import { startBackend, stopBackend, stopBackendForRestart, getUserDataPaths, getInternalSecret, BackendStartupError } from './services/backendLauncher';
 import { createStartupWindow, type StartupWindowHandle } from './windows/startupWindow';
 import { reportStartup } from './services/startupProgressBus';
 import { startBackupScheduler, stopBackupScheduler, runCatchupIfNeeded } from './services/backupScheduler';
@@ -328,6 +328,23 @@ async function bootstrap() {
   }
 }
 
+/**
+ * شبكة أمان أخيرة للعملية الرئيسية.
+ *
+ * الخادم الخلفي يملك مثيلها منذ البداية (`server.ts`)، أمّا العملية الرئيسية فلم تكن
+ * تملك أيًّا منها: أي رفض غير ملتقَط — بما فيه رفض من داخل `reportStartupFailure`
+ * نفسه — كان يختفي بصمت في نسخة مُحزَّمة لا طرفية لها. لا نُنهي التطبيق هنا: السجل
+ * وحده هو المطلوب، فالمسارات الحرجة تتولّى معالجة أخطائها بنفسها.
+ */
+process.on('uncaughtException', (err) => {
+  // eslint-disable-next-line no-console
+  console.error('[main] استثناء غير ملتقَط في العملية الرئيسية:', err);
+});
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line no-console
+  console.error('[main] رفض وعد غير معالَج في العملية الرئيسية:', reason);
+});
+
 app.whenReady().then(bootstrap);
 
 app.on('second-instance', () => {
@@ -368,31 +385,47 @@ app.on('before-quit', (event) => {
   if (quitConfirmed || startupAborted) return;
   event.preventDefault();
 
+  // `preventDefault` أعلاه ألغى الخروج بالفعل؛ المخرج الوحيد هو `quitConfirmed = true`
+  // ثم `app.quit()`. فلو رمى أي نداء في هذا التسلسل — إنشاء نافذة التقدّم أثناء تفكيك
+  // النافذة الأم، أو `finish()` في الـ`finally` — لتسرّب الاستثناء من الدالة كلها ولبقي
+  // التطبيق مفتوحًا إلى الأبد بلا حوار ولا سجل: ينقر المستخدم X فلا يحدث شيء. لذا كامل
+  // التسلسل في `try/finally`، والخروج في الـ`finally` كي يقع مهما حدث.
   (async () => {
-    stopBackupScheduler();
-    stopBackend();
-    await new Promise((r) => setTimeout(r, 800)); // انتظار إغلاق اتصالات Prisma
-
-    // Cloud Sync Progress Dialog v1 — purely additive UI wrapper, same
-    // discipline as the startup call site above: the sync call and its
-    // error handling are UNCHANGED.
-    const shutdownSyncUI = beginSyncProgressUI(mainWindow);
     try {
-      const { dbPath, dataDir } = getUserDataPaths();
-      await performShutdownSync(dbPath, dataDir);
+      stopBackupScheduler();
+      // إيقاف مضبوط بانتظار خروج العملية فعليًا: على Windows لا يقتل خروجُ الأب
+      // العمليةَ الابن، و`kill()` وحده لا يضمن تحرير المنفذ ولا إغلاق اتصالات Prisma
+      // قبل أن تبدأ مزامنة الإغلاق بالقراءة من ملف قاعدة البيانات.
+      await stopBackendForRestart();
+
+      // Cloud Sync Progress Dialog v1 — purely additive UI wrapper, same
+      // discipline as the startup call site above: the sync call and its
+      // error handling are UNCHANGED.
+      const shutdownSyncUI = beginSyncProgressUI(mainWindow);
+      try {
+        const { dbPath, dataDir } = getUserDataPaths();
+        await performShutdownSync(dbPath, dataDir);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[sync] فشلت مزامنة الإغلاق:', err);
+      } finally {
+        await shutdownSyncUI.finish();
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('[sync] فشلت مزامنة الإغلاق:', err);
+      console.error('[shutdown] فشل تسلسل الإغلاق — يُستكمل الخروج على أي حال:', err);
     } finally {
-      await shutdownSyncUI.finish();
+      // تحرير قفل التشغيل **بعد** اكتمال مزامنة الإغلاق — القفل يحمي المزامنة نفسها،
+      // فتحريره قبلها كان سيفتح نافذة تبدأ فيها بيئة أخرى الرفع بالتوازي.
+      try {
+        releaseRuntimeLock();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[shutdown] تعذّر تحرير قفل التشغيل:', err);
+      }
+      quitConfirmed = true;
+      app.quit();
     }
-
-    // تحرير قفل التشغيل **بعد** اكتمال مزامنة الإغلاق — القفل يحمي المزامنة نفسها،
-    // فتحريره قبلها كان سيفتح نافذة تبدأ فيها بيئة أخرى الرفع بالتوازي.
-    releaseRuntimeLock();
-
-    quitConfirmed = true;
-    app.quit();
   })();
 });
 

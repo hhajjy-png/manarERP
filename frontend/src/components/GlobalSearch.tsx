@@ -57,7 +57,10 @@ const PAGES: { labelKey: string; route: string; permission?: string }[] = [
   { labelKey: 'search.group.equipment', route: '/equipment',   permission: 'equipment.read' },
   { labelKey: 'search.page.contracts',  route: '/contracts',   permission: 'contracts.read' },
   { labelKey: 'search.group.cheque',    route: '/cheques',     permission: 'cheques.read' },
-  { labelKey: 'nav.financial',          route: '/financial',   permission: 'financial.read' },
+  // `financial.read` غير موجود في `constants.ts` ولا في البذور، فكان `hasPermission`
+  // يعيد false دائمًا و«المركز المالي» لا يظهر في البحث لأي مستخدم. المفتاح الفعلي
+  // للمسار `/financial` هو `statements.read` (نفس ما يستخدمه الشريط الجانبي).
+  { labelKey: 'nav.financial',          route: '/financial',   permission: 'statements.read' },
   { labelKey: 'search.page.reports',    route: '/reports',     permission: 'reports.read' },
   { labelKey: 'search.page.accounting', route: '/accounting',  permission: 'transactions.read' },
   { labelKey: 'nav.audit',              route: '/audit',       permission: 'audit.read' },

@@ -1,6 +1,8 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import { mapPrintCallback, NO_FOCUSED_WINDOW_RESULT } from './printResult';
 import { buildPrintOptions, type PrintPageOptions } from './printPageOptions';
+import { stopBackend, stopBackendForRestart } from '../services/backendLauncher';
+import { releaseRuntimeLock } from '../services/runtimeLock';
 
 /** تسجيل معالجات IPC الخاصة بحوارات النظام والتطبيق. */
 export function registerDialogIpc() {
@@ -27,7 +29,25 @@ export function registerDialogIpc() {
   });
 
   // إعادة تشغيل التطبيق (بعد الاستعادة)
-  ipcMain.handle('app:restart', () => {
+  //
+  // `app.exit()` يتجاوز `before-quit`/`will-quit` كليًا، فلا يُستدعى `stopBackend`.
+  // وعلى Windows لا يقتل خروجُ العملية الأب العمليةَ الابن المتفرّعة: يبقى الخادم
+  // الخلفي حاملًا المنفذ 48211، فتفشل النسخة المُعاد تشغيلها بـ EADDRINUSE — على
+  // المسار الأكثر استخدامًا لهذا القناة نفسها (إعادة التشغيل بعد استعادة نسخة
+  // احتياطية). لذا نُنهي الخادم فعليًا وننتظر خروجه، ونحرّر قفل التشغيل، قبل
+  // `relaunch`. الإنهاء داخل `try` كي لا يمنع فشلُه إعادةَ التشغيل نفسها.
+  ipcMain.handle('app:restart', async () => {
+    try {
+      await stopBackendForRestart();
+    } catch (err) {
+      console.error('[app:restart] تعذّر إيقاف الخادم الخلفي بشكل مضبوط:', err);
+      stopBackend();
+    }
+    try {
+      releaseRuntimeLock();
+    } catch (err) {
+      console.error('[app:restart] تعذّر تحرير قفل التشغيل:', err);
+    }
     app.relaunch();
     app.exit(0);
   });

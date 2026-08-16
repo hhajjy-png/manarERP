@@ -11,7 +11,7 @@ const SKILL_ID    = 'dashboard';
 const SKILL_TITLE = 'مهارة مؤشرات لوحة التحكم';
 
 const SOURCES = [
-  { icon: '📈', labelAr: 'لوحة التحكم',  routePath: '/dashboard' },
+  { icon: '📈', labelAr: 'لوحة التحكم',  routePath: '/' },
   { icon: '📊', labelAr: 'مركز التقارير', routePath: '/reports' },
 ];
 
@@ -32,13 +32,13 @@ const RELATED_SKILLS = [
 ];
 
 const RELATED_PAGES = [
-  { path: '/dashboard',  labelAr: 'لوحة التحكم', icon: '📈' },
+  { path: '/',  labelAr: 'لوحة التحكم', icon: '📈' },
   { path: '/invoices',   labelAr: 'الفواتير',     icon: '📄' },
   { path: '/accounting', labelAr: 'المحاسبة',     icon: '💳' },
 ];
 
 const ACTIONS = [
-  { kind: 'openModule' as const,   labelAr: 'فتح اللوحة',  icon: '📈', available: true, payload: '/dashboard' },
+  { kind: 'openModule' as const,   labelAr: 'فتح اللوحة',  icon: '📈', available: true, payload: '/' },
   { kind: 'copySummary' as const,  labelAr: 'نسخ الملخص', icon: '📋', available: true },
   { kind: 'exportResult' as const, labelAr: 'تصدير txt',  icon: '📄', available: true },
   { kind: 'print' as const,        labelAr: 'طباعة',       icon: '🖨️', available: true },

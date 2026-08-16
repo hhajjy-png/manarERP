@@ -176,7 +176,9 @@ export default function PayrollPayslip() {
           </tr>
           <tr>
             <td style={td}>{t('lbl.payslip.status')}</td>
-            <td style={td}>{data.status}</td>
+            {/* الحالة تُخزَّن كقيمة تعداد إنجليزية (DRAFT/APPROVED/…)؛ عرضها خامًا كان
+                يطبع "DRAFT" داخل مستند عربي رسمي. مفاتيح `payroll.status.*` موجودة. */}
+            <td style={td}>{t(`payroll.status.${String(data.status).toLowerCase()}`)}</td>
             <td style={td}>{t('lbl.payslip.department')}</td>
             <td style={td}>{data.employee.department ?? ''}</td>
           </tr>

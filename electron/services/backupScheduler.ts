@@ -40,7 +40,18 @@ function getFromInternal<T>(urlPath: string): Promise<T | null> {
   });
 }
 
-function postToInternal(urlPath: string, body: object): Promise<void> {
+/** نتيجة نداء داخلي: نجاح صريح، أو سبب فشل قابل للتسجيل. */
+type InternalPostResult = { ok: true } | { ok: false; reason: string };
+
+/**
+ * كان هذا النداء يُحلّ الوعد من داخل `http.request(options, () => resolve())` — أي عند
+ * وصول أي استجابة مهما كانت حالتها — ويُحلّه أيضًا على خطأ الشبكة. فلم يكن يرفض أبدًا،
+ * ومن ثمّ كان `catch` في `runAutoBackup` شيفرةً ميتة: نسخة احتياطية فشلت بـ500، أو
+ * رُفضت بـ401 لسرّ خاطئ، أو لم يكن الخادم يستمع أصلًا — كلها كانت تُسجَّل «تم تنفيذ
+ * النسخ التلقائي». الآن نفحص رمز الحالة ونُعيد نتيجة صريحة، ونقرأ جسم الاستجابة لأن
+ * المسار الداخلي يُعيد 200 مع `data.status === 'FAILED'` عند فشل النسخ نفسه.
+ */
+function postToInternal(urlPath: string, body: object): Promise<InternalPostResult> {
   return new Promise((resolve) => {
     const payload = JSON.stringify(body);
     const options: http.RequestOptions = {
@@ -54,8 +65,28 @@ function postToInternal(urlPath: string, body: object): Promise<void> {
         'x-internal-secret': storedSecret,
       },
     };
-    const req = http.request(options, () => { resolve(); });
-    req.on('error', () => { resolve(); });
+    const req = http.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        const status = res.statusCode ?? 0;
+        if (status < 200 || status >= 300) {
+          resolve({ ok: false, reason: `HTTP ${status}` });
+          return;
+        }
+        try {
+          const json = JSON.parse(data);
+          if (json?.data?.status === 'FAILED') {
+            resolve({ ok: false, reason: String(json.data.error ?? 'فشل غير محدّد') });
+            return;
+          }
+        } catch {
+          // جسم غير قابل للتحليل مع حالة 2xx: نعتبره نجاحًا كما كان، لا نُفشل الجدولة.
+        }
+        resolve({ ok: true });
+      });
+    });
+    req.on('error', (err) => { resolve({ ok: false, reason: err.message }); });
     req.write(payload);
     req.end();
   });
@@ -70,9 +101,14 @@ async function getBackupSettings(): Promise<BackupSettings> {
 // The backend performs the actual copy with PRAGMA wal_checkpoint(FULL) via backupService.create().
 async function runAutoBackup(): Promise<void> {
   try {
-    await postToInternal('/api/internal/trigger-auto-backup', {});
-    // eslint-disable-next-line no-console
-    console.log('[backup] تم تنفيذ النسخ التلقائي عبر الخادم الخلفي');
+    const result = await postToInternal('/api/internal/trigger-auto-backup', {});
+    if (result.ok) {
+      // eslint-disable-next-line no-console
+      console.log('[backup] تم تنفيذ النسخ التلقائي عبر الخادم الخلفي');
+    } else {
+      // eslint-disable-next-line no-console
+      console.error(`[backup] فشل النسخ التلقائي: ${result.reason}`);
+    }
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error('[backup] فشل النسخ التلقائي:', err);

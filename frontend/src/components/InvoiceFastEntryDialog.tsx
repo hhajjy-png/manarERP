@@ -10,7 +10,8 @@ import { Dialog, DialogSection, Button } from './explorer/ExplorerKit';
 import DateInput from './DateInput';
 import { todayDateOnly } from '../lib/date';
 import SearchableSelect, { SearchableOption } from './SearchableSelect';
-import { InvoiceLineItemsEditor, invoiceLineTotal, type Item, type PriceOption } from './invoices/InvoiceLineItemsEditor';
+import { InvoiceLineItemsEditor, type Item, type PriceOption } from './invoices/InvoiceLineItemsEditor';
+import { computeInvoiceTotals } from '../lib/money';
 import {
   InvoiceSharedFields,
   InvoiceRowFields,
@@ -75,8 +76,8 @@ export default function InvoiceFastEntryDialog({ onClose, onSaved }: Props) {
   const filterAsphaltPlant = activeContract?.asphaltPlant ?? null;
   const displayPrices = filterAsphaltPlant ? prices.filter((p) => p.asphaltPlant === filterAsphaltPlant) : prices;
 
-  const subtotal = row.items.reduce((s, it) => s + invoiceLineTotal(it as Item), 0);
-  const total = Math.max(0, subtotal - Number(row.discount));
+  // الإدخال السريع لا يرسل `taxRate` — نفس معادلة الخادم بضريبة 0، مصدر واحد.
+  const { subtotal, total } = computeInvoiceTotals(row.items as Item[], 0, Number(row.discount));
 
   const customerOptions: SearchableOption[] = customers.map((c) => ({ value: String(c.id), label: resolveName(c, lang) }));
 
