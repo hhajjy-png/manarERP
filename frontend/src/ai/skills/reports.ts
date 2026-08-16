@@ -10,7 +10,7 @@ const SKILL_TITLE = 'مهارة استكشاف التقارير';
 
 const SOURCES = [
   { icon: '📊', labelAr: 'مركز التقارير', routePath: '/reports' },
-  { icon: '📈', labelAr: 'لوحة التحكم',   routePath: '/dashboard' },
+  { icon: '📈', labelAr: 'لوحة التحكم',   routePath: '/' },
 ];
 
 const FOLLOW_UPS = [
@@ -27,7 +27,7 @@ const RELATED_SKILLS = [
 
 const RELATED_PAGES = [
   { path: '/reports',   labelAr: 'مركز التقارير', icon: '📊' },
-  { path: '/dashboard', labelAr: 'لوحة التحكم',  icon: '📈' },
+  { path: '/', labelAr: 'لوحة التحكم',  icon: '📈' },
 ];
 
 const ACTIONS = [

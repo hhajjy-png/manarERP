@@ -12,9 +12,9 @@ import { DEFAULT_WORK_TYPE } from '../utils/invoiceDescription';
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
 import {
   InvoiceLineItemsEditor,
-  invoiceLineTotal,
   type Item,
 } from '../components/invoices/InvoiceLineItemsEditor';
+import { computeInvoiceTotals } from '../lib/money';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { invoiceTypes, INVOICE_YEAR_OPTIONS, DEFAULT_INVOICE_YEAR } from '../utils/invoiceFormConstants';
 import { useInvoicePartyPricing } from '../hooks/useInvoicePartyPricing';
@@ -55,8 +55,9 @@ export default function CreateInvoice({ onClose, onSaved }: { onClose: () => voi
     displayPrices,
   } = useInvoicePartyPricing({ directionChoice, customPartyType, partyId, setPartyId, setItems });
 
-  const subtotal = items.reduce((s, it) => s + invoiceLineTotal(it), 0);
-  const total = Math.max(0, subtotal - Number(discount));
+  // الإنشاء لا يرسل `taxRate` إطلاقًا، فالخادم يستخدم القيمة الافتراضية 0 — نمرّرها
+  // صراحةً لتبقى المعادلة نسخة واحدة مشتركة مع الخادم بدل صيغة ثانية بلا حدّ ضريبة.
+  const { subtotal, total } = computeInvoiceTotals(items, 0, Number(discount));
   const invoiceNumber = `MN-INV-${invoiceYear}-${invoiceNumberSuffix.trim()}`;
   const partyName = parties.find((p) => String(p.id) === partyId)?.name ?? '—';
 

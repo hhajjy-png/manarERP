@@ -10,9 +10,9 @@ import { DEFAULT_WORK_TYPE, parseDescription } from '../utils/invoiceDescription
 import { toInvoiceItemPayload } from '../utils/invoicePayload';
 import {
   InvoiceLineItemsEditor,
-  invoiceLineTotal,
   type Item,
 } from '../components/invoices/InvoiceLineItemsEditor';
+import { computeInvoiceTotals } from '../lib/money';
 import { ARABIC_MONTHS, billingYearOptions } from '../utils/dateUtils';
 import { invoiceTypes, INVOICE_YEAR_OPTIONS, DEFAULT_INVOICE_YEAR } from '../utils/invoiceFormConstants';
 import { useInvoicePartyPricing } from '../hooks/useInvoicePartyPricing';
@@ -103,8 +103,10 @@ export default function EditInvoice({ invoice, onClose, onSaved }: { invoice: an
     }).catch((e: any) => { setLoadError(errorMessage(e)); }).finally(() => { setLoadingData(false); });
   }, [invoice.id]);
 
-  const subtotal = items.reduce((s, it) => s + invoiceLineTotal(it), 0);
-  const total = Math.max(0, subtotal - Number(discount));
+  // نسبة الضريبة المخزَّنة تدخل الحساب: التعديل لا يرسل `taxRate`، فالخادم يُبقيها كما هي.
+  // إغفالها هنا كان يعرض إجماليًا أقل من المخزَّن على أي فاتورة ضريبتها > 0 (تُنشأ عبر
+  // الاستيراد أو الـAPI) — على فاتورة لم يمسّها المستخدم أصلًا.
+  const { subtotal, total } = computeInvoiceTotals(items, Number(invoice.taxRate ?? 0), Number(discount));
 
   async function submit() {
     if (submittingRef.current) return; // حارس مزامن ضد النقر المزدوج قبل إعادة رسم React

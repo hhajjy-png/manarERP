@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { money } from '../../config/modules';
+import { roundMoney } from '../../lib/money';
 import { useT } from '../../lib/i18n';
 import { WORK_TYPES, DEFAULT_WORK_TYPE, composeDescription } from '../../utils/invoiceDescription';
 import { CategoryGroup } from '../../constants/kuwaitLocations';
@@ -41,9 +42,15 @@ export function isCustomUnit(unit: string): boolean {
   return !(STANDARD_UNITS as readonly string[]).includes(unit);
 }
 
-/** إجمالي البند = الكمية × السعر (مصدر واحد لحساب المجموع الفرعي). */
+/**
+ * إجمالي البند = الكمية × السعر، **مقرَّبًا** إلى 3 خانات (مصدر واحد لحساب المجموع الفرعي).
+ *
+ * الخادم يخزّن `round3(quantity × unitPrice)` لكل بند (`invoices.calc.ts`)؛ فبقاء هذه
+ * الدالة خامًا كان يجعل البند المعروض ومجموع الشاشة يخالفان المخزَّن عند الأسعار ذات
+ * الخانة الرابعة.
+ */
 export function invoiceLineTotal(it: Item): number {
-  return Number(it.quantity) * Number(it.unitPrice);
+  return roundMoney(Number(it.quantity) * Number(it.unitPrice));
 }
 
 // ===== الإكمال التلقائي للموقع =====

@@ -16,3 +16,27 @@ export function roundMoney(value: number): number {
   const rounded = (sign * Math.round((Math.abs(value) + Number.EPSILON) * 1000)) / 1000;
   return rounded === 0 ? 0 : rounded;
 }
+
+/**
+ * إجماليات الفاتورة — مرآة حرفية لـ`backend/src/modules/invoices/invoices.calc.ts`
+ * (`computeTotals`)، بنفس ترتيب التقريب: تقريب كل بند، ثم المجموع الفرعي، ثم الضريبة،
+ * ثم الإجمالي.
+ *
+ * كانت شاشات الفاتورة تحسب `Σ(الكمية × السعر) − الخصم` مباشرة: **بلا تقريب لكل بند**
+ * و**بلا حدّ الضريبة**. فثلاثة بنود بـ`3 × 0.3335` تعرض 3.002 بينما يخزّن الخادم 3.003،
+ * وأي فاتورة ضريبتها > 0 (تُنشأ عبر الاستيراد أو الـAPI) تعرض إجماليًا يخالف المخزَّن
+ * وكل التقارير. المعادلة الآن مصدر واحد على الجانبين.
+ */
+export function computeInvoiceTotals(
+  items: Array<{ quantity: number | string; unitPrice: number | string }>,
+  taxRate: number,
+  discount: number,
+) {
+  const subtotal = roundMoney(
+    items.reduce((s, it) => s + roundMoney(Number(it.quantity) * Number(it.unitPrice)), 0),
+  );
+  const taxable = Math.max(0, subtotal - Number(discount || 0));
+  const taxAmount = roundMoney((taxable * Number(taxRate || 0)) / 100);
+  const total = roundMoney(taxable + taxAmount);
+  return { subtotal, taxAmount, total };
+}
