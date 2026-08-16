@@ -9,6 +9,7 @@ import type {
   AnnualFile,
   Calculation,
   CalculationDraft,
+  CompanyOvertimeSettings,
   Debt,
   DebtDetail,
   DebtLedger,
@@ -57,8 +58,20 @@ export const compensationApi = {
   preview: (body: CalculationDraft & { basicSalary: number; hourlyRateOverride?: number | null; priorRegularOvertimeHoursThisYear?: number }) =>
     unwrap<PreviewResult>(api.post(`${BASE}/preview`, body)),
 
-  reverseOvertime: (body: { targetAmount: number; overtimeType: OvertimeType; basicSalary?: number; hourlyRate?: number }) =>
-    unwrap<ReverseResult>(api.post(`${BASE}/reverse-overtime`, body)),
+  reverseOvertime: (body: {
+    targetAmount: number;
+    overtimeType: OvertimeType;
+    basicSalary?: number;
+    hourlyRate?: number;
+    companyOvertimeBaseRate?: number | null;
+  }) => unwrap<ReverseResult>(api.post(`${BASE}/reverse-overtime`, body)),
+
+  // ── الافتراضي العام لسعر ساعة الإضافي ──────────────────────────────────────
+  // إعداد إداري واحد للوحدة. تغييره **لا يمسّ أي شهر محفوظ** — كل شهر يحمل لقطته.
+  overtimeRateSettings: () => unwrap<CompanyOvertimeSettings>(api.get(`${BASE}/settings/overtime-rate`)),
+
+  setOvertimeRateSettings: (baseRate: number) =>
+    unwrap<CompanyOvertimeSettings>(api.put(`${BASE}/settings/overtime-rate`, { baseRate })),
 
   statement: (id: number) => unwrap<StatementData>(api.get(`${BASE}/calculations/${id}/statement`)),
 

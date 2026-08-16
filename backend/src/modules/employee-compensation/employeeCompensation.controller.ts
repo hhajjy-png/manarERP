@@ -74,6 +74,20 @@ export const employeeCompensationController = {
     ok(res, service.reverseOvertime({ ...req.body, overtimeType: req.body.overtimeType as OvertimeType }));
   },
 
+  /** الافتراضي العام لسعر ساعة الإضافي — قراءة. */
+  async getCompanyOvertimeSettings(_req: Request, res: Response) {
+    ok(res, await service.getCompanyOvertimeSettings());
+  },
+
+  /** الافتراضي العام — تعديل. لا يمسّ أي حسبة محفوظة. */
+  async updateCompanyOvertimeSettings(req: Request, res: Response) {
+    ok(
+      res,
+      await service.setCompanyOvertimeSettings(Number(req.body.baseRate), req),
+      'تم حفظ سعر ساعة الإضافي الافتراضي — لا يؤثّر على الأشهر المحفوظة',
+    );
+  },
+
   async statement(req: Request, res: Response) {
     ok(res, await service.getStatementData(num(req.params.id)));
   },

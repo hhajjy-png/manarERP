@@ -115,14 +115,17 @@ const DETAILED: DetailedReportData = {
   basicSalary: 416,
   hourlyRate: 2,
   hourlyRateBasis: { daysDivisor: 26, hoursPerDay: 8, monthlyHours: 208 },
+  // سعر شركة أساسي ٤٫٠٠٠ يغلب الحد القانوني في الأنواع الثلاثة: ٤ · ٦ · ٨.
+  companyOvertimeBaseRate: 4,
+  companyOvertimePolicyVersion: 'MANAR-COP-v1',
   overtimeLines: [
-    { overtimeType: 'REGULAR', hours: 4, hourlyRate: 2, multiplier: 1.25, amount: 10, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null, roundingDifference: null, legalReference: 'قانون العمل الكويتي رقم ٦ لسنة ٢٠١٠ — المادة ٦٦ (الأجر العادي للساعة + ٢٥٪ على الأقل)', notes: null },
-    { overtimeType: 'WEEKLY_REST', hours: 4, hourlyRate: 2, multiplier: 1.5, amount: 12, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null, roundingDifference: null, legalReference: 'قانون العمل الكويتي رقم ٦ لسنة ٢٠١٠ — المادة ٦٧ (الأجر العادي + ٥٠٪ على الأقل + يوم راحة بديل)', notes: null },
-    { overtimeType: 'OFFICIAL_HOLIDAY', hours: 4, hourlyRate: 2, multiplier: 2, amount: 16, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null, roundingDifference: null, legalReference: 'قانون العمل الكويتي رقم ٦ لسنة ٢٠١٠ — المادة ٦٨ (أجر مضاعف + يوم راحة بديل)', notes: null },
+    { overtimeType: 'REGULAR', hours: 4, hourlyRate: 2, multiplier: 1.25, statutoryMinimumRate: 2.5, companyBaseRate: 4, companyDerivedRate: 4, effectiveRate: 4, rateSource: 'COMPANY_POLICY', amount: 16, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null, roundingDifference: null, legalReference: 'قانون العمل الكويتي رقم ٦ لسنة ٢٠١٠ — المادة ٦٦ (الأجر العادي للساعة + ٢٥٪ على الأقل)', notes: null },
+    { overtimeType: 'WEEKLY_REST', hours: 4, hourlyRate: 2, multiplier: 1.5, statutoryMinimumRate: 3, companyBaseRate: 4, companyDerivedRate: 6, effectiveRate: 6, rateSource: 'COMPANY_POLICY', amount: 24, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null, roundingDifference: null, legalReference: 'قانون العمل الكويتي رقم ٦ لسنة ٢٠١٠ — المادة ٦٧ (الأجر العادي + ٥٠٪ على الأقل + يوم راحة بديل)', notes: null },
+    { overtimeType: 'OFFICIAL_HOLIDAY', hours: 4, hourlyRate: 2, multiplier: 2, statutoryMinimumRate: 4, companyBaseRate: 4, companyDerivedRate: 8, effectiveRate: 8, rateSource: 'COMPANY_POLICY', amount: 32, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null, roundingDifference: null, legalReference: 'قانون العمل الكويتي رقم ٦ لسنة ٢٠١٠ — المادة ٦٨ (أجر مضاعف + يوم راحة بديل)', notes: null },
   ],
   earnings: [],
   deductions: [],
-  totals: { totalOvertimeAmount: 38, totalOtherEarnings: 0, grossEntitlements: 454, totalDeductions: 0, netAmount: 454 },
+  totals: { totalOvertimeAmount: 72, totalOtherEarnings: 0, grossEntitlements: 488, totalDeductions: 0, netAmount: 488 },
   warnings: [],
   debtRepayments: [],
   notes: null,
@@ -226,5 +229,84 @@ describe('محرّر الشهر — تكامل المديونية', () => {
 
   it('سطر السداد يحمل `debtId` صراحةً لا استدلالًا من النصّ', () => {
     expect(src).toMatch(/type:\s*'DEBT_REPAYMENT'[\s\S]{0,200}debtId:\s*debt\.id/);
+  });
+});
+
+// ─── سعر ساعة الإضافي المعتمد من الشركة ───────────────────────────────────────
+
+describe('سعر الشركة — الواجهة لا تملك السياسة', () => {
+  const RATE_FILES = [
+    'src/pages/EmployeeCompensationMonth.tsx',
+    'src/employee-compensation/CompanyOvertimeRateDialog.tsx',
+  ];
+
+  it('لا ملف واجهة يشتقّ سعر نوع بضربه في معامل — الأسعار تصل من الخادم', () => {
+    for (const file of RATE_FILES) {
+      const code = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      // ضربٌ في ١٫٥ أو ٢ أو ١٫٢٥ داخل React = نسخة ثانية من السياسة تتباعد عن `policy/`.
+      expect(code, `${file}: معامل سياسة مضروب في الواجهة`).not.toMatch(/\*\s*1\.5\b/);
+      expect(code, `${file}: معامل سياسة مضروب في الواجهة`).not.toMatch(/\*\s*1\.25\b/);
+      expect(code, `${file}: معامل قانوني مضروب في الواجهة`).not.toMatch(/hourlyRate\s*\*/);
+    }
+  });
+
+  it('لا ملف واجهة يقارن سعر الشركة بالقانون بنفسه — الأرضية تُفرض في المحرّك', () => {
+    for (const file of RATE_FILES) {
+      const code = read(file).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+      expect(code, `${file}: Math.max على الأسعار`).not.toMatch(/Math\.max\([^)]*[Rr]ate/);
+      expect(code, `${file}: مقارنة سعرين محليًا`).not.toMatch(/statutoryMinimumRate\s*[<>]/);
+    }
+  });
+
+  it('شريط السعر يعيش داخل بطاقة العمل الإضافي حيث يُستعمل', () => {
+    const src = read('src/pages/EmployeeCompensationMonth.tsx');
+    const cardStart = src.indexOf("title={t('ecmp.section.overtime')}");
+    const cardEnd = src.indexOf('{overtime.length === 0', cardStart);
+    expect(cardStart).toBeGreaterThan(-1);
+    expect(src.slice(cardStart, cardEnd)).toContain('<OvertimeRateBar');
+  });
+
+  it('المحرّر يرسل سعر الشهر صراحةً في كل حفظ — لا إغفال يُفسَّر «أبقِ المحفوظ»', () => {
+    const src = read('src/pages/EmployeeCompensationMonth.tsx');
+    expect(src).toMatch(/companyOvertimeBaseRate:\s*appliedRate/);
+  });
+
+  it('الحسبة العكسية تُمرَّر سعر الشهر لا الافتراضي العام', () => {
+    const src = read('src/pages/EmployeeCompensationMonth.tsx');
+    expect(src).toMatch(/companyOvertimeBaseRate=\{appliedRate\}/);
+  });
+});
+
+describe('التقرير التفصيلي — الأسعار الثلاثة ظاهرة', () => {
+  it('يعرض الحد القانوني وسعر الشركة والمستخدم فعليًا معًا', () => {
+    const { container } = render(<DetailedReportTemplate data={DETAILED} />);
+    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+
+    expect(text).toContain('الحد القانوني للساعة');
+    expect(text).toContain('سعر الشركة للنوع');
+    expect(text).toContain('المستخدم فعليًا');
+    // سعر الشركة الأساسي وإصدار سياسته — منفصلان عن إصدار القانون.
+    expect(text).toContain('سعر ساعة الإضافي المعتمد من الشركة');
+    expect(text).toContain('MANAR-COP-v1');
+    expect(text).toContain('KW-LL-6/2010-v2');
+  });
+
+  it('شهر بلا سياسة شركة يُقال عنه ذلك صراحةً ولا يُخترع له سعر', () => {
+    const legacy: DetailedReportData = {
+      ...DETAILED,
+      companyOvertimeBaseRate: null,
+      companyOvertimePolicyVersion: null,
+      overtimeLines: DETAILED.overtimeLines.map((l) => ({
+        ...l,
+        statutoryMinimumRate: null,
+        companyBaseRate: null,
+        companyDerivedRate: null,
+        effectiveRate: null,
+        rateSource: null,
+      })),
+    };
+    const { container } = render(<DetailedReportTemplate data={legacy} />);
+    const text = (container.textContent ?? '').replace(/\s+/g, ' ');
+    expect(text).toContain('لا سياسة سعر شركة لهذا الشهر');
   });
 });

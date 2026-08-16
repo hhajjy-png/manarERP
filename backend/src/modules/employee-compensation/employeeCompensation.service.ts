@@ -25,9 +25,19 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import {
+  companyOvertimeRateTable,
   computeCompensation,
   computeHourlyRate,
+  normalizeCompanyOvertimeBaseRate,
+  parseStoredCompanyOvertimeBaseRate,
   reverseOvertimeFromAmount,
+  COMPANY_OVERTIME_FACTORS,
+  COMPANY_OVERTIME_POLICY_VERSION,
+  COMPANY_OVERTIME_RATE_SETTING_KEY,
+  COMPANY_OVERTIME_SETTING_GROUP,
+  FALLBACK_COMPANY_OVERTIME_BASE_RATE,
+  MAX_COMPANY_OVERTIME_BASE_RATE,
+  MIN_COMPANY_OVERTIME_BASE_RATE,
   MONTHLY_WAGE_DAYS_DIVISOR,
   MONTHLY_WORK_HOURS,
   STANDARD_HOURS_PER_DAY,
@@ -90,16 +100,38 @@ async function priorRegularOvertimeHours(
   return rows.reduce((sum, r) => sum + r.hours, 0);
 }
 
+/**
+ * الافتراضي العام لسعر ساعة الإضافي — يُقرأ من جدول `Setting` القائم.
+ *
+ * ═══ لماذا `prisma.setting` مباشرةً لا `settingsService` ═══
+ * خدمة الإعدادات تستدعي إبطال تخبئة قفل الفترة المحاسبية وتسجّل تدقيقًا باسم وحدة
+ * `settings`. استيرادها هنا كان سيربط وحدةً معزولةً بمسار محاسبي لا شأن لها به،
+ * ويجعل تغيير سعر إضافي يظهر في سجلّ التدقيق تحت اسم وحدة أخرى. الوصول المباشر إلى
+ * الجدول بمفتاح **مُنَمَّط باسم هذه الوحدة** يبقي الأثر داخل حدودها.
+ *
+ * غياب الصف يعني «لم يُحدَّد بعد» ولا يُكتب تلقائيًا: `isConfigured: false` يقول ذلك
+ * صراحةً للواجهة بدل أن يبدو الافتراضي الاحتياطي كأنه اختيار إداري.
+ */
+async function readCompanyOvertimeDefault(): Promise<{ baseRate: number; isConfigured: boolean }> {
+  const row = await prisma.setting.findUnique({ where: { key: COMPANY_OVERTIME_RATE_SETTING_KEY } });
+  const stored = parseStoredCompanyOvertimeBaseRate(row?.value);
+  return stored == null
+    ? { baseRate: FALLBACK_COMPANY_OVERTIME_BASE_RATE, isConfigured: false }
+    : { baseRate: stored, isConfigured: true };
+}
+
 /** يبني مدخل المحرّك من جسم الطلب + اللقطة المحفوظة. */
 function toEngineInput(
   body: CalculationBody,
   basicSalary: number,
   hourlyRateOverride: number | null,
   priorHours: number,
+  companyOvertimeBaseRate: number | null,
 ) {
   return {
     basicSalary,
     hourlyRateOverride,
+    companyOvertimeBaseRate,
     priorRegularOvertimeHoursThisYear: priorHours,
     overtime: body.overtime.map((l) => ({
       overtimeType: l.overtimeType as OvertimeType,
@@ -136,6 +168,13 @@ function toChildRows(result: CompensationResult) {
       hours: l.hours,
       hourlyRate: l.hourlyRate,
       multiplier: l.multiplier,
+      // أسعار السطر تُخزَّن كما حسمها المحرّك: التقرير التفصيلي يعيد شرح المبلغ منها
+      // بعد سنوات، حتى لو تغيّر الافتراضي العام أو معاملات السياسة عشر مرات.
+      statutoryMinimumRate: l.statutoryMinimumRate,
+      companyBaseRate: l.companyBaseRate,
+      companyDerivedRate: l.companyDerivedRate,
+      effectiveRate: l.effectiveRate,
+      rateSource: l.rateSource,
       amount: l.amount,
       calculationMethod: l.calculationMethod,
       reverseTargetAmount: l.reverseTargetAmount,
@@ -191,6 +230,8 @@ async function recomputeStored(calc: CalculationWithLines): Promise<Compensation
   return computeCompensation({
     basicSalary: calc.basicSalarySnapshot,
     hourlyRateOverride: calc.hourlyRateSnapshot,
+    // من **لقطة الشهر** لا من الافتراضي الحيّ: إعادة شرح شهر محفوظ يجب أن تنتج أرقامه هو.
+    companyOvertimeBaseRate: calc.companyOvertimeBaseRateSnapshot,
     priorRegularOvertimeHoursThisYear: priorHours,
     overtime: calc.overtimeLines.map((l) => ({
       overtimeType: l.overtimeType as OvertimeType,
@@ -418,7 +459,18 @@ export const employeeCompensationService = {
 
     const hourlyRate = computeHourlyRate(employee.salary);
     const priorHours = await priorRegularOvertimeHours(employeeId, year);
-    const result = computeCompensation(toEngineInput(body, employee.salary, hourlyRate, priorHours));
+    /**
+     * سعر الشركة عند الإنشاء: اختيار المستخدم إن أرسله، وإلا **افتراضي الشركة الحالي**.
+     * `null` الصريحة تعني «بالحد القانوني وحده» وتُحترم كما هي — وهي المخرج الوحيد من
+     * سياسة الشركة، ولا يُنتَج تلقائيًا أبدًا.
+     */
+    const companyBaseRate =
+      body.companyOvertimeBaseRate === undefined
+        ? (await readCompanyOvertimeDefault()).baseRate
+        : body.companyOvertimeBaseRate;
+    const result = computeCompensation(
+      toEngineInput(body, employee.salary, hourlyRate, priorHours, companyBaseRate),
+    );
     const children = toChildRows(result);
     const who = actor(req);
 
@@ -444,6 +496,10 @@ export const employeeCompensationService = {
         basicSalarySnapshot: employee.salary,
         hourlyRateSnapshot: result.hourlyRate,
         legalRulesVersion: result.legalRulesVersion,
+        // لقطة سعر الشركة — تُقرأ منها كل إعادة احتساب لاحقة، فلا يغيّرها تعديل
+        // الافتراضي العام في أي شهر قادم.
+        companyOvertimeBaseRateSnapshot: result.companyOvertimeBaseRate,
+        companyOvertimePolicyVersion: result.companyOvertimePolicyVersion,
         ...toTotals(result),
         notes: body.notes ?? null,
         createdById: who.id,
@@ -479,9 +535,21 @@ export const employeeCompensationService = {
     const existing = await loadCalculation(id);
     const priorHours = await priorRegularOvertimeHours(existing.employeeId, existing.year, existing.id);
 
+    /**
+     * سعر الشركة عند التحديث: **لا يُلتمس الافتراضي العام أبدًا هنا**.
+     * إغفال الحقل يعني «أبقِ سعر هذا الشهر كما هو» — وإلا لكان فتحُ شهرٍ قديم وحفظُه
+     * (لتصحيح ملاحظة مثلًا) كافيًا لسحب سعر اليوم عليه وتغيير مبلغه بأثر رجعي.
+     * تمرير رقم صريح هو المسار الوحيد لتغيير السعر، وهو متاح حتى بعد الاعتماد
+     * (المتطلب ٧) كبقية حقول هذه الوحدة.
+     */
+    const companyBaseRate =
+      body.companyOvertimeBaseRate === undefined
+        ? existing.companyOvertimeBaseRateSnapshot
+        : body.companyOvertimeBaseRate;
+
     // الاحتساب من **اللقطة** لا من ملف الموظف الحيّ — جوهر السلوك التاريخي.
     const result = computeCompensation(
-      toEngineInput(body, existing.basicSalarySnapshot, existing.hourlyRateSnapshot, priorHours),
+      toEngineInput(body, existing.basicSalarySnapshot, existing.hourlyRateSnapshot, priorHours, companyBaseRate),
     );
     const children = toChildRows(result);
 
@@ -502,6 +570,8 @@ export const employeeCompensationService = {
         where: { id },
         data: {
           ...toTotals(result),
+          companyOvertimeBaseRateSnapshot: result.companyOvertimeBaseRate,
+          companyOvertimePolicyVersion: result.companyOvertimePolicyVersion,
           notes: body.notes ?? null,
           overtimeLines: { create: children.overtimeLines },
           earningLines: { create: children.earningLines },
@@ -519,8 +589,16 @@ export const employeeCompensationService = {
       action: 'UPDATE',
       module: AUDIT_MODULE,
       entityId: id,
-      oldValue: { netAmount: existing.netAmount, status: existing.status },
-      newValue: { netAmount: updated.netAmount, status: updated.status },
+      oldValue: {
+        netAmount: existing.netAmount,
+        status: existing.status,
+        companyOvertimeBaseRate: existing.companyOvertimeBaseRateSnapshot,
+      },
+      newValue: {
+        netAmount: updated.netAmount,
+        status: updated.status,
+        companyOvertimeBaseRate: updated.companyOvertimeBaseRateSnapshot,
+      },
     });
 
     return { ...updated, warnings: result.warnings };
@@ -626,6 +704,14 @@ export const employeeCompensationService = {
           notes: l.notes,
         })),
       notes: source.notes,
+      /**
+       * سعر الشركة **لا يُنسخ** (المتطلب ٢٣): الشهر الجديد يبدأ من الافتراضي الحالي.
+       *
+       * إغفال الحقل هنا هو ما يجعل `create` تلتمس الافتراضي بنفسها. والمنطق: السعر
+       * قرار إداري **سارٍ اليوم**، لا بند من بنود الشهر الماضي. لو حُملت لقطة يوليو إلى
+       * أغسطس لظلّت الشركة تصرف بسعر ألغته منذ شهر، كلما نسخ أحدهم شهرًا. الفرق —
+       * إن وُجد — يُعاد في `copiedFrom` فلا يقع التغيير بصمت.
+       */
     };
 
     const skippedDebtRepayments = source.deductionLines.filter((l) => l.debtId != null).length;
@@ -638,10 +724,63 @@ export const employeeCompensationService = {
         basicSalarySnapshot: source.basicSalarySnapshot,
         /** لقطة راتب الشهر الجديد — قد تختلف عن المنسوخ منه، ويجب أن يراها المستخدم. */
         newBasicSalarySnapshot: created.basicSalarySnapshot,
+        /** سعر شركة الشهر المنسوخ منه، وسعر الشهر الجديد — للمقارنة في الواجهة. */
+        companyOvertimeBaseRateSnapshot: source.companyOvertimeBaseRateSnapshot,
+        newCompanyOvertimeBaseRateSnapshot: created.companyOvertimeBaseRateSnapshot,
         /** عدد سطور سداد المديونيات التي لم تُنسخ (انظر التعليل أعلاه). */
         skippedDebtRepayments,
       },
     };
+  },
+
+  // ── الافتراضي العام لسعر ساعة الإضافي ───────────────────────────────────────
+
+  /**
+   * قراءة الافتراضي العام مع جدول أسعاره المشتقّة.
+   *
+   * الجدول يُرسَل محسوبًا من الخادم لا لتوفير عملية ضرب، بل كي لا تُكتب معاملات
+   * السياسة (١٫٠٠ / ١٫٥٠ / ٢٫٠٠) في React نسخةً ثانية تتباعد عن الأصل (المتطلب ١٠).
+   */
+  async getCompanyOvertimeSettings() {
+    const { baseRate, isConfigured } = await readCompanyOvertimeDefault();
+    return {
+      baseRate,
+      isConfigured,
+      fallbackBaseRate: FALLBACK_COMPANY_OVERTIME_BASE_RATE,
+      minBaseRate: MIN_COMPANY_OVERTIME_BASE_RATE,
+      maxBaseRate: MAX_COMPANY_OVERTIME_BASE_RATE,
+      policyVersion: COMPANY_OVERTIME_POLICY_VERSION,
+      factors: COMPANY_OVERTIME_FACTORS,
+      rates: companyOvertimeRateTable(baseRate),
+    };
+  },
+
+  /**
+   * تغيير الافتراضي العام.
+   *
+   * **لا يمسّ حسبة واحدة محفوظة** (المتطلبان ٦ و٢٢): لا استعلام تحديث هنا، ولا مهمة
+   * إعادة احتساب في الخلفية. كل شهر يحمل لقطته، والافتراضي يخصّ الأشهر التي لم تُنشأ
+   * بعد. هذا الغياب المتعمَّد لأي `updateMany` هو الضمانة نفسها.
+   */
+  async setCompanyOvertimeSettings(baseRate: number, req: Request) {
+    const previous = await readCompanyOvertimeDefault();
+    const rate = normalizeCompanyOvertimeBaseRate(baseRate);
+
+    await prisma.setting.upsert({
+      where: { key: COMPANY_OVERTIME_RATE_SETTING_KEY },
+      update: { value: String(rate) },
+      create: { key: COMPANY_OVERTIME_RATE_SETTING_KEY, value: String(rate), group: COMPANY_OVERTIME_SETTING_GROUP },
+    });
+
+    await recordAudit({
+      req,
+      action: 'UPDATE',
+      module: AUDIT_MODULE,
+      oldValue: { companyOvertimeBaseRate: previous.isConfigured ? previous.baseRate : null },
+      newValue: { companyOvertimeBaseRate: rate, policyVersion: COMPANY_OVERTIME_POLICY_VERSION },
+    });
+
+    return this.getCompanyOvertimeSettings();
   },
 
   /** معاينة حسبة بلا كتابة — نفس المحرّك، صفر أثر تخزيني. */
@@ -656,6 +795,9 @@ export const employeeCompensationService = {
         input.basicSalary,
         input.hourlyRateOverride ?? null,
         input.priorRegularOvertimeHoursThisYear ?? 0,
+        // المعاينة تعكس ما تراه الواجهة حرفيًا: غياب الحقل هنا يعني «بلا سياسة شركة»،
+        // ولا يلتمس افتراضيًا خفيًّا — وإلا لعرضت المعاينة سعرًا لن يُحفظ.
+        input.companyOvertimeBaseRate ?? null,
       ),
     );
   },
@@ -666,6 +808,7 @@ export const employeeCompensationService = {
     overtimeType: OvertimeType;
     basicSalary?: number;
     hourlyRate?: number;
+    companyOvertimeBaseRate?: number | null;
   }) {
     const rate =
       input.hourlyRate && input.hourlyRate > 0
@@ -674,7 +817,12 @@ export const employeeCompensationService = {
           ? computeHourlyRate(input.basicSalary)
           : null;
     if (!rate) throw AppError.badRequest('يلزم تمرير الراتب الأساسي أو أجر الساعة لتنفيذ الحسبة العكسية');
-    return reverseOvertimeFromAmount({ targetAmount: input.targetAmount, overtimeType: input.overtimeType, hourlyRate: rate });
+    return reverseOvertimeFromAmount({
+      targetAmount: input.targetAmount,
+      overtimeType: input.overtimeType,
+      hourlyRate: rate,
+      companyOvertimeBaseRate: input.companyOvertimeBaseRate ?? null,
+    });
   },
 
   /**
@@ -768,6 +916,13 @@ export const employeeCompensationService = {
       createdAt: c.createdAt,
       updatedAt: c.updatedAt,
       legalRulesVersion: c.legalRulesVersion,
+      /**
+       * سياسة الشركة — **إصدارها مستقلّ عن إصدار القانون**، ويُطبعان متجاورين لا مدمجين.
+       * `null` في أيٍّ منهما يعني «هذا الشهر بلا سياسة شركة»، وهو ما يقوله التقرير صراحةً
+       * بدل أن يعرض سعر شركة صفرًا يوحي بقرار لم يُتَّخذ.
+       */
+      companyOvertimePolicyVersion: c.companyOvertimePolicyVersion,
+      companyOvertimeBaseRate: c.companyOvertimeBaseRateSnapshot,
       employee: {
         code: c.employeeNumberSnapshot,
         fullName: c.employeeNameSnapshot,
@@ -792,6 +947,13 @@ export const employeeCompensationService = {
         hours: l.hours,
         hourlyRate: l.hourlyRate,
         multiplier: l.multiplier,
+        // أعمدة الأسعار كما خُزّنت وقت الحسبة (المتطلب ٢١). قيمها `null` في السطور
+        // المحفوظة قبل هذه الحزمة، فيعرض القالب «—» بدل أن يخترع سعرًا لم يوجد.
+        statutoryMinimumRate: l.statutoryMinimumRate,
+        companyBaseRate: l.companyBaseRate,
+        companyDerivedRate: l.companyDerivedRate,
+        effectiveRate: l.effectiveRate,
+        rateSource: l.rateSource,
         amount: l.amount,
         calculationMethod: l.calculationMethod,
         reverseTargetAmount: l.reverseTargetAmount,

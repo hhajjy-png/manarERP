@@ -94,9 +94,27 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
             </span>
           </div>
         </div>
+        {/* سعر الشركة بند مستقلّ عن أجر الساعة القانوني — لا يُدمجان في سطر واحد
+            حتى لا يُقرأ القرار الإداري كأنه نصّ قانوني. */}
+        <div style={tableRow}>
+          <div style={labelCell}>سعر ساعة الإضافي المعتمد من الشركة</div>
+          <div style={{ ...valueCell, fontWeight: 700 }}>
+            {data.companyOvertimeBaseRate == null ? (
+              <span style={{ fontWeight: 400, color: '#64748b' }}>
+                لا سياسة سعر شركة لهذا الشهر — احتُسب بالحد الأدنى القانوني وحده
+              </span>
+            ) : (
+              money(data.companyOvertimeBaseRate)
+            )}
+          </div>
+        </div>
         <div style={tableRow}>
           <div style={labelCell}>إصدار القواعد القانونية</div>
           <div style={{ ...valueCell, fontFamily: 'monospace' }}>{data.legalRulesVersion}</div>
+        </div>
+        <div style={tableRow}>
+          <div style={labelCell}>إصدار سياسة الشركة</div>
+          <div style={{ ...valueCell, fontFamily: 'monospace' }}>{data.companyOvertimePolicyVersion ?? '—'}</div>
         </div>
       </div>
 
@@ -108,8 +126,11 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
               <tr>
                 <th style={th}>النوع</th>
                 <th style={{ ...th, textAlign: 'end' }}>الساعات</th>
-                <th style={{ ...th, textAlign: 'end' }}>أجر الساعة</th>
-                <th style={{ ...th, textAlign: 'end' }}>المعامل</th>
+                {/* ثلاثة أعمدة سعر لا عمود واحد (المتطلب ٢١): القارئ يجب أن يرى الحدّ
+                    الذي فرضه القانون، والسعر الذي اختارته الشركة، وأيّهما استُعمل. */}
+                <th style={{ ...th, textAlign: 'end' }}>الحد القانوني للساعة</th>
+                <th style={{ ...th, textAlign: 'end' }}>سعر الشركة للنوع</th>
+                <th style={{ ...th, textAlign: 'end' }}>المستخدم فعليًا</th>
                 <th style={{ ...th, textAlign: 'end' }}>القيمة (د.ك)</th>
                 <th style={th}>طريقة الاحتساب</th>
               </tr>
@@ -122,8 +143,28 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
                     <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{l.legalReference}</div>
                   </td>
                   <td style={tdNum}>{l.hours}</td>
-                  <td style={tdNum}>{money(l.hourlyRate)}</td>
-                  <td style={tdNum}>×{l.multiplier}</td>
+                  <td style={tdNum}>
+                    {/* الحدّ القانوني = أجر الساعة × معامل المادة. يُعرض أساسه تحته
+                        فيستطيع القارئ إعادة اشتقاقه بنفسه من أرقام الورقة. */}
+                    {money(l.statutoryMinimumRate ?? l.hourlyRate * l.multiplier)}
+                    <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, whiteSpace: 'nowrap' }}>
+                      {money(l.hourlyRate)} ×{l.multiplier}
+                    </div>
+                  </td>
+                  <td style={tdNum}>
+                    {l.companyDerivedRate == null ? '—' : money(l.companyDerivedRate)}
+                    {l.companyBaseRate != null && (
+                      <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, whiteSpace: 'nowrap' }}>
+                        الأساسي {money(l.companyBaseRate)}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ ...tdNum, fontWeight: 700 }}>
+                    {money(l.effectiveRate ?? l.hourlyRate * l.multiplier)}
+                    <div style={{ fontSize: 10, color: l.rateSource === 'STATUTORY_FLOOR' ? '#b45309' : '#64748b', marginTop: 2, whiteSpace: 'nowrap' }}>
+                      {l.rateSource === 'COMPANY_POLICY' ? 'سعر الشركة' : 'الحد القانوني'}
+                    </div>
+                  </td>
                   <td style={{ ...tdNum, fontWeight: 700 }}>{money(l.amount)}</td>
                   <td style={td}>
                     {l.calculationMethod === 'REVERSE_FROM_AMOUNT' ? (
@@ -143,7 +184,7 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
                 </tr>
               ))}
               <tr>
-                <td style={totalRow} colSpan={4}>إجمالي العمل الإضافي</td>
+                <td style={totalRow} colSpan={5}>إجمالي العمل الإضافي</td>
                 <td style={{ ...totalRow, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>
                   {money(totals.totalOvertimeAmount)}
                 </td>

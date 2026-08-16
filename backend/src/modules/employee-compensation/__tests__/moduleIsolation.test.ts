@@ -60,6 +60,10 @@ const ALLOWED_PRISMA_MODELS = [
   'employeeCompensationDebt',
   'employeeCompensationDebtPayment',
   'auditLog', // عبر `recordAudit` وحده، لا مباشرةً
+  // جدول الإعدادات العام — **مفتاح واحد مُنَمَّط باسم الوحدة** يحمل الافتراضي العام
+  // لسعر ساعة الإضافي. لا جدول إعدادات ثانٍ للوحدة، ولا وصول إلى مفاتيح وحدات أخرى:
+  // يفرض ذلك الفحصُ المستقل أدناه على نصّ المفتاح المستعمل.
+  'setting',
   '$transaction',
 ];
 
@@ -141,6 +145,59 @@ describe('عزل الوحدة — لا كتابة خارج جداولها الأ
       }
     }
     expect(violations, `كتابة على ملف الموظف:\n${violations.join('\n')}`).toEqual([]);
+  });
+});
+
+describe('عزل الوحدة — الإعدادات بمفتاح الوحدة وحده', () => {
+  it('لا يقرأ ولا يكتب أي مفتاح إعدادات خارج نطاق `employeeCompensation.`', () => {
+    const violations: string[] = [];
+    for (const file of FILES) {
+      const src = fs.readFileSync(file, 'utf8');
+      if (!/\b(?:prisma|tx)\.setting\b/.test(src)) continue;
+      // كل مفتاح إعدادات في الوحدة يجب أن يأتي من الثابت المركزي، لا نصًّا حرفيًا.
+      for (const match of src.matchAll(/key:\s*'([^']+)'/g)) {
+        violations.push(`${path.relative(MODULE_ROOT, file)} → مفتاح إعدادات مكتوب نصًّا: ${match[1]}`);
+      }
+      if (!src.includes('COMPANY_OVERTIME_RATE_SETTING_KEY')) {
+        violations.push(`${path.relative(MODULE_ROOT, file)} → يلمس جدول الإعدادات بلا الثابت المركزي`);
+      }
+    }
+    expect(violations, violations.join('\n')).toEqual([]);
+  });
+
+  it('الثابت المركزي نفسه منمَّط باسم الوحدة', async () => {
+    const policy = await import('../policy/companyOvertimePolicy');
+    expect(policy.COMPANY_OVERTIME_RATE_SETTING_KEY.startsWith('employeeCompensation.')).toBe(true);
+    expect(policy.COMPANY_OVERTIME_SETTING_GROUP).toBe('employeeCompensation');
+  });
+});
+
+/**
+ * القانون وسياسة الشركة **مفهومان لا يُخلطان** (المتطلب ١٠).
+ *
+ * الحارس هنا ليس أسلوبيًا: خلطهما يعني أن يبدو تعديل سعر إداري كأنه تعديل لنصّ القانون،
+ * وأن يحمل إصدارٌ واحد معنيين متناقضين فيفقد كلٌّ منهما قدرته على شرح حسبة قديمة.
+ */
+describe('فصل سياسة الشركة عن نصّ القانون', () => {
+  const policyFile = path.join(MODULE_ROOT, 'policy', 'companyOvertimePolicy.ts');
+  const legalSource = fs.readFileSync(path.join(MODULE_ROOT, 'legal', 'kuwaitLabourLaw.ts'), 'utf8');
+  const policySource = fs.readFileSync(policyFile, 'utf8');
+
+  it('ملف القانون لا يعرف شيئًا عن سعر الشركة', () => {
+    expect(legalSource).not.toContain('COMPANY_OVERTIME');
+    expect(legalSource).not.toContain('companyOvertimePolicy');
+  });
+
+  it('ملف السياسة لا يعيد تعريف إصدار القانون ولا معامله الحصري (١٫٢٥)', () => {
+    expect(policySource).not.toContain('LEGAL_RULES_VERSION =');
+    const code = policySource.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    expect(code, 'معامل المادة ٦٦ مكتوب داخل سياسة الشركة').not.toContain('1.25');
+  });
+
+  it('الإصداران منفصلان اسمًا وقيمة', async () => {
+    const legal = await import('../legal/kuwaitLabourLaw');
+    const policy = await import('../policy/companyOvertimePolicy');
+    expect(policy.COMPANY_OVERTIME_POLICY_VERSION).not.toBe(legal.LEGAL_RULES_VERSION);
   });
 });
 
