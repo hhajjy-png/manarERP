@@ -53,6 +53,10 @@ const ALLOWED_PRISMA_MODELS = [
   'employee',
   'employeeCompensationCalculation',
   'overtimeLine',
+  // تفاصيل أيام العمل الإضافي — جدول تابع للحسبة وحدها، تُحذف صفوفه بحذفها (Cascade).
+  // ليس سجل حضور (`Attendance`) ولا جدول دوام: لا يقرأ الحضور ولا يكتب فيه، ولا يعرف
+  // عن الموظف شيئًا خارج حسبته الشهرية.
+  'overtimeDayEntry',
   'compensationEarningLine',
   'compensationDeductionLine',
   // سجل المديونيات والسلف — جدولان يخصّان هذه الوحدة وحدها. ليست `PayrollAdvance`
@@ -82,6 +86,14 @@ const FORBIDDEN_PRISMA_MODELS = [
   'cheque',
   'employeeFinalSettlement',
   'employeeEntitlementLedger',
+  // ── أُضيفت مع حزمة السجل اليومي ──
+  // سجل الحضور وتقويم العطل يشبهان الآن جدول الوحدة شبهًا خادعًا: كلاهما «أيام موظف».
+  // لكن `OvertimeDayEntry` بندُ حسبةٍ شهرية يُدخله المستخدم، لا واقعةُ حضور مقيسة، ولا
+  // يُصنّف يومًا عطلةً رسمية من تلقاء نفسه (المتطلبان ٤٧ و٤٨). قراءتهما هنا كانت ستجعل
+  // الوحدة تستنتج تصنيفًا قانونيًا من بيانات وحدة أخرى لا تملك ضمان دقّتها.
+  'attendance',
+  'holiday',
+  'leave',
 ];
 
 /** عمليات Prisma التي تكتب. */

@@ -1,0 +1,305 @@
+/* السجل اليومي للعمل الإضافي (Daily Overtime Ledger v1).
+
+   ملفّ مستقلّ لا امتداد في EmployeeCompensation.css: هذه الحزمة تضيف سطحًا بصريًا
+   كاملًا (تقويم · جدول أيام · شريط التزام)، ودمجه في ملفّ الوحدة العام كان سيضخّمه
+   بلا حدّ. يُستورَد من المكوّن الذي يستعمله وحده.
+
+   مبدأ العرض: بطاقة العمل الإضافي تبقى **مضغوطة** — شريط التزام من سطر واحد، وكل
+   التفاصيل داخل حوار. لا يطول محرّر الشهر بسبب هذه الحزمة.
+
+   التوكينات (--xpl-*) معرَّفة على .xpl-scope وحدها، وكل ما هنا يعيش داخلها. */
+
+/* ── شريط الالتزام القانوني ── */
+.ecmp-compliance-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 7px 12px;
+  background: var(--xpl-surface-2);
+  border-bottom: 1px solid var(--xpl-border);
+  font-size: 12px;
+}
+.ecmp-cmp-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+  white-space: nowrap;
+}
+.ecmp-cmp-title .material-symbols-outlined { font-size: 15px !important; }
+.ecmp-cmp-stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.ecmp-cmp-stat { color: var(--xpl-text); white-space: nowrap; }
+.ecmp-cmp-stat b { font-variant-numeric: tabular-nums; font-weight: 800; }
+.ecmp-cmp-sub { color: var(--xpl-muted); font-size: 11px; }
+
+.ecmp-cmp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.ecmp-cmp-badge .material-symbols-outlined { font-size: 14px !important; }
+/* ثلاث حالات بثلاثة ألوان دلالية — لا لون واحد لكل الرسائل. */
+.ecmp-cmp-ok   { background: #dcfce7; color: #166534; }
+.ecmp-cmp-warn { background: #fef3c7; color: #92400e; }
+.ecmp-cmp-bad  { background: #fee2e2; color: #991b1b; }
+
+.ecmp-cmp-legacy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--xpl-muted);
+  white-space: nowrap;
+}
+.ecmp-cmp-legacy .material-symbols-outlined { font-size: 14px !important; }
+
+/* الساعات المشتقّة من الأيام — تبدو قابلة للنقر لأنها مدخل إلى التفاصيل. */
+.ecmp-derived-hours {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px dashed var(--xpl-border);
+  border-radius: 7px;
+  font: inherit;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--xpl-text);
+  cursor: pointer;
+}
+.ecmp-derived-hours:hover { border-color: var(--xpl-primary); background: var(--xpl-surface-2); }
+.ecmp-derived-hours:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: 1px; }
+.ecmp-derived-hint { font-size: 10px; font-weight: 500; color: var(--xpl-muted); }
+
+/* ── قائمة المخالفات والإفصاحات ── */
+.ecmp-findings { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.ecmp-finding {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 8px 11px;
+  border-radius: 9px;
+  font-size: 12px;
+  line-height: 1.6;
+  border-inline-start: 3px solid transparent;
+}
+.ecmp-finding-tag {
+  flex: 0 0 auto;
+  font-weight: 800;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.ecmp-finding-msg { flex: 1 1 auto; }
+/* المخالفة القانونية لا تُلوَّن كتحذير: تمييزها البصري جزء من كونها مانعًا للاعتماد. */
+.ecmp-find-violation  { background: #fef2f2; border-inline-start-color: #dc2626; color: #7f1d1d; }
+.ecmp-find-disclosure { background: #f8fafc; border-inline-start-color: #94a3b8; color: #334155; }
+.ecmp-find-advisory   { background: #fffbeb; border-inline-start-color: #f59e0b; color: #78350f; }
+
+/* ── حوار السجل اليومي ── */
+.ecmp-day-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.ecmp-day-tabs { display: inline-flex; gap: 2px; padding: 2px; background: var(--xpl-surface-2); border-radius: 9px; }
+.ecmp-day-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 13px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+  cursor: pointer;
+}
+.ecmp-day-tabs button.is-active {
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+.ecmp-day-tabs .material-symbols-outlined { font-size: 15px !important; }
+.ecmp-day-actions { display: inline-flex; gap: 7px; }
+
+.ecmp-day-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  padding: 34px 18px;
+  color: var(--xpl-muted);
+  font-size: 12.5px;
+  text-align: center;
+}
+.ecmp-day-empty .material-symbols-outlined { font-size: 30px !important; opacity: 0.5; }
+
+.ecmp-day-table-wrap { overflow-x: auto; border: 1px solid var(--xpl-border); border-radius: 10px; }
+.ecmp-day-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.ecmp-day-table th {
+  padding: 7px 10px;
+  text-align: start;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--xpl-muted);
+  background: var(--xpl-surface-2);
+  border-bottom: 1px solid var(--xpl-border);
+  white-space: nowrap;
+}
+.ecmp-day-table td { padding: 6px 10px; border-bottom: 1px solid var(--xpl-border); vertical-align: middle; }
+.ecmp-day-table tbody tr:last-child td { border-bottom: none; }
+.ecmp-day-table .num { text-align: end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ecmp-day-table tr.is-violation { background: #fef2f2; }
+.ecmp-day-table tr.is-violation td:first-child { color: #991b1b; font-weight: 700; }
+.ecmp-day-table tr.is-violation .material-symbols-outlined {
+  font-size: 14px !important;
+  color: #dc2626;
+  vertical-align: middle;
+  margin-inline-start: 3px;
+}
+.ecmp-day-notes { color: var(--xpl-muted); max-width: 190px; }
+.ecmp-day-row-actions { display: flex; gap: 2px; justify-content: flex-end; }
+.ecmp-day-footer-total { margin-inline-end: auto; font-size: 13px; color: var(--xpl-text); }
+.ecmp-day-footer-total b { font-variant-numeric: tabular-nums; font-size: 15px; }
+
+.ecmp-rest-chip { padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ecmp-rest-chip.s-PENDING   { background: #fef3c7; color: #92400e; }
+.ecmp-rest-chip.s-SCHEDULED { background: #dbeafe; color: #1e40af; }
+.ecmp-rest-chip.s-TAKEN     { background: #dcfce7; color: #166534; }
+
+/* ── التقويم ── */
+.ecmp-cal { display: flex; flex-direction: column; gap: 5px; }
+.ecmp-cal-head, .ecmp-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.ecmp-cal-wd { padding: 4px 0; text-align: center; font-size: 11px; font-weight: 800; color: var(--xpl-muted); }
+.ecmp-cal-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 62px;
+  padding: 4px 5px;
+  background: var(--xpl-surface);
+  border: 1px solid var(--xpl-border);
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+  text-align: start;
+}
+.ecmp-cal-cell.is-pad { background: transparent; border-color: transparent; cursor: default; }
+.ecmp-cal-cell:not(.is-pad):hover { border-color: var(--xpl-primary); }
+.ecmp-cal-cell:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: 1px; }
+.ecmp-cal-cell.has-entry { background: var(--xpl-surface-2); }
+.ecmp-cal-cell.has-violation { border-color: #dc2626; background: #fef2f2; }
+.ecmp-cal-num { font-size: 12px; font-weight: 800; color: var(--xpl-text); font-variant-numeric: tabular-nums; }
+.ecmp-cal-badge {
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+/* لون لكل نوع قانوني — الفصل بين المواد ٦٦ و٦٧ و٦٨ مرئي لا مذكور فقط. */
+.ecmp-cal-badge.t-REGULAR,          .ecmp-cal-dot.t-REGULAR          { background: #dbeafe; color: #1e40af; }
+.ecmp-cal-badge.t-WEEKLY_REST,      .ecmp-cal-dot.t-WEEKLY_REST      { background: #ede9fe; color: #5b21b6; }
+.ecmp-cal-badge.t-OFFICIAL_HOLIDAY, .ecmp-cal-dot.t-OFFICIAL_HOLIDAY { background: #fce7f3; color: #9d174d; }
+.ecmp-cal-legend { display: flex; gap: 14px; flex-wrap: wrap; padding-top: 5px; font-size: 11.5px; color: var(--xpl-muted); }
+.ecmp-cal-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.ecmp-cal-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* ── حقول الحوار ── */
+.ecmp-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+.ecmp-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.ecmp-field > span { font-weight: 700; color: var(--xpl-muted); }
+.ecmp-field-wide { grid-column: 1 / -1; }
+.ecmp-field input, .ecmp-field select {
+  padding: 6px 9px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 8px;
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  font: inherit;
+  font-size: 12.5px;
+}
+.ecmp-inline-error {
+  margin-top: 10px;
+  padding: 8px 11px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border-inline-start: 3px solid #dc2626;
+  color: #7f1d1d;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.ecmp-assist-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  font-size: 12px;
+  color: var(--xpl-muted);
+}
+.ecmp-assist-note .material-symbols-outlined { font-size: 15px !important; }
+
+@media (max-width: 700px) {
+  .ecmp-form-grid { grid-template-columns: 1fr; }
+}
+
+/* سجلّ الإضافي السنوي (الملف السنوي) */
+.ecmp-history { display: flex; flex-direction: column; gap: 9px; margin-top: 12px; }
+.ecmp-history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ecmp-history-filters { display: inline-flex; gap: 2px; padding: 2px; background: var(--xpl-surface-2); border-radius: 9px; }
+.ecmp-history-filters button {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ecmp-history-filters button.is-active {
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.1);
+}
+.ecmp-history-search {
+  padding: 5px 11px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 8px;
+  background: var(--xpl-surface);
+  color: var(--xpl-text);
+  font: inherit;
+  font-size: 12.5px;
+  min-width: 170px;
+}
+
+/* نسبة «المستهلَك / الحد» معزولة اتجاهيًا: محرّك bidi في سياق RTL يقلب ترتيب
+   «35 / 180» بصريًا إلى «180 / 35» فيُقرأ الحدُّ مستهلَكًا والعكس. */
+.ecmp-ratio {
+  unicode-bidi: isolate;
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+}

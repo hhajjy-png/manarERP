@@ -212,11 +212,28 @@ describe('الحدود القانونية', () => {
     expect(w?.messageAr).toContain('90 يومًا في السنة');
   });
 
-  it('الحد السنوي وحده موسوم قابلًا للفحص؛ والثلاثة الباقية غير قابلة', () => {
+  /**
+   * أُعيد تصنيف ثلاثة حدود من `false` إلى `true` مع حزمة السجل اليومي.
+   *
+   * لم يتغيّر أي **رقم** قانوني ولا أي تفسير: تغيّر ما تملكه الوحدة من بيانات وحدَه.
+   * كانت الحدود اليومية والأسبوعية والسنوية-بالأيام غير قابلة للفحص لأن الوحدة لم تكن
+   * تعرف تواريخ الساعات؛ صار `OvertimeDayEntry` يعرفها، فصارت مفحوصة.
+   *
+   * `verifiable: true` هنا تعني «قابل للفحص متى وُجدت تفاصيل يومية» لا «مفحوص دائمًا» —
+   * الأشهر القديمة بلا أيام تبقى بلا فحص يومي، ويميّزها `hasDailyDetail` صراحةً.
+   */
+  it('حدود المادة ٦٦ الأربعة كلها صارت قابلة للفحص بعد السجل اليومي', () => {
     expect(OVERTIME_LIMITS.maxHoursPerYear.verifiable).toBe(true);
-    expect(OVERTIME_LIMITS.maxHoursPerDay.verifiable).toBe(false);
-    expect(OVERTIME_LIMITS.maxDaysPerWeek.verifiable).toBe(false);
-    expect(OVERTIME_LIMITS.maxDaysPerYear.verifiable).toBe(false);
+    expect(OVERTIME_LIMITS.maxHoursPerDay.verifiable).toBe(true);
+    expect(OVERTIME_LIMITS.maxDaysPerWeek.verifiable).toBe(true);
+    expect(OVERTIME_LIMITS.maxDaysPerYear.verifiable).toBe(true);
+  });
+
+  it('أرقام الحدود القانونية نفسها لم تتغيّر', () => {
+    expect(OVERTIME_LIMITS.maxHoursPerDay.value).toBe(2);
+    expect(OVERTIME_LIMITS.maxDaysPerWeek.value).toBe(3);
+    expect(OVERTIME_LIMITS.maxDaysPerYear.value).toBe(90);
+    expect(OVERTIME_LIMITS.maxHoursPerYear.value).toBe(180);
   });
 
   it('تجاوز ١٨٠ ساعة سنويًا يُنتج تحذيرًا منصوصًا بالحد والفرق', () => {

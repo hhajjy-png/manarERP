@@ -16,12 +16,40 @@ export {
   OVERTIME_TYPES,
   OVERTIME_RULES,
   OVERTIME_LIMITS,
+  WORK_WEEK_START_DAY,
   DERIVED_MONTHLY_REGULAR_OVERTIME_CEILING,
   isOvertimeType,
   overtimeRule,
   type OvertimeType,
   type OvertimeRule,
 } from '../legal/kuwaitLabourLaw';
+
+export {
+  allocateAmountAcrossDays,
+  evaluateOvertimeCompliance,
+  isCompensatoryRestStatus,
+  isValidIsoDate,
+  monthOf,
+  weekStartOf,
+  yearOf,
+  ANNUAL_EARLY_WARNING_RATIO,
+  COMPENSATORY_REST_STATUSES,
+  type ComplianceBasis,
+  type ComplianceCode,
+  type ComplianceFinding,
+  type CompensatoryRestStatus,
+  type OvertimeComplianceInput,
+  type OvertimeComplianceResult,
+  type OvertimeDayInput,
+} from './overtimeComplianceEngine';
+
+export {
+  deriveOvertimeLinesFromDays,
+  toDayRows,
+  validateOvertimeDays,
+  type DayLedgerError,
+  type OvertimeDayRecord,
+} from './overtimeDayLedger';
 
 export {
   ceilHoursInFavourOfEmployee,

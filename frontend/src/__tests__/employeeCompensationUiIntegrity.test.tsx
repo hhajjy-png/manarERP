@@ -127,6 +127,20 @@ const DETAILED: DetailedReportData = {
   deductions: [],
   totals: { totalOvertimeAmount: 72, totalOtherEarnings: 0, grossEntitlements: 488, totalDeductions: 0, netAmount: 488 },
   warnings: [],
+  // سجل شهري قديم: بلا تفاصيل يومية — يبقى قابلًا للفتح والطباعة بنفس قيمه.
+  overtimeDays: [],
+  compliance: {
+    compliant: true,
+    hasDailyDetail: false,
+    // شهر مجمّع: ساعاته معروفة ودخلت الرصيد، وأيامه مجهولة فالتحقّق ناقص.
+    verification: 'PARTIAL' as const,
+    legacyMonths: [6],
+    regular: { monthHours: 4, monthDays: 0, yearHours: 4, yearHoursFromLegacy: 4, yearDays: 0, annualHoursLimit: 180, annualDaysLimit: 90 },
+    weeklyRest: { hours: 4, days: 0, compensatoryPending: 0 },
+    officialHoliday: { hours: 4, days: 0, compensatoryPending: 0 },
+    violations: [],
+    warnings: [],
+  },
   debtRepayments: [],
   notes: null,
 };
