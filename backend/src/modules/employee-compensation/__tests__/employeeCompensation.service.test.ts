@@ -11,6 +11,7 @@ vi.mock('../../../config/database', () => ({
       delete: vi.fn(),
     },
     overtimeLine: { findMany: vi.fn(), deleteMany: vi.fn() },
+    overtimeDayEntry: { findMany: vi.fn(), deleteMany: vi.fn() },
     compensationEarningLine: { deleteMany: vi.fn() },
     compensationDeductionLine: { deleteMany: vi.fn(), count: vi.fn() },
     // سجل المديونيات — تُستدعى من مسار المزامنة داخل المعاملة، ولو بلا سطور سداد.
@@ -114,6 +115,10 @@ function storedCalculation(over: Record<string, unknown> = {}) {
     deductionLines: [
       { id: 1, calculationId: 100, type: 'ADVANCE', label: 'سلفة', amount: 30, notes: null, sortOrder: 0 },
     ],
+    // سجل شهري قديم افتراضيًا: بلا تفاصيل يومية. الأشهر التي تختبر السجل اليومي
+    // تُمرّر `overtimeDayEntries` صراحةً — فيبقى هذا الثابت شاهدًا على أن الأشهر
+    // السابقة للحزمة تعمل بلا أي تغيير.
+    overtimeDayEntries: [],
     ...over,
   };
 }
@@ -121,10 +126,236 @@ function storedCalculation(over: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   p.overtimeLine.findMany.mockResolvedValue([]);
+  p.overtimeDayEntry.findMany.mockResolvedValue([]);
+  // لا أشهر مجمّعة افتراضيًا — اختبارات السنة المختلطة تمرّرها صراحةً.
+  p.employeeCompensationCalculation.findMany.mockResolvedValue([]);
   p.employeeCompensationDebt.findMany.mockResolvedValue([]);
   p.employeeCompensationDebtPayment.findMany.mockResolvedValue([]);
   p.compensationDeductionLine.count.mockResolvedValue(0);
   p.$transaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(p));
+});
+
+describe('السجل اليومي — الحفظ والاشتقاق', () => {
+  const withDays = (overtimeDays: unknown[]) => ({ ...BODY, overtime: [], overtimeDays });
+
+  beforeEach(() => {
+    p.employee.findUnique.mockResolvedValue(EMPLOYEE);
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(null);
+    p.employeeCompensationCalculation.create.mockResolvedValue(storedCalculation());
+  });
+
+  it('§5 — ساعات السطر الشهري تُشتقّ من مجموع الأيام', async () => {
+    await service.create(1, 2026, 6, withDays([
+      { date: '2026-06-01', overtimeType: 'REGULAR', hours: 2 },
+      { date: '2026-06-02', overtimeType: 'REGULAR', hours: 2 },
+      { date: '2026-06-03', overtimeType: 'REGULAR', hours: 1 },
+    ]) as never, req);
+
+    const data = p.employeeCompensationCalculation.create.mock.calls[0][0].data;
+    expect(data.overtimeLines.create).toHaveLength(1);
+    expect(data.overtimeLines.create[0].hours).toBe(5);
+    expect(data.overtimeDayEntries.create).toHaveLength(3);
+  });
+
+  it('§43 — الأيام والسطر المشتقّ يُكتبان في المعاملة نفسها', async () => {
+    await service.create(1, 2026, 6, withDays([
+      { date: '2026-06-01', overtimeType: 'REGULAR', hours: 2 },
+    ]) as never, req);
+    // كتابة واحدة تحمل الاثنين معًا — لا نافذة يكون فيها المجموع مخالفًا لتفاصيله.
+    const data = p.employeeCompensationCalculation.create.mock.calls[0][0].data;
+    expect(data.overtimeDayEntries.create[0].date).toBe('2026-06-01');
+    expect(data.overtimeLines.create[0].hours).toBe(2);
+    expect(p.$transaction).toHaveBeenCalled();
+  });
+
+  it('§26 — يرفض تاريخًا خارج شهر الحسبة قبل أي كتابة', async () => {
+    await expect(
+      service.create(1, 2026, 6, withDays([
+        { date: '2026-07-01', overtimeType: 'REGULAR', hours: 2 },
+      ]) as never, req),
+    ).rejects.toThrow(/خارج شهر الحسبة/);
+    expect(p.employeeCompensationCalculation.create).not.toHaveBeenCalled();
+  });
+
+  it('§25 — يرفض تكرار نفس التاريخ والنوع', async () => {
+    await expect(
+      service.create(1, 2026, 6, withDays([
+        { date: '2026-06-01', overtimeType: 'REGULAR', hours: 2 },
+        { date: '2026-06-01', overtimeType: 'REGULAR', hours: 1 },
+      ]) as never, req),
+    ).rejects.toThrow(/سطران من النوع نفسه/);
+  });
+
+  it('§8 — مخالفة قانونية تُحفظ مسودةً ولا تمنع الحفظ', async () => {
+    const res = await service.create(1, 2026, 6, withDays([
+      { date: '2026-06-03', overtimeType: 'REGULAR', hours: 3 },
+    ]) as never, req);
+
+    expect(p.employeeCompensationCalculation.create).toHaveBeenCalled();
+    expect(res.compliance.compliant).toBe(false);
+    // المخالفة تبقى مصنَّفة قانونية ولا تُخفَّض إلى تحذير.
+    expect(res.compliance.violations[0].basis).toBe('STATUTORY');
+  });
+
+  it('§55 — الأنواع تُشتقّ في سطور منفصلة لا في عدّاد واحد', async () => {
+    await service.create(1, 2026, 6, withDays([
+      { date: '2026-06-01', overtimeType: 'REGULAR', hours: 2 },
+      { date: '2026-06-06', overtimeType: 'WEEKLY_REST', hours: 8 },
+    ]) as never, req);
+
+    const lines = p.employeeCompensationCalculation.create.mock.calls[0][0].data.overtimeLines.create;
+    expect(lines).toHaveLength(2);
+    expect(lines.find((l: { overtimeType: string }) => l.overtimeType === 'REGULAR').hours).toBe(2);
+    expect(lines.find((l: { overtimeType: string }) => l.overtimeType === 'WEEKLY_REST').hours).toBe(8);
+  });
+
+  it('§15 — الراحة التعويضية تُسجَّل PENDING تلقائيًا لغير REGULAR فقط', async () => {
+    await service.create(1, 2026, 6, withDays([
+      { date: '2026-06-01', overtimeType: 'REGULAR', hours: 2 },
+      { date: '2026-06-06', overtimeType: 'WEEKLY_REST', hours: 8 },
+    ]) as never, req);
+
+    const days = p.employeeCompensationCalculation.create.mock.calls[0][0].data.overtimeDayEntries.create;
+    const regular = days.find((d: { overtimeType: string }) => d.overtimeType === 'REGULAR');
+    const rest = days.find((d: { overtimeType: string }) => d.overtimeType === 'WEEKLY_REST');
+    expect(regular.compensatoryRestStatus).toBeNull();
+    expect(rest.compensatoryRestStatus).toBe('PENDING');
+  });
+
+  it('§30 — جسم بلا أيام يبقى على المسار القديم حرفيًا', async () => {
+    await service.create(1, 2026, 6, BODY, req);
+    const data = p.employeeCompensationCalculation.create.mock.calls[0][0].data;
+    expect(data.overtimeDayEntries.create).toEqual([]);
+    expect(data.overtimeLines.create[0].hours).toBe(BODY.overtime[0].hours);
+  });
+});
+
+describe('العدّاد السنوي يشمل الأشهر المجمّعة (بلا تواريخ)', () => {
+  /** شهر محفوظ بالطريقة القديمة: سطر إضافي مجمّع، وصفر أيام. */
+  const legacyMonth = (month: number, hours: number) => ({
+    month,
+    overtimeLines: [{ hours }],
+    _count: { overtimeDayEntries: 0 },
+  });
+
+  it('ساعات الأشهر المجمّعة لا تختفي من رصيد السنة', async () => {
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+      storedCalculation({
+        overtimeDayEntries: [
+          { id: 1, calculationId: 100, date: '2026-06-03', overtimeType: 'REGULAR', hours: 2,
+            notes: null, compensatoryRestStatus: null, compensatoryRestDate: null,
+            createdAt: new Date(), updatedAt: new Date() },
+        ],
+      }),
+    );
+    p.employeeCompensationCalculation.findMany.mockResolvedValue([legacyMonth(3, 170)]);
+    p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
+
+    // ١٧٠ (مجمّع) + ٢ (مؤرَّخ) = ١٧٢ — دون الحد، فيُعتمد.
+    await expect(service.approve(100, req)).resolves.toBeDefined();
+  });
+
+  it('تجاوز الحد السنوي الناتج عن أشهر مجمّعة يمنع الاعتماد', async () => {
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+      storedCalculation({
+        overtimeDayEntries: [
+          { id: 1, calculationId: 100, date: '2026-06-03', overtimeType: 'REGULAR', hours: 2,
+            notes: null, compensatoryRestStatus: null, compensatoryRestDate: null,
+            createdAt: new Date(), updatedAt: new Date() },
+        ],
+      }),
+    );
+    // ١٧٩ + ٢ = ١٨١ — لولا احتساب المجمّع لعُرض «٢ من ١٨٠» ومرّ الاعتماد.
+    p.employeeCompensationCalculation.findMany.mockResolvedValue([legacyMonth(3, 179)]);
+
+    await expect(service.approve(100, req)).rejects.toThrow(/الحد السنوي/);
+    expect(p.employeeCompensationCalculation.update).not.toHaveBeenCalled();
+  });
+
+  it('الشهر المؤرَّخ لا يُحتسب مرّتين (مرّة كأيام ومرّة كمجمّع)', async () => {
+    const dated = {
+      month: 5,
+      overtimeLines: [{ hours: 50 }],
+      _count: { overtimeDayEntries: 25 }, // شهر يحمل تفاصيل يومية
+    };
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(storedCalculation());
+    p.employeeCompensationCalculation.findMany.mockResolvedValue([dated]);
+    p.overtimeDayEntry.findMany.mockResolvedValue([
+      { date: '2026-05-04', overtimeType: 'REGULAR', hours: 50, compensatoryRestStatus: null },
+    ]);
+    p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
+
+    const res = await service.getById(100);
+    expect(res.compliance.regular.yearHours).toBe(50);
+    expect(res.compliance.regular.yearHoursFromLegacy).toBe(0);
+    expect(res.compliance.verification).toBe('FULL');
+  });
+
+  it('وجود شهر مجمّع يجعل درجة التحقّق PARTIAL في الاستجابة', async () => {
+    p.employeeCompensationCalculation.findUnique.mockResolvedValue(storedCalculation());
+    p.employeeCompensationCalculation.findMany.mockResolvedValue([legacyMonth(4, 30)]);
+
+    const res = await service.getById(100);
+    expect(res.compliance.verification).toBe('PARTIAL');
+    expect(res.compliance.legacyMonths).toEqual([4]);
+    expect(res.compliance.regular.yearHours).toBe(30);
+  });
+});
+
+describe('المعاينة تُقيّم الالتزام قبل الحفظ (المتطلبان ٨ و١٢)', () => {
+  const previewBody = (overtimeDays: unknown[]) => ({
+    basicSalary: 416,
+    overtime: [],
+    overtimeDays,
+    earnings: [],
+    deductions: [],
+    notes: null,
+  }) as never;
+
+  it('تكشف تجاوز الحد اليومي أثناء التحرير بلا أي كتابة', async () => {
+    const res = await service.preview(
+      previewBody([{ date: '2026-06-03', overtimeType: 'REGULAR', hours: 3 }]),
+    );
+    expect(res.compliance.compliant).toBe(false);
+    expect(res.compliance.violations[0].code).toBe('REGULAR_DAILY_HOURS_EXCEEDED');
+    // صفر أثر تخزيني — المعاينة تقرأ ولا تكتب.
+    expect(p.employeeCompensationCalculation.create).not.toHaveBeenCalled();
+    expect(p.employeeCompensationCalculation.update).not.toHaveBeenCalled();
+    expect(p.overtimeDayEntry.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it('تشتقّ الساعات من الأيام تمامًا كما يفعل الحفظ', async () => {
+    const res = await service.preview(
+      previewBody([
+        { date: '2026-06-01', overtimeType: 'REGULAR', hours: 2 },
+        { date: '2026-06-02', overtimeType: 'REGULAR', hours: 2 },
+      ]),
+    );
+    expect(res.overtimeLines).toHaveLength(1);
+    expect(res.overtimeLines[0].hours).toBe(4);
+  });
+
+  it('تُبلّغ عن تاريخ خارج الشهر بلا رمي خطأ يُفرغ الشاشة', async () => {
+    const res = await service.preview({
+      ...(previewBody([{ date: '2026-07-01', overtimeType: 'REGULAR', hours: 2 }]) as object),
+      year: 2026,
+      month: 6,
+    } as never);
+    expect(res.dayErrors.map((e) => e.code)).toContain('DATE_OUTSIDE_MONTH');
+  });
+
+  it('بلا سياق شهر تبقى المعاينة حسابية بحتة كما قبل الحزمة', async () => {
+    const res = await service.preview({
+      basicSalary: 416,
+      overtime: [{ overtimeType: 'REGULAR', hours: 5 }],
+      earnings: [],
+      deductions: [],
+      notes: null,
+    } as never);
+    expect(res.overtimeLines[0].hours).toBe(5);
+    expect(res.compliance.hasDailyDetail).toBe(false);
+    expect(res.dayErrors).toEqual([]);
+  });
 });
 
 describe('الإنشاء واللقطة التاريخية', () => {
@@ -259,6 +490,80 @@ describe('الاعتماد', () => {
     p.employeeCompensationCalculation.findUnique.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
     p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
     await expect(service.approve(100, req)).resolves.toBeDefined();
+  });
+
+  /** يوم عمل إضافي محفوظ — بالشكل الذي يعيده Prisma. */
+  const day = (date: string, hours: number, overtimeType = 'REGULAR') => ({
+    id: 1, calculationId: 100, date, overtimeType, hours,
+    notes: null, compensatoryRestStatus: null, compensatoryRestDate: null,
+    createdAt: new Date(), updatedAt: new Date(),
+  });
+
+  describe('§59 — البوّابة القانونية: الحفظ ليس الاعتماد', () => {
+    it('يمنع الاعتماد عند تجاوز الحد اليومي، ويذكر السبب بتاريخه', async () => {
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+        storedCalculation({ overtimeDayEntries: [day('2026-06-03', 3)] }),
+      );
+      await expect(service.approve(100, req)).rejects.toThrow(/لا يمكن اعتماد الشهر/);
+      await expect(service.approve(100, req)).rejects.toThrow(/03\/06\/2026/);
+      expect(p.employeeCompensationCalculation.update).not.toHaveBeenCalled();
+    });
+
+    it('يمنع الاعتماد عند تجاوز الحد الأسبوعي', async () => {
+      // ٠٧/٠٦/٢٠٢٦ أحد → أربعة أيام داخل أسبوع واحد.
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+        storedCalculation({
+          overtimeDayEntries: [
+            day('2026-06-07', 2), day('2026-06-08', 2), day('2026-06-09', 2), day('2026-06-10', 2),
+          ],
+        }),
+      );
+      await expect(service.approve(100, req)).rejects.toThrow(/الحد الأسبوعي/);
+    });
+
+    it('يمنع الاعتماد عند تجاوز الرصيد السنوي المحسوب من الأشهر الأخرى', async () => {
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+        storedCalculation({ overtimeDayEntries: [day('2026-06-03', 2)] }),
+      );
+      p.overtimeDayEntry.findMany.mockResolvedValue([
+        { date: '2026-03-02', overtimeType: 'REGULAR', hours: 179, compensatoryRestStatus: null },
+      ]);
+      await expect(service.approve(100, req)).rejects.toThrow(/الحد السنوي/);
+    });
+
+    it('تصحيح الإدخال يسمح بالاعتماد', async () => {
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+        storedCalculation({ overtimeDayEntries: [day('2026-06-03', 2)] }),
+      );
+      p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
+      await expect(service.approve(100, req)).resolves.toBeDefined();
+    });
+
+    it('التنبيه الإداري وحده لا يمنع الاعتماد', async () => {
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+        storedCalculation({ overtimeDayEntries: [day('2026-06-03', 2)] }),
+      );
+      // ١٥٠ ساعة سابقة ⇒ ١٥٢ من ١٨٠ = تجاوز عتبة ٨٠٪ الإدارية، ودون الحد القانوني.
+      p.overtimeDayEntry.findMany.mockResolvedValue([
+        { date: '2026-03-02', overtimeType: 'REGULAR', hours: 150, compensatoryRestStatus: null },
+      ]);
+      p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
+      await expect(service.approve(100, req)).resolves.toBeDefined();
+    });
+
+    it('استحقاق راحة تعويضية معلّق لا يمنع الاعتماد (التزام غير نقدي)', async () => {
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(
+        storedCalculation({ overtimeDayEntries: [day('2026-06-06', 8, 'WEEKLY_REST')] }),
+      );
+      p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
+      await expect(service.approve(100, req)).resolves.toBeDefined();
+    });
+
+    it('§58 — شهر قديم بلا تفاصيل يومية يُعتمد كما كان', async () => {
+      p.employeeCompensationCalculation.findUnique.mockResolvedValue(storedCalculation());
+      p.employeeCompensationCalculation.update.mockResolvedValue(storedCalculation({ status: 'APPROVED' }));
+      await expect(service.approve(100, req)).resolves.toBeDefined();
+    });
   });
 
   it('يرفض اعتماد حسبة بلا أي بند', async () => {

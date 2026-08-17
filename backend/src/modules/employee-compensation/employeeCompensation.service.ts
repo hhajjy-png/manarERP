@@ -25,10 +25,15 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import {
+  allocateAmountAcrossDays,
   companyOvertimeRateTable,
   computeCompensation,
   computeHourlyRate,
+  deriveOvertimeLinesFromDays,
+  evaluateOvertimeCompliance,
   normalizeCompanyOvertimeBaseRate,
+  toDayRows,
+  validateOvertimeDays,
   parseStoredCompanyOvertimeBaseRate,
   reverseOvertimeFromAmount,
   COMPANY_OVERTIME_FACTORS,
@@ -40,8 +45,11 @@ import {
   MIN_COMPANY_OVERTIME_BASE_RATE,
   MONTHLY_WAGE_DAYS_DIVISOR,
   MONTHLY_WORK_HOURS,
+  OVERTIME_LIMITS,
   STANDARD_HOURS_PER_DAY,
   type CompensationResult,
+  type OvertimeComplianceResult,
+  type OvertimeDayRecord,
   type OvertimeType,
 } from './engine';
 import type { CalculationBody } from './employeeCompensation.schema';
@@ -64,6 +72,7 @@ const EMPLOYEE_SELECT = {
 
 const CALCULATION_INCLUDE = {
   overtimeLines: { orderBy: { sortOrder: 'asc' } },
+  overtimeDayEntries: { orderBy: [{ date: 'asc' }, { overtimeType: 'asc' }] },
   earningLines: { orderBy: { sortOrder: 'asc' } },
   deductionLines: { orderBy: { sortOrder: 'asc' } },
 } satisfies Prisma.EmployeeCompensationCalculationInclude;
@@ -98,6 +107,156 @@ async function priorRegularOvertimeHours(
     select: { hours: true },
   });
   return rows.reduce((sum, r) => sum + r.hours, 0);
+}
+
+/**
+ * أيام العمل الإضافي اللازمة لتقييم الالتزام — **استعلام واحد لا استعلام لكل يوم**.
+ *
+ * ═══ نطاق الجلب ولماذا هو أوسع من السنة ═══
+ * عدّادات السنة تحتاج ١/١ → ٣١/١٢ (المتطلب ٤٠). لكن فحص «٣ أيام أسبوعيًا» يحتاج أكثر:
+ * أسبوع يعبر رأس السنة (٣٠/١٢ → ٠٢/٠١) يجب أن يُفحص كاملًا، وإلا مرّ تجاوزٌ لأن
+ * الأسبوع انقسم بين سنتين. لذلك يُجلب هامش ± أسبوع حول طرفَي السنة، ويُفرَز بعد ذلك:
+ * ما داخل السنة يغذّي العدّادات، وما خارجها يغذّي الأسابيع وحدها.
+ *
+ * ═══ لماذا نطاق نصّي بلا تحويل ═══
+ * `date` نصّ `YYYY-MM-DD`، وترتيبه المعجمي هو ترتيبه الزمني، فمقارنة `gte`/`lte` على
+ * النصّ صحيحة تمامًا وتستعمل الفهرس — بلا أي تحويل منطقة زمنية يمكن أن يزيح يومًا.
+ */
+async function loadComplianceDays(
+  employeeId: number,
+  year: number,
+  excludeCalculationId?: number,
+): Promise<{
+  inYear: OvertimeDayRecord[];
+  adjacent: OvertimeDayRecord[];
+  legacy: { regularHours: number; months: number[] };
+}> {
+  const rows = await prisma.overtimeDayEntry.findMany({
+    where: {
+      // هامش أسبوع حول طرفَي السنة — يكفي لأي أسبوع يعبر الحدّ ولا يجرّ سنةً كاملة زائدة.
+      date: { gte: `${year - 1}-12-25`, lte: `${year + 1}-01-07` },
+      calculation: {
+        employeeId,
+        ...(excludeCalculationId ? { id: { not: excludeCalculationId } } : {}),
+      },
+    },
+    select: { date: true, overtimeType: true, hours: true, compensatoryRestStatus: true },
+  });
+
+  const inYear: OvertimeDayRecord[] = [];
+  const adjacent: OvertimeDayRecord[] = [];
+  for (const r of rows) {
+    const rec: OvertimeDayRecord = {
+      date: r.date,
+      overtimeType: r.overtimeType as OvertimeType,
+      hours: r.hours,
+      compensatoryRestStatus: r.compensatoryRestStatus,
+    };
+    (r.date.slice(0, 4) === String(year) ? inYear : adjacent).push(rec);
+  }
+  return { inYear, adjacent, legacy: await loadLegacyAggregate(employeeId, year, excludeCalculationId) };
+}
+
+/**
+ * ساعات الإضافي **العادي** في أشهر السنة المحفوظة **بلا تفاصيل يومية**.
+ *
+ * ═══ لماذا هذا الاستعلام موجود أصلًا ═══
+ * العدّاد السنوي كان يُبنى من `OvertimeDayEntry` وحده، فكانت ساعاتُ الأشهر القديمة
+ * **تختفي منه**: موظف بـ١٧٠ ساعة مسجّلة بالطريقة القديمة ثم ٢٠ ساعة بالسجل اليومي كان
+ * يُعرض له «٢٠ من ١٨٠» ويُعتمد شهرُه، بينما رصيده الحقيقي ١٩٠ — أي تجاوزٌ قانوني يمرّ
+ * لأن النظام نسي ما يعرفه. الساعات القديمة **معلومة**، وإسقاطها ليس تحفّظًا بل خطأ.
+ *
+ * الشهر يُعدّ «قديمًا» بمعيار واحد: `overtimeDayEntries` فارغة. لا عمود حالة ولا وسم —
+ * غياب التفاصيل هو التعريف نفسه.
+ */
+async function loadLegacyAggregate(
+  employeeId: number,
+  year: number,
+  excludeCalculationId?: number,
+): Promise<{ regularHours: number; months: number[] }> {
+  const calcs = await prisma.employeeCompensationCalculation.findMany({
+    where: {
+      employeeId,
+      year,
+      ...(excludeCalculationId ? { id: { not: excludeCalculationId } } : {}),
+    },
+    select: {
+      month: true,
+      overtimeLines: { where: { overtimeType: 'REGULAR' }, select: { hours: true } },
+      _count: { select: { overtimeDayEntries: true } },
+    },
+  });
+
+  let regularHours = 0;
+  const months: number[] = [];
+  for (const c of calcs) {
+    if (c._count.overtimeDayEntries > 0) continue; // شهر مؤرَّخ — أيامه محسوبة أصلًا
+    const h = c.overtimeLines.reduce((s, l) => s + l.hours, 0);
+    if (h <= 0) continue;
+    regularHours += h;
+    months.push(c.month);
+  }
+  return { regularHours: Number(regularHours.toFixed(3)), months };
+}
+
+/**
+ * عدد استحقاقات الراحة التعويضية المعلّقة للموظف في السنة — لا هذا الشهر وحده.
+ *
+ * المتطلب ١٥: الاستحقاق **لا يضيع بإغلاق الشهر**. لو حُسب من الشهر المفتوح وحده لاختفى
+ * استحقاقُ مارس بمجرد فتح أبريل، وهو التزام قائم لم يُوفَّ بعد.
+ */
+function countPendingCompensatory(
+  days: readonly OvertimeDayRecord[],
+  type: OvertimeType,
+): number {
+  return days.filter(
+    (d) => d.overtimeType === type && d.hours > 0 && (d.compensatoryRestStatus ?? 'PENDING') !== 'TAKEN',
+  ).length;
+}
+
+/**
+ * تقييم الالتزام لشهر بعينه، بأيامه المقترحة (عند الحفظ) أو المحفوظة (عند العرض).
+ * هذه هي **النقطة الوحيدة** التي يُبنى منها قرار الاعتماد في كل الوحدة.
+ */
+async function evaluateCompliance(
+  employeeId: number,
+  year: number,
+  monthDays: readonly OvertimeDayRecord[],
+  excludeCalculationId?: number,
+): Promise<OvertimeComplianceResult> {
+  const { inYear, adjacent, legacy } = await loadComplianceDays(employeeId, year, excludeCalculationId);
+  const allYear = [...inYear, ...monthDays];
+  return evaluateOvertimeCompliance({
+    monthDays,
+    otherDaysThisYear: inYear,
+    adjacentYearDays: adjacent,
+    compensatoryPendingWeeklyRest: countPendingCompensatory(allYear, 'WEEKLY_REST'),
+    compensatoryPendingOfficialHoliday: countPendingCompensatory(allYear, 'OFFICIAL_HOLIDAY'),
+    // ساعات الأشهر المجمّعة تدخل العدّاد السنوي؛ أيامها مجهولة فتُخفض درجة التحقّق.
+    legacyAggregate: legacy,
+  });
+}
+
+/**
+ * يحوّل أخطاء السجل اليومي إلى `AppError` واحدة تحمل **كل** الأخطاء.
+ * هذه أخطاء **شكل** لا مخالفات قانونية: تاريخ خارج الشهر أو مكرَّر لا يمكن حفظه أصلًا،
+ * بخلاف المخالفة القانونية التي تُحفظ مسودةً وتمنع الاعتماد وحده.
+ */
+function assertDaysValid(days: readonly OvertimeDayRecord[], year: number, month: number): void {
+  const errors = validateOvertimeDays(days, year, month);
+  if (errors.length > 0) {
+    throw AppError.badRequest(errors.map((e) => e.messageAr).join(' • '));
+  }
+}
+
+/**
+ * يبني جسم الحسبة المعتمد: حين تصل أيام، تُشتقّ منها السطور اشتقاقًا كاملًا.
+ * غياب الأيام يبقي المسار القديم كما هو حرفيًا — وهو ما يحفظ الأشهر التاريخية.
+ */
+function applyDailyLedger(body: CalculationBody): CalculationBody {
+  const days = body.overtimeDays ?? [];
+  if (days.length === 0) return body;
+  return { ...body, overtime: deriveOvertimeLinesFromDays(days, body.overtime) };
 }
 
 /**
@@ -260,6 +419,76 @@ async function recomputeStored(calc: CalculationWithLines): Promise<Compensation
   });
 }
 
+/** مجموع ساعات نوع بعينه من أيام حسبة — مصدر الحقيقة هو الأيام. */
+function hoursOfType(calc: CalculationWithLines, type: OvertimeType): number {
+  return Number(
+    calc.overtimeDayEntries.filter((d) => d.overtimeType === type).reduce((s, d) => s + d.hours, 0).toFixed(3),
+  );
+}
+
+/** عدد التواريخ الفريدة التي فيها عمل من نوع بعينه. */
+function daysOfType(calc: CalculationWithLines, type: OvertimeType): number {
+  return new Set(
+    calc.overtimeDayEntries.filter((d) => d.overtimeType === type && d.hours > 0).map((d) => d.date),
+  ).size;
+}
+
+/** أيام حسبة محفوظة بالشكل الذي يفهمه محرّك الالتزام. */
+function savedDaysOf(calc: CalculationWithLines): OvertimeDayRecord[] {
+  return calc.overtimeDayEntries.map((d) => ({
+    date: d.date,
+    overtimeType: d.overtimeType as OvertimeType,
+    hours: d.hours,
+    notes: d.notes,
+    compensatoryRestStatus: d.compensatoryRestStatus,
+    compensatoryRestDate: d.compensatoryRestDate,
+  }));
+}
+
+/**
+ * صفوف جدول الأيام في التقرير التفصيلي — بمبالغ موزَّعة تجمع إلى إجمالي السطر بالضبط.
+ *
+ * السعر الفعلي والمبلغ يأتيان من **سطر النوع** لا من اليوم: اليوم لا يحمل لقطة سعر
+ * (وذلك مقصود — مصدر حقيقة واحد للأسعار)، فيُقرأ سعر الشهر المخزَّن ويُوزَّع مبلغه.
+ */
+function buildDailyReportRows(c: CalculationWithLines) {
+  const rows: {
+    date: string;
+    overtimeType: string;
+    hours: number;
+    effectiveRate: number | null;
+    amount: number;
+    compensatoryRestStatus: string | null;
+    compensatoryRestDate: string | null;
+    notes: string | null;
+  }[] = [];
+
+  for (const line of c.overtimeLines) {
+    const days = c.overtimeDayEntries.filter((d) => d.overtimeType === line.overtimeType);
+    if (days.length === 0) continue;
+    const allocated = allocateAmountAcrossDays(line.amount, days.map((d) => d.hours));
+    days.forEach((d, i) => {
+      rows.push({
+        date: d.date,
+        overtimeType: d.overtimeType,
+        hours: d.hours,
+        effectiveRate: line.effectiveRate,
+        amount: allocated[i],
+        compensatoryRestStatus: d.compensatoryRestStatus,
+        compensatoryRestDate: d.compensatoryRestDate,
+        notes: d.notes,
+      });
+    });
+  }
+
+  return rows.sort((a, b) => a.date.localeCompare(b.date) || a.overtimeType.localeCompare(b.overtimeType));
+}
+
+/** تقييم الالتزام لحسبة محفوظة — يُعاد إنتاجه عند كل قراءة، ولا يُخزَّن أبدًا. */
+function complianceOf(calc: CalculationWithLines): Promise<OvertimeComplianceResult> {
+  return evaluateCompliance(calc.employeeId, calc.year, savedDaysOf(calc), calc.id);
+}
+
 /**
  * تاريخ حركة سداد الشهر = **آخر يوم في شهر الحسبة**، لا لحظة الحفظ.
  *
@@ -384,10 +613,59 @@ export const employeeCompensationService = {
         grossEntitlements: c.grossEntitlements,
         netAmount: c.netAmount,
         overtimeHours: Number(c.overtimeLines.reduce((s, l) => s + l.hours, 0).toFixed(3)),
+        /**
+         * تفصيل الشهر حسب النوع (المتطلب ٣٢) — **مفصولًا قانونيًا** لا مجموعًا واحدًا.
+         * ساعات وأيام العمل الإضافي العادي (المادة ٦٦) وحدها هي ما يُقاس بحدودها؛
+         * الراحة الأسبوعية والعطلة الرسمية تُعرضان مستقلّتين ولا تدخلان تلك العدّادات.
+         */
+        regularHours: hoursOfType(c, 'REGULAR'),
+        regularDays: daysOfType(c, 'REGULAR'),
+        weeklyRestHours: hoursOfType(c, 'WEEKLY_REST'),
+        weeklyRestDays: daysOfType(c, 'WEEKLY_REST'),
+        officialHolidayHours: hoursOfType(c, 'OFFICIAL_HOLIDAY'),
+        officialHolidayDays: daysOfType(c, 'OFFICIAL_HOLIDAY'),
+        /** استحقاقات راحة بديلة لم تُؤخذ بعد في هذا الشهر (المادتان ٦٧ و٦٨). */
+        compensatoryRestPending: c.overtimeDayEntries.filter(
+          (d) => d.overtimeType !== 'REGULAR' && (d.compensatoryRestStatus ?? 'PENDING') !== 'TAKEN',
+        ).length,
+        /** `false` = سجل شهري قديم: حدوده اليومية/الأسبوعية غير مفحوصة. */
+        hasDailyDetail: c.overtimeDayEntries.length > 0,
         approvedAt: c.approvedAt,
         updatedAt: c.updatedAt,
       };
     });
+
+    /**
+     * سجلّ الإضافي السنوي (المتطلب ٣٣) — كل الأيام مرتَّبة زمنيًا، بشهرها ونوعها.
+     * الترشيح والبحث يقعان في الواجهة على هذه القائمة الجاهزة، بلا استعلام لكل مرشِّح.
+     */
+    const overtimeHistory = calcs
+      .flatMap((c) =>
+        c.overtimeDayEntries.map((d) => ({
+          date: d.date,
+          month: c.month,
+          overtimeType: d.overtimeType,
+          hours: d.hours,
+          compensatoryRestStatus: d.compensatoryRestStatus,
+          compensatoryRestDate: d.compensatoryRestDate,
+          notes: d.notes,
+          calculationId: c.id,
+        })),
+      )
+      .sort((a, b) => a.date.localeCompare(b.date) || a.overtimeType.localeCompare(b.overtimeType));
+
+    /** إجماليات السنة حسب النوع — YTD مشتقّة من الأيام لا من مجموع شهري. */
+    const ytd = {
+      regularHours: Number(months.reduce((s, m) => s + (m.exists ? m.regularHours : 0), 0).toFixed(3)),
+      regularDays: months.reduce((s, m) => s + (m.exists ? m.regularDays : 0), 0),
+      weeklyRestHours: Number(months.reduce((s, m) => s + (m.exists ? m.weeklyRestHours : 0), 0).toFixed(3)),
+      officialHolidayHours: Number(
+        months.reduce((s, m) => s + (m.exists ? m.officialHolidayHours : 0), 0).toFixed(3),
+      ),
+      compensatoryRestPending: months.reduce((s, m) => s + (m.exists ? m.compensatoryRestPending : 0), 0),
+      annualHoursLimit: OVERTIME_LIMITS.maxHoursPerYear.value,
+      annualDaysLimit: OVERTIME_LIMITS.maxDaysPerYear.value,
+    };
 
     const sum = (pick: (c: (typeof calcs)[number]) => number) =>
       Number(calcs.reduce((s, c) => s + pick(c), 0).toFixed(3));
@@ -418,6 +696,10 @@ export const employeeCompensationService = {
         totalGross: sum((c) => c.grossEntitlements),
         totalNet: sum((c) => c.netAmount),
       },
+      /** إجماليات الالتزام السنوية (المتطلب ٣٢) — مفصولة بالنوع القانوني. */
+      overtimeYtd: ytd,
+      /** سجلّ الإضافي السنوي (المتطلب ٣٣) — يُرشَّح ويُبحَث فيه في الواجهة. */
+      overtimeHistory,
     };
   },
 
@@ -429,13 +711,13 @@ export const employeeCompensationService = {
     });
     if (!calc) return null;
     const recomputed = await recomputeStored(calc);
-    return { ...calc, warnings: recomputed.warnings };
+    return { ...calc, warnings: recomputed.warnings, compliance: await complianceOf(calc) };
   },
 
   async getById(id: number) {
     const calc = await loadCalculation(id);
     const recomputed = await recomputeStored(calc);
-    return { ...calc, warnings: recomputed.warnings };
+    return { ...calc, warnings: recomputed.warnings, compliance: await complianceOf(calc) };
   },
 
   /**
@@ -457,6 +739,12 @@ export const employeeCompensationService = {
       throw AppError.conflict('توجد حسبة محفوظة لهذا الموظف في هذا الشهر — افتحها وعدّلها بدل إنشاء نسخة ثانية');
     }
 
+    // الأيام تُفحص **قبل** أي احتساب: تاريخ خارج الشهر أو مكرَّر يُرفض الطلب كله بدل أن
+    // يُكتب نصفه. المخالفات القانونية لا تُرفض هنا — تُحفظ مسودةً وتمنع الاعتماد وحده.
+    const days = body.overtimeDays ?? [];
+    assertDaysValid(days, year, month);
+    const effectiveBody = applyDailyLedger(body);
+
     const hourlyRate = computeHourlyRate(employee.salary);
     const priorHours = await priorRegularOvertimeHours(employeeId, year);
     /**
@@ -469,7 +757,7 @@ export const employeeCompensationService = {
         ? (await readCompanyOvertimeDefault()).baseRate
         : body.companyOvertimeBaseRate;
     const result = computeCompensation(
-      toEngineInput(body, employee.salary, hourlyRate, priorHours, companyBaseRate),
+      toEngineInput(effectiveBody, employee.salary, hourlyRate, priorHours, companyBaseRate),
     );
     const children = toChildRows(result);
     const who = actor(req);
@@ -505,6 +793,9 @@ export const employeeCompensationService = {
         createdById: who.id,
         createdByName: who.name,
         overtimeLines: { create: children.overtimeLines },
+        // الأيام تُكتب في **المعاملة نفسها** التي تكتب السطر الشهري المشتقّ منها، فلا
+        // توجد لحظة واحدة يكون فيها `Σ الأيام ≠ ساعات السطر` (المتطلب ٤٣).
+        overtimeDayEntries: { create: toDayRows(days) },
         earningLines: { create: children.earningLines },
         deductionLines: { create: children.deductionLines },
       },
@@ -515,6 +806,8 @@ export const employeeCompensationService = {
       return row;
     });
 
+    const compliance = await evaluateCompliance(employeeId, year, toDayRows(days), created.id);
+
     await recordAudit({
       req,
       action: 'CREATE',
@@ -523,7 +816,7 @@ export const employeeCompensationService = {
       newValue: { employeeId, year, month, netAmount: created.netAmount },
     });
 
-    return { ...created, warnings: result.warnings };
+    return { ...created, warnings: result.warnings, compliance };
   },
 
   /**
@@ -533,6 +826,11 @@ export const employeeCompensationService = {
    */
   async update(id: number, body: CalculationBody, req: Request) {
     const existing = await loadCalculation(id);
+
+    const days = body.overtimeDays ?? [];
+    assertDaysValid(days, existing.year, existing.month);
+    const effectiveBody = applyDailyLedger(body);
+
     const priorHours = await priorRegularOvertimeHours(existing.employeeId, existing.year, existing.id);
 
     /**
@@ -549,7 +847,7 @@ export const employeeCompensationService = {
 
     // الاحتساب من **اللقطة** لا من ملف الموظف الحيّ — جوهر السلوك التاريخي.
     const result = computeCompensation(
-      toEngineInput(body, existing.basicSalarySnapshot, existing.hourlyRateSnapshot, priorHours, companyBaseRate),
+      toEngineInput(effectiveBody, existing.basicSalarySnapshot, existing.hourlyRateSnapshot, priorHours, companyBaseRate),
     );
     const children = toChildRows(result);
 
@@ -561,6 +859,10 @@ export const employeeCompensationService = {
       await debtService.assertDebtDeductionsValid(tx, { employeeId: existing.employeeId, calculationId: id, lines: debtLines });
 
       await tx.overtimeLine.deleteMany({ where: { calculationId: id } });
+      // الأيام تُستبدل بالكامل مع سطورها المشتقّة منها في المعاملة نفسها — إضافةً وتعديلًا
+      // وحذفًا (المتطلب ٤١). استبدالها في معاملة أخرى كان سيفتح نافذةً يقرأ فيها طلبٌ
+      // متزامن سطرًا شهريًا لا يطابق أيامه.
+      await tx.overtimeDayEntry.deleteMany({ where: { calculationId: id } });
       await tx.compensationEarningLine.deleteMany({ where: { calculationId: id } });
       // حذف سطور الاستقطاع يُفرغ `deductionLineId` في حركات الدفتر (SET NULL) ولا
       // يحذفها — الحركة هويّتها (الحسبة، المديونية)، وتُعاد ربطها في المزامنة أدناه.
@@ -574,6 +876,7 @@ export const employeeCompensationService = {
           companyOvertimePolicyVersion: result.companyOvertimePolicyVersion,
           notes: body.notes ?? null,
           overtimeLines: { create: children.overtimeLines },
+          overtimeDayEntries: { create: toDayRows(days) },
           earningLines: { create: children.earningLines },
           deductionLines: { create: children.deductionLines },
         },
@@ -583,6 +886,8 @@ export const employeeCompensationService = {
       await syncDebtPayments(tx, row, debtLines, who);
       return row;
     });
+
+    const compliance = await evaluateCompliance(existing.employeeId, existing.year, toDayRows(days), id);
 
     await recordAudit({
       req,
@@ -601,12 +906,22 @@ export const employeeCompensationService = {
       },
     });
 
-    return { ...updated, warnings: result.warnings };
+    return { ...updated, warnings: result.warnings, compliance };
   },
 
   /**
-   * الاعتماد — **حالة تنظيمية فقط**. لا يقفل السجل، ولا يمنع تعديلًا ولا حذفًا، ولا
-   * يُنشئ أي أثر خارج هذا الجدول. إعادة اعتماد سجل معتمد مسموحة وتُحدّث الطابع الزمني.
+   * الاعتماد — **حالة تنظيمية**، لكنه صار البوّابة القانونية للوحدة.
+   *
+   * لا يقفل السجل ولا يمنع تعديلًا ولا حذفًا، ولا يُنشئ أثرًا خارج هذا الجدول. ما تغيّر
+   * مع السجل اليومي: **لا يُعتمد شهر تحمل بياناتُه مخالفة قانونية مؤكَّدة**.
+   *
+   * ═══ الحفظ ليس الاعتماد ═══
+   * المسودة تُحفظ دائمًا مهما كانت المخالفة (المتطلبان ٨ و١٩)، فيستطيع المستخدم إدخال
+   * ما حدث فعلًا ثم يراه مخالفًا ثم يصحّحه. المنع هنا وحده، وأسبابه تُعرض كاملةً في
+   * الرسالة بدل «لا يمكن الاعتماد» صمّاء تترك المستخدم يخمّن.
+   *
+   * ولا تُخفَّض مخالفة إلى تحذير لتمرير الاعتماد: `violations` هي ما صنّفه المحرّك
+   * `STATUTORY` وأثبتته بيانات الوحدة، و`warnings` (إفصاح أو تنبيه إداري) لا تمنع شيئًا.
    */
   async approve(id: number, req: Request) {
     const existing = await loadCalculation(id);
@@ -618,6 +933,22 @@ export const employeeCompensationService = {
       existing.deductionLines.length === 0;
     if (isEmpty) {
       throw AppError.badRequest('لا يمكن اعتماد حسبة بلا أي بند: أضف عملًا إضافيًا أو استحقاقًا أو استقطاعًا أولًا');
+    }
+
+    const savedDays: OvertimeDayRecord[] = existing.overtimeDayEntries.map((d) => ({
+      date: d.date,
+      overtimeType: d.overtimeType as OvertimeType,
+      hours: d.hours,
+      compensatoryRestStatus: d.compensatoryRestStatus,
+    }));
+    const compliance = await evaluateCompliance(existing.employeeId, existing.year, savedDays, id);
+
+    if (!compliance.compliant) {
+      throw AppError.badRequest(
+        `لا يمكن اعتماد الشهر — مخالفات قانونية مؤكَّدة:\n${compliance.violations
+          .map((v) => `• ${v.messageAr}`)
+          .join('\n')}`,
+      );
     }
 
     const who = actor(req);
@@ -783,15 +1114,35 @@ export const employeeCompensationService = {
     return this.getCompanyOvertimeSettings();
   },
 
-  /** معاينة حسبة بلا كتابة — نفس المحرّك، صفر أثر تخزيني. */
-  preview(input: {
-    basicSalary: number;
-    hourlyRateOverride?: number | null;
-    priorRegularOvertimeHoursThisYear?: number;
-  } & CalculationBody) {
-    return computeCompensation(
+  /**
+   * معاينة حسبة بلا كتابة — نفس المحرّك، صفر أثر تخزيني.
+   *
+   * ═══ الالتزام يُقيَّم هنا أيضًا، لا عند الحفظ وحده ═══
+   * لولا ذلك لما رأى المستخدم تجاوز «ساعتين في اليوم» إلا **بعد** حفظ الشهر، فيصير
+   * التحذير أثرًا رجعيًا لا توجيهًا أثناء الإدخال (المتطلبان ٨ و١٢). تمرير سياق الشهر
+   * اختياري: بدونه تبقى المعاينة حسابية بحتة كما كانت قبل هذه الحزمة تمامًا.
+   *
+   * لا كتابة هنا إطلاقًا — قراءة أيام السنة وحدها لتغذية العدّادات.
+   */
+  async preview(
+    input: {
+      basicSalary: number;
+      hourlyRateOverride?: number | null;
+      priorRegularOvertimeHoursThisYear?: number;
+      employeeId?: number;
+      year?: number;
+      month?: number;
+      excludeCalculationId?: number;
+    } & CalculationBody,
+  ) {
+    const days = input.overtimeDays ?? [];
+    // الأيام تُشتقّ منها السطور في المعاينة كما في الحفظ بالضبط، وإلا عرضت المعاينة
+    // ساعات غير التي ستُخزَّن.
+    const effective = applyDailyLedger(input);
+
+    const result = computeCompensation(
       toEngineInput(
-        input,
+        effective,
         input.basicSalary,
         input.hourlyRateOverride ?? null,
         input.priorRegularOvertimeHoursThisYear ?? 0,
@@ -800,6 +1151,18 @@ export const employeeCompensationService = {
         input.companyOvertimeBaseRate ?? null,
       ),
     );
+
+    // أخطاء الشكل (تاريخ خارج الشهر / مكرَّر) تُعرض ولا تُرمى: المعاينة تجري على مسودة
+    // قيد الكتابة، ورميُ خطأ فيها كان سيُفرغ الشاشة من الأرقام عند أول حرف ناقص.
+    const dayErrors =
+      input.year && input.month ? validateOvertimeDays(days, input.year, input.month) : [];
+
+    const compliance =
+      input.employeeId && input.year
+        ? await evaluateCompliance(input.employeeId, input.year, toDayRows(days), input.excludeCalculationId)
+        : evaluateOvertimeCompliance({ monthDays: toDayRows(days) });
+
+    return { ...result, compliance, dayErrors };
   },
 
   /** الحسبة العكسية — أداة مساعدة، بلا أثر تخزيني. */
@@ -978,6 +1341,15 @@ export const employeeCompensationService = {
        * الرصيد قبل السداد وبعده مُشتقّان من الدفتر لحظة القراءة، لا مخزَّنين.
        */
       debtRepayments: await debtService.repaymentBreakdownForCalculation(c.id),
+      /**
+       * جدول الأيام (المتطلب ٣٤) — التقرير التفصيلي وحده يحمله. الكشف الرسمي المختصر
+       * يبقى مختصرًا (المتطلب ٣٥) ولا يعرض عشرات التواريخ.
+       *
+       * `amount` لكل يوم **مُوزَّع** من مبلغ سطر نوعه لا محسوبًا مستقلًا، فيجمع العمود
+       * إلى إجمالي السطر بالضبط بلا فرق فلس (انظر `allocateAmountAcrossDays`).
+       * مصفوفة فارغة = سجل شهري قديم بلا تفاصيل يومية.
+       */
+      overtimeDays: buildDailyReportRows(c),
       totals: {
         totalOvertimeAmount: c.totalOvertimeAmount,
         totalOtherEarnings: c.totalOtherEarnings,
@@ -986,6 +1358,7 @@ export const employeeCompensationService = {
         netAmount: c.netAmount,
       },
       warnings: result.warnings,
+      compliance: await complianceOf(c),
       notes: c.notes,
     };
   },

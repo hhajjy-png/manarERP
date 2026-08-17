@@ -11,6 +11,7 @@ vi.mock('../../../config/database', () => ({
       delete: vi.fn(),
     },
     overtimeLine: { findMany: vi.fn(), deleteMany: vi.fn() },
+    overtimeDayEntry: { findMany: vi.fn(), deleteMany: vi.fn() },
     compensationEarningLine: { deleteMany: vi.fn() },
     compensationDeductionLine: { deleteMany: vi.fn(), count: vi.fn() },
     employeeCompensationDebt: { findMany: vi.fn(), findUnique: vi.fn() },
@@ -125,6 +126,7 @@ function storedCalc(over: Record<string, unknown> = {}) {
     ],
     earningLines: [],
     deductionLines: [],
+    overtimeDayEntries: [],
     ...over,
   };
 }
@@ -141,6 +143,9 @@ const overtimeBody = (type: 'REGULAR' | 'WEEKLY_REST' | 'OFFICIAL_HOLIDAY', hour
 beforeEach(() => {
   vi.clearAllMocks();
   p.overtimeLine.findMany.mockResolvedValue([]);
+  p.overtimeDayEntry.findMany.mockResolvedValue([]);
+  // لا أشهر مجمّعة افتراضيًا — كل اختبار يخصّها يمرّرها صراحةً.
+  p.employeeCompensationCalculation.findMany.mockResolvedValue([]);
   p.employeeCompensationDebt.findMany.mockResolvedValue([]);
   p.employeeCompensationDebtPayment.findMany.mockResolvedValue([]);
   p.compensationDeductionLine.count.mockResolvedValue(0);

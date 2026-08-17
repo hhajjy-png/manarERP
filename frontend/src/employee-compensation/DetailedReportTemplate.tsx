@@ -36,6 +36,34 @@ const tdNum: React.CSSProperties = { ...td, textAlign: 'end', fontVariantNumeric
 const table: React.CSSProperties = { width: '100%', borderCollapse: 'collapse' };
 const totalRow: React.CSSProperties = { ...td, fontWeight: 800, background: '#f8fafc', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
 
+/** `YYYY-MM-DD` → `DD/MM/YYYY` بأرقام إنجليزية، بلا إنشاء `Date` (لا انزلاق يوم). */
+function displayDate(iso: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso)
+    ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
+    : iso;
+}
+
+const COMPENSATORY_LABEL_AR: Record<string, string> = {
+  PENDING: 'مستحق',
+  SCHEDULED: 'مجدول',
+  TAKEN: 'أُخذ',
+};
+
+/**
+ * نسبة «المستهلَك / الحد» داخل نصّ عربي — **معزولة اتجاهيًا**.
+ *
+ * في سياق RTL يعيد محرّك bidi ترتيب `35 / 180` بصريًا إلى `180 / 35`، فيقرأ المراجع
+ * أن الحد ٣٥ والمستهلَك ١٨٠ — أي عكس الحقيقة تمامًا في مستند رسمي. `dir="ltr"` مع
+ * `unicode-bidi: isolate` يثبّت ترتيب الطرفين بلا أن يقلب اتجاه الفقرة حولهما.
+ */
+function Ratio({ value, limit }: { value: number; limit: number }) {
+  return (
+    <span dir="ltr" style={{ unicodeBidi: 'isolate', display: 'inline-block', fontVariantNumeric: 'tabular-nums' }}>
+      {value} / {limit}
+    </span>
+  );
+}
+
 export default function DetailedReportTemplate({ data }: { data: DetailedReportData }) {
   const { employee, totals } = data;
 
@@ -192,6 +220,153 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
               </tr>
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/*
+        جدول الأيام (المتطلب ٣٤) — **التقرير التفصيلي وحده**. الكشف الرسمي المختصر
+        يبقى مختصرًا ولا يعرض تواريخ (المتطلب ٣٥).
+
+        مبالغ الأيام **موزَّعة** من إجمالي سطر نوعها على الخادم، فيجمع العمود إلى
+        الإجمالي بالضبط بلا فرق فلس ظاهر في مستند رسمي.
+      */}
+      {data.overtimeDays.length > 0 && (
+        /*
+          يتجاوز `pageBreakInside: 'avoid'` الموروث من `tableWrapper` عمدًا: شهرٌ فيه
+          ٢٦ يومًا لا يسع صفحة A4 واحدة، ومنعُ الكسر كان يدفع الجدول كلَّه إلى صفحة
+          تالية ثم يقصّ ما فاض عنها. الجدول هنا **يُكسر طبيعيًا** وتتكرّر ترويسته على
+          كل صفحة (`display: table-header-group`)، ولا يُكسر صفٌّ واحد في منتصفه.
+        */
+        <div style={{ ...tableWrapper, pageBreakInside: 'auto', breakInside: 'auto' }}>
+          <div style={sectionHeader}>سجل أيام العمل الإضافي</div>
+          <table style={table}>
+            <thead style={{ display: 'table-header-group' }}>
+              <tr>
+                <th style={th}>التاريخ</th>
+                <th style={th}>النوع</th>
+                <th style={{ ...th, textAlign: 'end' }}>الساعات</th>
+                <th style={{ ...th, textAlign: 'end' }}>السعر الفعلي</th>
+                <th style={{ ...th, textAlign: 'end' }}>المبلغ (د.ك)</th>
+                <th style={th}>الراحة البديلة</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.overtimeDays.map((d, i) => (
+                <tr key={`${d.date}-${d.overtimeType}-${i}`} style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                  <td style={{ ...td, whiteSpace: 'nowrap' }}>{displayDate(d.date)}</td>
+                  <td style={td}>
+                    {OVERTIME_LABEL_LONG_AR[d.overtimeType]}
+                    {d.notes && <div style={{ fontSize: 10, color: '#64748b', marginTop: 2 }}>{d.notes}</div>}
+                  </td>
+                  <td style={tdNum}>{d.hours}</td>
+                  <td style={tdNum}>{d.effectiveRate == null ? '—' : money(d.effectiveRate)}</td>
+                  <td style={{ ...tdNum, fontWeight: 700 }}>{money(d.amount)}</td>
+                  <td style={td}>
+                    {d.compensatoryRestStatus == null
+                      ? '—'
+                      : COMPENSATORY_LABEL_AR[d.compensatoryRestStatus] +
+                        (d.compensatoryRestDate ? ` · ${displayDate(d.compensatoryRestDate)}` : '')}
+                  </td>
+                </tr>
+              ))}
+              <tr>
+                <td style={totalRow} colSpan={2}>
+                  الإجمالي — {data.overtimeDays.length} يوم
+                </td>
+                <td style={{ ...totalRow, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>
+                  {Number(data.overtimeDays.reduce((s, d) => s + d.hours, 0).toFixed(3))}
+                </td>
+                <td style={totalRow} />
+                <td style={{ ...totalRow, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>
+                  {money(totals.totalOvertimeAmount)}
+                </td>
+                <td style={totalRow} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ملخّص الالتزام القانوني — أرقام السنة لا الشهر وحده (المتطلب ٣٤). */}
+      {data.compliance && (
+        <div style={tableWrapper}>
+          {/* «م ٦٦» المختصرة لا «المادة ٦٦» الكاملة: الصيغة الكاملة محجوزة لسطر المرجع
+              القانوني في جدول الأنواع، وحارسُ الاختبار يعدّها ليمنع عودة عيب v1 الذي
+              كان ينسب الأنواع الثلاثة إلى مادة واحدة. */}
+          <div style={sectionHeader}>ملخّص الالتزام القانوني — العمل الإضافي العادي (م ٦٦)</div>
+          <div style={{ breakInside: 'avoid' }}>
+            <div style={tableRow}>
+              <div style={labelCell}>ساعات الإضافي العادي — هذا الشهر</div>
+              <div style={valueCell}>{data.compliance.regular.monthHours}</div>
+            </div>
+            <div style={tableRow}>
+              <div style={labelCell}>أيام الإضافي العادي — هذا الشهر</div>
+              <div style={valueCell}>{data.compliance.regular.monthDays}</div>
+            </div>
+            <div style={tableRow}>
+              <div style={labelCell}>ساعات الإضافي العادي — السنة</div>
+              <div style={valueCell}>
+                <Ratio
+                  value={data.compliance.regular.yearHours}
+                  limit={data.compliance.regular.annualHoursLimit}
+                />
+                {data.compliance.regular.yearHoursFromLegacy > 0 && (
+                  <span style={{ fontWeight: 400, color: '#64748b' }}>
+                    {' '}— منها {data.compliance.regular.yearHoursFromLegacy} ساعة من أشهر
+                    مجمّعة بلا تواريخ
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={tableRow}>
+              <div style={labelCell}>أيام الإضافي العادي — السنة</div>
+              <div style={valueCell}>
+                <Ratio
+                  value={data.compliance.regular.yearDays}
+                  limit={data.compliance.regular.annualDaysLimit}
+                />
+                {data.compliance.verification === 'PARTIAL' && (
+                  <span style={{ fontWeight: 400, color: '#b45309' }}>
+                    {' '}— الأشهر المؤرَّخة وحدها؛ الأشهر المجمّعة بلا تواريخ غير محسوبة
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={tableRow}>
+              <div style={labelCell}>ساعات الراحة الأسبوعية (م ٦٧)</div>
+              <div style={valueCell}>{data.compliance.weeklyRest.hours}</div>
+            </div>
+            <div style={tableRow}>
+              <div style={labelCell}>ساعات العطلة الرسمية (م ٦٨)</div>
+              <div style={valueCell}>{data.compliance.officialHoliday.hours}</div>
+            </div>
+            <div style={tableRow}>
+              <div style={labelCell}>أيام راحة بديلة مستحقّة</div>
+              <div style={valueCell}>
+                {data.compliance.weeklyRest.compensatoryPending +
+                  data.compliance.officialHoliday.compensatoryPending}
+              </div>
+            </div>
+            {!data.compliance.hasDailyDetail && (
+              <div style={tableRow}>
+                <div style={labelCell}>تفاصيل الأيام</div>
+                <div style={valueCell}>
+                  سجل شهري قديم — بدون تفاصيل يومية. الحدود اليومية والأسبوعية غير مفحوصة
+                  لهذا الشهر.
+                </div>
+              </div>
+            )}
+            {/* درجة التحقّق تُطبع صراحةً: مستندٌ يقول «مطابق» دون أن يقول إن الفحص كان
+                ناقصًا يوحي بيقين لم يقع. */}
+            <div style={tableRow}>
+              <div style={labelCell}>درجة التحقّق</div>
+              <div style={valueCell}>
+                {data.compliance.verification === 'FULL'
+                  ? 'كامل — كل أشهر السنة تحمل تفاصيل يومية'
+                  : 'غير مكتمل — توجد أشهر محفوظة بإجماليات شهرية بلا تواريخ، فحدّا «٩٠ يومًا في السنة» و«٣ أيام في الأسبوع» غير قابلين للتحقّق لتلك الفترات'}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

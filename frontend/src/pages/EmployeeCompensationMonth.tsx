@@ -34,6 +34,10 @@ import CompanyOvertimeRateDialog, {
   isValidRateText,
   RATE_PRESETS,
 } from '../employee-compensation/CompanyOvertimeRateDialog';
+import OvertimeDailyLedger, {
+  ComplianceBar,
+  type DayDraftRow,
+} from '../employee-compensation/OvertimeDailyLedger';
 import type {
   Calculation,
   CalculationDraft,
@@ -121,6 +125,13 @@ export default function EmployeeCompensationMonth() {
   const [basicSalary, setBasicSalary] = useState<number | null>(null);
   const [employeeHeader, setEmployeeHeader] = useState<{ code: string; fullName: string; jobTitle: string | null } | null>(null);
   const [overtime, setOvertime] = useState<OvertimeDraftRow[]>([]);
+  /**
+   * أيام العمل الإضافي — **مصدر الحقيقة للساعات** حين تكون غير فارغة.
+   * فارغة = سجل شهري قديم يبقى على مساره بلا تحويل تلقائي (المتطلب ٣٠).
+   */
+  const [overtimeDays, setOvertimeDays] = useState<DayDraftRow[]>([]);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
   const [earnings, setEarnings] = useState<EarningDraftRow[]>([]);
   const [deductions, setDeductions] = useState<DeductionDraftRow[]>([]);
   const [notes, setNotes] = useState('');
@@ -184,6 +195,17 @@ export default function EmployeeCompensationMonth() {
         reverseTargetAmount: l.reverseTargetAmount,
         rawHoursBeforeCeiling: l.rawHoursBeforeCeiling,
         notes: l.notes ?? '',
+      })),
+    );
+    setOvertimeDays(
+      (calc.overtimeDayEntries ?? []).map((d) => ({
+        key: nextKey(),
+        date: d.date,
+        overtimeType: d.overtimeType,
+        hours: String(d.hours),
+        notes: d.notes ?? '',
+        compensatoryRestStatus: d.compensatoryRestStatus,
+        compensatoryRestDate: d.compensatoryRestDate,
       })),
     );
     setEarnings(
@@ -251,6 +273,49 @@ export default function EmployeeCompensationMonth() {
 
   useEffect(reloadOpenDebts, [reloadOpenDebts]);
 
+  /**
+   * هل يملك هذا الشهر تفاصيل يومية؟ غيابها يعني **سجلًّا شهريًا قديمًا** يبقى على
+   * مساره كما هو — لا تحويل تلقائي ولا تواريخ مولَّدة (المتطلب ٣٠).
+   */
+  const hasDailyDetail = overtimeDays.length > 0;
+
+  /**
+   * تقييم الالتزام المعروض — **من المعاينة الحيّة** لا من السجل المحفوظ.
+   *
+   * المعاينة تعكس ما على الشاشة الآن، فتظهر المخالفة لحظة كتابة «٣ ساعات» لا بعد
+   * الحفظ. السجل المحفوظ احتياطٌ للحظة الأولى قبل وصول أول معاينة، فلا يومض الشريط
+   * فارغًا عند فتح شهر محفوظ.
+   */
+  const liveCompliance = preview?.compliance ?? saved?.compliance ?? null;
+
+  /**
+   * ساعات كل نوع كما هي **في السجل المحفوظ** — مرجع المطابقة عند تحويل شهر قديم.
+   * `null` لشهر لم يُحفظ بعد: لا شيء يُطابَق عليه.
+   */
+  const savedHoursByType = useMemo(() => {
+    if (!saved) return null;
+    const out = { REGULAR: 0, WEEKLY_REST: 0, OFFICIAL_HOLIDAY: 0 } as Record<OvertimeType, number>;
+    for (const l of saved.overtimeLines) out[l.overtimeType] = l.hours;
+    return out;
+  }, [saved]);
+
+  /** الساعات وعدد الأيام لكل نوع — عرضٌ فقط؛ الأرقام المعتمدة تأتي من المعاينة/الخادم. */
+  const derivedHours = useMemo(() => {
+    const out = {} as Record<OvertimeType, number>;
+    for (const d of overtimeDays) {
+      out[d.overtimeType] = Number(((out[d.overtimeType] ?? 0) + toNumber(d.hours)).toFixed(3));
+    }
+    return out;
+  }, [overtimeDays]);
+
+  const dayCounts = useMemo(() => {
+    const out = {} as Record<OvertimeType, number>;
+    for (const d of overtimeDays) {
+      if (toNumber(d.hours) > 0) out[d.overtimeType] = (out[d.overtimeType] ?? 0) + 1;
+    }
+    return out;
+  }, [overtimeDays]);
+
   /** جسم الحفظ/المعاينة — مشتقّ واحد يستهلكه المساران، فلا يتباعد ما يُعاين عمّا يُحفظ. */
   const draft: CalculationDraft = useMemo(
     () => ({
@@ -262,6 +327,21 @@ export default function EmployeeCompensationMonth() {
         rawHoursBeforeCeiling: r.rawHoursBeforeCeiling,
         notes: r.notes.trim() || null,
       })),
+      /**
+       * الأيام تُرسَل كما هي. حين تكون غير فارغة **يشتقّ الخادم منها ساعات السطور**
+       * ويتجاهل ساعات `overtime` أعلاه — فلا تحسب الواجهة مجموعًا ولا ترسل رقمًا
+       * ثانيًا يمكن أن يخالف التفاصيل.
+       */
+      overtimeDays: overtimeDays
+        .filter((d) => toNumber(d.hours) > 0)
+        .map((d) => ({
+          date: d.date,
+          overtimeType: d.overtimeType,
+          hours: toNumber(d.hours),
+          notes: d.notes.trim() || null,
+          compensatoryRestStatus: d.compensatoryRestStatus,
+          compensatoryRestDate: d.compensatoryRestDate,
+        })),
       earnings: earnings
         .filter((r) => r.label.trim())
         .map((r) => ({
@@ -279,7 +359,7 @@ export default function EmployeeCompensationMonth() {
       // المحفوظ»، وهو ليس ما يقصده محرّرٌ يعرض للمستخدم قيمةً بعينها على الشاشة.
       companyOvertimeBaseRate: appliedRate,
     }),
-    [overtime, earnings, deductions, notes, appliedRate],
+    [overtime, overtimeDays, earnings, deductions, notes, appliedRate],
   );
 
   /**
@@ -298,6 +378,13 @@ export default function EmployeeCompensationMonth() {
           ...draft,
           basicSalary,
           hourlyRateOverride: saved?.hourlyRateSnapshot ?? null,
+          // سياق الشهر — به تُقيَّم المخالفات القانونية **أثناء الإدخال** لا بعد
+          // الحفظ، وتُقرأ عدّادات السنة من بقية أشهر الموظف. استبعاد الحسبة الجارية
+          // يمنع احتساب ساعاتها مرّتين: مرّة من المحفوظ ومرّة من المسودة.
+          employeeId: employeeIdNum,
+          year,
+          month,
+          excludeCalculationId: saved?.id,
         })
         // تجاهل استجابة قديمة وصلت بعد أحدث منها — وإلا ارتدّت الأرقام إلى الوراء.
         .then((res) => { if (seq === previewSeq.current) setPreview(res); })
@@ -501,6 +588,14 @@ export default function EmployeeCompensationMonth() {
             </Button>
             <Button
               small
+              variant="secondary"
+              icon="event_note"
+              onClick={() => (hasDailyDetail ? setLedgerOpen(true) : setConvertOpen(true))}
+            >
+              {hasDailyDetail ? 'تفاصيل الأيام' : 'إضافة تفاصيل الأيام'}
+            </Button>
+            <Button
+              small
               variant="primary"
               icon="add"
               onClick={() =>
@@ -531,6 +626,10 @@ export default function EmployeeCompensationMonth() {
           canEdit={canEditRate}
           onOpenSettings={() => setRateDialogOpen(true)}
         />
+
+        {/* شريط الالتزام القانوني — **معلومات فقط**. الدخول إلى الأيام من زر واحد في
+            ترويسة البطاقة، فلا يتكرّر الإجراء نفسه في مكانين. */}
+        <ComplianceBar compliance={liveCompliance} />
 
         {overtime.length === 0 ? (
           <InlineEmpty icon="schedule" text={t('ecmp.overtime.empty')} />
@@ -576,22 +675,38 @@ export default function EmployeeCompensationMonth() {
                         )}
                       </td>
                       <td className="ecmp-col-num">
-                        <input
-                          type="number" lang="en" min="0" step="0.5" inputMode="decimal"
-                          aria-label={t('ecmp.col.hours')}
-                          value={row.hours}
-                          onChange={(e) =>
-                            setOvertime((rows) =>
-                              rows.map((r) =>
-                                r.key === row.key
-                                  // تعديل الساعات يدويًا يُلغي وسم «الحسبة العكسية»: الرقم لم يعد
-                                  // ناتج ذلك المبلغ المستهدف، فإبقاء الوسم كان سيوثّق أثرًا كاذبًا.
-                                  ? { ...r, hours: e.target.value, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null }
-                                  : r,
-                              ),
-                            )
-                          }
-                        />
+                        {hasDailyDetail ? (
+                          /* الساعات مشتقّة من الأيام — تُعرض ولا تُحرَّر هنا، وإلا صار
+                             للساعات مصدران يتباعدان. الضغط يفتح الأيام التي كوّنتها. */
+                          <button
+                            type="button"
+                            className="ecmp-derived-hours"
+                            onClick={() => setLedgerOpen(true)}
+                            title="عرض الأيام التي يتكوّن منها هذا المجموع"
+                          >
+                            {derivedHours[row.overtimeType] ?? 0}
+                            <span className="ecmp-derived-hint">
+                              {dayCounts[row.overtimeType] ?? 0} يوم
+                            </span>
+                          </button>
+                        ) : (
+                          <input
+                            type="number" lang="en" min="0" step="0.5" inputMode="decimal"
+                            aria-label={t('ecmp.col.hours')}
+                            value={row.hours}
+                            onChange={(e) =>
+                              setOvertime((rows) =>
+                                rows.map((r) =>
+                                  r.key === row.key
+                                    // تعديل الساعات يدويًا يُلغي وسم «الحسبة العكسية»: الرقم لم يعد
+                                    // ناتج ذلك المبلغ المستهدف، فإبقاء الوسم كان سيوثّق أثرًا كاذبًا.
+                                    ? { ...r, hours: e.target.value, calculationMethod: 'MANUAL_HOURS', reverseTargetAmount: null, rawHoursBeforeCeiling: null }
+                                    : r,
+                                ),
+                              )
+                            }
+                          />
+                        )}
                       </td>
                       <td className="ecmp-col-num ecmp-derived">
                         {computed?.effectiveRate == null ? (
@@ -864,6 +979,49 @@ export default function EmployeeCompensationMonth() {
           canEdit={canEditRate}
           onClose={() => setRateDialogOpen(false)}
           onSaved={setRateSettings}
+        />
+      )}
+
+      {ledgerOpen && (
+        <OvertimeDailyLedger
+          year={year}
+          month={month}
+          rows={overtimeDays}
+          rates={
+            totals?.overtimeRates
+              ? ({
+                  REGULAR: totals.overtimeRates.REGULAR.effectiveRate,
+                  WEEKLY_REST: totals.overtimeRates.WEEKLY_REST.effectiveRate,
+                  OFFICIAL_HOLIDAY: totals.overtimeRates.OFFICIAL_HOLIDAY.effectiveRate,
+                } as Record<OvertimeType, number>)
+              : null
+          }
+          compliance={liveCompliance}
+          // ساعات **السجل المحفوظ** لا المسودة: المقارنة تكشف ما سيضيع عند التحويل.
+          savedHoursByType={savedHoursByType}
+          onChange={setOvertimeDays}
+          onClose={() => setLedgerOpen(false)}
+        />
+      )}
+
+      {/*
+        المتطلب ٣١ — تحويل شهر قديم إلى تفاصيل يومية **بتأكيد صريح**.
+        لا يولّد النظام تاريخًا واحدًا: المستخدم يُدخل الأيام الفعلية بنفسه، ويبقى
+        السجل القديم كما هو حتى يفعل. الإلغاء لا يغيّر شيئًا إطلاقًا.
+      */}
+      {convertOpen && (
+        <ConfirmModal
+          // `warning` لا `danger`: هذا إجراء **غير مُتلِف** يفتح حوارًا ولا يمسّ أي
+          // بيانات محفوظة. الزر الأحمر كان سيوحي بخطر لا وجود له.
+          variant="warning"
+          message={
+            'سيُفتح السجل اليومي لإدخال أيام العمل الفعلية لهذا الشهر. ' +
+            'لن يُنشئ النظام أي تاريخ من عنده، ولن يتغيّر السجل المحفوظ قبل أن تحفظ. ' +
+            'بعد إدخال الأيام تصبح ساعات الشهر مجموعها — فأدخل ما يساوي ساعات السجل الحالي.'
+          }
+          confirmLabel="فتح السجل اليومي"
+          onConfirm={() => { setConvertOpen(false); setLedgerOpen(true); }}
+          onCancel={() => setConvertOpen(false)}
         />
       )}
 

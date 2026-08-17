@@ -3,8 +3,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../../config/database', () => {
   const tx = {
     employee: { findUnique: vi.fn() },
-    employeeCompensationCalculation: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    employeeCompensationCalculation: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() },
     overtimeLine: { findMany: vi.fn(), deleteMany: vi.fn() },
+    overtimeDayEntry: { findMany: vi.fn(), deleteMany: vi.fn() },
     compensationEarningLine: { deleteMany: vi.fn() },
     compensationDeductionLine: { deleteMany: vi.fn(), count: vi.fn() },
     employeeCompensationDebt: { findMany: vi.fn(), findUnique: vi.fn() },
@@ -53,6 +54,7 @@ function storedCalc(over: Record<string, unknown> = {}) {
     createdAt: new Date(), updatedAt: new Date(),
     overtimeLines: [], earningLines: [],
     deductionLines: [{ id: 900, calculationId: 100, type: 'DEBT_REPAYMENT', label: 'سداد سلفة سيارة', amount: 25, notes: null, debtId: 10, sortOrder: 0 }],
+    overtimeDayEntries: [],
     ...over,
   };
 }
@@ -68,6 +70,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   p.employee.findUnique.mockResolvedValue(EMPLOYEE);
   p.overtimeLine.findMany.mockResolvedValue([]);
+  p.overtimeDayEntry.findMany.mockResolvedValue([]);
+  // لا أشهر مجمّعة افتراضيًا — كل اختبار يخصّها يمرّرها صراحةً.
+  p.employeeCompensationCalculation.findMany.mockResolvedValue([]);
   p.employeeCompensationDebt.findMany.mockResolvedValue([{ ...DEBT, payments: [] }]);
   p.employeeCompensationDebtPayment.findMany.mockResolvedValue([]);
   p.compensationDeductionLine.count.mockResolvedValue(0);

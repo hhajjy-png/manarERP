@@ -8,6 +8,7 @@
 import { z } from 'zod';
 import { OVERTIME_TYPES } from '../employee-compensation/legal/kuwaitLabourLaw';
 import {
+  COMPENSATORY_REST_STATUSES,
   DEBT_TYPES,
   DEDUCTION_TYPES,
   EARNING_TYPES,
@@ -36,6 +37,31 @@ const overtimeLineSchema = z.object({
   reverseTargetAmount: moneyField.nullable().optional(),
   rawHoursBeforeCeiling: hoursField.nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
+});
+
+/**
+ * ساعات **يوم واحد**: لا تتجاوز اليوم التقويمي. الحدود القانونية ليست من شأن هذه
+ * الطبقة — ٣ ساعات إضافي عادي تمرّ من هنا صحيحةً شكلًا، ثم يصنّفها محرّك الالتزام
+ * مخالفةً قانونية فتُحفظ مسودةً ويُمنع اعتمادها. الحفظ ليس الاعتماد.
+ */
+const dayHoursField = z.number().finite().nonnegative().max(24);
+
+/** تاريخ يوم عمل — `YYYY-MM-DD` حصرًا. الصحّة التقويمية تُفحص في المحرّك والخدمة. */
+const isoDateField = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'صيغة التاريخ يجب أن تكون YYYY-MM-DD');
+
+/**
+ * يوم عمل إضافي واحد. `hours` موجبة صراحةً: صفّ بصفر ساعات ليس يوم عمل، وتخزينه كان
+ * سيضخّم عدّاد «أيام الإضافي السنوية» بأيام لم يُعمل فيها شيء.
+ */
+const overtimeDaySchema = z.object({
+  date: isoDateField,
+  overtimeType: z.enum(OVERTIME_TYPES),
+  hours: dayHoursField.refine((v) => v > 0, 'عدد ساعات اليوم يجب أن يكون أكبر من صفر'),
+  notes: z.string().max(500).nullable().optional(),
+  compensatoryRestStatus: z.enum(COMPENSATORY_REST_STATUSES).nullable().optional(),
+  compensatoryRestDate: isoDateField.nullable().optional(),
 });
 
 const earningLineSchema = z.object({
@@ -77,7 +103,22 @@ const companyOvertimeBaseRateField = z
 
 /** جسم الحسبة المشترك بين الإنشاء والتحديث والمعاينة. */
 export const calculationBodySchema = z.object({
+  /**
+   * السطور الشهرية المجمّعة **لكل نوع**.
+   *
+   * ═══ مكانتها تغيّرت مع السجل اليومي ═══
+   * حين تصل `overtimeDays` غير فارغة، تُشتقّ هذه السطور من الأيام اشتقاقًا كاملًا
+   * وتُتجاهَل ساعاتُها الواردة هنا. تبقى في الجسم لسببين: الأشهر القديمة (Legacy) التي
+   * لا تملك أيامًا تُحفظ بها كما كانت، وحقولُ التدقيق (طريقة الإدخال، المبلغ المستهدف
+   * للحسبة العكسية) ما زالت تخصّ النوع لا اليوم.
+   */
   overtime: z.array(overtimeLineSchema).max(50).default([]),
+  /**
+   * أيام العمل الإضافي — **مصدر الحقيقة للساعات** حين تُرسَل.
+   * السقف ٢٠٠ يتّسع لثلاثة أنواع في كل يوم من الشهر (٣١ × ٣ = ٩٣) بهامش واسع، ويمنع
+   * في الوقت نفسه طلبًا ضخمًا من إغراق المعاملة.
+   */
+  overtimeDays: z.array(overtimeDaySchema).max(200).default([]),
   earnings: z.array(earningLineSchema).max(50).default([]),
   deductions: z.array(deductionLineSchema).max(50).default([]),
   notes: z.string().max(2000).nullable().optional(),
@@ -118,6 +159,18 @@ export const previewCalculationSchema = z.object({
     basicSalary: z.number().finite().positive(),
     hourlyRateOverride: z.number().finite().positive().nullable().optional(),
     priorRegularOvertimeHoursThisYear: hoursField.optional(),
+    /**
+     * سياق الشهر المحرَّر — **اختياري، ولازم لتقييم الالتزام أثناء التحرير**.
+     *
+     * بدونه تبقى المعاينة حسابية بحتة كما كانت. بوجوده تُقيَّم المخالفات القانونية
+     * **قبل الحفظ**، فيرى المستخدم تجاوز اليوم أو الأسبوع لحظة إدخاله لا بعد الحفظ —
+     * وعدّادات السنة تُقرأ من بقية أشهر الموظف. `excludeCalculationId` يمنع احتساب
+     * الشهر الجاري تحريره مرّتين (مرّة من المحفوظ ومرّة من المسودة).
+     */
+    employeeId: idField.optional(),
+    year: yearField.optional(),
+    month: monthField.optional(),
+    excludeCalculationId: idField.optional(),
   }),
 });
 
@@ -151,7 +204,17 @@ export const monthParamsSchema = z.object({
 
 export const idParamsSchema = z.object({ params: z.object({ id: idField }) });
 
-export type CalculationBody = z.infer<typeof calculationBodySchema>;
+/**
+ * جسم الحسبة كما تراه الخدمة.
+ *
+ * `overtimeDays` **اختياري في النوع** رغم أن Zod يملؤه بمصفوفة فارغة عند التحقّق: كل
+ * مستدعٍ سابق لهذه الحزمة (وكل اختبار كُتب قبلها) لا يعرف الحقل أصلًا، وغيابه له معنى
+ * صريح ومقصود — «سجل شهري قديم بلا تفاصيل يومية» — لا حالة ناقصة يجب سدّها. الخدمة
+ * تتعامل معه بـ`?? []` في كل مسار، فالغياب مسار مدعوم لا ثغرة.
+ */
+export type CalculationBody = Omit<z.infer<typeof calculationBodySchema>, 'overtimeDays'> & {
+  overtimeDays?: z.infer<typeof calculationBodySchema>['overtimeDays'];
+};
 
 // ─── سجل المديونيات والسلف ────────────────────────────────────────────────────
 

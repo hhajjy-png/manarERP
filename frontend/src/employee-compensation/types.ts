@@ -69,6 +69,72 @@ export interface CompensationWarning {
   excess?: number;
 }
 
+/** حالة يوم الراحة البديل المستحقّ (المادتان ٦٧ و٦٨). */
+export type CompensatoryRestStatus = 'PENDING' | 'SCHEDULED' | 'TAKEN';
+
+/**
+ * يوم عمل إضافي واحد — **مصدر الحقيقة** لساعات الشهر منذ حزمة السجل اليومي.
+ * `date` بصيغة `YYYY-MM-DD` دائمًا (تاريخ عمل محلي لا لحظة زمنية)، ويُعرض `DD/MM/YYYY`.
+ */
+export interface OvertimeDayEntry {
+  id?: number;
+  date: string;
+  overtimeType: OvertimeType;
+  hours: number;
+  notes: string | null;
+  /** `null` لأيام REGULAR — المادة ٦٦ لا تُنشئ استحقاق راحة تعويضية. */
+  compensatoryRestStatus: CompensatoryRestStatus | null;
+  compensatoryRestDate: string | null;
+}
+
+/** بند مخالفة أو إفصاح من محرّك الالتزام. */
+export interface ComplianceFinding {
+  code: string;
+  /**
+   * `STATUTORY`  — حدّ قانوني أثبتته بيانات الوحدة. يمنع الاعتماد.
+   * `DISCLOSURE` — حدّ قانوني لا تملك الوحدة بيانات لفحصه. يُعرض ولا يمنع.
+   * `ADVISORY`   — تنبيه إداري لا نصّ قانوني له. يُعرض ولا يمنع.
+   */
+  basis: 'STATUTORY' | 'DISCLOSURE' | 'ADVISORY';
+  messageAr: string;
+  date?: string;
+  weekStart?: string;
+  weekEnd?: string;
+  limit?: number;
+  actual?: number;
+  excess?: number;
+}
+
+/** نتيجة تقييم الالتزام — تُعاد مع كل قراءة وحفظ، ولا تُخزَّن أبدًا. */
+export interface OvertimeCompliance {
+  /** `false` عند وجود أي مخالفة `STATUTORY` — وهو وحده ما يمنع الاعتماد. */
+  compliant: boolean;
+  /** `false` = سجل شهري قديم بلا تفاصيل يومية. */
+  hasDailyDetail: boolean;
+  /**
+   * اكتمال التحقّق — **سؤال مختلف عن `compliant`**.
+   * `compliant` يقول «لم تثبت مخالفة»؛ وهذا يقول «هل كانت البيانات كافية للفحص أصلًا».
+   * `PARTIAL` = توجد أشهر مجمّعة بلا تواريخ تمنع فحص حدود الأيام.
+   */
+  verification: 'FULL' | 'PARTIAL';
+  /** أرقام الأشهر المجمّعة التي منعت التحقّق الكامل. */
+  legacyMonths: number[];
+  regular: {
+    monthHours: number;
+    monthDays: number;
+    yearHours: number;
+    /** الجزء الآتي من أشهر مجمّعة بلا تواريخ. */
+    yearHoursFromLegacy: number;
+    yearDays: number;
+    annualHoursLimit: number;
+    annualDaysLimit: number;
+  };
+  weeklyRest: { hours: number; days: number; compensatoryPending: number };
+  officialHoliday: { hours: number; days: number; compensatoryPending: number };
+  violations: ComplianceFinding[];
+  warnings: ComplianceFinding[];
+}
+
 export interface OvertimeLine {
   id?: number;
   overtimeType: OvertimeType;
@@ -145,9 +211,13 @@ export interface Calculation {
   createdAt: string;
   updatedAt: string;
   overtimeLines: OvertimeLine[];
+  /** تفاصيل الأيام. مصفوفة فارغة = سجل شهري قديم (Legacy) لا يُحوَّل تلقائيًا. */
+  overtimeDayEntries: OvertimeDayEntry[];
   earningLines: EarningLine[];
   deductionLines: DeductionLine[];
   warnings: CompensationWarning[];
+  /** تقييم الالتزام القانوني — يُعاد إنتاجه عند كل قراءة ولا يُخزَّن. */
+  compliance: OvertimeCompliance;
   /** يظهر في استجابة «نسخ من الشهر السابق» وحدها. */
   copiedFrom?: {
     year: number;
@@ -180,6 +250,13 @@ export interface PreviewResult {
   totalDeductions: number;
   netAmount: number;
   warnings: CompensationWarning[];
+  /**
+   * تقييم الالتزام القانوني للمسودة الجارية — يصل مع كل معاينة، فيرى المستخدم
+   * المخالفة لحظة إدخالها لا بعد الحفظ.
+   */
+  compliance: OvertimeCompliance;
+  /** أخطاء شكل في الأيام (تاريخ خارج الشهر / مكرَّر) — تُعرض ولا تمنع التحرير. */
+  dayErrors: Array<{ code: string; messageAr: string; date?: string }>;
 }
 
 export interface ReverseResult {
@@ -224,8 +301,30 @@ export interface MonthCell {
   grossEntitlements?: number;
   netAmount?: number;
   overtimeHours?: number;
+  /** تفصيل الشهر حسب النوع القانوني — مفصول لا مجموع (المتطلب ٣٢). */
+  regularHours?: number;
+  regularDays?: number;
+  weeklyRestHours?: number;
+  weeklyRestDays?: number;
+  officialHolidayHours?: number;
+  officialHolidayDays?: number;
+  compensatoryRestPending?: number;
+  /** `false` = سجل شهري قديم بلا تفاصيل يومية. */
+  hasDailyDetail?: boolean;
   approvedAt?: string | null;
   updatedAt?: string;
+}
+
+/** سطر في سجلّ الإضافي السنوي (المتطلب ٣٣). */
+export interface OvertimeHistoryRow {
+  date: string;
+  month: number;
+  overtimeType: OvertimeType;
+  hours: number;
+  compensatoryRestStatus: CompensatoryRestStatus | null;
+  compensatoryRestDate: string | null;
+  notes: string | null;
+  calculationId: number;
 }
 
 export interface AnnualFile {
@@ -252,6 +351,18 @@ export interface AnnualFile {
     totalGross: number;
     totalNet: number;
   };
+  /** إجماليات الالتزام السنوية — مفصولة بالنوع القانوني (المتطلب ٣٢). */
+  overtimeYtd: {
+    regularHours: number;
+    regularDays: number;
+    weeklyRestHours: number;
+    officialHolidayHours: number;
+    compensatoryRestPending: number;
+    annualHoursLimit: number;
+    annualDaysLimit: number;
+  };
+  /** سجلّ الإضافي السنوي — كل الأيام مرتَّبة زمنيًا (المتطلب ٣٣). */
+  overtimeHistory: OvertimeHistoryRow[];
 }
 
 /** بيانات **الكشف الرسمي المختصر**. لاحظ ما ليس فيها: أجر الساعة، المعاملات،
@@ -337,6 +448,22 @@ export interface DetailedReportData extends Omit<StatementData, 'overtime' | 'ea
     notes: string | null;
   }>;
   warnings: CompensationWarning[];
+  compliance: OvertimeCompliance;
+  /**
+   * جدول الأيام (المتطلب ٣٤) — **التقرير التفصيلي وحده**، غائب عن الكشف المختصر.
+   * `amount` موزَّع من إجمالي سطر النوع فيجمع العمود إلى الإجمالي بالضبط.
+   * مصفوفة فارغة = سجل شهري قديم بلا تفاصيل يومية.
+   */
+  overtimeDays: Array<{
+    date: string;
+    overtimeType: OvertimeType;
+    hours: number;
+    effectiveRate: number | null;
+    amount: number;
+    compensatoryRestStatus: CompensatoryRestStatus | null;
+    compensatoryRestDate: string | null;
+    notes: string | null;
+  }>;
   /**
    * تفاصيل سداد المديونيات — **التقرير الداخلي وحده** (المتطلب ٢١).
    * غائبة عن `StatementData` بنيويًا، فلا يمكن أن تتسرّب إلى الكشف الموقَّع.
@@ -353,6 +480,19 @@ export interface CalculationDraft {
     reverseTargetAmount?: number | null;
     rawHoursBeforeCeiling?: number | null;
     notes?: string | null;
+  }>;
+  /**
+   * أيام العمل الإضافي. حين تُرسَل غير فارغة، **تُشتقّ منها ساعات السطور على الخادم**
+   * وتُتجاهَل ساعات `overtime` — فلا يوجد مصدران للساعات يمكن أن يتباعدا.
+   * إغفالها أو إرسالها فارغة يبقي الشهر على المسار الشهري القديم بلا تفاصيل.
+   */
+  overtimeDays?: Array<{
+    date: string;
+    overtimeType: OvertimeType;
+    hours: number;
+    notes?: string | null;
+    compensatoryRestStatus?: CompensatoryRestStatus | null;
+    compensatoryRestDate?: string | null;
   }>;
   earnings: Array<{
     type: EarningType;

@@ -55,8 +55,18 @@ export const compensationApi = {
     unwrap<Calculation>(api.post(`${BASE}/employees/${employeeId}/years/${year}/months/${month}/copy-previous`)),
 
   /** معاينة حيّة أثناء التحرير — نفس محرّك الحفظ، بلا كتابة. */
-  preview: (body: CalculationDraft & { basicSalary: number; hourlyRateOverride?: number | null; priorRegularOvertimeHoursThisYear?: number }) =>
-    unwrap<PreviewResult>(api.post(`${BASE}/preview`, body)),
+  preview: (
+    body: CalculationDraft & {
+      basicSalary: number;
+      hourlyRateOverride?: number | null;
+      priorRegularOvertimeHoursThisYear?: number;
+      /** سياق الشهر — لازم لتقييم الالتزام القانوني أثناء التحرير (اختياري). */
+      employeeId?: number;
+      year?: number;
+      month?: number;
+      excludeCalculationId?: number;
+    },
+  ) => unwrap<PreviewResult>(api.post(`${BASE}/preview`, body)),
 
   reverseOvertime: (body: {
     targetAmount: number;
