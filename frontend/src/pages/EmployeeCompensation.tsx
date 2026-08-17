@@ -32,7 +32,7 @@ import {
 } from '../components/explorer/ExplorerKit';
 import '../components/explorer/explorer-kit.css';
 import './EmployeeCompensation.css';
-import { money } from '../config/modules';
+import { kd as money } from '../employee-compensation/units';
 import { useT } from '../lib/i18n';
 import { useAuth } from '../stores/authStore';
 

@@ -17,6 +17,8 @@
  */
 import { formatNumber } from '../lib/format';
 import { lookupJobTitleEn } from '../forms/shared/contractTranslations';
+import { deriveCashEntitlement } from './cashEntitlement';
+import { KD } from './units';
 import { monthNameAr, monthNameEn } from './labels';
 import type { StatementData } from './types';
 
@@ -54,9 +56,15 @@ export function periodBilingual(year: number, month: number): BilingualValue {
   return { ar: `${monthNameAr(month)} ${year}`, en: `${monthNameEn(month)} ${year}` };
 }
 
-/** صافي المستحق كما يدخل الرمز — نفس رقم الكشف بنفس المُنسّق، بلا إعادة حساب. */
-export function netEntitlementQrValue(netAmount: number): string {
-  return `${formatNumber(netAmount)} KWD`;
+/**
+ * صافي المستحق كما يدخل الرمز — **نفس رقم الكشف** بنفس المُنسّق، بلا إعادة حساب.
+ *
+ * منذ فصل مساري السداد صار هذا الرقم هو **الصافي النقدي** لا الصافي المخزَّن: الرمز
+ * وُجد ليطابق ما على الورقة، ولو حمل المخزَّن (شاملًا راتبًا حُوّل إلى البنك) لأعطى
+ * ماسحَ الرمز رقمًا أكبر من الذي وقّع الموظف باستلامه — وهو أسوأ من ألّا يوجد رمز.
+ */
+export function netEntitlementQrValue(cashNetAmount: number): string {
+  return `${formatNumber(cashNetAmount)} ${KD}`;
 }
 
 /**
@@ -71,9 +79,10 @@ export function netEntitlementQrValue(netAmount: number): string {
 export function buildStatementQrLines(data: StatementData): string[] {
   const name = employeeNameBilingual(data.employee.fullName, data.employee.fullNameEn);
   const period = periodBilingual(data.year, data.month);
+  const { cashNet } = deriveCashEntitlement({ basicSalary: data.basicSalary, totals: data.totals });
   return [
     `اسم الموظف / Employee Name: ${joinBilingual(name)}`,
-    `صافي المستحق / Net Entitlement: ${netEntitlementQrValue(data.totals.netAmount)}`,
+    `صافي المستحق نقدًا / Net Cash Entitlement: ${netEntitlementQrValue(cashNet)}`,
     `الشهر / الفترة / Month / Period: ${joinBilingual(period)}`,
   ];
 }

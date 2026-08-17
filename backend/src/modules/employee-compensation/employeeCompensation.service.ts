@@ -308,6 +308,8 @@ function toEngineInput(
       reason: e.reason ?? null,
       notes: e.notes ?? null,
       recurring: e.recurring ?? false,
+      hours: e.hours ?? null,
+      rate: e.rate ?? null,
     })),
     deductions: body.deductions.map((d) => ({
       type: d.type,
@@ -351,6 +353,8 @@ function toChildRows(result: CompensationResult) {
       notes: l.notes,
       recurring: l.recurring,
       sortOrder: l.sortOrder,
+      hours: l.hours,
+      rate: l.rate,
     })),
     deductionLines: result.deductionLines.map((l) => ({
       type: l.type,
@@ -408,6 +412,8 @@ async function recomputeStored(calc: CalculationWithLines): Promise<Compensation
       reason: l.reason,
       notes: l.notes,
       recurring: l.recurring,
+      hours: l.hours,
+      rate: l.rate,
     })),
     deductions: calc.deductionLines.map((l) => ({
       type: l.type as never,
@@ -1021,6 +1027,10 @@ export const employeeCompensationService = {
         reason: l.reason,
         notes: l.notes,
         recurring: l.recurring,
+        // تفصيل الساعة يُنسخ مع المبلغ: هو شرحُ هذا الرقم نفسه، وفصله عنه كان سيُنتج
+        // سطرًا بمبلغ بلا حسبة تفسّره — لا تاريخًا يضلّل.
+        hours: l.hours,
+        rate: l.rate,
       })),
       // سطور **سداد المديونيات لا تُنسخ** عمدًا: السداد حركة في دفتر مالي، لا بند
       // قالبٍ يتكرّر. نسخُه تلقائيًا كان يعني تحصيل قسط ثانٍ بضغطة زر — وقد يتجاوز
@@ -1246,7 +1256,9 @@ export const employeeCompensationService = {
         hours: Number(agg.hours.toFixed(3)),
         amount: Number(agg.amount.toFixed(3)),
       })),
-      earnings: c.earningLines.map((l) => ({ label: l.label, type: l.type, amount: l.amount })),
+      // الكشف المختصر يبقى عمودين: الساعة والسعر يُعرضان سطرًا فرعيًا تحت اسم البند
+      // (`٧ ساعة × ٤٫٠٠٠`) لا عمودين جديدين — التصميم المختصر مقصود ولا يُحوَّل جدولًا.
+      earnings: c.earningLines.map((l) => ({ label: l.label, type: l.type, amount: l.amount, hours: l.hours, rate: l.rate })),
       deductions: c.deductionLines.map((l) => ({ label: l.label, type: l.type, amount: l.amount })),
       totals: {
         totalOvertimeAmount: c.totalOvertimeAmount,
@@ -1334,6 +1346,8 @@ export const employeeCompensationService = {
         reason: l.reason,
         notes: l.notes,
         recurring: l.recurring,
+        hours: l.hours,
+        rate: l.rate,
       })),
       deductions: c.deductionLines.map((l) => ({ type: l.type, label: l.label, amount: l.amount, notes: l.notes })),
       /**

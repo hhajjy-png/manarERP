@@ -48,7 +48,7 @@ const DATA: StatementData = {
   },
   basicSalary: 300,
   overtime: [{ overtimeType: 'REGULAR', hours: 11, amount: 27.5 }],
-  earnings: [{ label: 'مكافأة أداء', type: 'BONUS', amount: 50 }],
+  earnings: [{ label: 'مكافأة أداء', type: 'BONUS', amount: 50, hours: null, rate: null }],
   deductions: [{ label: 'سلفة', type: 'ADVANCE', amount: 27.5 }],
   totals: {
     totalOvertimeAmount: 27.5,
@@ -165,7 +165,7 @@ describe('٣ · بنية الكشف', () => {
     const { container } = render(<StatementTemplate data={DATA} />);
     const headers = Array.from(container.querySelectorAll('thead th'));
     expect(headers).toHaveLength(2);
-    expect(headers.map(textOf)).toEqual(['البند / Description', 'المبلغ (د.ك) / Amount (KWD)']);
+    expect(headers.map(textOf)).toEqual(['البند / Description', 'المبلغ (KD) / Amount (KD)']);
     for (const tr of Array.from(container.querySelectorAll('tbody tr'))) {
       expect(tr.querySelectorAll('td')).toHaveLength(2);
     }
@@ -179,9 +179,9 @@ describe('٣ · بنية الكشف', () => {
     const text = textOf(container);
     for (const label of [
       'الراتب الأساسي / Basic Salary',
-      'إجمالي المستحقات / Total Entitlements',
+      'إجمالي المستحقات الإضافية / Total Additional Entitlements',
       'إجمالي الاستقطاعات / Total Deductions',
-      'صافي المستحق / Net Entitlement',
+      'صافي المستحق نقدًا / Net Cash Entitlement',
     ]) {
       expect(text, `التسمية الثنائية «${label}» غائبة`).toContain(label);
     }
@@ -222,7 +222,7 @@ describe('٤ · محتوى رمز التحقق', () => {
   it('ثلاثة أسطر حصرًا: الاسم · صافي المستحق · الفترة', () => {
     expect(buildStatementQrLines(DATA)).toEqual([
       'اسم الموظف / Employee Name: السيد جوان السيد عبدالله / Juan Al Sayed Abdullah',
-      'صافي المستحق / Net Entitlement: 350.000 KWD',
+      'صافي المستحق نقدًا / Net Cash Entitlement: 50.000 KD',
       'الشهر / الفترة / Month / Period: أغسطس 2026 / August 2026',
     ]);
   });
@@ -252,8 +252,9 @@ describe('٤ · محتوى رمز التحقق', () => {
     const { container } = render(<StatementTemplate data={DATA} />);
     const shownNet = textOf(container.querySelector('tbody tr:last-child td:last-child'));
     // نفس الرقم بنفس الدقة — الرمز لا يعيد الحساب ولا يعيد التقريب.
-    expect(shownNet).toContain('350.000');
-    expect(netEntitlementQrValue(DATA.totals.netAmount)).toBe('350.000 KWD');
+    // الرقم النقدي: 350.000 − 300.000 أساسي = 50.000.
+    expect(shownNet).toContain('50.000');
+    expect(netEntitlementQrValue(50)).toBe('50.000 KD');
     const shownNumber = shownNet.match(/[\d,]+\.\d{3}/)?.[0];
     expect(shownNumber).toBeDefined();
     expect(buildStatementQrLines(DATA)[1]).toContain(shownNumber!);
@@ -305,9 +306,11 @@ describe('٥ · عقود ثابتة: الأرقام والتخطيط', () => {
     const { container } = render(<StatementTemplate data={DATA} />);
     const text = textOf(container);
     // الإجماليات المعروضة هي حرفيًا حقول `totals` الواصلة من المحرّك.
-    expect(text).toContain('377.500'); // grossEntitlements
+    // الأرقام المعروضة مشتقّة في دالة واحدة خارج القالب — والقالب لا يحسب شيئًا.
+    expect(text).toContain('300.000'); // basicSalary — للمعلومية
+    expect(text).toContain('77.500'); // gross 377.500 − basic 300.000
     expect(text).toContain('27.500'); // totalDeductions
-    expect(text).toContain('350.000'); // netAmount
+    expect(text).toContain('50.000'); // net 350.000 − basic 300.000
     const code = STATEMENT_SRC.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
     for (const arithmetic of ['grossEntitlements -', 'netAmount -', 'reduce(', '.toFixed(']) {
       expect(code, `القالب يحسب: ${arithmetic}`).not.toContain(arithmetic);

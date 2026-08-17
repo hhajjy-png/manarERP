@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react';
 import { errorMessage } from '../api/client';
 import { Button, Dialog, ErrorBanner, SkeletonRows } from '../components/explorer/ExplorerKit';
-import { money } from '../config/modules';
+import { kd as money } from './units';
 import { useT } from '../lib/i18n';
 import { compensationApi } from './api';
 import { OVERTIME_LABEL_AR } from './labels';
