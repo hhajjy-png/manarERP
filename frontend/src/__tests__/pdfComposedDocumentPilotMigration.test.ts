@@ -26,10 +26,11 @@ const code = (src: string) =>
 
 /** كل صفحة تستورد FormLayout فعليًا اليوم — بالاسم، لا تخمين. */
 const ALL_FORM_LAYOUT_CONSUMERS = [
-  // مستندا وحدة مستحقات الموظف الشهرية — انضمّا إلى نفس مسار التركيب والتصدير
+  // مستندات وحدة مستحقات الموظف الشهرية — انضمّت إلى نفس مسار التركيب والتصدير
   // (`composeStyledFromNode` → `exportPdfFromHtml`) بلا مسار طباعة موازٍ.
   'EmployeeCompensationStatement',
   'EmployeeCompensationDetailed',
+  'EmployeeCompensationVoucher',
   'SalaryCertificate',
   'EmployeeWarning',
   'LeaveRequest',

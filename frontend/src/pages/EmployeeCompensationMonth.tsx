@@ -533,6 +533,13 @@ export default function EmployeeCompensationMonth() {
   const debtOutstanding = openDebts.reduce((sum, d) => sum + d.remainingAmount, 0);
   const statementPath = saved ? `/employee-compensation/statement/${saved.id}` : '';
   const detailedPath = saved ? `/employee-compensation/detailed/${saved.id}` : '';
+  const voucherPath = saved ? `/employee-compensation/voucher/${saved.id}` : '';
+  /**
+   * زر سند الصرف يُعطّل حين لا يوجد مبلغ نقدي: الراتب الأساسي محوّل إلى البنك،
+   * فشهرٌ بلا مستحقات إضافية (أو تبتلعها استقطاعاته) لا يُصرف فيه نقد. المنع مُكرّر في
+   * الصفحة نفسها فلا يُطبع سند بصفر ولو فُتح المسار مباشرةً.
+   */
+  const cashNet = saved ? Number((saved.netAmount - saved.basicSalarySnapshot).toFixed(3)) : 0;
 
   return (
     <div className="xpl-scope xpl-page ecmp-page ecmp-month-page">
@@ -973,6 +980,14 @@ export default function EmployeeCompensationMonth() {
             {t('ecmp.action.preview_statement')}
           </Button>
           <Button icon="print" disabled={!saved} onClick={() => navigate(statementPath)}>{t('ecmp.action.print_statement')}</Button>
+          <Button
+            icon="receipt_long"
+            disabled={!saved || cashNet <= 0}
+            title={saved && cashNet <= 0 ? t('ecmp.voucher.no_cash_hint') : undefined}
+            onClick={() => navigate(voucherPath)}
+          >
+            {t('ecmp.action.print_voucher')}
+          </Button>
         </div>
 
         <span className="ecmp-actions-spacer" />

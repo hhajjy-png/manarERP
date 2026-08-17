@@ -67,6 +67,17 @@ interface FormLayoutProps {
    */
   hideFormNumber?: boolean;
   /**
+   * Opt-in: omit the short decorative rule drawn under the title. Off by default —
+   * every existing form keeps it, byte-identical.
+   *
+   * Exists for a form that draws its **own** titled header inside its template and
+   * therefore passes `title=""`: with no title text above it the rule reads as a
+   * stray horizontal line at the very top of the sheet, not as an underline. The
+   * Administrative Payment Voucher also passes `title=""` but does NOT set this, so
+   * its printed output is unchanged.
+   */
+  hideTitleRule?: boolean;
+  /**
    * Opt-in: omit the `ApprovalSection` (manager approval title, signature, date,
    * official stamp) from the footer entirely. Off by default — every existing form
    * keeps it. The footer's flex layout and QR position are unchanged; only the
@@ -274,6 +285,7 @@ export default function FormLayout({
   approvalHideDate = false,
   approvalStampInline = false,
   hideFormNumber = false,
+  hideTitleRule = false,
   hideApprovalSection = false,
   approvalBranding = false,
   approvalSecondaryLabels,
@@ -770,17 +782,19 @@ ${logoHeaderIsOverlay ? `
           >
             {title}
           </h1>
-          <div
-            style={{
-              width: 60,
-              height: 3,
-              background: '#1d4e6f',
-              margin: '0 auto',
-              borderRadius: 2,
-              WebkitPrintColorAdjust: 'exact',
-              printColorAdjust: 'exact',
-            }}
-          />
+          {!hideTitleRule && (
+            <div
+              style={{
+                width: 60,
+                height: 3,
+                background: '#1d4e6f',
+                margin: '0 auto',
+                borderRadius: 2,
+                WebkitPrintColorAdjust: 'exact',
+                printColorAdjust: 'exact',
+              }}
+            />
+          )}
         </div>
 
         {/* Form-specific content */}
