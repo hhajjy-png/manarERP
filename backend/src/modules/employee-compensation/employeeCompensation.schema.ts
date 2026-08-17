@@ -72,6 +72,13 @@ const earningLineSchema = z.object({
   reason: z.string().max(500).nullable().optional(),
   notes: z.string().max(500).nullable().optional(),
   recurring: z.boolean().optional(),
+  /**
+   * تفصيل الساعة — **حدّ الطلب لا القاعدة**. الشكل وحده يُفحص هنا (رقم محدود ضمن
+   * سقف الشهر)؛ أما «معًا أو لا أحدهما» و«الساعات × السعر = المبلغ» فيملكهما المحرّك
+   * (`compensationTotals`) وحده، فيسريان على أي مستدعٍ لا على هذا المسار فقط.
+   */
+  hours: hoursField.nullable().optional(),
+  rate: moneyField.nullable().optional(),
 });
 
 const deductionLineSchema = z.object({

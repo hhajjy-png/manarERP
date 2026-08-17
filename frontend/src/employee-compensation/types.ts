@@ -168,6 +168,12 @@ export interface EarningLine {
   notes: string | null;
   recurring: boolean;
   sortOrder: number;
+  /**
+   * تفصيل الساعة — `hours × rate = amount`، وكلاهما `null` معًا للبنود المالية البحتة.
+   * شرحٌ لمبلغ سطر مالي لا واقعة عمل: لا يدخل حدود المادة ٦٦ ولا محرّك الالتزام.
+   */
+  hours: number | null;
+  rate: number | null;
 }
 
 export interface DeductionLine {
@@ -391,7 +397,7 @@ export interface StatementData {
   };
   basicSalary: number;
   overtime: Array<{ overtimeType: OvertimeType; hours: number; amount: number }>;
-  earnings: Array<{ label: string; type: EarningType; amount: number }>;
+  earnings: Array<{ label: string; type: EarningType; amount: number; hours: number | null; rate: number | null }>;
   deductions: Array<{ label: string; type: DeductionType; amount: number }>;
   totals: {
     totalOvertimeAmount: number;
@@ -418,6 +424,8 @@ export interface DetailedReportData extends Omit<StatementData, 'overtime' | 'ea
     reason: string | null;
     notes: string | null;
     recurring: boolean;
+    hours: number | null;
+    rate: number | null;
   }>;
   deductions: Array<{ type: DeductionType; label: string; amount: number; notes: string | null }>;
   createdAt: string;

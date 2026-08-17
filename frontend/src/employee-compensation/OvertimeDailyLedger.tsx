@@ -14,7 +14,7 @@
 import { useMemo, useState } from 'react';
 import DateInput from '../components/DateInput';
 import { Button, Dialog, Icon } from '../components/explorer/ExplorerKit';
-import { money } from '../config/modules';
+import { HOUR_UNIT, kd as money } from './units';
 import { OVERTIME_LABEL_AR, OVERTIME_LABEL_LONG_AR } from './labels';
 import './OvertimeDailyLedger.css';
 import type {
@@ -72,9 +72,41 @@ export function sumHoursOfType(rows: readonly DayDraftRow[], type: OvertimeType)
 //  شريط الالتزام القانوني — مضغوط، داخل بطاقة العمل الإضافي
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function ComplianceBar({ compliance }: { compliance: OvertimeCompliance | null }) {
+/**
+ * شريط الالتزام القانوني.
+ *
+ * ═══ حالة «لا ساعات مسجّلة» ═══
+ * `hasAnyOvertime = false` تعني: لا يوم في السجل اليومي، ولا سطر شهري مجمّع. شهرٌ كهذا
+ * لم يُفحص فيه شيء لأنه لا يوجد فيه ما يُفحص — وعرض شارة خضراء «✓ ضمن الحدود» عليه كان
+ * ادّعاءَ تصديقٍ على العدم. وهي مشكلة حقيقية لا نظرية: الشهر قد يحمل بنودًا مالية تحمل
+ * ساعاتٍ في تفصيلها (`CompensationEarningLine.hours`)، فيقرأ المستخدم «٧ ساعات» في
+ * الجدول وفوقها شارة خضراء فيفهم أن تلك الساعات فُحصت قانونيًا — ولم تُفحص، ولا يمكن
+ * أن تُفحص: لا تواريخ لها أصلًا. فيُعرض نصّ محايد بلا شارة ولا لون إنذار.
+ */
+export function ComplianceBar({
+  compliance,
+  hasAnyOvertime,
+}: {
+  compliance: OvertimeCompliance | null;
+  /** أي عمل إضافي مسجَّل في هذا الشهر (أيام أو سطر مجمّع). الإغفال = السلوك السابق. */
+  hasAnyOvertime?: boolean;
+}) {
   if (!compliance) return null;
   const { regular, compliant, hasDailyDetail } = compliance;
+
+  if (hasAnyOvertime === false) {
+    return (
+      <div className="ecmp-compliance-bar">
+        <div className="ecmp-cmp-title">
+          <Icon name="gavel" />
+          <span>الالتزام القانوني</span>
+        </div>
+        <span className="ecmp-cmp-stat ecmp-cmp-none">
+          لا توجد ساعات إضافية يومية مسجلة للتحقق
+        </span>
+      </div>
+    );
+  }
 
   // العتبة الإدارية (٨٠٪) تُشتقّ من الأرقام الواصلة لا تُكتب رقمًا هنا.
   const hoursRatio = regular.annualHoursLimit > 0 ? regular.yearHours / regular.annualHoursLimit : 0;
@@ -113,7 +145,7 @@ export function ComplianceBar({ compliance }: { compliance: OvertimeCompliance |
           هذا الشهر:{' '}
           {hasDailyDetail ? (
             <>
-              <b>{regular.monthHours}h</b>
+              <b>{regular.monthHours}</b> {HOUR_UNIT}
               <span className="ecmp-cmp-sub"> · {regular.monthDays} يوم</span>
             </>
           ) : (
@@ -124,7 +156,7 @@ export function ComplianceBar({ compliance }: { compliance: OvertimeCompliance |
           {/* معزول اتجاهيًا: في RTL يقلب محرّك bidi ترتيب «35 / 180» بصريًا. */}
           السنة:{' '}
           <span dir="ltr" className="ecmp-ratio">
-            <b>{regular.yearHours}</b> / {regular.annualHoursLimit}h
+            <b>{regular.yearHours}</b> / {regular.annualHoursLimit} {HOUR_UNIT}
           </span>
           {regular.yearHoursFromLegacy > 0 && (
             <span className="ecmp-cmp-sub" title="جزء من الرصيد آتٍ من أشهر مجمّعة بلا تواريخ">
@@ -266,7 +298,7 @@ export default function OvertimeDailyLedger({
       footer={
         <>
           <div className="ecmp-day-footer-total">
-            الإجمالي: <b>{grandTotal}</b> ساعة
+            الإجمالي: <b>{grandTotal}</b> {HOUR_UNIT}
             {totals.length > 1 && (
               <span className="ecmp-cmp-sub">
                 {' '}
@@ -430,11 +462,11 @@ function ReconciliationNotice({
         <div key={g.type} className="ecmp-finding ecmp-find-advisory">
           <span className="ecmp-finding-tag">مطابقة</span>
           <span className="ecmp-finding-msg">
-            {OVERTIME_LABEL_AR[g.type]}: السجل المحفوظ يحمل <b>{g.saved}</b> ساعة، ومجموع
-            الأيام المُدخلة <b>{g.now}</b> ساعة
+            {OVERTIME_LABEL_AR[g.type]}: السجل المحفوظ يحمل <b>{g.saved}</b> {HOUR_UNIT}، ومجموع
+            الأيام المُدخلة <b>{g.now}</b> {HOUR_UNIT}
             {g.now === 0
               ? ' — لم تُدخل أيام هذا النوع بعد، وسيصبح مجموعه صفرًا عند الحفظ.'
-              : ` — بفارق ${g.diff > 0 ? '+' : ''}${g.diff} ساعة.`}{' '}
+              : ` — بفارق ${g.diff > 0 ? '+' : ''}${g.diff} ${HOUR_UNIT}.`}{' '}
             أدخل الأيام الفعلية المقابلة، أو اعتمد الفارق إن كان الرقم القديم خاطئًا.
           </span>
         </div>

@@ -12,13 +12,15 @@ import {
   issueDateStr,
   labelCell,
   longTextCell,
-  money,
   sectionHeader,
   tableRow,
   tableWrapper,
   valueCell,
 } from '../forms/shared/formStyles';
+import { deriveCashEntitlement } from './cashEntitlement';
 import { DEBT_TYPE_LABEL_AR, DEDUCTION_LABEL_AR, EARNING_LABEL_AR, OVERTIME_LABEL_LONG_AR, monthNameAr } from './labels';
+// وحدات العرض الخاصة بهذه الوحدة (KD · hour) — لا المُنسّق المشترك.
+import { HOUR_UNIT, KD, kd as money } from './units';
 import type { DetailedReportData } from './types';
 
 const th: React.CSSProperties = {
@@ -66,6 +68,8 @@ function Ratio({ value, limit }: { value: number; limit: number }) {
 
 export default function DetailedReportTemplate({ data }: { data: DetailedReportData }) {
   const { employee, totals } = data;
+  /** أرقام العرض النقدي — مشتقّة من المخزَّن بنفس الدالة التي يستخدمها الكشف. */
+  const cash = deriveCashEntitlement({ basicSalary: data.basicSalary, totals });
 
   return (
     <>
@@ -117,8 +121,8 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
             {money(data.hourlyRate)}
             {/* الأساس يصل من المحرّك — لا رقم قاسم مكتوب في هذا القالب. */}
             <span style={{ fontWeight: 400, color: '#64748b' }}>
-              {' '}= الراتب الأساسي ÷ {data.hourlyRateBasis.daysDivisor} يومًا ÷ {data.hourlyRateBasis.hoursPerDay} ساعات
-              {' '}({data.hourlyRateBasis.monthlyHours} ساعة شهريًا)
+              {' '}= الراتب الأساسي ÷ {data.hourlyRateBasis.daysDivisor} يومًا ÷ {data.hourlyRateBasis.hoursPerDay} {HOUR_UNIT}
+              {' '}({data.hourlyRateBasis.monthlyHours} {HOUR_UNIT} شهريًا)
             </span>
           </div>
         </div>
@@ -159,7 +163,7 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
                 <th style={{ ...th, textAlign: 'end' }}>الحد القانوني للساعة</th>
                 <th style={{ ...th, textAlign: 'end' }}>سعر الشركة للنوع</th>
                 <th style={{ ...th, textAlign: 'end' }}>المستخدم فعليًا</th>
-                <th style={{ ...th, textAlign: 'end' }}>القيمة (د.ك)</th>
+                <th style={{ ...th, textAlign: 'end' }}>القيمة ({KD})</th>
                 <th style={th}>طريقة الاحتساب</th>
               </tr>
             </thead>
@@ -246,7 +250,7 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
                 <th style={th}>النوع</th>
                 <th style={{ ...th, textAlign: 'end' }}>الساعات</th>
                 <th style={{ ...th, textAlign: 'end' }}>السعر الفعلي</th>
-                <th style={{ ...th, textAlign: 'end' }}>المبلغ (د.ك)</th>
+                <th style={{ ...th, textAlign: 'end' }}>المبلغ ({KD})</th>
                 <th style={th}>الراحة البديلة</th>
               </tr>
             </thead>
@@ -312,7 +316,7 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
                 />
                 {data.compliance.regular.yearHoursFromLegacy > 0 && (
                   <span style={{ fontWeight: 400, color: '#64748b' }}>
-                    {' '}— منها {data.compliance.regular.yearHoursFromLegacy} ساعة من أشهر
+                    {' '}— منها {data.compliance.regular.yearHoursFromLegacy} {HOUR_UNIT} من أشهر
                     مجمّعة بلا تواريخ
                   </span>
                 )}
@@ -378,8 +382,15 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
               <tr>
                 <th style={th}>النوع</th>
                 <th style={th}>البند</th>
+                {/*
+                  عمودان صريحان لا جملة داخل «البند»: التقرير الداخلي يُقرأ بالعين على
+                  عمود، والأرقام فيه تُجمع وتُدقَّق. «—» تعني بندًا ماليًا بحتًا لا ساعة
+                  له — لا صفرًا يُقرأ قياسًا.
+                */}
+                <th style={{ ...th, textAlign: 'end' }}>الساعات</th>
+                <th style={{ ...th, textAlign: 'end' }}>سعر الساعة ({KD})</th>
                 <th style={th}>سبب الصرف</th>
-                <th style={{ ...th, textAlign: 'end' }}>المبلغ (د.ك)</th>
+                <th style={{ ...th, textAlign: 'end' }}>المبلغ ({KD})</th>
               </tr>
             </thead>
             <tbody>
@@ -387,12 +398,14 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
                 <tr key={i}>
                   <td style={td}>{EARNING_LABEL_AR[e.type]}{e.recurring ? ' (متكرر)' : ''}</td>
                   <td style={td}>{e.label}{e.notes && <div style={{ fontSize: 10, color: '#64748b' }}>{e.notes}</div>}</td>
+                  <td style={tdNum}>{e.hours != null ? e.hours : '—'}</td>
+                  <td style={tdNum}>{e.rate != null ? money(e.rate) : '—'}</td>
                   <td style={td}>{e.reason ?? '—'}</td>
                   <td style={{ ...tdNum, fontWeight: 700 }}>{money(e.amount)}</td>
                 </tr>
               ))}
               <tr>
-                <td style={totalRow} colSpan={3}>إجمالي الاستحقاقات الأخرى</td>
+                <td style={totalRow} colSpan={5}>إجمالي الاستحقاقات الأخرى</td>
                 <td style={{ ...totalRow, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>{money(totals.totalOtherEarnings)}</td>
               </tr>
             </tbody>
@@ -408,7 +421,7 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
               <tr>
                 <th style={th}>النوع</th>
                 <th style={th}>البند</th>
-                <th style={{ ...th, textAlign: 'end' }}>المبلغ (د.ك)</th>
+                <th style={{ ...th, textAlign: 'end' }}>المبلغ ({KD})</th>
               </tr>
             </thead>
             <tbody>
@@ -465,11 +478,24 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
         </div>
       )}
 
+      {/*
+        ملخّص الحسبة — مساران للسداد لا مسار واحد.
+        الراتب الأساسي يُعرض بمساره (البنك) ثم يُستبعد من المبلغ النقدي.
+
+        ولا يُعرض هنا الإجمالي ولا الصافي المخزَّنان (الشاملان للأساسي) — لا حتى بحجم
+        أصغر بوصفهما «مرجعًا». مستندٌ يحمل رقمين كبيرين أحدهما يشمل راتبًا حُوّل إلى
+        البنك يفتح بابًا لقراءته على أنه مستحقّ في اليد، ورقمٌ واحد لا لبس فيه أنفع من
+        رقمين يحتاج القارئ أن يعرف أيّهما يخصّه. المخزَّن يبقى في قاعدة البيانات كما هو
+        ويُقرأ من هناك عند التدقيق.
+      */}
       <div style={tableWrapper}>
         <div style={sectionHeader}>ملخّص الحسبة</div>
         <div style={tableRow}>
           <div style={labelCell}>الراتب الأساسي</div>
-          <div style={valueCell}>{money(data.basicSalary)}</div>
+          <div style={valueCell}>
+            {money(data.basicSalary)}
+            <span style={{ fontSize: 10, color: '#475569', marginInlineStart: 6 }}>تم تحويله إلى البنك</span>
+          </div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>إجمالي العمل الإضافي</div>
@@ -480,16 +506,16 @@ export default function DetailedReportTemplate({ data }: { data: DetailedReportD
           <div style={valueCell}>{money(totals.totalOtherEarnings)}</div>
         </div>
         <div style={tableRow}>
-          <div style={labelCell}>إجمالي الاستحقاقات</div>
-          <div style={{ ...valueCell, fontWeight: 700 }}>{money(totals.grossEntitlements)}</div>
+          <div style={labelCell}>إجمالي المستحقات الإضافية</div>
+          <div style={{ ...valueCell, fontWeight: 700 }}>{money(cash.additionalEntitlements)}</div>
         </div>
         <div style={tableRow}>
           <div style={labelCell}>إجمالي الاستقطاعات</div>
           <div style={{ ...valueCell, color: '#b91c1c' }}>({money(totals.totalDeductions)})</div>
         </div>
         <div style={tableRow}>
-          <div style={labelCell}>صافي المستحق</div>
-          <div style={{ ...valueCell, fontWeight: 800, color: '#065f46' }}>{money(totals.netAmount)}</div>
+          <div style={labelCell}>صافي المستحق نقدًا</div>
+          <div style={{ ...valueCell, fontWeight: 800, color: '#065f46' }}>{money(cash.cashNet)}</div>
         </div>
       </div>
 

@@ -164,7 +164,7 @@ describe('التقرير التفصيلي — المواد ٦٦ / ٦٧ / ٦٨', 
   it('أساس أجر الساعة يأتي من البيانات لا مكتوبًا في القالب', () => {
     render(<DetailedReportTemplate data={DETAILED} />);
     expect(screen.getByText(/26 يومًا/)).toBeTruthy();
-    expect(screen.getByText(/208 ساعة شهريًا/)).toBeTruthy();
+    expect(screen.getByText(/208 hour شهريًا/)).toBeTruthy();
 
     const src = read('src/employee-compensation/DetailedReportTemplate.tsx').replace(/\{\/\*[\s\S]*?\*\/\}/g, '');
     expect(src, 'قاسم مكتوب نصًّا داخل القالب').not.toContain('٢٤٠ ساعة');

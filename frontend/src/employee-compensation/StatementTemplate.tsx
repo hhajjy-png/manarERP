@@ -29,8 +29,12 @@
  * أربعة عشر نموذجًا آخر.
  */
 import type { CSSProperties, ReactNode } from 'react';
-import { SECTION_HEADER_BG, longTextCell, money, tableWrapper } from '../forms/shared/formStyles';
+import { SECTION_HEADER_BG, longTextCell, tableWrapper } from '../forms/shared/formStyles';
+import { deriveCashEntitlement } from './cashEntitlement';
 import { OVERTIME_LABEL_AR, OVERTIME_LABEL_EN } from './labels';
+// وحدات العرض الخاصة بهذه الوحدة (KD · hour) — لا المُنسّق المشترك، فلا يتغيّر أي
+// مستند آخر في النظام من أجل كشوف هذه الوحدة.
+import { HOUR_UNIT, KD, kd as money } from './units';
 import {
   employeeNameBilingual,
   jobTitleBilingual,
@@ -105,6 +109,9 @@ const tdAmount: CSSProperties = {
 };
 const totalRow: CSSProperties = { ...td, fontWeight: 800, background: '#f8fafc', ...exactColors };
 
+/** دلالة «تم تحويله إلى البنك» — تابعة لسطر الراتب، لا سطر مستقل ولا حاشية. */
+const bankNote: CSSProperties = { fontSize: BODY_FONT_SIZE - 3, fontWeight: 400, color: '#475569', marginTop: 1, ...exactColors };
+
 /**
  * سطر ثنائي اللغة: «عربي / English» في **نفس السطر**، مع عزل الشقّ الإنجليزي.
  *
@@ -137,6 +144,8 @@ function SignatureSlot({ ar, en }: { ar: string; en: string }) {
 
 export default function StatementTemplate({ data }: { data: StatementData }) {
   const { employee, totals } = data;
+  /** أرقام العرض النقدي — مشتقّة من المخزَّن، ولا تُعيد كتابته. */
+  const cash = deriveCashEntitlement({ basicSalary: data.basicSalary, totals });
 
   const name = employeeNameBilingual(employee.fullName, employee.fullNameEn);
   const jobTitle = jobTitleBilingual(employee.jobTitle);
@@ -187,13 +196,23 @@ export default function StatementTemplate({ data }: { data: StatementData }) {
             <tr>
               <th style={th}><Bi ar="البند" en="Description" /></th>
               <th style={{ ...th, textAlign: 'end', width: 170 }}>
-                <Bi ar="المبلغ (د.ك)" en="Amount (KWD)" />
+                <Bi ar={`المبلغ (${KD})`} en={`Amount (${KD})`} />
               </th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style={td}><Bi ar="الراتب الأساسي" en="Basic Salary" /></td>
+              <td style={td}>
+                <Bi ar="الراتب الأساسي" en="Basic Salary" />
+                {/*
+                  دلالة مسار السداد على سطر الراتب نفسه — لا حاشية في أسفل الورقة.
+                  الموظف يقرأ السطر ورقمَه معًا، فيعرف عند التوقيع أن هذا المبلغ وصل
+                  حسابه ولا يُسلَّم في يده. حجمٌ أصغر ولون رمادي: واضح بلا مزاحمة للرقم.
+                */}
+                <div style={bankNote}>
+                  <Bi ar="تم تحويله إلى البنك" en="Transferred to Bank" />
+                </div>
+              </td>
               <td style={tdAmount}>{money(data.basicSalary)}</td>
             </tr>
 
@@ -203,24 +222,45 @@ export default function StatementTemplate({ data }: { data: StatementData }) {
                   <Bi ar={OVERTIME_LABEL_AR[o.overtimeType]} en={OVERTIME_LABEL_EN[o.overtimeType]} />
                   {' — '}
                   <bdi dir="ltr">{o.hours}</bdi>
-                  {' ساعة / hours'}
+                  {` ${HOUR_UNIT}`}
                 </td>
                 <td style={tdAmount}>{money(o.amount)}</td>
               </tr>
             ))}
 
-            {/* بنود يكتبها المستخدم — تُعرض كما أُدخلت. لا ترجمة مُخترعة لنصّ حرّ. */}
+            {/*
+              بنود يكتبها المستخدم — تُعرض كما أُدخلت. لا ترجمة مُخترعة لنصّ حرّ.
+              تفصيل الساعة يُلحَق بالسطر نفسه على صيغة «٧ ساعة × ٤٫٠٠٠» ولا يفتح
+              عمودين جديدين: هذا كشفٌ مختصر بعمودين قصدًا، وتحويله جدولًا كان يخالف
+              تصميمه ويزيد الصفحات. والصيغة نفسها التي يستخدمها سطر العمل الإضافي أعلاه،
+              فلا يقرأ الموقِّع أسلوبين للرقم ذاته في ورقة واحدة.
+            */}
             {data.earnings.map((e, i) => (
               <tr key={`e${i}`}>
-                <td style={td}>{e.label}</td>
+                <td style={td}>
+                  {e.label}
+                  {e.hours != null && e.rate != null && (
+                    <>
+                      {' — '}
+                      <bdi dir="ltr">{e.hours}</bdi>
+                      {` ${HOUR_UNIT} × `}
+                      <bdi dir="ltr">{money(e.rate)}</bdi>
+                    </>
+                  )}
+                </td>
                 <td style={tdAmount}>{money(e.amount)}</td>
               </tr>
             ))}
 
+            {/*
+              «الإضافية» لا «الإجمالي»: الراتب الأساسي مطروح من هذا السطر لأنه لا يُسلَّم
+              نقدًا. جمعُه هنا ثم استبعادُه من الصافي كان سيترك في الورقة رقمين لا يُطرح
+              أحدهما من الآخر بشكل ظاهر، فيقرأ الموظف قفزةً غير مفسَّرة بين السطرين.
+            */}
             <tr>
-              <td style={totalRow}><Bi ar="إجمالي المستحقات" en="Total Entitlements" /></td>
+              <td style={totalRow}><Bi ar="إجمالي المستحقات الإضافية" en="Total Additional Entitlements" /></td>
               <td style={{ ...totalRow, textAlign: 'end', fontVariantNumeric: 'tabular-nums' }}>
-                {money(totals.grossEntitlements)}
+                {money(cash.additionalEntitlements)}
               </td>
             </tr>
 
@@ -241,7 +281,7 @@ export default function StatementTemplate({ data }: { data: StatementData }) {
 
             <tr>
               <td style={{ ...totalRow, fontSize: BODY_FONT_SIZE + 1, background: '#eef2ff' }}>
-                <Bi ar="صافي المستحق" en="Net Entitlement" />
+                <Bi ar="صافي المستحق نقدًا" en="Net Cash Entitlement" />
               </td>
               <td
                 style={{
@@ -253,7 +293,7 @@ export default function StatementTemplate({ data }: { data: StatementData }) {
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {money(totals.netAmount)}
+                {money(cash.cashNet)}
               </td>
             </tr>
           </tbody>

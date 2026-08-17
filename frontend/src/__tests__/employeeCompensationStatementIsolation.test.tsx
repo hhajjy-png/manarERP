@@ -32,7 +32,7 @@ const DATA: StatementData = {
   basicSalary: 480,
   // ساعات وصلت عبر الحسبة العكسية — ويجب أن تُعرض كحسبة عادية تمامًا.
   overtime: [{ overtimeType: 'REGULAR', hours: 11, amount: 27.5 }],
-  earnings: [{ label: 'مكافأة أداء', type: 'BONUS', amount: 50 }],
+  earnings: [{ label: 'مكافأة أداء', type: 'BONUS', amount: 50, hours: null, rate: null }],
   deductions: [{ label: 'سلفة', type: 'ADVANCE', amount: 30 }],
   totals: {
     totalOvertimeAmount: 27.5,
@@ -52,9 +52,11 @@ describe('الكشف الرسمي المختصر — ما يعرضه', () => {
     const { container } = render(<StatementTemplate data={DATA} />);
     const text = (container.textContent ?? '').replace(/\s+/g, ' ');
     expect(text).toContain('موظف تجريبي');
-    expect(text).toMatch(/عمل إضافي \/ Overtime — 11 ساعة/);
+    expect(text).toMatch(/عمل إضافي \/ Overtime — 11 hour/);
     expect(text).toContain('مكافأة أداء');
-    expect(text).toContain('صافي المستحق / Net Entitlement');
+    expect(text).toContain('صافي المستحق نقدًا / Net Cash Entitlement');
+    // الراتب الأساسي معروض للمعلومية وحدها — مسار سداده مكتوب على سطره.
+    expect(text).toContain('تم تحويله إلى البنك / Transferred to Bank');
   });
 });
 

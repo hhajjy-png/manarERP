@@ -33,7 +33,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
 import '../components/explorer/explorer-kit.css';
 import './EmployeeCompensation.css';
-import { money } from '../config/modules';
+import { kd as money } from '../employee-compensation/units';
 import { formatDate, toLocalDateOnly } from '../lib/date';
 import { useT } from '../lib/i18n';
 

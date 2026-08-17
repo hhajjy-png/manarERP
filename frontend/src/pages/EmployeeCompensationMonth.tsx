@@ -64,7 +64,7 @@ import {
 import ConfirmModal from '../components/ConfirmModal';
 import '../components/explorer/explorer-kit.css';
 import './EmployeeCompensation.css';
-import { money } from '../config/modules';
+import { kd as money } from '../employee-compensation/units';
 import { withFormOpenIntent } from '../forms/shared/formOpenIntent';
 import { formatDate } from '../lib/date';
 import { useT } from '../lib/i18n';
@@ -94,6 +94,9 @@ interface EarningDraftRow {
   reason: string;
   notes: string;
   recurring: boolean;
+  /** نصّان أثناء التحرير كبقية الأرقام في هذه الشاشة؛ الفراغ يعني «بند مالي بلا ساعات». */
+  hours: string;
+  rate: string;
 }
 interface DeductionDraftRow {
   key: string;
@@ -212,6 +215,8 @@ export default function EmployeeCompensationMonth() {
       calc.earningLines.map((l) => ({
         key: nextKey(), type: l.type, label: l.label, amount: String(l.amount),
         reason: l.reason ?? '', notes: l.notes ?? '', recurring: l.recurring,
+        hours: l.hours == null ? '' : String(l.hours),
+        rate: l.rate == null ? '' : String(l.rate),
       })),
     );
     setDeductions(
@@ -347,6 +352,10 @@ export default function EmployeeCompensationMonth() {
         .map((r) => ({
           type: r.type, label: r.label.trim(), amount: toNumber(r.amount),
           reason: r.reason.trim() || null, notes: r.notes.trim() || null, recurring: r.recurring,
+          // خانة فارغة = `null` لا صفر: صفرُ ساعة ليس تفصيلًا بل غيابه. القاعدتان
+          // «معًا أو لا أحدهما» و«الساعات × السعر = المبلغ» يفرضهما المحرّك على الخادم.
+          hours: r.hours.trim() ? toNumber(r.hours) : null,
+          rate: r.rate.trim() ? toNumber(r.rate) : null,
         })),
       deductions: deductions
         .filter((r) => r.label.trim())
@@ -629,7 +638,16 @@ export default function EmployeeCompensationMonth() {
 
         {/* شريط الالتزام القانوني — **معلومات فقط**. الدخول إلى الأيام من زر واحد في
             ترويسة البطاقة، فلا يتكرّر الإجراء نفسه في مكانين. */}
-        <ComplianceBar compliance={liveCompliance} />
+        {/*
+          «لا ساعات» = لا يوم في السجل ولا سطر شهري مجمّع بساعات. تُقاس من حالة المحرِّر
+          نفسها لا من نتيجة المحرّك، فتتبع ما يراه المستخدم على الشاشة لحظةً بلحظة.
+          ساعات بنود الاستحقاقات (`earnings[].hours`) **لا تدخل هنا عمدًا**: هي تفصيل
+          مبلغ مالي بلا تواريخ، ولا يجوز أن تُشغّل محرّك الالتزام ولا أن توحي بأنه فحصها.
+        */}
+        <ComplianceBar
+          compliance={liveCompliance}
+          hasAnyOvertime={overtimeDays.length > 0 || overtime.some((r) => toNumber(r.hours) > 0)}
+        />
 
         {overtime.length === 0 ? (
           <InlineEmpty icon="schedule" text={t('ecmp.overtime.empty')} />
@@ -746,9 +764,13 @@ export default function EmployeeCompensationMonth() {
         icon="card_giftcard"
         addLabel={t('ecmp.action.add_earning')}
         emptyText={t('ecmp.earnings.empty')}
-        onAdd={() => setEarnings((r) => [...r, { key: nextKey(), type: 'BONUS', label: '', amount: '', reason: '', notes: '', recurring: false }])}
+        onAdd={() => setEarnings((r) => [...r, { key: nextKey(), type: 'BONUS', label: '', amount: '', reason: '', notes: '', recurring: false, hours: '', rate: '' }])}
         rows={earnings}
-        headers={[t('ecmp.col.type'), t('ecmp.col.label'), t('ecmp.col.amount'), t('ecmp.col.reason'), t('ecmp.col.notes')]}
+        headers={[
+          t('ecmp.col.type'), t('ecmp.col.label'),
+          t('ecmp.col.hours'), t('ecmp.col.hourly_rate'),
+          t('ecmp.col.amount'), t('ecmp.col.reason'), t('ecmp.col.notes'),
+        ]}
         renderRow={(row) => (
           <>
             <td>
@@ -764,6 +786,21 @@ export default function EmployeeCompensationMonth() {
             <td>
               <input type="text" aria-label={t('ecmp.col.label')} placeholder={t('ecmp.ph.earning_label')} value={row.label}
                 onChange={(e) => setEarnings((rows) => rows.map((r) => (r.key === row.key ? { ...r, label: e.target.value } : r)))} />
+            </td>
+            {/*
+              الساعة والسعر اختياريان: بندٌ مالي بحت (مصروف، مكافأة) يُترك فيهما فارغًا
+              فيُعرضان «—». تركهما نصًّا حرًّا لا `0` افتراضيًا هو ما يفرّق بين «لا ساعة
+              لهذا البند» و«صفر ساعة» — والثاني كان سيطبع حسبةً كاذبة في الكشف.
+            */}
+            <td className="ecmp-col-num">
+              <input type="number" lang="en" min="0" step="0.001" inputMode="decimal" placeholder="—"
+                aria-label={t('ecmp.col.hours')} value={row.hours}
+                onChange={(e) => setEarnings((rows) => rows.map((r) => (r.key === row.key ? { ...r, hours: e.target.value } : r)))} />
+            </td>
+            <td className="ecmp-col-num">
+              <input type="number" lang="en" min="0" step="0.001" inputMode="decimal" placeholder="—"
+                aria-label={t('ecmp.col.hourly_rate')} value={row.rate}
+                onChange={(e) => setEarnings((rows) => rows.map((r) => (r.key === row.key ? { ...r, rate: e.target.value } : r)))} />
             </td>
             <td className="ecmp-col-num">
               <input type="number" lang="en" min="0" step="0.001" inputMode="decimal" aria-label={t('ecmp.col.amount')} value={row.amount}

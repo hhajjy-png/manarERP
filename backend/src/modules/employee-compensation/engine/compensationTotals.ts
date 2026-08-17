@@ -51,6 +51,19 @@ export interface EarningLineInput {
   reason?: string | null;
   notes?: string | null;
   recurring?: boolean;
+  /**
+   * تفصيل الساعة — **شرحٌ لمبلغ سطر مالي، لا واقعة عمل**.
+   *
+   * `hours × rate = amount` بدقّة الدينار الثلاثية، ويُفحص هنا لا في الواجهة فيسري
+   * على أي مستدعٍ. كلاهما معًا أو لا أحدهما: بندٌ مالي بحت (مصروف، مكافأة) لا ساعة له،
+   * وساعةٌ بلا سعر لا تفسّر مبلغًا.
+   *
+   * هذان الرقمان **لا يدخلان محرّك الالتزام القانوني إطلاقًا**. مصدر الحقيقة لساعات
+   * العمل الإضافي يبقى `OvertimeDayEntry` بتواريخه وحده؛ وسطرٌ هنا بلا تاريخ لا يُحتسب
+   * في حدود المادة ٦٦ ولا يصنع «التزامًا» من أرقام لا يُعرف متى وقعت.
+   */
+  hours?: number | null;
+  rate?: number | null;
 }
 
 export interface DeductionLineInput {
@@ -62,13 +75,15 @@ export interface DeductionLineInput {
   debtId?: number | null;
 }
 
-export interface ComputedEarningLine extends Omit<EarningLineInput, 'entryDate'> {
+export interface ComputedEarningLine extends Omit<EarningLineInput, 'entryDate' | 'hours' | 'rate'> {
   amount: number;
   entryDate: Date | null;
   reason: string | null;
   notes: string | null;
   recurring: boolean;
   sortOrder: number;
+  hours: number | null;
+  rate: number | null;
 }
 
 export interface ComputedDeductionLine extends DeductionLineInput {
@@ -145,6 +160,42 @@ function toDate(value: Date | string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * تفصيل الساعة لسطر استحقاق — يُفحص هنا فيسري على كل مستدعٍ (واجهة · API · سكربت).
+ *
+ * ثلاث قواعد لا رابعة لها:
+ *   · كلاهما معًا أو لا أحدهما. ساعةٌ بلا سعر لا تفسّر مبلغًا، وسعرٌ بلا ساعة لا يُضرب
+ *     في شيء — وأيّهما وحده كان سيُعرض في الجدول عمودًا نصفَ ممتلئ لا يُقرأ.
+ *   · موجبان. صفر ساعة ليس تفصيلًا بل غيابه، وتخزينه كان سيُظهر «٠ × ٤٫٠٠٠ = ٢٨».
+ *   · `hours × rate = amount` بدقّة الدينار الثلاثية. بدون هذا القيد يستطيع السطر أن
+ *     يعرض حسبةً لا تُنتج مبلغه، وهي أسوأ من ألّا يعرض شيئًا: رقمان يكذّبان الثالث في
+ *     مستند يُطبع ويُوقَّع.
+ *
+ * التقريب على الطرفين لا على أحدهما: `roundMoney` هي سياسة النقود الوحيدة في الوحدة،
+ * فمقارنة حاصل الضرب الخام بمبلغٍ مقرَّب كانت سترفض `٣ × ٤٫٣٣٥` رفضًا كاذبًا.
+ */
+function resolveHourlyDetail(e: EarningLineInput): { hours: number | null; rate: number | null } {
+  const hasHours = e.hours !== null && e.hours !== undefined;
+  const hasRate = e.rate !== null && e.rate !== undefined;
+  if (!hasHours && !hasRate) return { hours: null, rate: null };
+  if (hasHours !== hasRate) {
+    throw new Error(`البند «${e.label}»: الساعات وسعر الساعة يُدخَلان معًا أو يُتركان معًا فارغين`);
+  }
+
+  const hours = e.hours as number;
+  const rate = e.rate as number;
+  if (!Number.isFinite(hours) || hours <= 0) throw new Error(`البند «${e.label}»: عدد الساعات يجب أن يكون أكبر من صفر`);
+  if (!Number.isFinite(rate) || rate <= 0) throw new Error(`البند «${e.label}»: سعر الساعة يجب أن يكون أكبر من صفر`);
+
+  const expected = roundMoney(hours * rate);
+  if (expected !== roundMoney(e.amount)) {
+    throw new Error(
+      `البند «${e.label}»: ${hours} × ${rate.toFixed(3)} = ${expected.toFixed(3)} ولا يساوي المبلغ ${roundMoney(e.amount).toFixed(3)}`,
+    );
+  }
+  return { hours, rate };
+}
+
 /** الحسبة الكاملة. خالصة، حتمية، وقابلة للاختبار بلا واجهة ولا قاعدة بيانات. */
 export function computeCompensation(input: CompensationInput): CompensationResult {
   const basicSalary = assertAmount(input.basicSalary, 'الراتب الأساسي');
@@ -176,6 +227,7 @@ export function computeCompensation(input: CompensationInput): CompensationResul
     notes: e.notes ?? null,
     recurring: e.recurring ?? false,
     sortOrder: index,
+    ...resolveHourlyDetail(e),
   }));
 
   const deductionLines: ComputedDeductionLine[] = input.deductions.map((d, index) => {
