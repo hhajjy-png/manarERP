@@ -75,6 +75,7 @@ const EmployeeCompensationDebts = lazy(() => import('./pages/EmployeeCompensatio
 const EmployeeCompensationDebtDetail = lazy(() => import('./pages/EmployeeCompensationDebtDetail'));
 const EmployeeCompensationStatement = lazy(() => import('./pages/EmployeeCompensationStatement'));
 const EmployeeCompensationDetailed = lazy(() => import('./pages/EmployeeCompensationDetailed'));
+const EmployeeCompensationVoucher = lazy(() => import('./pages/EmployeeCompensationVoucher'));
 // طباعة قالب الشيك (نظام قالب الشيك الجديد) — صفحة طباعة مستقلة خارج التخطيط، لعزل نظيف عن المعايرة والصفحة.
 const ChequeTemplatePrintPage = lazy(() => import('./components/chequeTemplateManager/ChequeTemplatePrintPage'));
 
@@ -135,6 +136,7 @@ export default function App() {
               تدخل القائمة الجانبية ولا الشريط العلوي في المستند المُركَّب. */}
           <Route path="/employee-compensation/statement/:id" element={<ProtectedRoute><EmployeeCompensationStatement /></ProtectedRoute>} />
           <Route path="/employee-compensation/detailed/:id" element={<ProtectedRoute><EmployeeCompensationDetailed /></ProtectedRoute>} />
+          <Route path="/employee-compensation/voucher/:id" element={<ProtectedRoute><EmployeeCompensationVoucher /></ProtectedRoute>} />
           <Route
             element={
               <ProtectedRoute>
