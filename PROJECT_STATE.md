@@ -68,7 +68,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee Compensation — Hourly Detail + Cash Entitlement Statement + KD/hour Display v1
+## Latest Release — Employee Compensation — Cash Payment Voucher v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Compensation — Cash Payment Voucher / سند صرف نقدي v1 — زر «طباعة سند صرف» بجانب «طباعة الكشف»، يُخرج **سند استلام نقدي** على ورق الشركة الرسمي بكل بياناته من الحسبة الشهرية نفسها بلا إدخال يدوي |
+| **Release status** | RELEASED — Product Owner manual visual review **completed** and explicitly confirmed prior to release authorization |
+| **Release date** | 2026-08-17 |
+| **Application version** | `2026.5.2` (unchanged — frontend-only pack, no installer rebuild) |
+| **Feature branch** | `feature/ecmp-cash-payment-voucher-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `714d0cc3` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-ecmp-cash-payment-voucher-v1` → `714d0cc3` (annotated) |
+| **Feature commit** | `41550bdc` |
+| **Production merge commit** | `bd9d5b47` |
+| **Stable tag** | `stable-ecmp-cash-payment-voucher-v1` → merge `bd9d5b47` (annotated) |
+| **1 — Button beside the statement, same data source** | «طباعة سند صرف» في مجموعة أزرار شاشة الشهر نفسها إلى جانب «طباعة الكشف»، بنفس نظام التصميم بلا إعادة تصميم شريط. السند يقرأ **الحسبة الشهرية نفسها** عبر مسار `statement` القائم: لا نموذج إدخال، ولا إعادة كتابة للموظف أو الشهر أو المبالغ أو البنود |
+| **2 — Voucher amount = cash, not the stored net** | `Voucher Cash Amount = netAmount − basicSalarySnapshot` عبر `deriveCashEntitlement` نفسها التي يستعملها الكشف والتقرير ورمز التحقق — **لا منطق ثانٍ في القالب** (محروس باختبار يمنع أي عملية طرح داخله). الراتب الأساسي يظهر للمعلومية ومعه `تم تحويله إلى البنك / Transferred to Bank`، ولا يدخل المبلغ المصروف: ورقةٌ يوقّعها الموظف باستلام نقد لا يجوز أن تحمل راتبًا وصل حسابه البنكي قبل أيام. أمثلة مثبَّتة: ١٥٠ أساسي/٢٥٠ مخزَّن ⇒ ١٠٠ · سليمان ٤٥٠/٥٧٠ ⇒ ١٢٠ · مع خصم ٢٠ ⇒ ٨٠ (الأساسي يُطرح مرة واحدة) |
+| **3 — Cloned from the administrative voucher, which was not touched** | استُنسخت اللغة البصرية لـ`forms/PaymentVoucherTemplate.tsx`: لون الهوية `#2b2e83` · صندوق العنوان · خلايا التسمية الزرقاء · حدود `1.2px #b9bccd` · صندوق المبلغ الأخضر · الخطوط المنقّطة. القالب الإداري **لم يُعدَّل بحرف** — تعميمه ليخدم مستندين كان يعني حشوه بأعلام شرطية تغيّر سلوك مستند مطبوع قائم. ثلاثة اختبارات تحرس بقاءه كما هو |
+| **4 — A4 · one page · 40mm top · ≥20mm bottom** | ملف تعريف «ورق الشركة الرسمي» هو المواصفة نفسها (٤٠مم أعلى · ٢٠مم أسفل)، فلا فاصل علوي إضافي. القياس الفعلي: النطاق ٢٣٦٫٩مم · المستخدَم ٢٢٧٫٩مم · فائض ٩٫٠مم؛ وشهرٌ بأربعة بنود — الأكثر في البيانات — يبقى صفحة واحدة، وبندٌ خامس يبقى ضمن الميزانية (١٩٣٫٨ من ١٩٩٫١مم). بلغ ذلك بتقليص المساحات الفارغة وحدها: **لا حقل حُذف ولا خطّ صُغّر إلى ما دون القراءة** |
+| **5 — No electronic header or footer** | الورقة تحمل ترويسة الشركة وتذييلها مطبوعين، فلا يرسم النظام شيئًا منهما: `blankHeader` + `hideFormNumber` + `hideApprovalSection` + العلم الجديد `hideTitleRule`. لا رقم صفحة، ولا «أُنشئ بواسطة»، ولا عنوان URL |
+| **6 — Tafqeet reused, applied to the cash amount alone** | `lib/tafqeet.amountToWordsKWD` — **نفس** مُفقِّط سند الصرف الإداري والشيكات، بالعربية والإنجليزية، ولا نظام تفقيط جديد. المُفقَّط هو الصافي النقدي وحده: محروس باختبار يثبت أن تفقيط الصافي المخزَّن والراتب الأساسي **لا يظهر** |
+| **7 — Deterministic QR with no print date or time** | خمسة أسطر ثابتة: مرجع السند · اسم الموظف · الرقم الوظيفي · الشهر/الفترة · صافي المبلغ المصروف نقدًا. إعادة الطباعة تُنتج المحتوى نفسه بايتًا ببايت — سندٌ يتغيّر رمزه بإعادة طبعه يفقد قيمته إثباتًا. محروس باختبار يرفض أي نمط تاريخ أو وقت أو `printDate`/`printedAt`/`timestamp`/`generatedAt`، والقالب لا يستدعي ساعة الجهاز إطلاقًا |
+| **8 — Signature block simplified by owner decision** | «المستلم / Received By» متمركز وتحته فراغ للتوقيع اليدوي — بلا حقول «الاسم/التوقيع» وبلا كتلة «مسؤول الصرف»: الاسم مطبوع أعلى السند والإقرار فوقه يقول ما يوقَّع عليه. **تاريخ الاستلام لا يُختلق** ولا يُطبع تاريخ اليوم مكانه: لا سجل سداد محفوظ يُقرأ منه |
+| **9 — Zero cash blocks the voucher structurally** | عند `cashNet ≤ 0` تُحجب الطباعة **قبل** تركيب `FormLayout` أصلًا — لا مجرد إخفاء زر — ويُعرض «لا يوجد مبلغ نقدي مستحق للصرف لهذا الشهر / There is no cash entitlement to pay for this month». وزر الشهر معطَّل في الحالة نفسها. سندُ صفرٍ ورقةٌ يوقّع فيها الموظف باستلام لا شيء |
+| **10 — Read-only print, no payment model** | الطباعة لا تعني `APPROVED` ولا `PAID` ولا استلامًا ولا ترحيلًا محاسبيًا، ولا تغيّر الحسبة. **لا جدول جديد** ولا حالة دفع ولا دفتر صرّاف ولا حقل تاريخ سداد ولا تأكيد استلام في قاعدة البيانات — السند الورقي يصير إثبات الاستلام بعد توقيع الموظف |
+| **Schema impact** | **لا شيء** — لا Prisma model، ولا هجرة، ولا مفتاح صلاحية جديد. `migrate status` يبقى 64/64 |
+| **Shared-file change (additive, opt-in)** | علم واحد على `FormLayout`: `hideTitleRule` (افتراضيًا `false`) لإزالة الخط الزخرفي تحت العنوان — لم يكن ممكنًا إخفاؤه من خارج المكوّن. سند الصرف الإداري يمرّر `title=""` أيضًا لكنه **لا** يفعّل العلم، فمخرجه المطبوع كما هو؛ محروس باختبار |
+| **Validation** | Frontend `tsc --noEmit` ✅ · Backend `tsc --noEmit` ✅ · `prisma validate` ✅ · `migrate status` 64/64 ✅ · سند الصرف النقدي 28 اختبارًا جديدًا ✅ · الاختبارات المتأثرة 10 ملفات/174 اختبارًا ✅ (تشمل حارسَي سند الصرف الإداري وحارسَي الاكتمال) · Frontend الكامل 219 ملفًا/4024 اختبارًا ✅ · Backend 3230 ✅ (بلا تغيير) · `build:front` ✅. أُعيدت الفحوص المتأثّرة على `production` بعد الدمج |
+| **Files** | 9 (6 modified, 3 new) — **كلها frontend**، ولا ملف backend واحد |
+| **Excluded from this release** | نفس البنود غير المتتبَّعة المستبعَدة من كل إصدار حديث (`backend/src/__probe__/` · `backend/src/__livetest__/` · `zzprobe.test.ts` · `zz-probe.test.tsx` · `backend/mkfixture.mts` · `backend/delfixture.mts` · خطّان تحت `frontend/src/assets/fonts/نموذج كتاب رسمي خطوط/`)، إضافةً إلى لقطات المراجعة البصرية (`voucher-*.png` · `cash-*.png` · `ecmp-*.png`) وملفّي مصدر الاستيراد `docs/*.xlsx` |
+
+## Previous Release — Employee Compensation — Hourly Detail + Cash Entitlement Statement + KD/hour Display v1
 
 | Field | Value |
 |-------|-------|
