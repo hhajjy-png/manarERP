@@ -68,7 +68,40 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.2
+## Latest Release — Employee Compensation — Daily Overtime Ledger & Legal Compliance Engine v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Employee Compensation — Daily Overtime Ledger & Legal Compliance Engine v1 — نقل احتساب العمل الإضافي من إجماليات شهرية بلا تواريخ إلى **سجل يومي مؤرَّخ** هو مصدر الحقيقة للحسبات الجديدة، فصارت حدود المادة ٦٦ الأربعة مفحوصة فعليًا بدل الإفصاح عنها وحده |
+| **Release status** | RELEASED — Product Owner manual visual **and functional** review **completed** and explicitly confirmed prior to release authorization |
+| **Release date** | 2026-08-16 |
+| **Application version** | `2026.5.2` (unchanged — backend/frontend feature pack, no installer rebuild) |
+| **Feature branch** | `feature/employee-compensation-daily-overtime-ledger-v1` (kept — not deleted per standing policy) |
+| **Baseline** | `production` @ `e3b97313` (previous release's hash-closure commit) |
+| **Checkpoint tag** | `checkpoint-employee-compensation-daily-overtime-ledger-v1` → `1c4426de` (annotated) |
+| **Feature commit** | `1c4426de` |
+| **Production merge commit** | `0a3fbd55` |
+| **Stable tag** | `stable-employee-compensation-daily-overtime-ledger-v1` → merge `0a3fbd55` (annotated) |
+| **1 — Daily Overtime Ledger is the Source of Truth** | جدول جديد `OvertimeDayEntry` (`employee_compensation_overtime_day_entries`) يحمل تاريخ كل ساعة إضافية ونوعها. `OvertimeLine` يبقى حامل المال ولقطة الأسعار، لكن ساعاته تُعاد كتابتها من `Σ` الأيام **داخل المعاملة نفسها**، فلا يمكن أن يتباعد المجموع عن تفاصيله. `date` مخزَّن نصًّا `YYYY-MM-DD` لا `DateTime` عمدًا: التحويل إلى UTC كان يزيح يوم العمل الكويتي (UTC+3) يومًا كاملًا عند منتصف الليل، فينتقل بين أسبوعين بل بين شهرين على حافة الشهر وتنهار كل حسبة أسبوعية وسنوية |
+| **2 — Legacy months preserved with no fabricated backfill** | الأشهر المحفوظة قبل الحزمة تبقى كما هي حرفيًا. لا عمود حالة ولا وسم: «قديم» تعريفه **غياب الأيام** نفسه. الهجرة إضافية بحتة بلا Backfill، ولا يولّد النظام أي تاريخ من عنده — تحويل شهر قديم إجراء صريح بتأكيد، مع شريط مطابقة يعرض الفارق بين ساعات السجل المحفوظ ومجموع الأيام المُدخلة لكل نوع |
+| **3 — Legacy REGULAR hours count toward the annual 180-hour limit** | العدّاد السنوي كان يقرأ الأيام المؤرَّخة وحدها، فكانت ساعات الأشهر القديمة **تختفي منه**: موظف بـ١٧٠ ساعة بالطريقة القديمة + ٢٠ ساعة بالسجل اليومي كان يُعرض له «٢٠ من ١٨٠» ويُعتمد شهره، ورصيده الحقيقي ١٩٠ — تجاوزٌ قانوني يمرّ لأن النظام نسي ما يعرفه. صارت ساعات الأشهر المجمّعة تدخل الحد السنوي، والجزء الآتي منها معروض صراحةً |
+| **4 — PARTIAL verification for years with incomplete daily data** | `verification: FULL \| PARTIAL` **منفصل عن `compliant`** ولا يُخلط به: الأول يجيب «هل كانت البيانات كافية للفحص؟» والثاني «هل ثبتت مخالفة؟». سنة فيها أشهر مجمّعة تُعرض `PARTIAL` مع إفصاح يسمّي الأشهر ويفرّق بين ما بقي مفحوصًا (١٨٠ ساعة سنويًا) وما سقط (٩٠ يومًا سنويًا · ٣ أيام أسبوعيًا). شارة الواجهة تكتسب حالة ثالثة «تحقّق غير مكتمل» بدل «✓ ضمن الحدود» — فذلك ادّعاء فحصٍ لم يقع |
+| **5 — Daily / Weekly / Annual compliance** | محرّك خالص جديد `engine/overtimeComplianceEngine.ts` (بلا Prisma ولا تاريخ نظام) يفحص: ساعتان يوميًا · ٣ أيام أسبوعيًا · ٩٠ يومًا سنويًا · ١٨٠ ساعة سنويًا. أسبوع العمل يبدأ الأحد إعادةً لاستعمال عُرف المشروع الموثَّق في `HolidayEngine` (عطلة الجمعة والسبت). الأسبوع يُفحص كاملًا عبر حدّ الشهر وحدّ السنة معًا: استعلام واحد يجلب `year-1-12-25 → year+1-01-07`، فالأيام داخل السنة تغذّي العدّادات والمتاخمة تغذّي الأسابيع وحدها. أرقام الحدود والمعاملات **لم تتغيّر** |
+| **6 — Same-day double classification prevented** | كان النموذج يقبل تصنيف اليوم الواحد بـ`REGULAR` و`WEEKLY_REST` و`OFFICIAL_HOLIDAY` معًا — أي احتساب أجرين بمعاملين مختلفين لساعات اليوم نفسه. صار مرفوضًا: التاريخ الواحد حالة واحدة لا حالتان |
+| **7 — WEEKLY_REST + OFFICIAL_HOLIDAY remains a documented Legal Ambiguity** | وقوع العطلة الرسمية في يوم الراحة الأسبوعية **لا تحسمه** المادتان ٦٧ و٦٨ ولا القرار الوزاري ١٨٨/ع لسنة ٢٠١٠: لا نصّ على جمع المعاملين، ولا على ترجيح أحدهما، ولا على عدد أيام الراحة البديلة. النظام **لا يجمعهما تلقائيًا ولا يرجّح**؛ يرفض التصنيف المزدوج ويوسمه `legalAmbiguity` بوصفه قرارًا يحتاج قرارًا موثَّقًا من إدارة الشركة |
+| **8 — Compensatory Rest tracking** | `compensatoryRestStatus` (`PENDING`/`SCHEDULED`/`TAKEN`) و`compensatoryRestDate` على مستوى اليوم، و`NULL` إجباريًا على `REGULAR` لأن المادة ٦٦ لا تُنشئ هذا الاستحقاق أصلًا. العدّ يقع **عبر السنة** لا الشهر المفتوح، فلا يضيع استحقاق مارس بفتح أبريل. **لا مهلة زمنية مخترَعة** — النصّ المعتمد لا يذكر أجلًا |
+| **9 — Reverse Calculator creates no fabricated dates or hours** | الساعات تُشتقّ من الأيام التي اختارها المستخدم فعليًا؛ بيانات الحسبة العكسية (المبلغ المستهدف · الساعات قبل التقريب) تُحفظ للتدقيق وحده. اقتراح بـ١٣ ساعة مع ٤ ساعات أيام مختارة يحفظ **٤**. مساعد التوزيع يعمل على الأيام المختارة وحدها ولا ينشئ تاريخًا |
+| **10 — No Payroll / Accounting / GL integration** | لا كتابة في الرواتب ولا المحاسبة ولا قيود اليومية ولا المصروفات ولا دفتر الأستاذ. حارس العزل المصدري وسّع قائمة النماذج المحظورة لتشمل `attendance` و`holiday` و`leave` — لأن سجلًّا يوميًا هو بالضبط ما يغري تعديلًا لاحقًا بقراءة الحضور أو تصنيف يوم عطلةً رسمية تلقائيًا (ممنوع: المستخدم هو من يصنّف) |
+| **11 — Compliance evaluated during editing, not only on save** | `preview` (قراءة فقط، صفر أثر تخزيني) صار يعيد `compliance` و`dayErrors`، فيرى المستخدم تجاوز «ساعتين في اليوم» لحظة إدخاله لا بعد الحفظ |
+| **Save ≠ Approve** | المسودة تُحفظ دائمًا مهما كانت المخالفة، والمخالفة تبقى مصنَّفة `STATUTORY` ولا تُخفَّض إلى تحذير. الاعتماد وحده ممنوع عند مخالفة مؤكَّدة، ورسالة المنع تسرد الأسباب بتواريخها |
+| **Legal review** | روجع القرار الوزاري ١٨٨/ع لسنة ٢٠١٠ مقابل المطبَّق: **لم يتغيّر أي حدّ ولا معامل**. تعذّر تنزيل النصّ الرسمي من موقع الهيئة العامة للقوى العاملة وقت المراجعة (خطأ خادم)، والتأكيد مستند إلى مصدرين ثانويين متطابقين. وُثّقت في `legal/kuwaitLabourLaw.ts` ثلاثة متطلبات قائمة **خارج قدرة الوحدة**: الأمر الكتابي من صاحب العمل (م.٦٦/القرار ١٨٨) · المادة ٦٥ (٥ ساعات متصلة بحد أدنى ساعة راحة — لا أوقات بداية/نهاية مسجَّلة) · مجموع ٤٨ ساعة أسبوعيًا (م.٦٤ — الوحدة تسجّل الإضافي وحده) |
+| **Schema impact** | جدول واحد جديد. الهجرة `20260816120000_add_overtime_day_entry` — **إضافية بحتة**: `CREATE TABLE` واحد + ٣ فهارس، بلا `ALTER`/`DROP`/`DELETE`/`UPDATE`/`INSERT` وبلا Backfill. فريد على `(calculationId, date, overtimeType)`، وفهارس على `calculationId` و`date`. لا مفتاح صلاحية جديد |
+| **Validation** | Backend `tsc --noEmit` ✅ · Frontend `tsc --noEmit` ✅ · `prisma validate` ✅ · `migrate status` 63/63 applied ✅ · Employee Compensation backend 9 files/263 tests ✅ (منها 61 لمحرّك الالتزام) · Frontend compensation 2 files/37 tests ✅ · module-isolation guard 14/14 ✅ · `build:back`/`build:front` ✅. أُعيدت الفحوص المتأثّرة على `production` بعد الدمج |
+| **Files** | 23 (17 modified, 6 new): backend 15 (منها الهجرة ومحرّكان جديدان)، frontend 8 |
+| **Excluded from this release** | نفس البنود غير المتتبَّعة المستبعَدة من كل إصدار حديث (`backend/src/__probe__/probe.test.ts` · `backend/src/modules/employees/__tests__/zzprobe.test.ts` · `frontend/src/components/explorer/__tests__/zz-probe.test.tsx` · خطّان غير مستعملَين تحت `frontend/src/assets/fonts/نموذج كتاب رسمي خطوط/`)، إضافةً إلى أدوات تحقّق مؤقّتة من هذه الجلسة بقيت غير متتبَّعة لتعذّر حذفها بصلاحيات الأدوات: `backend/src/__livetest__/` · `backend/data/live-test.db` · `backend/mkfixture.mts` · `backend/delfixture.mts` · لقطتا الطباعة في جذر المستودع |
+| **Known pre-existing defect (not in scope, not fixed)** | في التقرير التفصيلي، عمود «النوع» في جدول **تفاصيل العمل الإضافي** (الجدول القائم قبل هذه الحزمة) ينكمش إلى ~٤٨px فينكسر المرجع القانوني حرفًا في كل سطر ويرتفع الصفّ إلى ~٢٨٠px. أُثبت أنه سابق لهذه الحزمة (التعديل على الملف ١٣٣ إضافة و**صفر حذف**، ويتكرّر على شهر قديم بلا جدول أيام). يستحق إصلاحًا مستقلًّا |
+
+## Previous Release — Production Release 2026.5.2
 
 | Field | Value |
 |-------|-------|
