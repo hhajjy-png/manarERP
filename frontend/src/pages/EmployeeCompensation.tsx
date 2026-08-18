@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { errorMessage } from '../api/client';
 import { compensationApi } from '../employee-compensation/api';
+import BatchPrintDialog from '../employee-compensation/BatchPrintDialog';
 import CompanyOvertimeRateDialog from '../employee-compensation/CompanyOvertimeRateDialog';
 import { monthNameAr, selectableYears } from '../employee-compensation/labels';
 import type { EmployeeSummary } from '../employee-compensation/types';
@@ -62,6 +63,7 @@ export default function EmployeeCompensation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
+  const [batchPrintOpen, setBatchPrintOpen] = useState(false);
   const { hasPermission } = useAuth();
 
   const load = useCallback(() => {
@@ -120,6 +122,13 @@ export default function EmployeeCompensation() {
                 ))}
               </select>
             </div>
+            {/* الطباعة الجماعية — تجميع مستندات قائمة وترتيبها، بلا أي أثر على أي
+                حسبة أو اعتماد. لا تظهر لمن لا يملك صلاحية طباعة الوحدة. */}
+            {hasPermission('employeeCompensation.print') && (
+              <Button icon="print" onClick={() => setBatchPrintOpen(true)}>
+                {t('ecmp.batch.open')}
+              </Button>
+            )}
             {/* إعدادات الوحدة — حوار مضغوط لا صفحة إعدادات ثانية (المتطلب ١٨). */}
             <Button icon="tune" onClick={() => setRateDialogOpen(true)}>
               {t('ecmp.rate.open_settings')}
@@ -212,6 +221,8 @@ export default function EmployeeCompensation() {
           </div>
         )}
       </SectionCard>
+
+      {batchPrintOpen && <BatchPrintDialog onClose={() => setBatchPrintOpen(false)} />}
 
       {rateDialogOpen && (
         <CompanyOvertimeRateDialog

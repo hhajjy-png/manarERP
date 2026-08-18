@@ -591,6 +591,77 @@ export const employeeCompensationService = {
     };
   },
 
+  /**
+   * فهرس **الطباعة الجماعية**: من له كشوف فعلًا، وفي أي سنوات.
+   *
+   * قراءة خالصة لا تكتب شيئًا ولا تحسب مبلغًا. الغرض واحد: ألّا يعرض حوار الطباعة
+   * الجماعية موظفًا بلا كشف ولا سنةً بلا كشف — فالاختيار الوحيد المتاح فيه هو اختيار
+   * يُنتج مستندات فعلًا. لذلك المصدر هو جدول الحسبات نفسه لا قائمة الموظفين: موظف بلا
+   * حسبة واحدة لا يظهر إطلاقًا، مهما كانت حالته الوظيفية.
+   *
+   * السنوات تنازليًا (الأحدث أولًا) لأن الطباعة الجماعية تُطلب للسنة الجارية غالبًا.
+   */
+  async listPrintIndex() {
+    const calcs = await prisma.employeeCompensationCalculation.findMany({
+      select: { employeeId: true, year: true },
+      distinct: ['employeeId', 'year'],
+    });
+    if (calcs.length === 0) return { employees: [] };
+
+    const yearsByEmployee = new Map<number, Set<number>>();
+    for (const c of calcs) {
+      const set = yearsByEmployee.get(c.employeeId) ?? new Set<number>();
+      set.add(c.year);
+      yearsByEmployee.set(c.employeeId, set);
+    }
+
+    const employees = await prisma.employee.findMany({
+      where: { id: { in: Array.from(yearsByEmployee.keys()) } },
+      select: EMPLOYEE_SELECT,
+      orderBy: [{ fullName: 'asc' }],
+    });
+
+    return {
+      employees: employees.map((e) => ({
+        id: e.id,
+        code: e.code,
+        fullName: e.fullName,
+        jobTitle: e.jobTitle,
+        status: e.status,
+        years: Array.from(yearsByEmployee.get(e.id) ?? []).sort((a, b) => b - a),
+      })),
+    };
+  },
+
+  /**
+   * كشوف **سنة كاملة** لموظف واحد — مرتّبة تصاعديًا بالشهر.
+   *
+   * ═══ لماذا تمرّ على `getStatementData` نفسها ═══
+   * الطباعة الجماعية ليست مستندًا جديدًا بل ترتيبٌ لمستندات قائمة، فبياناتها يجب أن
+   * تكون **نفس** بيانات الطباعة الفردية لا نسخة موازية منها. استدعاء نفس الدالة لكل
+   * شهر يجعل ذلك بنيويًا: أي تعديل مستقبلي على الكشف يصل الطباعتين معًا حتمًا.
+   *
+   * ولا يُفترض اكتمال السنة: تُعاد الأشهر الموجودة فعلًا وحدها، بلا فجوات مُصطنعة
+   * وبلا شهر فارغ يُقحَم لإكمال اثني عشر.
+   */
+  async getYearStatements(employeeId: number, year: number) {
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: EMPLOYEE_SELECT });
+    if (!employee) throw AppError.notFound('الموظف غير موجود');
+
+    const rows = await prisma.employeeCompensationCalculation.findMany({
+      where: { employeeId, year },
+      select: { id: true },
+      orderBy: { month: 'asc' },
+    });
+
+    const statements = [];
+    for (const row of rows) {
+      statements.push(await this.getStatementData(row.id));
+    }
+
+    return { employeeId, year, statements };
+  },
+
   /** الملف السنوي: رأس الموظف + الاثنا عشر شهرًا + الملخّص السنوي. */
   async getAnnualFile(employeeId: number, year: number) {
     const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: EMPLOYEE_SELECT });

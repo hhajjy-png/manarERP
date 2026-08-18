@@ -22,6 +22,16 @@ export const employeeCompensationController = {
     );
   },
 
+  /** فهرس الطباعة الجماعية — الموظفون الذين لهم كشوف فعلًا، وسنواتهم. */
+  async printIndex(_req: Request, res: Response) {
+    ok(res, await service.listPrintIndex());
+  },
+
+  /** كشوف سنة كاملة لموظف — مرتّبة تصاعديًا بالشهر، للطباعة الجماعية. */
+  async yearStatements(req: Request, res: Response) {
+    ok(res, await service.getYearStatements(num(req.params.employeeId), num(req.params.year)));
+  },
+
   async getAnnualFile(req: Request, res: Response) {
     ok(res, await service.getAnnualFile(num(req.params.employeeId), num(req.params.year)));
   },

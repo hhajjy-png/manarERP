@@ -18,6 +18,7 @@ import type {
   EmployeeSummary,
   OvertimeType,
   PreviewResult,
+  PrintIndexEmployee,
   ReverseResult,
   StatementData,
 } from './types';
@@ -86,6 +87,16 @@ export const compensationApi = {
   statement: (id: number) => unwrap<StatementData>(api.get(`${BASE}/calculations/${id}/statement`)),
 
   detailed: (id: number) => unwrap<DetailedReportData>(api.get(`${BASE}/calculations/${id}/detailed`)),
+
+  // ── الطباعة الجماعية ───────────────────────────────────────────────────────
+  // تجميع وترتيب لمستندات قائمة لا مستند جديد: `printIndex` يملأ قائمتَي الحوار،
+  // و`yearStatements` يعيد **نفس** كشوف الطباعة الفردية مرتّبة تصاعديًا بالشهر.
+  printIndex: () => unwrap<{ employees: PrintIndexEmployee[] }>(api.get(`${BASE}/print-index`)),
+
+  yearStatements: (employeeId: number, year: number) =>
+    unwrap<{ employeeId: number; year: number; statements: StatementData[] }>(
+      api.get(`${BASE}/employees/${employeeId}/years/${year}/statements`),
+    ),
 
   // ── سجل المديونيات والسلف ──────────────────────────────────────────────────
   // السجل **غير مرتبط بسنة**: مساره تحت الموظف، فمديونية ٢٠٢٦ تظهر في ٢٠٢٧ كما هي.

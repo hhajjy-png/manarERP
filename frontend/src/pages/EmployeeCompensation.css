@@ -726,3 +726,7 @@
 
 /* ترويسة قائمة الوحدة: مبدّل السنة + زر الإعدادات في صفّ واحد. */
 .ecmp-header-aside { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+/* ── حوار الطباعة الجماعية ─────────────────────────────────────────────────── */
+.ecmp-batch-fields { display: flex; flex-direction: column; gap: 14px; }
+.ecmp-batch-note { margin: 2px 0 0; font-size: 11.5px; line-height: 1.7; color: var(--xpl-muted); }
