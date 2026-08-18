@@ -55,11 +55,11 @@ type ReportSection = { title: string; note?: string; columns: ReportColumnDef[];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[] };
 type CustomerItem = { id: number; name: string };
-type EmployeeItem = { id: number; fullName: string };
+type EmployeeItem = { id: number; fullName: string; department?: string | null };
 
 // ─── Report Definitions ───────────────────────────────────────────────────────
 
-type FilterKey = 'date' | 'customer' | 'employee' | 'status' | 'direction' | 'billingMonth' | 'billingYear' | 'company' | 'workType';
+type FilterKey = 'date' | 'customer' | 'employee' | 'status' | 'direction' | 'billingMonth' | 'billingYear' | 'company' | 'workType' | 'year' | 'month' | 'department';
 
 interface ReportType {
   key: string;
@@ -72,6 +72,16 @@ interface ReportType {
   statusLabel?: string;
   descKey?: string;
   statusType?: 'ready' | 'needs-filter' | 'live';
+  /**
+   * أدوات الجدول (فرز بالأعمدة + بحث سريع داخل النتائج) — **اشتراك صريح**.
+   * التقارير التي لا تُعلنها تُعرض بجدولها كما هو حرفيًا، بلا سطر أدوات ولا رؤوس
+   * قابلة للنقر: لا تقرير قائم يتغيّر لأن تقريرًا جديدًا احتاج أداة.
+   */
+  tableTools?: boolean;
+  /** مفتاح عمود الحالة الذي يُعرض كشارة ملوّنة بدل نصّ عارٍ. */
+  statusColumnKey?: string;
+  /** مفتاح العمود الذي يحمل تسمية صف المجاميع (يُعاد وسمه عند البحث السريع). */
+  totalsLabelKey?: string;
 }
 
 // عربي «العمليات» هنا مختلف حرفيًا عن نص المفتاح report.group.operations («التشغيل») —
@@ -143,6 +153,24 @@ const REPORT_TYPES: ReportType[] = [
     statusType: 'needs-filter',
   },
   {
+    /**
+     * Comprehensive Reports — Monthly Employee Entitlements Report Pack v1.
+     *
+     * مصدره **وحدة مستحقات الموظف الشهرية وحدها** — لا الرواتب ولا القيود المحاسبية.
+     * وهو تقرير منفصل تمامًا عن `payroll` أعلاه: مفتاح مختلف، وحدة بيانات مختلفة،
+     * وصلاحية وحدة مختلفة (`employeeCompensation.read` تُفحص في الخادم).
+     */
+    key: 'employee-entitlements-monthly', label: 'report.type.employee_entitlements', icon: '🧮', group: 'report.group.hr', groupLabelKey: 'report.group.hr',
+    filters: ['year', 'month', 'employee', 'department', 'status'],
+    statuses: [['DRAFT', 'status.draft'], ['APPROVED', 'status.approved']],
+    statusLabel: 'rc.filter.statement_status',
+    descKey: 'report.desc.employee_entitlements',
+    statusType: 'ready',
+    tableTools: true,
+    statusColumnKey: 'status',
+    totalsLabelKey: 'employeeName',
+  },
+  {
     key: 'attendance', label: 'report.type.attendance', icon: '📅', group: 'report.group.hr', groupLabelKey: 'report.group.hr',
     filters: ['date', 'employee', 'status'],
     statuses: [['PRESENT', 'att.present'], ['ABSENT', 'att.absent'], ['LATE', 'att.late'], ['LEAVE', 'att.leave']],
@@ -207,6 +235,17 @@ const REPORT_TYPES: ReportType[] = [
 // كي لا ينفصل العرض عن القيمة المرسَلة؛ راجع تقرير الحزمة لتفصيل السبب.
 const CONTRACT_UNITS = ['طن', 'درب', 'معالجات', 'يومية', 'مقطوعية'];
 
+/**
+ * سنوات فلتر تقرير مستحقات الموظفين الشهرية.
+ *
+ * نافذة ثابتة حول السنة الحالية بدل استعلام إضافي لجلب السنوات الموجودة فعلًا: خيار
+ * سنة بلا كشوف يُنتج تقريرًا فارغًا صريحًا لا خطأ. تُحتسب مرة واحدة عند تحميل الوحدة.
+ */
+const ENTITLEMENT_YEARS: number[] = (() => {
+  const current = new Date().getFullYear();
+  return [current + 1, current, current - 1, current - 2, current - 3, current - 4];
+})();
+
 const COMPANY_GROUPS = [
   { value: 'HASSAN', labelKey: 'cat.hassan' },
   { value: 'GHANEM', labelKey: 'cat.ghanem' },
@@ -267,14 +306,42 @@ function kpiText(value: unknown, format?: 'currency'): string {
 }
 
 /**
+ * تلوين حالة الكشف — التسميات العربية هي ما يرسله الخادم فعلًا (`entitlementStatusAr`)،
+ * وهي القيمة المعروضة نفسها. أي حالة غير معروفة تبقى شارة محايدة بلا لون مُخترَع.
+ */
+const STATEMENT_STATUS_TONES: Record<string, 'green' | 'orange'> = {
+  'معتمد': 'green',
+  'مسودة': 'orange',
+};
+
+/** مقارنة خليّتين للفرز: رقمًا حين يكونان رقمين، وإلا نصًّا بترتيب عربي. */
+function compareCells(a: unknown, b: unknown): number {
+  const an = typeof a === 'number' ? a : NaN;
+  const bn = typeof b === 'number' ? b : NaN;
+  if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
+  return String(a ?? '').localeCompare(String(b ?? ''), 'ar', { numeric: true });
+}
+
+/** تقريب مجموع عائم إلى ثلاث منازل — نفس دقّة الدينار المعتمدة في العرض. */
+const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+
+/**
  * جدول التقرير — نفس الترميز المستخدم منذ البداية للجدول الرئيسي، مُستخرَج كي
  * تستعمله الأقسام التحليلية حرفيًا فلا تنشأ لغة بصرية ثانية.
  *
  * `applyAlign` مُطفأ للجدول الرئيسي عمدًا: تعريفات الأعمدة القديمة (قائمة الدخل)
  * تُعلن `align` وكانت المعاينة تتجاهلها دائمًا — تفعيلها هنا كان سيغيّر تقريرًا
  * غير معنيّ بهذه الحزمة.
+ *
+ * ═══ أدوات الجدول (`tools`) — اشتراك صريح ═══
+ * الفرز بالأعمدة والبحث السريع وشارات الحالة **مطفأة افتراضيًا**. تقرير لا يطلبها
+ * يُعرض بجدوله كما كان حرفيًا: لا سطر أدوات، ولا رؤوس قابلة للنقر، ولا حالة إضافية.
+ * الفرز والبحث عرضٌ محلي بحت — لا يعيد طلبًا إلى الخادم ولا يغيّر بيانات التقرير.
  */
-function PreviewTable({ columns, rows, totalsRow, applyAlign, emptyText }: {
+function PreviewTable({
+  columns, rows, totalsRow, applyAlign, emptyText,
+  tools, statusColumnKey, totalsLabelKey,
+}: {
   columns: ReportColumnDef[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rows: any[];
@@ -282,47 +349,132 @@ function PreviewTable({ columns, rows, totalsRow, applyAlign, emptyText }: {
   totalsRow?: any;
   applyAlign?: boolean;
   emptyText: string;
+  tools?: boolean;
+  statusColumnKey?: string;
+  totalsLabelKey?: string;
 }) {
+  const { t } = useT();
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
+
+  const trimmedQuery = tools ? query.trim().toLowerCase() : '';
+
+  const visibleRows = useMemo(() => {
+    const filtered = trimmedQuery
+      ? rows.filter((r) => columns.some((c) => String(r[c.key] ?? '').toLowerCase().includes(trimmedQuery)))
+      : rows;
+    if (!sort) return filtered;
+    const sorted = [...filtered].sort((a, b) => compareCells(a[sort.key], b[sort.key]));
+    return sort.dir === 'asc' ? sorted : sorted.reverse();
+  }, [rows, columns, trimmedQuery, sort]);
+
+  /**
+   * صفّ المجاميع أثناء البحث السريع.
+   *
+   * عرض مجاميع الخادم (المحسوبة على كل الصفوف) فوق نتائج مُصفّاة كان سيكذب على
+   * القارئ. فحين يكون البحث نشطًا تُعاد الأعمدة النقدية من **الصفوف الظاهرة**،
+   * وتُفرَّغ بقية الخلايا، ويُعاد وسم الصف صراحةً بأنه مجموع نتائج البحث.
+   * بلا بحث: صفّ الخادم كما هو حرفيًا.
+   */
+  const effectiveTotals = useMemo(() => {
+    if (!totalsRow || !trimmedQuery) return totalsRow;
+    const out: Record<string, unknown> = {};
+    columns.forEach((c) => {
+      out[c.key] = c.format === 'currency'
+        ? round3(visibleRows.reduce((sum, r) => sum + (Number(r[c.key]) || 0), 0))
+        : '';
+    });
+    if (totalsLabelKey) out[totalsLabelKey] = t('rc.table.totals_filtered');
+    return out;
+  }, [totalsRow, trimmedQuery, columns, visibleRows, totalsLabelKey, t]);
+
+  function toggleSort(key: string) {
+    setSort((prev) => {
+      if (!prev || prev.key !== key) return { key, dir: 'asc' };
+      if (prev.dir === 'asc') return { key, dir: 'desc' };
+      return null; // النقرة الثالثة تُعيد الترتيب الأصلي القادم من الخادم
+    });
+  }
+
   const cellStyle = (c: ReportColumnDef) =>
     applyAlign && c.align ? { textAlign: c.align, verticalAlign: 'middle' as const } : undefined;
+
+  const sortIcon = (key: string) =>
+    sort?.key !== key ? 'unfold_more' : sort.dir === 'asc' ? 'arrow_upward' : 'arrow_downward';
+
   return (
-    <div className="xpl-table-wrap rcx-table-scroll">
-      <table className="xpl-table">
-        <thead>
-          {/* الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
-              العنوان **عرضٌ فقط**: تعريف العمود القادم من الخلفية لم يُمسّ. */}
-          <tr>{columns.map((c) => (
-            <th key={c.key} className={c.format === 'currency' ? 'num' : undefined} style={cellStyle(c)}>
-              {c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}
-            </th>
-          ))}</tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr><td colSpan={columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{emptyText}</td></tr>
-          ) : (
-            rows.map((row, i) => (
-              <tr key={i}>{columns.map((c) => (
-                <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
-                  {formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
-                </td>
-              ))}</tr>
-            ))
+    <>
+      {tools && (
+        <div className="rcx-table-tools">
+          <SearchBox
+            value={query}
+            onChange={setQuery}
+            placeholder={t('rc.table.search_ph')}
+            ariaLabel={t('rc.table.search_ph')}
+          />
+          <span className="rcx-table-tools-count">
+            {t('rc.table.showing', { shown: visibleRows.length, total: rows.length })}
+          </span>
+          {sort && (
+            <Button variant="ghost" icon="restart_alt" small onClick={() => setSort(null)}>
+              {t('rc.table.clear_sort')}
+            </Button>
           )}
-          {totalsRow && (
-            <tr className="rcx-totals-row">
-              {columns.map((c) => (
-                <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
-                  {formatReportCell(totalsRow[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
-                </td>
-              ))}
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </div>
+        </div>
+      )}
+      <div className={`xpl-table-wrap rcx-table-scroll${tools ? ' rcx-table--tools' : ''}`}>
+        <table className="xpl-table">
+          <thead>
+            {/* الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
+                العنوان **عرضٌ فقط**: تعريف العمود القادم من الخلفية لم يُمسّ. */}
+            <tr>{columns.map((c) => (
+              <th
+                key={c.key}
+                className={c.format === 'currency' ? 'num' : undefined}
+                style={cellStyle(c)}
+                aria-sort={sort?.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+              >
+                {tools ? (
+                  <button type="button" className="rcx-sort-btn" onClick={() => toggleSort(c.key)}>
+                    <span>{c.format === 'currency' ? fcMoneyHeader(c.header) : c.header}</span>
+                    <span className="material-symbols-outlined" aria-hidden="true">{sortIcon(c.key)}</span>
+                  </button>
+                ) : (
+                  c.format === 'currency' ? fcMoneyHeader(c.header) : c.header
+                )}
+              </th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {visibleRows.length === 0 ? (
+              <tr><td colSpan={columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{emptyText}</td></tr>
+            ) : (
+              visibleRows.map((row, i) => (
+                <tr key={i}>{columns.map((c) => (
+                  <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
+                    {c.key === statusColumnKey && row[c.key]
+                      ? <StatusChip tone={STATEMENT_STATUS_TONES[String(row[c.key])] ?? 'neutral'}>{String(row[c.key])}</StatusChip>
+                      : formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                  </td>
+                ))}</tr>
+              ))
+            )}
+            {effectiveTotals && (
+              <tr className="rcx-totals-row">
+                {columns.map((c) => (
+                  <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
+                    {formatReportCell(effectiveTotals[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                  </td>
+                ))}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
+
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
@@ -359,6 +511,11 @@ export default function Reports() {
   const [billingYear, setBillingYear]   = useState('');
   const [company, setCompany]         = useState('');
   const [workType, setWorkType]       = useState('');
+  // فلاتر تقرير مستحقات الموظفين الشهرية — سنة/شهر السجل نفسه (لا نطاق تواريخ)،
+  // والقسم كما هو محفوظ في لقطة الكشف.
+  const [entYear, setEntYear]         = useState('');
+  const [entMonth, setEntMonth]       = useState('');
+  const [department, setDepartment]   = useState('');
 
   // Preview state — preserved exactly
   const [preview, setPreview]         = useState<ReportData | null>(null);
@@ -382,6 +539,17 @@ export default function Reports() {
 
   const currentType = useMemo(() => REPORT_TYPES.find((rt) => rt.key === selected)!, [selected]);
 
+  /**
+   * أقسام فلتر تقرير المستحقات — مشتقّة من قائمة الموظفين المحمَّلة أصلًا لهذه الصفحة.
+   * لا نقطة نهاية جديدة ولا استعلام ثانٍ: الفلتر يُطبَّق في الخادم على لقطة القسم
+   * المحفوظة في الكشف، وهذه القائمة مصدر **الخيارات** المعروضة فقط.
+   */
+  const departments = useMemo(() => {
+    const set = new Set<string>();
+    employees.forEach((e) => { const d = (e.department ?? '').trim(); if (d) set.add(d); });
+    return [...set].sort((a, b) => a.localeCompare(b, 'ar'));
+  }, [employees]);
+
   // Load dropdowns once
   useEffect(() => {
     api.get('/customers', { params: { pageSize: 500 } })
@@ -400,6 +568,7 @@ export default function Reports() {
     setStatus(''); setDirection('');
     setBillingMonth(''); setBillingYear('');
     setCompany(''); setWorkType('');
+    setEntYear(''); setEntMonth(''); setDepartment('');
     setPreview(null); setError('');
   }, [selected, period.fromDate, period.toDate, period.isAllPeriods]);
 
@@ -419,6 +588,7 @@ export default function Reports() {
     setStatus(''); setDirection('');
     setBillingMonth(''); setBillingYear('');
     setCompany(''); setWorkType('');
+    setEntYear(''); setEntMonth(''); setDepartment('');
     setPreview(null); setError('');
   }
 
@@ -434,6 +604,9 @@ export default function Reports() {
     if (billingYear)  p.billingYear  = billingYear;
     if (company)      p.company      = company;
     if (workType)     p.workType     = workType;
+    if (entYear)      p.year         = entYear;
+    if (entMonth)     p.month        = entMonth;
+    if (department)   p.department   = department;
     return p;
   }
 
@@ -454,7 +627,7 @@ export default function Reports() {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, canView]);
+  }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, entYear, entMonth, department, canView]);
 
   // وسم الفترة لاسم الملف: نطاق from/to، أو «كل الفترات» عند غيابهما.
   const exportPeriod = { from: from || undefined, to: to || undefined, allPeriods: !from && !to };
@@ -560,7 +733,7 @@ export default function Reports() {
     return map;
   }, [favorites]);
 
-  const hasAnyFilter = !!(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType);
+  const hasAnyFilter = !!(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType || entYear || entMonth || department);
   const f = currentType.filters;
   const curStatus = statusMeta(currentType.statusType, t);
 
@@ -596,6 +769,33 @@ export default function Reports() {
             <select aria-label={t('filter.employee')} value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {employees.map((e) => <option key={e.id} value={e.id}>{e.fullName}</option>)}
+            </select>
+          </div>
+        )}
+        {f.includes('year') && (
+          <div className="rcx-filter-field">
+            <label>{t('rc.filter.year')}</label>
+            <select aria-label={t('rc.filter.year')} value={entYear} onChange={(e) => setEntYear(e.target.value)}>
+              <option value="">{t('opt.all_plain')}</option>
+              {ENTITLEMENT_YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        )}
+        {f.includes('month') && (
+          <div className="rcx-filter-field">
+            <label>{t('rc.filter.month')}</label>
+            <select aria-label={t('rc.filter.month')} value={entMonth} onChange={(e) => setEntMonth(e.target.value)}>
+              <option value="">{t('opt.all_plain')}</option>
+              {ARABIC_MONTHS.map((name, i) => <option key={i + 1} value={i + 1}>{name}</option>)}
+            </select>
+          </div>
+        )}
+        {f.includes('department') && departments.length > 0 && (
+          <div className="rcx-filter-field">
+            <label>{t('rc.filter.department')}</label>
+            <select aria-label={t('rc.filter.department')} value={department} onChange={(e) => setDepartment(e.target.value)}>
+              <option value="">{t('opt.all')}</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
             </select>
           </div>
         )}
@@ -1031,11 +1231,17 @@ export default function Reports() {
           {!loading && preview && (
             <div>
               {preview.subtitle && <div className="rcx-preview-subtitle">{preview.subtitle}</div>}
+              {/* `key` على مفتاح التقرير: تبديل التقرير يُعيد ضبط الفرز والبحث السريع
+                  بدل أن يرث الجدول الجديد حالة عرض الجدول السابق. */}
               <PreviewTable
+                key={selected}
                 columns={preview.columns}
                 rows={preview.rows}
                 totalsRow={preview.totalsRow}
                 emptyText={t('page.reports.no_data')}
+                tools={currentType.tableTools}
+                statusColumnKey={currentType.statusColumnKey}
+                totalsLabelKey={currentType.totalsLabelKey}
               />
             </div>
           )}
