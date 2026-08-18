@@ -11,6 +11,7 @@ import { buildChequeFilterWhere, CHEQUES_REPORT_ORDER } from '../cheques/cheques
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { buildExpenseAnalysis } from './expenseAnalysis';
 import { buildCollectionsAnalysis } from './collectionsAnalysis';
+import { buildEmployeeEntitlementsReport } from './employeeEntitlementsReport';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
@@ -52,6 +53,8 @@ interface ReportQuery {
   /** إضافي (تطابق فلاتر صفحة المصروفات): التصنيف والمورد. */
   category?: string;
   supplierId?: string;
+  /** إضافي (تقرير مستحقات الموظفين الشهرية): القسم كما هو محفوظ في لقطة الكشف. */
+  department?: string;
 }
 
 /** يبني محتوى التقرير (أعمدة + صفوف) حسب النوع. التنسيق (PDF/Excel) منفصل. */
@@ -90,6 +93,8 @@ export class ReportsService {
         return this.collectionsSummary(query);
       case 'cheques':
         return this.cheques(query);
+      case 'employee-entitlements-monthly':
+        return this.employeeEntitlementsMonthly(query);
       default:
         throw AppError.badRequest('نوع تقرير غير معروف');
     }
@@ -1050,6 +1055,69 @@ export class ReportsService {
       })),
       totalsRow: { bankName: 'إجمالي مبالغ الشيكات', amount: total },
     };
+  }
+
+  /**
+   * تقرير مستحقات الموظفين الشهرية — Monthly Employee Entitlements Report Pack v1.
+   *
+   * مصدره **حصريًا** وحدة مستحقات الموظف الشهرية (`EmployeeCompensationCalculation`).
+   * لا رواتب (`Payroll`)، ولا قيود يومية، ولا دفتر أستاذ، ولا كشوف بنكية: استعلام واحد
+   * على جدول الوحدة وسطوره، ثم تحويل خالص في `employeeEntitlementsReport.ts`.
+   *
+   * القراءة كلها من **اللقطات والإجماليات المخزَّنة**، فلا يُعاد احتساب شيء ولا يُقرأ
+   * ملف الموظف الحيّ — الكشف التاريخي يبقى كما اعتُمد.
+   *
+   * الفلاتر: السنة · الشهر · الموظف · القسم (من لقطة الكشف لا من ملف الموظف) · الحالة.
+   * غياب الفلتر يعني «الكل» — لا نطاق زمني ضمني ولا حدّ صفوف صامت.
+   */
+  private async employeeEntitlementsMonthly(q: ReportQuery): Promise<ReportInput> {
+    const where: Prisma.EmployeeCompensationCalculationWhereInput = {};
+    // `year`/`month` هما فلترا هذا التقرير. `from` يُستعمل احتياطًا لاشتقاق السنة وحدها
+    // حين تصل الفترة العالمية بلا سنة صريحة — تمامًا كما يفعل تقرير الرواتب.
+    if (q.year) where.year = Number(q.year);
+    else if (q.from) where.year = new Date(q.from).getFullYear();
+    if (q.month) where.month = Number(q.month);
+    if (q.employeeId) where.employeeId = Number(q.employeeId);
+    if (q.status) where.status = q.status;
+    if (q.department) where.departmentSnapshot = q.department;
+
+    const calcs = await prisma.employeeCompensationCalculation.findMany({
+      where,
+      orderBy: [{ year: 'desc' }, { month: 'desc' }, { employeeNameSnapshot: 'asc' }],
+      select: {
+        employeeId: true,
+        year: true,
+        month: true,
+        status: true,
+        employeeNumberSnapshot: true,
+        employeeNameSnapshot: true,
+        jobTitleSnapshot: true,
+        departmentSnapshot: true,
+        basicSalarySnapshot: true,
+        totalOvertimeAmount: true,
+        totalOtherEarnings: true,
+        totalDeductions: true,
+        netAmount: true,
+        approvedAt: true,
+        // سطران محدَّدان بحقلين فقط: التصنيف يحتاج النوع والمبلغ ولا شيء غيرهما،
+        // فلا تُحمَّل الملاحظات ولا التواريخ ولا المعاملات في تقرير بمئات الصفوف.
+        earningLines: { select: { type: true, amount: true } },
+        deductionLines: { select: { type: true, amount: true } },
+      },
+    });
+
+    // اسم الموظف في سطر الفترة يُقرأ من اللقطة نفسها — لا استعلام ثانٍ على جدول الموظفين.
+    const employeeName = q.employeeId ? calcs[0]?.employeeNameSnapshot : undefined;
+
+    return buildEmployeeEntitlementsReport(calcs, {
+      year: q.year ? Number(q.year) : undefined,
+      month: q.month ? Number(q.month) : undefined,
+      employeeName,
+      department: q.department,
+      status: q.status,
+      // لحظة الإصدار تُحقن هنا لا داخل البنّاء الخالص — فيبقى قابلًا للاختبار حتميًا.
+      generatedAt: new Date(),
+    });
   }
 }
 

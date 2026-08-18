@@ -155,6 +155,59 @@
 }
 
 .rcx-table-scroll { overflow-x: auto; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   أدوات جدول التقرير — Monthly Employee Entitlements Report Pack v1.
+
+   كل ما تحت هذه النقطة مشروط بـ `.rcx-table--tools` أو `.rcx-table-tools`، وهما
+   لا تُضافان إلا للتقارير التي تُعلن `tableTools`. لا قاعدة واحدة هنا تصل إلى جدول
+   تقرير قائم.
+   ════════════════════════════════════════════════════════════════════════════ */
+.rcx-table-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.rcx-table-tools-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+}
+
+/* رأس قابل للفرز: زرّ حقيقي (يعمل بلوحة المفاتيح) يرث تنسيق الرأس بالكامل. */
+.rcx-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.rcx-sort-btn .material-symbols-outlined {
+  font-size: 14px;
+  opacity: .45;
+  transition: opacity .15s ease;
+}
+.rcx-sort-btn:hover .material-symbols-outlined { opacity: 1; }
+.rcx-sort-btn:focus-visible { outline: 2px solid var(--xpl-primary); outline-offset: 2px; border-radius: 4px; }
+th[aria-sort] .rcx-sort-btn { color: var(--xpl-primary); }
+th[aria-sort] .rcx-sort-btn .material-symbols-outlined { opacity: 1; }
+
+/* رأس ثابت فوق الصفوف عند التمرير الرأسي داخل الجدول (الارتفاع من xpl-table-wrap). */
+.rcx-table--tools .xpl-table th { z-index: 2; }
+
+/* محاذاة المبالغ يمينًا صراحةً: خليّة `.money-cell` تُعلن `direction: ltr` لعزل
+   BiDi، وبدون هذا التصريح يصير `start` فيها يسارًا. مقصورة على جداول هذه الحزمة. */
+.rcx-table--tools .xpl-table th.num,
+.rcx-table--tools .xpl-table td.money-cell { text-align: right; }
 .rcx-totals-row td {
   font-weight: 800 !important;
   color: var(--xpl-text) !important;

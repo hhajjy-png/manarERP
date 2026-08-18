@@ -14,8 +14,17 @@ import { AppError } from '../../core/errors/AppError';
 import { ROLES } from '../../config/constants';
 
 // Reports that require an additional module permission beyond reports.read / reports.export.
+//
+// لا مفتاح صلاحية **جديد** هنا إطلاقًا: كل قيمة أدناه مفتاح قائم في `constants.ts`
+// تملكه وحدته الأصلية. القاعدة أن مركز التقارير لا يصير بابًا خلفيًا لبيانات وحدة
+// لا يملك المستخدم قراءتها في شاشتها.
+//
+// `employee-entitlements-monthly` يتبع سابقة `payroll` حرفيًا، ويستعمل مفتاح وحدته
+// (`employeeCompensation.read`) لا مفتاح الرواتب: الوحدتان معزولتان عمدًا — من يملك
+// صلاحية الرواتب لا يرث صلاحية المستحقات الشهرية والعكس صحيح.
 const REPORT_EXTRA_PERMISSION: Record<string, string> = {
   payroll: 'payroll.read',
+  'employee-entitlements-monthly': 'employeeCompensation.read',
 };
 
 function assertReportAccess(type: string, roleName: string, permissions: string[]): void {
