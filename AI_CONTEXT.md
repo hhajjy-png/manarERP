@@ -34,7 +34,7 @@
 |-------|-------|
 | **Current Branch** | `production` |
 | **Current Merge Commit** | `95f67a9c` (merge of `feature/production-release-2026.5.5` — **Production Release 2026.5.5**). A packaging release: it introduces no new feature work, only `package.json` `2026.5.4` → `2026.5.5`, and bundles into a new self-contained Windows installer every Feature Release merged onto `production` since the 2026.5.4 installer — Employee Compensation — Batch Printing v1, Migration History Reconciliation v1, XBRL Readiness Foundation v1, and Vehicle Insurance Management v1 |
-| **Current Documentation Commit** | `__DOCS_COMMIT__` |
+| **Current Documentation Commit** | `ffec75a4` |
 | **Current Stable Tag** | `stable-production-release-2026.5.5` → `95f67a9c` · checkpoint `checkpoint-production-release-2026.5.5` → `460a45dc` (production HEAD immediately before the release) (previous: `stable-vehicle-insurance-management-v1`) |
 | **Current Release Date** | 2026-08-19 |
 | **Application Version** | `2026.5.5` — new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.5.exe` (132.02 MiB, 138,437,006 bytes, SHA-256 `706e79e7e3ac239f336e3aebf3b3c5c1ad34b4b4932179ba7c22876bed636a2c`, Windows 10/11 x64, zero external runtime prerequisites). Golden Database SHA-256 `f62a08a874f40baf7a600732605ea4e276a1a8621472b400f27c2a13e52e041c` (3,866,624 bytes, `integrity_check = ok`, 0 foreign-key violations, 86 tables, 69 applied migrations) verified byte-identical in four places (source · `win-unpacked` · inside `Setup.exe` · `seed-data/golden-manifest.json`). The packaged Prisma client carries all **85** models, model set identical to `backend/prisma/schema.prisma` |
