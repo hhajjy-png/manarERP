@@ -33,9 +33,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `876f0ff8` (merge of `feature/employee-compensation-batch-printing-v1` — **Employee Compensation — Batch Printing v1**. Adds batch printing of a full year of monthly entitlement statements, each followed immediately by its own cash payment voucher, in a single print job: statement → its voucher → next month, ascending, for the months that actually exist. This is **aggregation and ordering of existing documents, not a new document** — no calculation is re-run, no approval or snapshot is touched, and no payroll, accounting or general-ledger row is created or read. The two new backend routes are pure reads behind the module's existing `employeeCompensation.print`, so there is no new permission key, no Prisma model, no migration. Identity with individual printing is structural rather than by discipline: the year-statements route builds each statement with the same `getStatementData` the individual route calls, the two document templates are reused unmodified, the voucher reference and QR builders are imported from their original sources, and `FormPage` was extracted verbatim from `FormLayout` so the printable `.form-page` node is one component shared by both print paths (all fourteen administrative forms render identically). Batch pages all use the `letterhead` profile with content starting 50mm (statement) / 30mm (voucher) from the sheet edge, applied as page padding with `@page` zeroed. A month with no cash entitlement prints its statement, names itself in a blocking `.no-print` notice, and gets no voucher — no voucher is ever created or modified. **Source-only release**: no installer build, application version unchanged. Scope was deliberately narrowed by rebasing `--onto production`, so Vehicle Insurance Management v1 — which was sitting unreleased between production and this work — is **not** included and remains on its own branch) |
-| **Current Documentation Commit** | `64e22d1f` |
-| **Current Stable Tag** | `stable-employee-compensation-batch-printing-v1` (previous: `stable-production-release-2026.5.4`) |
+| **Current Merge Commit** | `66f03cf7` (merge of `feature/xbrl-readiness-foundation-v1` — **XBRL Readiness Foundation v1**, on top of `bd15959f` = **Migration History Reconciliation v1**). A standalone preparation layer above the existing accounting system that makes the system **XBRL-ready**: a taxonomy/concept registry, an account↔concept and statement-line↔concept mapping layer, a reporting context (KWD, 3 decimals), a 15-rule readiness validation engine with permanently stable codes, immutable reporting snapshots, and an exporter abstraction. **The system is XBRL-ready only — it is NOT QAYD-certified.** No official Kuwaiti/QAYD taxonomy is installed (`isOfficial` is not settable from any API path in v1), no government API is assumed, no official tag or namespace is written in the code, and the official exporter always refuses with a fixed Arabic message. The highest displayable state is `READY_PENDING_TAXONOMY`; there is no `QAYD_READY`. Validation is a report, never a lock: an `ERROR` finding blocks no accounting operation. Snapshots expose create/list/get only, carry no PATCH/PUT/DELETE route, and close no fiscal period. Migration `20260819120000` is purely additive (six new `xbrl_*` tables, zero `ALTER` on existing tables, zero data rows touched). Three new permission keys (`xbrl.read`/`manage`/`snapshot`), independent of `transactions.*` and `finreports.*`. Zero effect on GL, posting, payroll, employee compensation, cheques or inventory — the package writes only to `xbrl_*` and reads balances from the existing `financialService.getTrialBalance`, both enforced by a static test over the whole module source. UI at `/xbrl-readiness`, deliberately kept out of the sidebar and opened from the Accounting page header. The reconciliation merge underneath restored four migration files that were applied to the development database but had never reached `production`, plus their structural Prisma models — **no feature code** from `professional-forms-designer-wip` or `vehicle-insurance-v1`; both remain unreleased on their own branches. Migration drift is now zero. **Source-only release**: no installer build, application version unchanged. Product Owner manual visual review of all five tabs completed and approved) |
+| **Current Documentation Commit** | `PENDING` |
+| **Current Stable Tag** | `stable-xbrl-readiness-foundation-v1` → `66f03cf7` · checkpoint `checkpoint-xbrl-readiness-foundation-v1` → `bd15959f` (production HEAD immediately before the XBRL merge) (previous: `stable-employee-compensation-batch-printing-v1`) |
 | **Current Release Date** | 2026-08-19 |
 | **Application Version** | `2026.5.4` — new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.4.exe` (131.93 MiB, 138,339,925 bytes, SHA-256 `3f79dae177b809d92733f8015f797ba0d98a6314f0e8e92c65152256edbe1aca`, Windows 10/11 x64, per-user install under `%AppData%`, zero external runtime prerequisites); `release/win-unpacked` 3,350 files / 469,399,374 bytes (447.7 MiB). Golden Database SHA-256 `8ecaa3988d8171c6f861468177943fedb9be3427c3f4ef51a219cc4a0f51b585` (3,686,400 bytes · 64 migration folders · `integrity_check = ok` · 0 foreign-key violations · 78 tables covering all 75 schema models) verified byte-identical in four places: source `backend/data/manar.db` · `win-unpacked` · extracted from inside `Setup.exe` · recorded identically in `seed-data/golden-manifest.json`. This installer ships the same 64 migrations and 75 models as 2026.5.3 — no schema change — and its bundled Prisma client was confirmed at 118,928 bytes / 75 models by extraction from inside `Setup.exe` |
 | **Total Stable Releases** | 441 (window 2026-06-07 → 2026-08-19) — `git tag -l "stable-*"` count |
@@ -415,6 +415,33 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **XBRL Readiness Foundation v1**
+  (2026-08-19, `stable-xbrl-readiness-foundation-v1`) —
+  a standalone preparation layer above the existing accounting system so that
+  Kuwait's QAYD taxonomy can be added later without redesigning anything
+  accounting-side. Six additive `xbrl_*` tables (migration `20260819120000`, zero
+  `ALTER` on any existing table and zero data rows touched), a taxonomy and
+  concept registry, an account↔concept and statement-line↔concept mapping layer,
+  a reporting context (KWD, 3 decimals), a 15-rule readiness validation engine
+  with permanently stable codes, immutable reporting snapshots, and a
+  `FinancialReportingExporter` abstraction. **XBRL-ready only, NOT QAYD-certified**:
+  no official taxonomy installed, no government API assumed, no official export,
+  no compliance claim — highest state `READY_PENDING_TAXONOMY`, no `QAYD_READY`,
+  enforced by static tests over both the backend module source and every frontend
+  string and i18n key. Validation is a report, never a lock: an `ERROR` finding
+  blocks no accounting operation. Snapshots expose create/list/get only, with no
+  PATCH/PUT/DELETE route, and close no fiscal period. Three permission keys
+  (`xbrl.read`/`manage`/`snapshot`). UI at `/xbrl-readiness`, out of the sidebar,
+  opened from the Accounting page header. Merged on top of **Migration History
+  Reconciliation v1** (`99b89c68`), which restored four migration files applied to
+  the development database but never merged to `production`, plus their structural
+  models — migration drift is now zero, and no feature code from
+  `professional-forms-designer-wip` or `vehicle-insurance-v1` entered production.
+  Product Owner visual review of all five tabs completed and approved. Phase 2
+  (official concept codes, authority validation rules, submission package and
+  mechanism, e-signature) awaits the published QAYD specification and is
+  deliberately not guessed. Source-only release.
 
 - **Employee Compensation — Batch Printing v1**
   (2026-08-19, `stable-employee-compensation-batch-printing-v1`) —
