@@ -25,6 +25,9 @@ import { ROLES } from '../../config/constants';
 const REPORT_EXTRA_PERMISSION: Record<string, string> = {
   payroll: 'payroll.read',
   'employee-entitlements-monthly': 'employeeCompensation.read',
+  // تأمين المركبات — يتبع نفس السابقة: مركز التقارير ليس بابًا خلفيًا لبيانات وحدة
+  // لا يملك المستخدم قراءتها في شاشتها.
+  'vehicle-insurance': 'vehicleInsurance.read',
 };
 
 function assertReportAccess(type: string, roleName: string, permissions: string[]): void {

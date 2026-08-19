@@ -185,6 +185,24 @@ const REPORT_TYPES: ReportType[] = [
     statusType: 'ready',
   },
   {
+    /**
+     * Vehicle Insurance Management v1 — تقرير تأمين المركبات.
+     *
+     * مصدره جدولا وحدة تأمين المركبات وحدهما، وصلاحية وحدته (`vehicleInsurance.read`)
+     * تُفحص في الخادم فوق `reports.read`/`reports.export` — تمامًا كسابقة `payroll`.
+     * فلتر الحالة الوحيد يغطّي بنود الحزمة: جميع الوثائق / المنتهية / التي تنتهي قريبًا.
+     */
+    key: 'vehicle-insurance', label: 'report.type.vehicle_insurance', icon: '🛡️', group: 'report.group.operations', groupLabelKey: RC_GRP_OPERATIONS,
+    filters: ['status'],
+    statuses: [['VALID', 'opt.vins.status_valid'], ['EXPIRING_SOON', 'opt.vins.status_expiring'], ['EXPIRED', 'opt.vins.status_expired']],
+    statusLabel: 'col.vins.status',
+    descKey: 'report.desc.vehicle_insurance',
+    statusType: 'ready',
+    tableTools: true,
+    statusColumnKey: 'status',
+    totalsLabelKey: 'equipmentCode',
+  },
+  {
     key: 'expenses-by-company', label: 'report.type.expenses_by_company', icon: '🏗️', group: 'report.group.operational', groupLabelKey: RC_GRP_OPERATIONAL_FULL,
     filters: ['date', 'billingMonth', 'billingYear', 'company', 'status'],
     statuses: [['PENDING', 'status.pending'], ['APPROVED', 'status.approved'], ['REJECTED', 'status.rejected']],

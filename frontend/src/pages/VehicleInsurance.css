@@ -1,0 +1,100 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Vehicle Insurance — page-specific styles (.vins-* prefix)
+   Composes with the shared Explorer Kit (explorer-kit.css / .xpl-*). No rule here
+   targets a shared class on its own, so no other screen can be affected by this
+   file. Colours come from ExplorerKit tokens only (no literal hex/rgb), so the
+   dark theme follows automatically.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vins-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .vins-metrics { grid-template-columns: 1fr; } }
+
+.vins-code { font-family: var(--app-font-mono); font-weight: 700; color: var(--xpl-text); }
+.vins-policy-no { font-family: var(--app-font-mono); color: var(--xpl-text); }
+.vins-sub { color: var(--xpl-muted); font-size: 12px; margin-inline-start: 6px; }
+.vins-desc {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+/* read-only mirror field inside dialogs (plate number) */
+.vins-readonly {
+  height: 40px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  font-size: 13.5px;
+  color: var(--xpl-muted);
+  background: var(--xpl-bg);
+}
+
+/* ── Urgency row tinting ─────────────────────────────────────────────────────
+   تلوين الحالة داخل الجدول: شريط جانبي بلون التوكين. الشارة النصية في عمود الحالة
+   تبقى المصدر المقروء؛ اللون طبقة تعزيز بصري لا بديل عنها — فلا معلومة تُنقل باللون
+   وحده. التدرّج مقصود: المنتهية أحمر، ثم 7 و15 و30 بدرجات إنذار متناقصة السماكة.
+   ─────────────────────────────────────────────────────────────────────────── */
+.vins-row { border-inline-start: 3px solid transparent; }
+.vins-row--expired { border-inline-start-color: var(--xpl-red); }
+.vins-row--due7 { border-inline-start-color: var(--xpl-orange); }
+.vins-row--due15 { border-inline-start-color: var(--xpl-amber); }
+.vins-row--due30 { border-inline-start-width: 2px; border-inline-start-color: var(--xpl-amber); }
+.vins-row--valid { border-inline-start-color: transparent; }
+
+/* الأيام المتبقية — رقم أحادي الاتجاه كي لا يقلبه خوارزم الاتجاه ثنائي الاتجاه */
+.vins-days {
+  direction: ltr;
+  display: inline-block;
+  font-family: var(--app-font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.vins-days--expired { color: var(--xpl-red); }
+.vins-days--warn { color: var(--xpl-orange); }
+.vins-days--ok { color: var(--xpl-muted); }
+
+/* شريط تنبيهي أعلى الجدول (سياسة التجديد وحفظ السجل التاريخي) */
+.vins-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  margin-bottom: 10px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  background: var(--xpl-bg);
+  color: var(--xpl-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.vins-hint .material-symbols-outlined { font-size: 18px; }
+
+/* سجل الوثائق داخل الـ Drawer */
+.vins-history-list { display: flex; flex-direction: column; gap: 8px; }
+.vins-history-item {
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.vins-history-item--current { border-color: var(--xpl-primary); }
+.vins-history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vins-history-meta { color: var(--xpl-muted); font-size: 12px; }

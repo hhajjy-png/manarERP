@@ -78,7 +78,8 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     // تفاصيل · سند صرف نقدي · سجل المديونيات · تفاصيل مديونية. كلها كسولة
     // كبقية الصفحات، والـ Router والـ Suspense كما هما.
     // +1: شاشة الطباعة الجماعية لمستحقات الموظف — كسولة كبقية أسطح الطباعة.
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(64);
+    // +1: صفحة تأمين المركبات (Vehicle Insurance Management v1) — كسولة كبقية الصفحات.
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(66);
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });

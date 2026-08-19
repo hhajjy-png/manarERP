@@ -39,6 +39,8 @@ export const ReportName = {
   FinancialAnalysis: 'FinancialAnalysis',
   // تحليل التحصيلات — ربط سنة إصدار الفاتورة بسنة تحصيلها.
   CollectionAnalysis: 'CollectionAnalysis',
+  // تأمين المركبات — تصدير نتائج شاشة تأمين المركبات الحالية.
+  VehicleInsurance: 'VehicleInsurance',
   // Generic data-module (ResourcePage) list exports:
   Customers: 'Customers',
   Suppliers: 'Suppliers',

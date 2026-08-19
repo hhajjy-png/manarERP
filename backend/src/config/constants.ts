@@ -88,6 +88,10 @@ export const MODULES = [
   // مفاتيحها منفصلة عن `transactions.*` و`finreports.*` عمدًا: من يقرأ التقارير
   // المالية لا يرث تلقائيًا صلاحية تعديل ربط XBRL، والعكس صحيح.
   'xbrl',
+  // تأمين المركبات — وحدة تشغيلية مستقلة. تكتب حصرًا في vehicle_insurance_policies /
+  // vehicle_accidents، ولا ترتبط بالمحاسبة ولا بالمصروفات ولا بالصيانة ولا بالتعويضات.
+  // مفاتيحها منفصلة عن `equipment.*` و`maintenance.*` عمدًا.
+  'vehicleInsurance',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -226,4 +230,8 @@ export const ENUMS = {
   xbrlMappingSource: ['MANUAL', 'IMPORTED', 'SUGGESTED'] as const,
   xbrlSeverity: ['ERROR', 'WARNING', 'INFO'] as const,
   xbrlReportingLanguage: ['ar', 'en'] as const,
+  // نوع تغطية تأمين المركبة — شامل | ضد الغير | آخر. يُخزَّن كنص (لا enum على مستوى DB).
+  insuranceCoverageType: ['COMPREHENSIVE', 'THIRD_PARTY', 'OTHER'] as const,
+  // حالة وثيقة التأمين المشتقّة من `endDate` وحده — قيمة محسوبة لا مخزَّنة.
+  insuranceStatus: ['VALID', 'EXPIRING_SOON', 'EXPIRED'] as const,
 } as const;
