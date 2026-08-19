@@ -77,7 +77,8 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     // +8: صفحات وحدة مستحقات الموظف الشهرية — قائمة · ملف سنوي · حسبة شهر · كشف ·
     // تفاصيل · سند صرف نقدي · سجل المديونيات · تفاصيل مديونية. كلها كسولة
     // كبقية الصفحات، والـ Router والـ Suspense كما هما.
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(63);
+    // +1: شاشة الطباعة الجماعية لمستحقات الموظف — كسولة كبقية أسطح الطباعة.
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(64);
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });

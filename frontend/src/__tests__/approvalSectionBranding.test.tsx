@@ -160,10 +160,21 @@ describe('ربط النماذج بالنظام المركزي', () => {
   });
 
   it('مُنتقي الأصول في شريط الأدوات (لا يُطبع) لا داخل الجذر المطبوع', () => {
-    const printableRoot = layoutCode.indexOf('className="form-page"');
+    // الجذر المطبوع (`.form-page`) صار مكوّنًا مستقلًا (`FormPage`) تشاركه الطباعة
+    // الفردية والجماعية؛ فموضعه في `FormLayout` هو وسم `<FormPage`. الثابت المحروس
+    // لم يتغيّر: المُنتقي يسبقه، أي يعيش في شريط الأدوات خارج ما يُطبع.
+    const printableRoot = layoutCode.indexOf('<FormPage');
     const picker = layoutCode.indexOf('<BrandingAssetPicker');
+    expect(printableRoot).toBeGreaterThan(-1);
     expect(picker).toBeGreaterThan(-1);
     expect(picker).toBeLessThan(printableRoot);
+  });
+
+  it('الجذر المطبوع لا يحوي مُنتقي الأصول ولا أي عنصر شاشة', () => {
+    const pageCode = code(readFileSync('src/forms/shared/FormPage.tsx', 'utf8'));
+    expect(pageCode).toContain('className="form-page"');
+    expect(pageCode).not.toContain('BrandingAssetPicker');
+    expect(pageCode).not.toContain('BrandingDesignerPanel');
   });
 
   it('سند القبض يبني جذره بنفسه — فيستدعي نفس الخطّافين المشتركين', () => {

@@ -1,0 +1,66 @@
+/**
+ * الطباعة الجماعية — أنماط سطح الطباعة وحده.
+ *
+ * لا لون ولا خط ولا مقاس مستند هنا: المستندات ترسمها قوالبها الحالية بلا تعديل.
+ * هذا الملف يقول شيئين فقط: **أين ينتهي مستند ويبدأ الذي يليه**، و**كم يبعد كل
+ * مستند عن حافة الورقة** — وهما بالضبط ما تقوله `@page` في الطباعة الفردية.
+ *
+ * بداية المحتوى في الدفعة تختلف بنوع المستند (`BATCH_CONTENT_TOP`): الكشف ٥ سم من
+ * أعلى الورقة، والسند ٣ سم. خاصٌّ بالدفعة وحدها ولا يمسّ الطباعة الفردية لأي مستند.
+ *
+ * ═══ لماذا الهوامش حشوٌ هنا لا هامش صفحة ═══
+ * الدفعة كلها تُطبع على ملف تعريف «ورق الشركة الرسمي» (`letterhead`) وحده — كل كشف
+ * وكل سند وكل شهر. فتُصفَّر هوامش `@page` وتُعاد **نفس قيم ذلك الملف حرفيًا** حشوًا
+ * على ورقة كل مستند — وهو النموذج نفسه الذي يستخدمه `FormLayout` أصلًا لملف تعريف
+ * «ورق جاهز» (هامش الصفحة ← حشو الورقة). القيم لا تُكتب في هذا الملف: يحقنها
+ * `EmployeeCompensationBatchPrint` من `PRINT_PROFILES` نفسها، فلا مصدر ثانٍ للهوامش.
+ */
+
+/* ── الشاشة: أوراق متتابعة بفاصل مرئي ───────────────────────────────────────── */
+@media screen {
+  .ecmp-batch-doc + .ecmp-batch-doc {
+    margin-top: 26px;
+  }
+
+  .ecmp-batch-doc .form-page {
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.07);
+  }
+}
+
+/* ── حالات التجهيز (لا تُطبع أبدًا) ──────────────────────────────────────────── */
+.ecmp-batch-state {
+  max-width: 720px;
+  margin: 48px auto;
+  text-align: center;
+  line-height: 1.9;
+}
+
+.ecmp-batch-missing {
+  max-width: 720px;
+  margin: 0 auto 18px;
+  padding: 14px 18px;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  background: #fffbeb;
+  color: #78350f;
+  line-height: 1.9;
+}
+
+.ecmp-batch-missing h2 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.ecmp-batch-missing ul {
+  margin: 6px 0 0;
+  padding-inline-start: 20px;
+}
+
+.ecmp-batch-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 14px;
+}

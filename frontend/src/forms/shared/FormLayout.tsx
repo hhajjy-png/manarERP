@@ -13,7 +13,8 @@ import { ProfileId, PRINT_PROFILES } from './printProfiles';
 import { loadCopies, saveCopies } from './usePrintProfileMemory';
 import { SECTION_HEADER_BG } from './formStyles';
 import FormHeader from './FormHeader';
-import FormQRCode, { QRData } from './FormQRCode';
+import type { QRData } from './FormQRCode';
+import FormPage from './FormPage';
 import ApprovalSection from './ApprovalSection';
 import { useCompanyBranding } from '../../print-templates/hooks/useCompanyBranding';
 import { useBrandingSelection } from '../../print-templates/hooks/useBrandingSelection';
@@ -717,122 +718,59 @@ ${logoHeaderIsOverlay ? `
         }
       `}</style>
 
-      <div
-        ref={formPageRef}
-        className="form-page"
-        style={{
-          // Containing block for FormHeader's ready-paper-only overlay
-          // positioning (`FormHeader`'s `overlay` prop) — a no-op for every other
-          // profile/form, since nothing else in `.form-page` is absolutely
-          // positioned against it.
-          position: 'relative',
-          // Page-level model (ready-paper): on screen `.form-page` must model the
-          // whole A4 SHEET, exactly as it does at print — the profile margins are
-          // its padding, so the preview shows the letterhead band and the content
-          // start at the same places the printout will. Every other profile keeps
-          // the original screen padding untouched.
-          padding: logoHeaderIsOverlay ? `${mt} ${mr} ${mb} ${ml}` : '18px 32px',
-          boxSizing: 'border-box',
-          fontFamily: docFontStack,
-          maxWidth: 793,
-          margin: '0 auto',
-          color: '#0f172a',
-          background: '#fff',
-          direction: lang === 'en' ? 'ltr' : 'rtl',
-          borderRadius: 4,
-        }}
-      >
-        {contentTopOffset && <div aria-hidden="true" style={{ height: contentTopOffset }} />}
-
-        {/* Company header — hidden on a blank-header profile with no logo of its
-            own (letterhead: physical sheet already carries the letterhead).
-            A blank-header profile that declares `logoHeader` (ready-paper) renders
-            the same official logo image used by the Payment Voucher instead, as an
-            out-of-flow overlay (`overlay`) so it never pushes the form down. */}
-        <FormHeader
-          isLetterhead={hideHeader}
-          lang={lang}
-          logoSrc={showLogoHeader ? officialLogoHead : undefined}
-          overlay={logoHeaderIsOverlay}
-          tintColor={logoTintColor ?? readyPaperLogoTintColor}
-          // `.form-page` now spans the whole sheet, so inset the overlay by the
-          // profile's own horizontal margins to keep the header exactly as wide
-          // as the content column — the artwork's size is therefore unchanged.
-          overlayInsetLeft={logoHeaderIsOverlay ? ml : '0'}
-          overlayInsetRight={logoHeaderIsOverlay ? mr : '0'}
-          overlayTop={logoHeaderIsOverlay ? READY_PAPER_LOGO_TOP_OFFSET : '0'}
-        />
-
-        {/* Form number + title */}
-        <div style={{ textAlign: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, direction: 'ltr' }}>
-            {/* The text node stays present (just invisible) so the line box's height —
-                and therefore the title's vertical position — never changes based on
-                hideFormNumber; an empty div here would collapse to 0 height instead. */}
-            <span style={hideFormNumber ? { visibility: 'hidden' } : undefined}>{formNumber}</span>
-          </div>
-          <h1
-            style={{
-              fontSize: titleFontSize,
-              fontWeight: 800,
-              color: '#1d4e6f',
-              margin: '0 0 6px',
-              letterSpacing: 1,
-            }}
-          >
-            {title}
-          </h1>
-          {!hideTitleRule && (
-            <div
-              style={{
-                width: 60,
-                height: 3,
-                background: '#1d4e6f',
-                margin: '0 auto',
-                borderRadius: 2,
-                WebkitPrintColorAdjust: 'exact',
-                printColorAdjust: 'exact',
-              }}
+      <FormPage
+        pageRef={formPageRef}
+        lang={lang}
+        // Page-level model (ready-paper): the profile margins become the page's
+        // padding so `.form-page` models the whole A4 sheet — see
+        // `logoHeaderIsOverlay`'s note above. Every other profile keeps the
+        // original screen padding untouched.
+        padding={logoHeaderIsOverlay ? `${mt} ${mr} ${mb} ${ml}` : '18px 32px'}
+        docFontStack={docFontStack}
+        contentTopOffset={contentTopOffset}
+        header={
+          /* Company header — hidden on a blank-header profile with no logo of its
+             own (letterhead: physical sheet already carries the letterhead).
+             A blank-header profile that declares `logoHeader` (ready-paper) renders
+             the same official logo image used by the Payment Voucher instead, as an
+             out-of-flow overlay (`overlay`) so it never pushes the form down. */
+          <FormHeader
+            isLetterhead={hideHeader}
+            lang={lang}
+            logoSrc={showLogoHeader ? officialLogoHead : undefined}
+            overlay={logoHeaderIsOverlay}
+            tintColor={logoTintColor ?? readyPaperLogoTintColor}
+            // `.form-page` now spans the whole sheet, so inset the overlay by the
+            // profile's own horizontal margins to keep the header exactly as wide
+            // as the content column — the artwork's size is therefore unchanged.
+            overlayInsetLeft={logoHeaderIsOverlay ? ml : '0'}
+            overlayInsetRight={logoHeaderIsOverlay ? mr : '0'}
+            overlayTop={logoHeaderIsOverlay ? READY_PAPER_LOGO_TOP_OFFSET : '0'}
+          />
+        }
+        formNumber={formNumber}
+        hideFormNumber={hideFormNumber}
+        title={title}
+        titleFontSize={titleFontSize}
+        hideTitleRule={hideTitleRule}
+        footerStart={
+          hideApprovalSection ? null : (
+            <ApprovalSection
+              lang={lang}
+              secondaryLabels={approvalSecondaryLabels}
+              hideDate={approvalHideDate}
+              stampInline={approvalStampInline}
+              signatureUrl={approvalBranding && brandingSelection.showSignature ? brandingSelection.signatureUrl : undefined}
+              stampUrl={approvalBranding && brandingSelection.showStamp ? brandingSelection.stampUrl : undefined}
+              layout={approvalBranding ? effectiveApprovalLayout : undefined}
+              designer={approvalBranding && layoutDocKey ? designer : undefined}
             />
-          )}
-        </div>
-
-        {/* Form-specific content */}
+          )
+        }
+        qrData={qrData}
+      >
         {children}
-
-        {/* Bottom row: Approval (right/start in RTL) | QR (left/end in RTL) */}
-        <div
-          className="form-page-footer"
-          style={{
-            marginTop: 14,
-            paddingTop: 10,
-            borderTop: '1px solid #e2e8f0',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 20,
-            WebkitPrintColorAdjust: 'exact',
-            printColorAdjust: 'exact',
-          }}
-        >
-          <div style={{ flex: 1 }}>
-            {!hideApprovalSection && (
-              <ApprovalSection
-                lang={lang}
-                secondaryLabels={approvalSecondaryLabels}
-                hideDate={approvalHideDate}
-                stampInline={approvalStampInline}
-                signatureUrl={approvalBranding && brandingSelection.showSignature ? brandingSelection.signatureUrl : undefined}
-                stampUrl={approvalBranding && brandingSelection.showStamp ? brandingSelection.stampUrl : undefined}
-                layout={approvalBranding ? effectiveApprovalLayout : undefined}
-                designer={approvalBranding && layoutDocKey ? designer : undefined}
-              />
-            )}
-          </div>
-          <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-            <FormQRCode data={qrData} size={80} />
-          </div>
-        </div>
-      </div>
+      </FormPage>
     </PrintWorkspace>
 
     {/* The SAME properties panel the quotation/invoice design mode uses — position,

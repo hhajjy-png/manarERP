@@ -373,6 +373,20 @@ export interface AnnualFile {
 
 /** بيانات **الكشف الرسمي المختصر**. لاحظ ما ليس فيها: أجر الساعة، المعاملات،
  *  الحسبة العكسية، المراجع القانونية. غيابها مقصود ومحروس على الخادم. */
+/**
+ * صفّ واحد في فهرس **الطباعة الجماعية**: موظف له كشوف فعلًا، والسنوات التي له فيها
+ * كشوف. لا مبالغ هنا ولا إجماليات — الفهرس يملأ قائمتَي الاختيار لا أكثر.
+ */
+export interface PrintIndexEmployee {
+  id: number;
+  code: string;
+  fullName: string;
+  jobTitle: string | null;
+  status: string;
+  /** تنازليًا (الأحدث أولًا)، ولا تحوي سنةً بلا كشف واحد على الأقل. */
+  years: number[];
+}
+
 export interface StatementData {
   id: number;
   year: number;

@@ -73,6 +73,12 @@ router.delete('/calculations/:id', DELETE, validate(idParamsSchema), asyncHandle
 router.get('/calculations/:id/statement', PRINT, validate(idParamsSchema), asyncHandler(controller.statement));
 router.get('/calculations/:id/detailed', PRINT, validate(idParamsSchema), asyncHandler(controller.detailedReport));
 
+// الطباعة الجماعية — **تجميع وترتيب لمستندات قائمة، لا مستند جديد**. المساران قراءة
+// خالصة تحت `print`: الأول يملأ قائمتَي الحوار (موظف ذو كشوف · سنواته)، والثاني يعيد
+// كشوف السنة مرتّبة تصاعديًا مبنيّةً بنفس دالة الكشف الفردي حرفيًا.
+router.get('/print-index', PRINT, asyncHandler(controller.printIndex));
+router.get('/employees/:employeeId/years/:year/statements', PRINT, validate(annualFileSchema), asyncHandler(controller.yearStatements));
+
 // ── سجل المديونيات والسلف ────────────────────────────────────────────────────
 // نفس مفاتيح صلاحيات الوحدة، بلا مفتاح جديد: السجل امتداد لها لا وحدة ثانية، ومن
 // يملك تحرير حسبة الشهر هو نفسه من يملك تسجيل سلفة الموظف.
