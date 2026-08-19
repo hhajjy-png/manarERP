@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import ConfirmModal from '../components/ConfirmModal';
 import DateInput from '../components/DateInput';
@@ -71,7 +71,11 @@ export default function Accounting() {
   const [tab, setTab] = usePersistedState<Tab>('acc:tab', 'summary');
   const { hasPermission } = useAuth();
   const { t } = useT();
+  const navigate = useNavigate();
   const canCreate = hasPermission('transactions.create');
+  // جاهزية XBRL — أداة إعداد تُستعمل مرّات معدودة في السنة، فمدخلها زرّ في رأس
+  // «المحاسبة» لا عنصر دائم في الشريط الجانبي. صلاحيتها مستقلة عن `transactions.*`.
+  const canViewXbrl = hasPermission('xbrl.read');
 
   return (
     <div className="xpl-scope xpl-page">
@@ -80,6 +84,13 @@ export default function Accounting() {
         icon="account_balance"
         title={t('page.accounting.title')}
         subtitle={t('page.accounting.subtitle')}
+        aside={
+          canViewXbrl && (
+            <Button icon="schema" onClick={() => navigate('/xbrl-readiness')}>
+              {t('xbrl.title')}
+            </Button>
+          )
+        }
       />
 
       <Tabs<Tab>

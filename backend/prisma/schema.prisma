@@ -1030,6 +1030,9 @@ model Account {
   parent       Account?             @relation("AccountHierarchy", fields: [parentId], references: [id])
   children     Account[]            @relation("AccountHierarchy")
   journalLines JournalEntryLine[]
+  /// جاهزية XBRL — علاقة عكسية فقط. لا عمود جديد على `accounts`، ولا أثر محاسبي:
+  /// إسقاط جداول `xbrl_*` يعيد الحساب إلى حالته الحالية بالضبط.
+  xbrlMappings XbrlAccountMapping[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2344,6 +2347,239 @@ model EntitlementsBankStatementLine {
   @@index([statementId])
   @@index([employeeId])
   @@map("entitlements_bank_statement_lines")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  جاهزية XBRL — XBRL Readiness Foundation v1
+// ═════════════════════════════════════════════════════════════════════════════
+//
+//  طبقة **مستقلة تمامًا** فوق النظام المحاسبي القائم. لا تكتب ولا تقرأ إلا:
+//    • قراءة فقط من `accounts` و `journal_entry_lines` (عبر خدمات المحاسبة القائمة).
+//    • كتابة حصريًا داخل جداول `xbrl_*` أدناه.
+//
+//  لا تُعدِّل دليل الحسابات، ولا قيود اليومية، ولا الأرصدة، ولا تقفل أي فترة مالية.
+//  حذف أي جدول من هذه الجداول لا يؤثر على أي رقم محاسبي في النظام.
+//
+//  ⚠ لا توجد Taxonomy كويتية رسمية (QAYD) في هذه المرحلة، ولا يُفترض وجود API لها.
+//    الحقل `isOfficial` لا يُضبط من أي مسار API في v1 — يبقى false حتى يصل مستورد
+//    Taxonomy رسمي بمواصفات موثّقة (انظر modules/xbrl/README.md).
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// سجلّ التصنيفات (Taxonomies) المستقبلية — عام، غير مرتبط بجهة بعينها.
+model XbrlTaxonomy {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique /// معرّف قصير فريد (KW-QAYD-2027, IFRS-FULL-2024, INTERNAL-DRAFT)
+  nameAr        String
+  nameEn        String?
+  jurisdiction  String /// KW | GCC | IFRS | INTERNAL
+  version       String
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+  source        String? /// من أين جاءت المواصفة (رابط، اسم ملف، أو «إدخال يدوي»)
+  status        String    @default("DRAFT") /// DRAFT | ACTIVE | INACTIVE | ARCHIVED
+
+  /// «رسمية معتمدة من الجهة المُصدِرة». **لا يضبطها أي endpoint في v1**: تبقى false
+  /// إلى أن يصل مستورد رسمي موثّق. الاعتماد على هذا الحقل هو ما يمنع النظام من
+  /// ادّعاء توافق QAYD قبل أوانه.
+  isOfficial   Boolean @default(false)
+  metadataJson String?
+
+  concepts          XbrlConcept[]
+  accountMappings   XbrlAccountMapping[]
+  statementMappings XbrlStatementMapping[]
+  contexts          XbrlReportingContext[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([jurisdiction])
+  @@index([isOfficial])
+  @@map("xbrl_taxonomies")
+}
+
+/// عنصر (Concept) داخل Taxonomy. لا يُملأ بمفاهيم QAYD وهمية في هذه المرحلة.
+model XbrlConcept {
+  id          Int     @id @default(autoincrement())
+  taxonomyId  Int
+  conceptCode String /// المعرّف داخل الـ namespace (مثال: Assets)
+  namespace   String? /// مثال: http://example.org/taxonomy/2027
+
+  labelAr String
+  labelEn String?
+
+  dataType      String @default("MONETARY") /// MONETARY | DECIMAL | SHARES | STRING | DATE | BOOLEAN
+  balanceType   String @default("NONE") /// DEBIT | CREDIT | NONE
+  periodType    String @default("DURATION") /// INSTANT | DURATION
+  statementType String @default("NONE") /// SFP | IS | CF | SCE | NOTES | NONE
+
+  parentConceptId Int?
+  isRequired      Boolean @default(false)
+  displayOrder    Int     @default(0)
+  metadataJson    String?
+
+  taxonomy      XbrlTaxonomy  @relation(fields: [taxonomyId], references: [id], onDelete: Cascade)
+  parentConcept XbrlConcept?  @relation("XbrlConceptHierarchy", fields: [parentConceptId], references: [id])
+  children      XbrlConcept[] @relation("XbrlConceptHierarchy")
+
+  accountMappings   XbrlAccountMapping[]
+  statementMappings XbrlStatementMapping[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxonomyId, conceptCode])
+  @@index([taxonomyId])
+  @@index([statementType])
+  @@index([parentConceptId])
+  @@map("xbrl_concepts")
+}
+
+/// ربط حساب من دليل الحسابات بمفهوم XBRL.
+///
+/// «عدة حسابات ← مفهوم واحد» مسموح بطبيعة النموذج (لا قيد تفرّد على conceptId).
+/// «حساب واحد ← مفهومان» ممنوع ضمن نافذة سريان متداخلة — يُفرض في الخدمة، ويُكتشف
+/// مستقلًا في محرّك التحقق (القاعدة MAP-001) تحسّبًا لبيانات قادمة من مستورد مستقبلي.
+model XbrlAccountMapping {
+  id         Int @id @default(autoincrement())
+  taxonomyId Int
+  accountId  Int
+  conceptId  Int
+
+  /// MAPPED | NEEDS_REVIEW | NOT_APPLICABLE — «غير مربوط» ليست حالة مخزَّنة: هي غياب
+  /// السطر أصلًا، فلا يوجد مصدرا حقيقة لنفس المعلومة.
+  status    String  @default("MAPPED")
+  isEnabled Boolean @default(true)
+
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+
+  source String  @default("MANUAL") /// MANUAL | IMPORTED | SUGGESTED
+  notes  String?
+
+  taxonomy XbrlTaxonomy @relation(fields: [taxonomyId], references: [id], onDelete: Cascade)
+  account  Account      @relation(fields: [accountId], references: [id])
+  concept  XbrlConcept  @relation(fields: [conceptId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// يمنع التكرار الحرفي لنفس الثلاثية؛ التعارض الزمني يُفرض في الخدمة.
+  @@unique([taxonomyId, accountId, conceptId])
+  @@index([taxonomyId])
+  @@index([accountId])
+  @@index([conceptId])
+  @@index([status])
+  @@map("xbrl_account_mappings")
+}
+
+/// بند من بنود القوائم المالية المستقبلية ← مفهوم XBRL.
+/// طبقة منفصلة عن ربط الحسابات: القوائم الحالية في النظام لا تتغيّر بسبب هذا الجدول.
+model XbrlStatementMapping {
+  id            Int    @id @default(autoincrement())
+  taxonomyId    Int
+  statementType String /// SFP | IS | CF | SCE | NOTES
+
+  lineCode       String /// معرّف البند داخل القائمة (مثال: SFP-TOTAL-ASSETS)
+  lineLabelAr    String
+  lineLabelEn    String?
+  parentLineCode String?
+
+  conceptId Int?
+
+  displayOrder      Int     @default(0)
+  isTotal           Boolean @default(false)
+  isEnabled         Boolean @default(true)
+  /// فلتر اختياري يصف أي حسابات تُغذّي البند (أنواع/أكواد) — JSON وصفي، لا منطق محاسبي.
+  accountFilterJson String?
+  notes             String?
+
+  taxonomy XbrlTaxonomy @relation(fields: [taxonomyId], references: [id], onDelete: Cascade)
+  concept  XbrlConcept? @relation(fields: [conceptId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxonomyId, statementType, lineCode])
+  @@index([taxonomyId])
+  @@index([statementType])
+  @@index([conceptId])
+  @@map("xbrl_statement_mappings")
+}
+
+/// سياق التقرير (Reporting Context) — الكيان والفترة والعملة واللغة.
+/// العملة الافتراضية KWD بثلاث منازل عشرية، كبقية النظام.
+model XbrlReportingContext {
+  id         Int    @id @default(autoincrement())
+  name       String
+  taxonomyId Int?
+
+  entityName       String
+  entityNameEn     String?
+  entityIdentifier String? /// السجل التجاري / الرقم الموحّد — نصّ حرّ، بلا تحقق حكومي
+  entityScheme     String? /// مصدر المعرّف (مثال: «وزارة التجارة والصناعة»)
+
+  fiscalYear  Int
+  periodStart DateTime
+  periodEnd   DateTime
+  instantDate DateTime? /// تاريخ اللحظة (للمركز المالي) — يُشتق من periodEnd إن غاب
+
+  comparativePeriodStart DateTime?
+  comparativePeriodEnd   DateTime?
+
+  currency          String @default("KWD")
+  decimals          Int    @default(3)
+  reportingLanguage String @default("ar") /// ar | en
+
+  isDefault Boolean @default(false)
+  notes     String?
+
+  taxonomy XbrlTaxonomy? @relation(fields: [taxonomyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([fiscalYear])
+  @@index([taxonomyId])
+  @@map("xbrl_reporting_contexts")
+}
+
+/// لقطة إصدار مالي — **غير قابلة للتعديل**: لا مسار API واحد يُحدِّثها أو يحذفها.
+/// لا تُعدِّل الحسابات ولا تقفل السنة المالية؛ هي سجل «ما الذي كان صحيحًا آنذاك».
+model XbrlSnapshot {
+  id             Int    @id @default(autoincrement())
+  snapshotNumber String @unique /// XBRLS-2026-00001
+
+  /// لقطة هوية التصنيف وقت الإنشاء — نصّية عمدًا: حذف التصنيف لاحقًا لا يُفقد اللقطة معناها.
+  taxonomyId         Int?
+  taxonomyCode       String?
+  taxonomyVersion    String?
+  taxonomyIsOfficial Boolean @default(false)
+
+  contextId   Int?
+  fiscalYear  Int
+  periodStart DateTime
+  periodEnd   DateTime
+
+  companyJson           String /// بيانات الشركة وقت الإنشاء
+  contextJson           String /// سياق التقرير المستخدَم
+  trialBalanceJson      String /// ميزان المراجعة وأرصدة الحسابات
+  accountMappingsJson   String /// ربط الحسابات وقت الإنشاء
+  statementMappingsJson String /// ربط بنود القوائم وقت الإنشاء
+  validationJson        String /// نتائج التحقق وقت الإنشاء
+  readinessJson         String /// مؤشر الجاهزية وقت الإنشاء
+
+  /// بصمة SHA-256 للبيانات المصدرية — تثبت لاحقًا أن اللقطة لم تُبنَ من بيانات أخرى.
+  sourceHash String
+
+  createdById   Int?
+  createdByName String?
+  createdAt     DateTime @default(now())
+
+  @@index([fiscalYear])
+  @@index([taxonomyId])
+  @@index([createdAt])
+  @@map("xbrl_snapshots")
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

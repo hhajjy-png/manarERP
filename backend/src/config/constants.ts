@@ -83,6 +83,11 @@ export const MODULES = [
   // بنهاية الخدمة. مفاتيحها منفصلة عن `payroll.*` عمدًا: صلاحية الرواتب لا تمنح
   // صلاحية هذه الوحدة، والعكس.
   'employeeCompensation',
+  // جاهزية XBRL — طبقة إعداد مستقبلية فوق المحاسبة، لا داخلها. تكتب حصريًا في
+  // جداول `xbrl_*`، وتقرأ الأرصدة من خدمات المحاسبة القائمة بلا نسخ منطق محاسبي.
+  // مفاتيحها منفصلة عن `transactions.*` و`finreports.*` عمدًا: من يقرأ التقارير
+  // المالية لا يرث تلقائيًا صلاحية تعديل ربط XBRL، والعكس صحيح.
+  'xbrl',
 ] as const;
 
 export type ModuleName = (typeof MODULES)[number];
@@ -111,6 +116,9 @@ export const ACTIONS = [
   // محرك الخطابات — إجراءان لا يغطّيهما أي فعل قائم:
   'register',     // إصدار رقم مرجعي دائم لا يُعاد استخدامه أبدًا (لا رجعة فيه)
   'archive',      // أرشفة مستند صادر (حفظ، لا حذف)
+  // جاهزية XBRL — فعلان لا يغطّيهما أي فعل قائم:
+  'manage',       // إدارة التصنيفات والمفاهيم والربط (إنشاء/تعديل/حذف في طبقة واحدة)
+  'snapshot',     // إنشاء لقطة إصدار مالي غير قابلة للتعديل (لا رجعة فيها)
 ] as const;
 export type ActionName = (typeof ACTIONS)[number];
 
@@ -201,4 +209,21 @@ export const ENUMS = {
   // حالة تحليل الشغل والعمولة — تصنيف تشغيلي بحت. لا يُشغّل أي اعتماد ولا ترحيل
   // ولا سير موافقات؛ COMPLETED لا تعني «معتمد محاسبيًا» بل «انتهى المستخدم منه».
   workAnalysisStatus: ['DRAFT', 'COMPLETED', 'ARCHIVED'] as const,
+
+  // ── جاهزية XBRL (XBRL Readiness Foundation v1) ───────────────────────────
+  // قيم وصفية للطبقة التحضيرية وحدها. لا واحدة منها تؤثر في أي احتساب محاسبي،
+  // ولا تحمل أي دلالة رسمية: التصنيف الرسمي يُميَّز بـ`isOfficial` لا بالحالة.
+  xbrlTaxonomyStatus: ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED'] as const,
+  xbrlJurisdiction: ['KW', 'GCC', 'IFRS', 'INTERNAL'] as const,
+  xbrlDataType: ['MONETARY', 'DECIMAL', 'SHARES', 'STRING', 'DATE', 'BOOLEAN'] as const,
+  xbrlBalanceType: ['DEBIT', 'CREDIT', 'NONE'] as const,
+  xbrlPeriodType: ['INSTANT', 'DURATION'] as const,
+  // SFP: المركز المالي — IS: الأرباح والخسائر — CF: التدفقات النقدية
+  // SCE: التغيّرات في حقوق الملكية — NOTES: الإيضاحات
+  xbrlStatementType: ['SFP', 'IS', 'CF', 'SCE', 'NOTES', 'NONE'] as const,
+  // «غير مربوط» ليست قيمة هنا: هي غياب سطر الربط أصلًا.
+  xbrlMappingStatus: ['MAPPED', 'NEEDS_REVIEW', 'NOT_APPLICABLE'] as const,
+  xbrlMappingSource: ['MANUAL', 'IMPORTED', 'SUGGESTED'] as const,
+  xbrlSeverity: ['ERROR', 'WARNING', 'INFO'] as const,
+  xbrlReportingLanguage: ['ar', 'en'] as const,
 } as const;

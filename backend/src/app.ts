@@ -56,6 +56,8 @@ import printingRoutes from './modules/printing/printing.routes';
 import attachmentsRouter from './modules/attachments/attachments.routes';
 import searchRoutes from './modules/search/search.routes';
 import lettersRoutes from './modules/letters/letters.routes';
+// جاهزية XBRL — طبقة إعداد مستقبلية تقرأ من المحاسبة ولا تكتب فيها.
+import xbrlRoutes from './modules/xbrl/xbrl.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -158,6 +160,8 @@ export function createApp(): Application {
   // تحليل الشغل والعمولة — أداة تحليل داخلية خارج الدورة المحاسبية.
   app.use('/api/work-analysis', workAnalysisRoutes);
   app.use('/api/employee-compensation', employeeCompensationRoutes);
+  // جاهزية XBRL — تصنيفات ومفاهيم وربط وتحقق ولقطات. لا مسار كتابة محاسبي هنا.
+  app.use('/api/xbrl', xbrlRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);

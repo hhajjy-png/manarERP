@@ -59,6 +59,9 @@ const FinancialAnalysisCenter = lazy(() => import('./pages/FinancialAnalysisCent
 // تحليل التحصيلات — صفحة تحليلية داخلية، مخفيّة عن الشريط الجانبي عمدًا:
 // تُفتح من قسم «تحليل التحصيلات» داخل مركز التحليل المالي وحده.
 const CollectionAnalysis = lazy(() => import('./pages/CollectionAnalysis'));
+// جاهزية XBRL — أداة إعداد داخلية، مخفيّة عن الشريط الجانبي عمدًا: تُفتح من رأس
+// صفحة «المحاسبة». لا تدّعي توافقًا رسميًا مع QAYD ولا تُنتج ملفًا حكوميًا.
+const XbrlReadiness = lazy(() => import('./pages/XbrlReadiness'));
 const Integrations = lazy(() => import('./pages/Integrations'));
 const DocumentExpirationCenter = lazy(() => import('./pages/DocumentExpirationCenter'));
 const DocumentVerify = lazy(() => import('./pages/DocumentVerify'));
@@ -185,6 +188,7 @@ export default function App() {
             <Route path="/financial" element={<FinancialCenter />} />
             <Route path="/financial-analysis" element={<FinancialAnalysisCenter />} />
             <Route path="/collection-analysis" element={<CollectionAnalysis />} />
+            <Route path="/xbrl-readiness" element={<XbrlReadiness />} />
             <Route path="/integrations" element={<Integrations />} />
             <Route path="/bank-statement-import" element={<Navigate to="/import?bankModule=statement" replace />} />
             <Route path="/bank-reconciliation" element={<BankReconciliation />} />
