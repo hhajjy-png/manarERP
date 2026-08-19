@@ -171,8 +171,8 @@ model Employee {
   // سجل المديونيات والسلف (نفس الوحدة المستقلة) — حقل علاقة عكسي فقط، بلا عمود جديد.
   compensationDebts   EmployeeCompensationDebt[]
   performanceRevs     PerformanceReview[]
-  approvedExpenses    Expense[]                    @relation("ExpenseApprover")
-  managedContracts    Contract[]                   @relation("ContractManager")
+  approvedExpenses    Expense[]                         @relation("ExpenseApprover")
+  managedContracts    Contract[]                        @relation("ContractManager")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -589,6 +589,12 @@ model Equipment {
   fuelLogs           FuelLog[]
   breakdowns         Breakdown[]
   spareParts         SparePartUsage[]
+  // مواءمة بنيوية فقط — الطرف العكسي للمفتاحين الأجنبيين القائمين في قاعدة البيانات
+  // (`vehicle_insurance_policies` و`vehicle_accidents`). Prisma يشترط تعريف طرفَي أي
+  // علاقة. لا عمود جديد على جدول `equipment`، ولا مساس بـ`insuranceExpiry` الذي يقرأه
+  // «مركز انتهاء الوثائق». انظر كتلة المواءمة في نهاية هذا الملف.
+  insurancePolicies  VehicleInsurancePolicy[]
+  accidents          VehicleAccident[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1021,8 +1027,8 @@ model Account {
   parentId      Int? // الحساب الرئيسي (للتسلسل الهرمي)
   notes         String?
 
-  parent       Account?           @relation("AccountHierarchy", fields: [parentId], references: [id])
-  children     Account[]          @relation("AccountHierarchy")
+  parent       Account?             @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children     Account[]            @relation("AccountHierarchy")
   journalLines JournalEntryLine[]
 
   createdAt DateTime @default(now())
@@ -1975,21 +1981,21 @@ model EmployeeCompensationCalculation {
 
   notes String?
 
-  overtimeLines OvertimeLine[]
+  overtimeLines      OvertimeLine[]
   /// تفاصيل أيام العمل الإضافي — **مصدر الحقيقة** للساعات. قائمة فارغة = سجل شهري قديم.
   overtimeDayEntries OvertimeDayEntry[]
-  earningLines  CompensationEarningLine[]
-  deductionLines CompensationDeductionLine[]
+  earningLines       CompensationEarningLine[]
+  deductionLines     CompensationDeductionLine[]
   /// حركات سداد المديونيات الناشئة عن هذه الحسبة — تُحذف بحذفها (Cascade).
-  debtPayments  EmployeeCompensationDebtPayment[]
+  debtPayments       EmployeeCompensationDebtPayment[]
 
-  createdById   Int?
-  createdByName String?
-  approvedAt    DateTime?
-  approvedById  Int?
+  createdById    Int?
+  createdByName  String?
+  approvedAt     DateTime?
+  approvedById   Int?
   approvedByName String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([employeeId, year, month])
   @@index([year, month])
@@ -2030,14 +2036,14 @@ model OvertimeLine {
   rateSource           String?
 
   /// MANUAL_HOURS | REVERSE_FROM_AMOUNT
-  calculationMethod  String  @default("MANUAL_HOURS")
-  reverseTargetAmount Float?
+  calculationMethod     String  @default("MANUAL_HOURS")
+  reverseTargetAmount   Float?
   /// الساعات الخام قبل التقريب لأعلى (الحسبة العكسية فقط).
   rawHoursBeforeCeiling Float?
   /// المادة/المرجع القانوني المطبَّق — نص ثابت من محرك القواعد.
-  legalReference String
-  notes          String?
-  sortOrder      Int     @default(0)
+  legalReference        String
+  notes                 String?
+  sortOrder             Int     @default(0)
 
   @@index([calculationId])
   @@map("employee_compensation_overtime_lines")
@@ -2121,8 +2127,8 @@ model CompensationEarningLine {
   entryDate DateTime?
   reason    String?
   notes     String?
-  recurring Boolean @default(false)
-  sortOrder Int     @default(0)
+  recurring Boolean   @default(false)
+  sortOrder Int       @default(0)
 
   // ── تفصيل الساعة للبنود المسعّرة بالساعة ────────────────────────────────────
   //
@@ -2163,7 +2169,7 @@ model CompensationDeductionLine {
   label     String
   amount    Float
   notes     String?
-  sortOrder Int    @default(0)
+  sortOrder Int     @default(0)
 
   /// سداد مديونية: ربط **صريح** بالسجل، لا استدلال من نصّ `label`.
   /// `Restrict` عمدًا: لا تُحذف مديونية عليها استقطاع محفوظ بصمت (المتطلب ١١).
@@ -2313,7 +2319,7 @@ model EntitlementsBankStatementLine {
   statement   EntitlementsBankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
 
   /// مرجع للتتبّع فقط — بلا مفتاح أجنبي (انظر شرح الجدولين أعلاه).
-  employeeId Int
+  employeeId    Int
   /// معرّف حسبة المستحقات الشهرية المصدر — للتتبّع فقط، بلا مفتاح أجنبي: تعديل تلك
   /// الحسبة أو حذفها لاحقًا لا يغيّر ولا يحذف هذا السطر.
   calculationId Int?
@@ -2326,9 +2332,9 @@ model EntitlementsBankStatementLine {
   bankAccountSnapshot    String?
 
   // ── لقطة الأرقام: المعادلة الوحيدة هي transferAmount = net − basic ──
-  netAmountSnapshot    Float
-  basicSalarySnapshot  Float
-  transferAmount       Float
+  netAmountSnapshot   Float
+  basicSalarySnapshot Float
+  transferAmount      Float
 
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
@@ -2338,4 +2344,123 @@ model EntitlementsBankStatementLine {
   @@index([statementId])
   @@index([employeeId])
   @@map("entitlements_bank_statement_lines")
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  مواءمة سجلّ الترحيلات — Migration History Reconciliation Pack v1
+// ═════════════════════════════════════════════════════════════════════════════
+//
+//  ⚠ النماذج الأربعة أدناه **للمواءمة البنيوية وحدها**.
+//
+//  جداولها موجودة فعلًا في قاعدة البيانات منذ ترحيلات مطبَّقة ومسجَّلة في
+//  `_prisma_migrations`، لكن نماذجها لم تكن قد وصلت `production` قط لأن الفرعين
+//  اللذين أنشآها لم يُدمجا:
+//
+//    • professional_form_templates + printed_cheques
+//      ← 20260723160000 / 20260724100000 / 20260724120000
+//      ← feature/professional-forms-designer-wip @ f635f309 (2026-07-26، وسمها WIP)
+//
+//    • vehicle_insurance_policies + vehicle_accidents
+//      ← 20260818120000_add_vehicle_insurance
+//      ← feature/vehicle-insurance-v1 @ 353e71d0 (2026-08-19)
+//
+//  النتيجة كانت انحرافًا ثلاثي الاتجاه: القاعدة تحوي أربعة جداول لا يعرفها المخطط
+//  ولا مجلد الترحيلات — فيرفض `prisma migrate dev` المتابعة ويعرض إعادة تهيئة
+//  قاعدة التطوير. هذه الكتلة تُغلق الفجوة **بالتصريح لا بالتنفيذ**: لا SQL يُشغَّل،
+//  ولا صفّ يُكتب، ولا جدول يُنشأ — البنية موجودة أصلًا، وما ينقص هو تمثيلها.
+//
+//  ═══ ما لا تعنيه هذه الكتلة ═══
+//  وجود النموذج **لا يعني تفعيل الميزة**. لا يوجد في هذا المستودع — ولن يُضاف عبر
+//  هذه الحزمة — أي service أو route أو صلاحية أو شاشة تقرأ من هذه الجداول أو تكتب
+//  فيها. «مصمّم النماذج الاحترافية» و«تأمين المركبات» يبقيان غير مدموجَين وغير
+//  مُفعَّلَين، وكل ما يخصّهما من كود يظلّ حصرًا على فرعيهما.
+//
+//  التعريفات منقولة **حرفيًا** من مخطط الفرع الأصلي لكل ميزة، لا مُعاد اختراعها:
+//  الأسماء والـ`@@map` والفهارس والمفاتيح الأجنبية كما كتبها مؤلّفها، فيبقى دمج أي
+//  من الفرعين لاحقًا عملية بلا تعارض على هذه النماذج.
+//
+//  التحقق: `migrate diff` في الاتجاهين (ترحيلات ← مخطط، ومخطط ← قاعدة التطوير)
+//  يُخرج ترحيلًا فارغًا.
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── مصمّم النماذج الاحترافية (غير مُفعَّل) ────────────────────────────────────
+
+/// قالب مستند احترافي (صورة خلفية + حقول موضوعة فوقها). سجل واحد لكل نوع مستند.
+/// جدول إعداد بحت: لا يقرؤه أي كود في هذا المستودع حاليًا.
+model ProfessionalFormTemplate {
+  id              Int      @id @default(autoincrement())
+  name            String
+  documentType    String   @unique // CHEQUE | PAYMENT_VOUCHER
+  backgroundImage String // صورة الخلفية كـ data URL
+  fields          String // JSON — مصفوفة كائنات الحقول الكاملة
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("professional_form_templates")
+}
+
+/// سجل شيك مطبوع من قالب المصمّم. مستقل تمامًا عن `Cheque` و`ChequePrintLog`
+/// القائمَين: لا مفتاح أجنبي بينهما، ولا يقرأ أيٌّ منهما هذا الجدول.
+model PrintedCheque {
+  id                            Int       @id @default(autoincrement())
+  chequeNumber                  String
+  beneficiary                   String
+  amount                        String
+  chequeDate                    String
+  paymentReason                 String
+  printedAt                     DateTime  @default(now())
+  printedByUserId               Int?
+  printedByName                 String?
+  paymentVoucherPrinted         Boolean   @default(false)
+  paymentVoucherPrintedAt       DateTime?
+  paymentVoucherPrintedByUserId Int?
+  paymentVoucherPrintedByName   String?
+
+  @@index([paymentVoucherPrinted])
+  @@map("printed_cheques")
+}
+
+// ── تأمين المركبات (غير مُفعَّل) ──────────────────────────────────────────────
+
+/// وثيقة تأمين لمعدة واحدة. المفتاح الأجنبي إلى `equipment` قائم في قاعدة البيانات
+/// منذ الترحيل الأصلي — يُصرَّح به هنا كما هو، ولا يُنشأ من جديد.
+model VehicleInsurancePolicy {
+  id           Int      @id @default(autoincrement())
+  equipmentId  Int
+  policyNumber String // رقم وثيقة التأمين
+  insurerName  String // شركة التأمين
+  coverageType String // COMPREHENSIVE (شامل) | THIRD_PARTY (ضد الغير) | OTHER (آخر)
+  startDate    DateTime // تاريخ بداية التأمين
+  endDate      DateTime // تاريخ انتهاء التأمين
+  cost         Float    @default(0) // تكلفة التأمين (د.ك)
+  notes        String?
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([equipmentId])
+  @@index([endDate])
+  @@index([insurerName])
+  @@map("vehicle_insurance_policies")
+}
+
+/// حادث مسجَّل على معدة — سجل تاريخي بحت، بلا أي أثر محاسبي أو تعويضي.
+model VehicleAccident {
+  id           Int      @id @default(autoincrement())
+  equipmentId  Int
+  accidentDate DateTime // تاريخ الحادث
+  description  String // وصف مختصر للحادث
+  repairCost   Float? // تكلفة الإصلاح (إن وجدت)
+  notes        String?
+
+  equipment Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([equipmentId])
+  @@index([accidentDate])
+  @@map("vehicle_accidents")
 }
