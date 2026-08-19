@@ -92,6 +92,14 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   //   `delete` موجود لأن حذف حسبة معتمدة مسموح صراحةً في تصميم الوحدة.
   //   `print` يحرس مسارَي بيانات الطباعة (الكشف المختصر والتقرير التفصيلي).
   employeeCompensation: ['read', 'create', 'update', 'delete', 'approve', 'print'],
+  // جاهزية XBRL — أقل مجموعة ممكنة، ثلاثة مفاتيح لا أكثر:
+  //   read     — مطالعة الجاهزية والربط ونتائج التحقق واللقطات.
+  //   manage   — إنشاء/تعديل/حذف التصنيفات والمفاهيم والربط وسياق التقرير.
+  //   snapshot — إنشاء لقطة إصدار مالي. مفصول عن `manage` لأنه الإجراء الوحيد الذي
+  //              لا رجعة فيه هنا: اللقطة لا تُعدَّل ولا تُحذف بأي مسار.
+  // لا `export`: لا يوجد تصدير رسمي في هذه المرحلة أصلًا، ومفتاح بلا مسار خلفه
+  // يظهر في شاشة الأدوار كقدرة لا تفعل شيئًا.
+  xbrl: ['read', 'manage', 'snapshot'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -114,6 +122,8 @@ const ACTION_AR: Record<string, string> = {
   reverse:   'عكس قيد',
   register:  'تسجيل وإصدار رقم مرجعي',
   archive:   'أرشفة',
+  manage:    'إدارة',
+  snapshot:  'إنشاء لقطة',
 };
 
 // مصفوفة صلاحيات كل دور (قائمة وحدات بصلاحية كاملة، أو مفاتيح محددة)
@@ -175,6 +185,9 @@ async function main() {
     ACCOUNTANT: [
       ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques', 'statements']),
       ...keysForModules(['aging', 'gl', 'trialbalance', 'journal', 'finreports']),
+      // جاهزية XBRL — المحاسب هو مالك إعداد التقارير المالية، فله المفاتيح الثلاثة.
+      // لا أثر محاسبي لأيٍّ منها: الوحدة لا تكتب خارج جداول `xbrl_*`.
+      ...keysForModules(['xbrl']),
       ...readOnly(['dashboard', 'contracts', 'employees', 'equipment', 'payroll', 'audit']),
       'forms.read',
       'forms.print',

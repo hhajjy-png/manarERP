@@ -1,0 +1,428 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   جاهزية XBRL — أنماط الشاشة.
+
+   لا لون ولا ظلّ ولا حافّة جديدة: كل شيء هنا مبني على رموز `--xpl-*` من
+   ExplorerKit، فتبقى الشاشة جزءًا من نفس اللغة البصرية ولا تصير جزيرة.
+   ما يضيفه هذا الملف: تخطيط بطاقات النظرة العامة، جدول الربط، قائمة المفاهيم،
+   وقائمة نتائج التحقق.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.xbrl-page .xbrl-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.xbrl-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 12px;
+  margin-block: 16px;
+}
+
+/* ── تنويهات ──────────────────────────────────────────────────────────────
+   البانر الأهم في الصفحة: لا توافق رسمي. نبرته معلوماتية لا تحذيرية — الحالة
+   طبيعية ومتوقّعة، وتلوينها بالأحمر يجعل الشاشة تبدو معطوبة بلا سبب. */
+.xbrl-notice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid var(--xpl-border);
+  border-inline-start: 3px solid var(--xpl-blue);
+  border-radius: 12px;
+  background: var(--xpl-surface);
+  box-shadow: var(--xpl-shadow-sm);
+}
+
+.xbrl-notice--warn {
+  border-inline-start-color: var(--xpl-orange);
+}
+
+.xbrl-notice .material-symbols-outlined {
+  color: var(--xpl-blue);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.xbrl-notice--warn .material-symbols-outlined {
+  color: var(--xpl-orange);
+}
+
+.xbrl-notice strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+  color: var(--xpl-text);
+}
+
+.xbrl-notice p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--xpl-muted);
+}
+
+/* ── النظرة العامة ─────────────────────────────────────────────────────── */
+
+.xbrl-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.xbrl-kv {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.xbrl-kv > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed var(--xpl-border);
+}
+
+.xbrl-kv > div:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.xbrl-kv dt {
+  font-size: 13px;
+  color: var(--xpl-muted);
+}
+
+.xbrl-kv dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--xpl-text);
+  text-align: end;
+}
+
+/* المعرّفات والأرقام والأكواد تبقى LTR داخل صفحة RTL — بلا هذا يعيد خوارزم
+   الاتجاه ثنائي الاتجاه ترتيب مقاطع الكود ويقلب معناها بصريًا. */
+.xbrl-page .ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: start;
+}
+
+.xbrl-page .mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+
+.xbrl-muted {
+  color: var(--xpl-muted);
+  font-size: 12.5px;
+}
+
+.xbrl-hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--xpl-muted);
+}
+
+/* ── شريط التقدّم ──────────────────────────────────────────────────────── */
+
+.xbrl-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.xbrl-progress-bar {
+  flex: 1;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--xpl-surface-2);
+  overflow: hidden;
+}
+
+.xbrl-progress-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--xpl-primary), var(--xpl-primary-2));
+  transition: width 240ms ease;
+}
+
+.xbrl-progress-value {
+  min-width: 56px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--xpl-text);
+  text-align: end;
+}
+
+.xbrl-progress-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ── الفلاتر والجداول ──────────────────────────────────────────────────── */
+
+.xbrl-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+/* الجداول المالية تُمرَّر أفقيًا داخل حاويتها — لا تدفع الصفحة كلها. */
+.xbrl-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+}
+
+.xbrl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.xbrl-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--xpl-muted);
+  text-align: start;
+  white-space: nowrap;
+  background: var(--xpl-surface-2);
+  border-bottom: 1px solid var(--xpl-border);
+}
+
+.xbrl-table tbody td {
+  padding: 10px 12px;
+  color: var(--xpl-text);
+  border-bottom: 1px solid var(--xpl-border);
+  vertical-align: middle;
+}
+
+.xbrl-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.xbrl-table tbody tr:hover {
+  background: var(--xpl-faint-2);
+}
+
+.xbrl-table tr.is-total td {
+  font-weight: 700;
+  background: var(--xpl-faint-2);
+}
+
+.xbrl-table .num {
+  text-align: end;
+  white-space: nowrap;
+}
+
+.xbrl-table .actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.xbrl-concept-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.xbrl-hash {
+  cursor: help;
+}
+
+/* ── نتائج التحقق ─────────────────────────────────────────────────────── */
+
+.xbrl-findings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xbrl-finding {
+  padding: 12px 14px;
+  border: 1px solid var(--xpl-border);
+  border-inline-start: 3px solid var(--xpl-border);
+  border-radius: 10px;
+  background: var(--xpl-surface);
+}
+
+.xbrl-finding--error   { border-inline-start-color: var(--xpl-red); }
+.xbrl-finding--warning { border-inline-start-color: var(--xpl-orange); }
+.xbrl-finding--info    { border-inline-start-color: var(--xpl-blue); }
+
+.xbrl-finding-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.xbrl-finding-code {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 700;
+  color: var(--xpl-text);
+  background: var(--xpl-surface-2);
+}
+
+.xbrl-finding-msg {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--xpl-text);
+}
+
+.xbrl-finding-meta {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--xpl-muted);
+}
+
+/* ── حوار الربط ───────────────────────────────────────────────────────── */
+
+.xbrl-dialog-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.xbrl-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--xpl-muted);
+}
+
+.xbrl-input,
+.xbrl-select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--xpl-text);
+  background: var(--xpl-surface);
+}
+
+.xbrl-input:focus-visible,
+.xbrl-select:focus-visible {
+  outline: 2px solid var(--xpl-primary);
+  outline-offset: 1px;
+}
+
+.xbrl-concept-list {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  margin-bottom: 14px;
+  border: 1px solid var(--xpl-border);
+  border-radius: 12px;
+  background: var(--xpl-bg);
+}
+
+.xbrl-concept-item {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font: inherit;
+  text-align: start;
+  color: var(--xpl-text);
+  background: var(--xpl-surface);
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.xbrl-concept-item:hover {
+  border-color: var(--xpl-primary);
+  background: var(--xpl-faint-2);
+}
+
+.xbrl-concept-item.selected {
+  border-color: var(--xpl-primary);
+  background: var(--xpl-faint);
+}
+
+.xbrl-concept-item:focus-visible {
+  outline: 2px solid var(--xpl-primary);
+  outline-offset: 1px;
+}
+
+.xbrl-concept-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.xbrl-concept-label {
+  font-size: 13px;
+}
+
+.xbrl-concept-meta {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.xbrl-dialog-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--xpl-muted);
+}
+
+.xbrl-dialog-empty .material-symbols-outlined {
+  font-size: 40px;
+  opacity: .5;
+}
+
+.xbrl-dialog-spacer {
+  flex: 1;
+}
+
+@media (max-width: 720px) {
+  .xbrl-concept-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .xbrl-kv > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .xbrl-kv dd {
+    text-align: start;
+  }
+}
