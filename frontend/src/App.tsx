@@ -27,6 +27,8 @@ const Cheques = lazy(() => import('./pages/Cheques'));
 const DataImport = lazy(() => import('./pages/DataImport'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
+// تأمين المركبات — صفحة مستقلة (وثائق التأمين + سجل الحوادث).
+const VehicleInsurance = lazy(() => import('./pages/VehicleInsurance'));
 const Prices = lazy(() => import('./pages/Prices'));
 const WorkAnalysis = lazy(() => import('./pages/WorkAnalysis'));
 const Attendance = lazy(() => import('./pages/Attendance'));
@@ -180,6 +182,7 @@ export default function App() {
             <Route path="/payroll/bank-analytics" element={<BankSalaryAnalytics />} />
             <Route path="/audit" element={<AuditLog />} />
             <Route path="/maintenance" element={<Maintenance />} />
+            <Route path="/vehicle-insurance" element={<VehicleInsurance />} />
             <Route path="/prices" element={<Prices />} />
             <Route path="/work-analysis" element={<WorkAnalysis />} />
             <Route path="/attendance" element={<Attendance />} />

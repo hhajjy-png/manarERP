@@ -519,6 +519,9 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'customers',    label: 'nav.customers',    icon: 'groups',      permission: 'customers.read' },
     { key: 'equipment',    label: 'nav.equipment',    icon: 'construction', permission: 'equipment.read' },
     { key: 'maintenance',  label: 'nav.maintenance',  icon: 'build_circle', permission: 'maintenance.read' },
+    // تأمين المركبات — يجاور الصيانة لأن كليهما يعمل على أسطول المعدات، وصلاحيته
+    // مستقلة تمامًا عن `equipment.read` و`maintenance.read`.
+    { key: 'vehicle-insurance', label: 'nav.vehicle_insurance', icon: 'shield', permission: 'vehicleInsurance.read' },
     { key: 'employees',    label: 'nav.employees',    icon: 'badge',       permission: 'employees.read' },
     // مستحقات الموظف الشهرية — يجاور «الموظفين» لأنه يقرأ منهم، ويسبق الحضور.
     // صلاحيته مستقلة تمامًا عن `payroll.read`.

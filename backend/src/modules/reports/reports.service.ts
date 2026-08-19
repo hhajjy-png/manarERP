@@ -12,6 +12,7 @@ import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLa
 import { buildExpenseAnalysis } from './expenseAnalysis';
 import { buildCollectionsAnalysis } from './collectionsAnalysis';
 import { buildEmployeeEntitlementsReport } from './employeeEntitlementsReport';
+import { buildVehicleInsuranceReport } from './vehicleInsuranceReport';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
@@ -95,6 +96,9 @@ export class ReportsService {
         return this.cheques(query);
       case 'employee-entitlements-monthly':
         return this.employeeEntitlementsMonthly(query);
+      // تأمين المركبات — يقرأ جدولَي الوحدة وحدهما، ولا يمسّ أي تقرير قائم.
+      case 'vehicle-insurance':
+        return buildVehicleInsuranceReport({ status: query.status });
       default:
         throw AppError.badRequest('نوع تقرير غير معروف');
     }

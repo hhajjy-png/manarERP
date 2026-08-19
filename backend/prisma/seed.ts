@@ -100,6 +100,14 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   // لا `export`: لا يوجد تصدير رسمي في هذه المرحلة أصلًا، ومفتاح بلا مسار خلفه
   // يظهر في شاشة الأدوار كقدرة لا تفعل شيئًا.
   xbrl: ['read', 'manage', 'snapshot'],
+  // تأمين المركبات — وحدة تشغيلية مستقلة.
+  //   لا `delete` إطلاقًا: التجديد يُنشئ وثيقة جديدة ولا يعدّل القديمة، والحوادث سجل
+  //   تاريخي دائم. لا مسار حذف في الخدمة أصلًا، ومفتاح صلاحية بلا مسار خلفه يظهر في
+  //   شاشة الأدوار كقدرة لا تفعل شيئًا.
+  //   لا `approve`: لا سير موافقات ولا ترحيل محاسبي في هذه الوحدة.
+  //   `update` للتصحيح الكتابي وحده (رقم وثيقة مكتوب خطأً)، لا للتجديد.
+  //   `export` يحرس تصدير Excel لنتائج الشاشة الحالية.
+  vehicleInsurance: ['read', 'create', 'update', 'export'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -219,6 +227,10 @@ async function main() {
       'bankStatementImport.reconcile',
       'bankStatementImport.delete',
       'expirations.read',
+      // المحاسب يطالع تكاليف التأمين ويصدّرها، ولا يدخل وثائق ولا حوادث: إدخال
+      // البيانات بيد مسؤول المعدات، والوحدة لا تُرحَّل إلى المحاسبة أصلًا.
+      'vehicleInsurance.read',
+      'vehicleInsurance.export',
       'attachments.read',
       'attachments.create',
       'attachments.delete',
@@ -241,7 +253,8 @@ async function main() {
       'attachments.create',
     ],
     EQUIPMENT_MANAGER: [
-      ...keysForModules(['equipment', 'maintenance', 'reports']),
+      // مسؤول المعدات هو مالك وحدة تأمين المركبات — صلاحية كاملة.
+      ...keysForModules(['equipment', 'maintenance', 'reports', 'vehicleInsurance']),
       'inventory.read',
       'inventory.create',
       'inventory.update',

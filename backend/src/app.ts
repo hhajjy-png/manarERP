@@ -58,6 +58,8 @@ import searchRoutes from './modules/search/search.routes';
 import lettersRoutes from './modules/letters/letters.routes';
 // جاهزية XBRL — طبقة إعداد مستقبلية تقرأ من المحاسبة ولا تكتب فيها.
 import xbrlRoutes from './modules/xbrl/xbrl.routes';
+// تأمين المركبات — وحدة تشغيلية مستقلة، تكتب حصرًا في جدولَيها الجديدين.
+import vehicleInsuranceRoutes from './modules/vehicleInsurance/vehicleInsurance.routes';
 
 /**
  * إنشاء تطبيق Express وتهيئة الـ Middlewares والمسارات.
@@ -162,6 +164,8 @@ export function createApp(): Application {
   app.use('/api/employee-compensation', employeeCompensationRoutes);
   // جاهزية XBRL — تصنيفات ومفاهيم وربط وتحقق ولقطات. لا مسار كتابة محاسبي هنا.
   app.use('/api/xbrl', xbrlRoutes);
+  // تأمين المركبات — لا يكتب في المحاسبة ولا المصروفات ولا الصيانة.
+  app.use('/api/vehicle-insurance', vehicleInsuranceRoutes);
 
   // معالجة المسارات غير الموجودة + الأخطاء (يجب أن تكون في النهاية)
   app.use(notFoundHandler);
