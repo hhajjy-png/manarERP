@@ -26,7 +26,7 @@ import type { ReportInput } from '../../shared/services/reportEngine/excel.servi
 import { approvalEngine } from '../../shared/services/approval.service';
 import { GL_REFERENCE_TYPES } from '../../shared/services/gl.service';
 import { AddPaymentInput, CreateInvoiceInput, UpdateInvoiceInput } from './invoices.schema';
-import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase } from './invoices.calc';
+import { round3, computeTotals, nextStatus, overpaymentExceeds, isImmediatelySettledPurchase, purchaseGlTreatmentWouldChange } from './invoices.calc';
 import { roundMoney } from '../../shared/utils/money';
 import { postInvoiceToGL, postPurchaseInvoiceToGL, postPaymentToGL, postPurchasePaymentToGL, reversePurchasePaymentGL, reverseSalesPaymentGL, reverseInvoiceFromGL, repostInvoiceToGL, reversePurchaseInvoiceGL } from './invoices.accounting';
 import { assertPeriodOpen } from '../../shared/services/periodLock.service';
@@ -370,6 +370,27 @@ export class InvoicesService {
       }
     }
 
+    // ─── خطأ C1 (مسار التعديل) ───────────────────────────────────────────────
+    // `paymentMethod` يقود حساب الدائن في قيد الشراء، و`repostInvoiceToGL` أدناه يُعيد
+    // قراءته من الصف المحدَّث — بينما حالة السداد (`paidAmount`/`status`) تُشتقّ منه
+    // **مرة واحدة عند الإنشاء** فقط (`isImmediatelySettledPurchase` في `create`) ولا
+    // يُعاد اشتقاقها هنا. تغييره بعد الترحيل يفصل المُخرجَين: الأستاذ يُدائن الصندوق
+    // (سُدِّدت) والفاتورة تبقى UNPAID، فيمرّ حارس `addPayment` ويُدائن الصندوق مرةً
+    // ثانية ويترك الذمم الدائنة برصيد مدين. وفي الحالة الجزئية يقع الفساد فورًا بلا
+    // دفعة إضافية أصلًا.
+    //
+    // إعادة تصنيف معاملة **مُرحَّلة** تُعالَج بالإلغاء وإعادة الإنشاء (أثر تدقيق كامل)
+    // لا بتحرير صامت للحقل — وهو نفس مبدأ «المسدَّدة للعرض فقط» و«الجهة والاتجاه
+    // مقفلان بعد الدفع» أعلاه. المقارنة على الحساب الفعّال، فالتعديل المكافئ
+    // (`null` ⇄ `ACCOUNTS_PAYABLE`) يمرّ بلا اعتراض.
+    const currentPaymentMethod = (current as Record<string, unknown>)['paymentMethod'] as string | null ?? null;
+    const nextPaymentMethod = input.paymentMethod !== undefined ? input.paymentMethod ?? null : currentPaymentMethod;
+    if (purchaseGlTreatmentWouldChange(input.direction ?? current.direction, currentPaymentMethod, nextPaymentMethod)) {
+      throw AppError.badRequest(
+        'لا يمكن تغيير طريقة الدفع لفاتورة مشتريات بعد ترحيلها محاسبيًا — ألغِ الفاتورة وأنشئها من جديد بالطريقة الصحيحة',
+      );
+    }
+
     // التعديل يُعيد ترحيل القيد (repostInvoiceToGL) — احرس الفترة القديمة والجديدة معًا.
     await assertPeriodOpen(prisma, current.issueDate, { operation: 'تعديل فاتورة', module: 'invoices', entityId: id });
     if (input.issueDate && input.issueDate.getTime() !== current.issueDate.getTime()) {
@@ -437,7 +458,8 @@ export class InvoicesService {
           deliveryDate: input.deliveryDate !== undefined ? input.deliveryDate : current.deliveryDate,
           billingMonth: finalBillingMonth,
           billingYear: finalBillingYear,
-          paymentMethod: input.paymentMethod !== undefined ? input.paymentMethod : (current as Record<string, unknown>)['paymentMethod'] as string ?? null,
+          // نفس القيمة المدموجة التي فُحصت في حارس C1 أعلاه — تعبير واحد لا تعبيران ينحرفان.
+          paymentMethod: nextPaymentMethod,
           taxRate,
           discount,
           subtotal,

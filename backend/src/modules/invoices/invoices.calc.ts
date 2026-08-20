@@ -44,6 +44,39 @@ export function isImmediatelySettledPurchase(direction: string, paymentMethod?: 
 }
 
 /**
+ * طريقة الدفع **الفعّالة** التي يُشتقّ منها حساب الدائن في قيد فاتورة المشتريات.
+ *
+ * `null`/`undefined` مرادفة تمامًا لـ`ACCOUNTS_PAYABLE`: هذا هو الافتراضي الذي يطبّقه
+ * بانِي القيد نفسه (`invoices.accounting.ts` → `buildInvoiceGLPosting`، حيث
+ * `paymentMethod ?? 'ACCOUNTS_PAYABLE'`). توحيد التطبيع هنا يجعل سؤال «هل تتغيّر
+ * المعالجة المحاسبية؟» يُقاس على **الحساب الناتج** لا على النص الخام — فلا يُرفض تعديل
+ * مكافئ (`null` → `ACCOUNTS_PAYABLE`) ولا يمرّ تعديل مؤثّر.
+ */
+export function effectivePurchaseGlMethod(paymentMethod?: string | null): string {
+  return paymentMethod ?? 'ACCOUNTS_PAYABLE';
+}
+
+/**
+ * هل يُغيّر التعديل المعالجة المحاسبية لفاتورة مشتريات؟ (خطأ C1 — مسار التعديل)
+ *
+ * `paymentMethod` يقود مُخرجَين: حساب الدائن في القيد (يُعاد اشتقاقه عند **كل** إعادة
+ * ترحيل)، وحالة السداد `paidAmount`/`status` (تُشتقّ **مرة واحدة عند الإنشاء** عبر
+ * `isImmediatelySettledPurchase` ولا يُعاد اشتقاقها في التعديل). تغييره بعد الترحيل
+ * يفصل المُخرجَين: الأستاذ يقول «سُدِّد نقدًا» بينما الفاتورة تبقى غير مسدَّدة — فتُقبل
+ * دفعة تسوية ثانية تُدائن النقد مرتين وتترك الذمم الدائنة برصيد مدين (التزام سالب).
+ *
+ * فروع `SALES` لا تقرأ `paymentMethod` إطلاقًا، فلا يُقيَّد التعديل خارج المشتريات.
+ */
+export function purchaseGlTreatmentWouldChange(
+  finalDirection: string,
+  currentPaymentMethod?: string | null,
+  nextPaymentMethod?: string | null,
+): boolean {
+  if (finalDirection !== 'PURCHASE') return false;
+  return effectivePurchaseGlMethod(currentPaymentMethod) !== effectivePurchaseGlMethod(nextPaymentMethod);
+}
+
+/**
  * Returns true if a new payment would exceed the invoice total beyond the 0.001 KWD tolerance.
  * The +0.001 tolerance absorbs floating-point drift at 3dp precision.
  */
