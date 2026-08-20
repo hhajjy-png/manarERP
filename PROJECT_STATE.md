@@ -73,7 +73,33 @@ in a table cell.
 
 ---
 
-## Latest Release — C-1 Critical Accounting Fix Pack v1
+## Latest Release — Production Release 2026.5.6
+
+| Field | Value |
+|-------|-------|
+| **Package** | Production Release 2026.5.6 — إصدار تغليف. يجمع في مثبِّت Windows جديد مكتفٍ ذاتيًا كل ما دُمج على `production` منذ مثبِّت 2026.5.5. لا عمل ميزات جديد في الإصدار نفسه |
+| **Release status** | RELEASED — Product Owner manual visual & functional review **completed and approved** prior to release authorization; not re-performed during release |
+| **Release commit** | `bac75a32` — `chore(release): Production Release 2026.5.6` (`package.json` `2026.5.5` → `2026.5.6`، الملف الوحيد المتغيّر) |
+| **Merge** | `0d33b9ea` — `--no-ff` merge of `feature/production-release-2026.5.6` |
+| **Tags** | `stable-production-release-2026.5.6` → `0d33b9ea` · `checkpoint-production-release-2026.5.6` → `788c8fe0` (production HEAD قبل الإصدار مباشرةً) |
+| **Contents (first time in an installer)** | **C-1 Critical Accounting Fix Pack v1** (`ffa03704`، merge `1963201a`، tag `stable-c1-critical-accounting-fix-pack-v1`) · **Packaging Hardening Pack v1** (`3feb15e3`، merge `788c8fe0`، tag `stable-packaging-hardening-pack-v1`) |
+| **C-1 — ما أُغلق** | `PUT /invoices/:id` كان يسمح بتغيير `paymentMethod` لفاتورة شراء بعد ترحيلها. الحقل يقود مُخرجَين بدورتَي حياة مختلفتين: حساب الدائن في القيد (يُعاد اشتقاقه عند كل `repostInvoiceToGL`) وحالة السداد `paidAmount`/`status` (تُشتقّ مرة واحدة عند الإنشاء فقط). فالتعديل كان يحرّك الأول ويجمّد الثاني: الأستاذ يُدائن الصندوق بينما الفاتورة تبقى `UNPAID`، فيمرّ حارس `addPayment` ويُدائن الصندوق مرة ثانية ويترك الذمم الدائنة برصيد **مدين**. الحارس الجديد يرفض بـ400 قبل أي عمل على القاعدة، ويقارن على **الحساب الدائن الفعّال** فيمرّ التعديل المكافئ (`null` ⇄ `ACCOUNTS_PAYABLE`) |
+| **Packaging — ما أُغلق** | (١) **تقادم عميل Prisma صامتًا — أُصلح جذريًا:** مصدر النسخ صار `backend/node_modules` (حيث يكتب `prisma generate` فعلًا) لا جذر المستودع الذي كان يتجمّد بلا إشارة (75 نموذجًا مقابل 85 في 2026.5.5)، وأُضيف `verifyPackagedPrismaSchema()` — حارس فشل-مغلق يقارن **مجموعة** أسماء النماذج ويُفشل البناء عند أي فرق. **عمل فعلًا في هذا البناء وسجّل: «تحقّق مجموعة نماذج Prisma: 85 نموذجًا مطابقًا للمخطط القانوني ✓»**. الحل اليدوي الإلزامي في كل إصدار سابق لم يعد ضروريًا. (٢) **تسريب كود تطويري:** `__livetest__/liveTest.js` كان مشحونًا فعليًا داخل مثبِّت 2026.5.5؛ أُغلق بحاجزين مستقلين (استثناء `backend/tsconfig.json` + مرشِّح `electron-builder.yml`) |
+| **Scope** | لا تغيير مخطط، لا ترحيل جديد، لا مفتاح صلاحية جديد، لا اعتمادية جديدة، لا تغيير واجهة. 69 مجلد ترحيل و`migrate status`: «Database schema is up to date» |
+| **Golden Database** | SHA-256 `03fb8e5e18cef47e04a19c7d80e06359779aefd6c402d9d821ffd5249690f880`، 3,870,720 بايت، `integrity_check = ok`، 0 مخالفة مفتاح أجنبي، 86 جدولًا (85 نموذجًا + `_prisma_migrations`)، 69 ترحيلًا مطبَّقًا (آخرها `20260819120000_add_xbrl_readiness_foundation`) — مطابقة بايتًا ببايت في **أربعة** مواضع: المصدر · `win-unpacked` · مستخرَجة من داخل `Setup.exe` · `seed-data/golden-manifest.json`. فُحصت السلامة على **نسخة** مطابقة لا على الملف المشحون، ولا ملف journal ساخن بجوار المصدر وقت التغليف |
+| **Golden Manifest** | `{ sha256: 03fb8e5e…f880, sizeBytes: 3870720, dataModifiedAt: 2026-08-20T11:54:54.330Z, packagedAt: 2026-08-20T12:00:34.718Z }` — مطابق في `build/seed-data` و`win-unpacked` وداخل `Setup.exe`، و`sha256`/`sizeBytes` مطابقان للقاعدة المشحونة فعليًا |
+| **Installer** | `AlManarERP-Setup-2026.5.6.exe`، 138,436,813 بايت (132.02 MiB)، SHA-256 `2b44d5a677f7f29a78d15f6eac373204d56cc928d967fd5f8285e8388bb6e44e`. `win-unpacked`: 3,376 ملفًا / 470,059,994 بايت (448.3 MiB). صفر متطلبات تشغيل خارجية على وندوز 10/11 نظيف |
+| **Packaging audit** | 4,107 مدخلًا في `Setup.exe` + 686 مدخلًا في `app.asar` — **صفر** في كل فئة ممنوعة: source maps · `__tests__` · `*.test.*`/`*.spec.*` · `.ts`/`.tsx`/`.d.ts` · `.env` · `.bak` · journals (`-wal`/`-shm`/`journal`) · `.pem`/`.key`/`.pfx`/`.crt` · بقايا محرّك Prisma المؤقتة · محرّكات Prisma لغير وندوز · **و`__livetest__`/`__probe__`**. ملف `.db` واحد فقط (`resources\backend\data\manar.db`). 69 ملف `migration.sql` = 69 مجلدًا في المستودع. مجلد Prisma المشحون يحوي `schema.prisma` و`migrations/` حصرًا. **مطابقة `.env` الإيجابية الكاذبة التي لازمت كل إصدار سابق اختفت** — المرشِّح صار يشترط بداية مقطع مسار |
+| **Prisma client inside the installer** | مستخرَج من داخل `Setup.exe` ومقارَن بـ**مجموعة** الأسماء لا العدد: **85 نموذجًا، صفر ناقص وصفر زائد** مقابل `backend/prisma/schema.prisma` |
+| **Validation** | `prisma generate` ✅ · `prisma validate` ✅ · `migrate status` 69/69 ✅ · Backend/Frontend/Electron `tsc --noEmit` ✅ · `npm run dist` ✅ (خرج 0) · Backend **215 ملفًا / 3434 اختبارًا** ✅ (اختباران متخطَّيان عمدًا) · Frontend **223 ملفًا / 4088 اختبارًا** ✅ · Electron **27 ملفًا / 502 اختبارًا** ✅ |
+| **Regression analysis** | لا انحدار. Backend 3418 → **3434** (+16 = اختبارات C-1 بالضبط) · Electron 499 → **502** (+3 = اختبارات `readModelSet` بالضبط) · Frontend ثابت عند **4088**. صفر فشل في الأساس. حجم المثبِّت و`win-unpacked` شبه ثابتين مقابل 2026.5.5 (‎−193 بايت و‎−1,268 بايت) رغم إسقاط ملفات الفحص — فرق متوقّع لتغيّر محتوى القاعدة الذهبية |
+| **الشرط التشغيلي المطبَّق** | التطبيق كان قيد التشغيل عند بدء الإصدار (خادم خلفي على `48211` وVite على `5173`)، ما أفشل `prisma generate` بـ`EPERM` على محرّك Prisma وكان سيلتقط القاعدة الذهبية وهي حيّة. أُوقف الإصدار وأغلق Product Owner التطبيق قبل المتابعة — تطبيقٌ للسياسة الموثّقة «أغلق التطبيق قبل أي إصدار» |
+| **خارج هذا الإصدار عمدًا** | حزمة التدقيق الهندسي الشامل المتبقية (27 ملفًا) **ما زالت غير مُرحَّلة** بقرار صريح من Product Owner لهذا الإصدار: أُدخلت منها ملفات التغليف الأربعة فقط. تنتظر أمر إصدار مستقلًا |
+| **Branches** | جميع فروع الميزات محفوظة — لم يُحذف أي فرع |
+
+---
+
+## Previous Release — C-1 Critical Accounting Fix Pack v1
 
 | Field | Value |
 |-------|-------|
