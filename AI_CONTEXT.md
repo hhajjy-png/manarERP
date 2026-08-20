@@ -33,12 +33,12 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `95f67a9c` (merge of `feature/production-release-2026.5.5` — **Production Release 2026.5.5**). A packaging release: it introduces no new feature work, only `package.json` `2026.5.4` → `2026.5.5`, and bundles into a new self-contained Windows installer every Feature Release merged onto `production` since the 2026.5.4 installer — Employee Compensation — Batch Printing v1, Migration History Reconciliation v1, XBRL Readiness Foundation v1, and Vehicle Insurance Management v1 |
-| **Current Documentation Commit** | `ffec75a4` |
-| **Current Stable Tag** | `stable-production-release-2026.5.5` → `95f67a9c` · checkpoint `checkpoint-production-release-2026.5.5` → `460a45dc` (production HEAD immediately before the release) (previous: `stable-vehicle-insurance-management-v1`) |
-| **Current Release Date** | 2026-08-19 |
+| **Current Merge Commit** | `1963201a` (merge of `feature/c1-critical-accounting-fix-pack-v1` — **C-1 Critical Accounting Fix Pack v1**). A source-only correctness release closing one critical accounting defect: `PUT /invoices/:id` allowed changing a purchase invoice's `paymentMethod` after GL posting. That field drives two outputs on different lifecycles — the credit account in the journal entry, re-derived on every repost, and the settlement state (`paidAmount`/`status`), derived from it **only once at creation**. Editing it moved the first and froze the second, so the ledger said "settled in cash" while the invoice stayed `UNPAID`; a settling payment then credited Cash a second time and left Accounts Payable with a debit balance (a negative liability). The fix is an early-reject guard in `update()`, before any DB work, comparing the **effective** credit account (`null` ≡ `ACCOUNTS_PAYABLE`) so accounting-equivalent edits still pass. No installer, no `npm run dist`, no version bump — `package.json` stays `2026.5.5`. Three files, +261/−2. Previous merge: `95f67a9c` (Production Release 2026.5.5) |
+| **Current Documentation Commit** | `__DOC_COMMIT__` |
+| **Current Stable Tag** | `stable-c1-critical-accounting-fix-pack-v1` → `1963201a` · checkpoint `checkpoint/pre-c1-critical-accounting-fix-pack-v1` → `b2c48029` (production HEAD immediately before the merge) (previous: `stable-production-release-2026.5.5` → `95f67a9c`) |
+| **Current Release Date** | 2026-08-20 |
 | **Application Version** | `2026.5.5` — new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.5.exe` (132.02 MiB, 138,437,006 bytes, SHA-256 `706e79e7e3ac239f336e3aebf3b3c5c1ad34b4b4932179ba7c22876bed636a2c`, Windows 10/11 x64, zero external runtime prerequisites). Golden Database SHA-256 `f62a08a874f40baf7a600732605ea4e276a1a8621472b400f27c2a13e52e041c` (3,866,624 bytes, `integrity_check = ok`, 0 foreign-key violations, 86 tables, 69 applied migrations) verified byte-identical in four places (source · `win-unpacked` · inside `Setup.exe` · `seed-data/golden-manifest.json`). The packaged Prisma client carries all **85** models, model set identical to `backend/prisma/schema.prisma` |
-| **Total Stable Releases** | 443 (window 2026-06-07 → 2026-08-19) — `git tag -l "stable-*"` count |
+| **Total Stable Releases** | 444 (window 2026-06-07 → 2026-08-20) — `git tag -l "stable-*"` count |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---

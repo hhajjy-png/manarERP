@@ -73,7 +73,28 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.5
+## Latest Release — C-1 Critical Accounting Fix Pack v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | C-1 Critical Accounting Fix Pack v1 — إغلاق ثغرة محاسبية حرجة في مسار تعديل فاتورة الشراء. **Source-only release** — لا installer، ولا `npm run dist`، ولا رفع لرقم الإصدار: `package.json` يبقى `2026.5.5` |
+| **Release status** | RELEASED — Product Owner manual visual & functional review **completed and approved** prior to release authorization; not re-performed during release |
+| **Feature commit** | `ffa03704` — `fix(invoices): close C-1 — block paymentMethod change on posted purchase invoices` (3 ملفات، ‎+261/−2) |
+| **Merge** | `1963201a` — `--no-ff` merge of `feature/c1-critical-accounting-fix-pack-v1` |
+| **Tags** | `stable-c1-critical-accounting-fix-pack-v1` → `1963201a` · `checkpoint/pre-c1-critical-accounting-fix-pack-v1` → `b2c48029` (production HEAD قبل الدمج مباشرةً) |
+| **الثغرة (C-1)** | `PUT /invoices/:id` كان يسمح بتغيير `paymentMethod` بعد الترحيل المحاسبي. الحقل يقود **مُخرجَين بدورتَي حياة مختلفتين**: حساب الدائن في القيد — يُعاد اشتقاقه عند **كل** `repostInvoiceToGL` لأن `buildInvoiceGLPosting` يقرأ الحقل من الصف في كل مرة — وحالة السداد `paidAmount`/`status` التي تُشتقّ منه **مرة واحدة عند الإنشاء فقط** عبر `isImmediatelySettledPurchase`. فالتعديل كان يحرّك الأول ويترك الثاني متجمّدًا: الأستاذ العام يُدائن الصندوق (سُدِّدت) بينما الفاتورة تبقى `UNPAID`، فيمرّ حارس `addPayment` — وهو سليم منطقيًا لكنه يقرأ `paidAmount` الذي صار كاذبًا — ويُدائن الصندوق **مرة ثانية** ويترك الذمم الدائنة برصيد **مدين** (التزام سالب مستحيل محاسبيًا). وفي الحالة الجزئية (`PARTIAL`) يقع الفساد **فورًا** بلا دفعة إضافية أصلًا |
+| **الإصلاح** | الخيار (ب) من تقرير التدقيق: حارس رفض مبكر في `update()` **قبل أي عمل على قاعدة البيانات** (قبل `assertPeriodOpen` وقبل فتح المعاملة) يرمي 400 إذا كان التعديل سيغيّر المعالجة المحاسبية. المقارنة على **الحساب الدائن الفعّال** لا على النص الخام عبر `effectivePurchaseGlMethod` التي تطبّع `null` إلى `ACCOUNTS_PAYABLE` — نفس افتراضي بانِي القيد — فالتعديل المكافئ (`null` ⇄ `ACCOUNTS_PAYABLE`) يمرّ وأي انتقال يغيّر حساب الدائن يُرفض. الشرط على **الاتجاه النهائي** `PURCHASE` يغلق أيضًا الباب الثاني للثغرة: تحويل `SALES → PURCHASE` مع طريقة نقدية في الطلب نفسه (كان يمرّ لأن حارس الجهة والاتجاه القائم لا يعمل عند `paidAmount = 0`). وُحِّد كذلك تعبير دمج `paymentMethod`: القيمة المفحوصة هي عينها المكتوبة في الصف |
+| **الملفات (3)** | `backend/src/modules/invoices/invoices.calc.ts` (‎+33 — `effectivePurchaseGlMethod` و`purchaseGlTreatmentWouldChange`، دالتان نقيّتان) · `backend/src/modules/invoices/invoices.service.ts` (‎+26/−2 — الحارس) · `backend/src/modules/invoices/__tests__/invoices.c1PaymentMethodGuard.test.ts` (جديد، 16 اختبارًا) |
+| **Scope** | لم يُمسّ: `invoices.accounting.ts` · `gl.service.ts` · `create()` · `addPayment()` · `postInvoiceToGL`/`repostInvoiceToGL` · حساب `paidAmount` · حساب `status` · `schema.prisma` · أي مهاجرة · أي مفتاح صلاحية · أي شاشة أو واجهة · أي نقطة API جديدة · `package.json` |
+| **التعرّض الفعلي** | **صفر فاتورة شراء** و**صفر قيد مشتريات** في قاعدة البيانات (كل الفواتير الـ113 مبيعات بـ`paymentMethod = null`) ⇒ لا بيانات مُتضررة، والعيب لم يُطلَق ولو مرة. ولا شاشة ترسل الحقل (`CreateInvoice`/`EditInvoice`/`invoiceFastEntry` — واختبار قائم يؤكد الإغفال)، ولا مسار الاستيراد يربطه ⇒ الحقل قابل للضبط عبر استدعاء API مباشر فقط |
+| **Validation** | `prisma validate` ✅ · Backend `tsc --noEmit` ✅ · `npm run build:back` ✅ · الفواتير + المحاسبة + المصاريف **25 ملفًا / 320 اختبارًا** ✅ · حزمة الخلفية الكاملة **213 ملفًا / 3434 اختبارًا** ✅ (اختباران متخطَّيان عمدًا). كل الفحوص أُجريت **معزولةً** فوق `production` بلا أي تعديل آخر في شجرة العمل |
+| **Regression analysis** | لا انحدار. خط الأساس 3418 + 16 اختبار الحزمة = **3434** بالضبط. `invoices.governance.test.ts` (5/5) و`invoices.purchasing`/`purchase-payment`/`accounting` خضراء بلا تعديل. الحارس رمي مبكر خالص: لا فرع كتابة جديد ولا استعلام إضافي ولا أثر جانبي — المسار الوحيد الذي يتغيّر سلوكه هو المسار الذي كان يُفسد الأستاذ العام |
+| **عمل لاحق مسجَّل** | بما أن الإصلاح **يمنع** العملية بدل أن يصححها، فأي نية لاحقة لكشف «طريقة الدفع» في شاشة فاتورة الشراء تحتاج مسار تصحيح صريحًا على غرار `amend` في المصاريف (فُكّ الترحيل ← عدّل ← أعد الاعتماد). حزمة مستقلة، وليست شرطًا لهذه |
+| **Branches** | جميع فروع الميزات محفوظة — لم يُحذف أي فرع |
+
+---
+
+## Previous Release — Production Release 2026.5.5
 
 | Field | Value |
 |-------|-------|
