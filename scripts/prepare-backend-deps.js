@@ -71,6 +71,41 @@ function pruneOrphanEngines(dir) {
   return { removed, bytes };
 }
 
+/** يستخرج مجموعة أسماء النماذج من ملف schema.prisma. */
+function readModelSet(schemaPath) {
+  const text = fs.readFileSync(schemaPath, 'utf8');
+  const models = new Set();
+  for (const m of text.matchAll(/^model\s+(\w+)\s/gm)) models.add(m[1]);
+  return models;
+}
+
+/**
+ * حارس فشل-مغلق (تدقيق 2026-08-19): يقارن **مجموعة** نماذج عميل Prisma المُجهَّز
+ * للتغليف مع المخطط القانوني `backend/prisma/schema.prisma` — لا العدد فقط.
+ * لو كان هذا الحارس موجودًا في 2026.5.5 لفشل البناء بصوت عالٍ (75 ≠ 85) بدل
+ * اكتشاف النقص يدويًا بعد التغليف.
+ */
+function verifyPackagedPrismaSchema() {
+  const canonicalPath = path.join(BACKEND_DIR, 'prisma', 'schema.prisma');
+  const stagedPath = path.join(STAGE_DIR, 'node_modules', '.prisma', 'client', 'schema.prisma');
+  if (!fs.existsSync(stagedPath)) {
+    throw new Error(`عميل Prisma المُجهَّز بلا schema.prisma (${stagedPath}) — العميل المنسوخ غير مُولَّد. شغّل "npm run db:generate".`);
+  }
+  const canonical = readModelSet(canonicalPath);
+  const staged = readModelSet(stagedPath);
+  const missing = [...canonical].filter((m) => !staged.has(m));
+  const extra = [...staged].filter((m) => !canonical.has(m));
+  if (missing.length || extra.length) {
+    throw new Error(
+      `عميل Prisma المُجهَّز للتغليف لا يطابق المخطط القانوني (${canonical.size} نموذجًا):\n` +
+      (missing.length ? `  ناقص من العميل (${missing.length}): ${missing.join(', ')}\n` : '') +
+      (extra.length ? `  زائد في العميل (${extra.length}): ${extra.join(', ')}\n` : '') +
+      'شغّل "npm run db:generate" ثم أعد التغليف.',
+    );
+  }
+  log(`تحقّق مجموعة نماذج Prisma: ${staged.size} نموذجًا مطابقًا للمخطط القانوني ✓`);
+}
+
 function main() {
   log(`تجهيز مجلد التثبيت المعزول: ${STAGE_DIR}`);
   fs.rmSync(STAGE_DIR, { recursive: true, force: true });
@@ -89,28 +124,48 @@ function main() {
   });
 
   // عميل Prisma المُولَّد افتراضيًا من `npm install` هو غلاف فارغ (بلا مخطط). استبداله
-  // بالنسخة المُولَّدة فعليًا في جذر المستودع (نفس schema.prisma، مُختبَرة في التطوير).
+  // بالنسخة المُولَّدة فعليًا — **من backend/node_modules أولًا**: هذا هو المسار الذي
+  // يكتب إليه `prisma generate` فعليًا في هذا المستودع، بينما كانت نسخة الجذر تتجمّد
+  // صامتةً على مخطط قديم (75 نموذجًا مقابل 85 في إصدار 2026.5.5 — عيب متكرر في كل
+  // إصدار). نسخة الجذر تبقى احتياطًا فقط، وحارس مجموعة النماذج أدناه يُفشل البناء
+  // بصوت عالٍ إن كانت أي نسخة مُنتقاة قديمة.
   const rootNodeModules = path.join(REPO_ROOT, 'node_modules');
+  const backendNodeModulesSrc = path.join(BACKEND_DIR, 'node_modules');
 
-  // تنظيف بقايا المحرّك في المصدر قبل النسخ — يحرّر المستودع أيضًا لا الحزمة فقط.
-  const pruned = pruneOrphanEngines(path.join(rootNodeModules, '.prisma', 'client'));
-  if (pruned.removed > 0) {
-    log(`حُذفت ${pruned.removed} نسخة مؤقتة يتيمة من محرّك Prisma (${(pruned.bytes / 1024 / 1024).toFixed(0)} ميغابايت).`);
+  // تنظيف بقايا المحرّك في المصدرين قبل النسخ — يحرّر المستودع أيضًا لا الحزمة فقط.
+  for (const base of [backendNodeModulesSrc, rootNodeModules]) {
+    const pruned = pruneOrphanEngines(path.join(base, '.prisma', 'client'));
+    if (pruned.removed > 0) {
+      log(`حُذفت ${pruned.removed} نسخة مؤقتة يتيمة من محرّك Prisma (${(pruned.bytes / 1024 / 1024).toFixed(0)} ميغابايت).`);
+    }
+  }
+
+  /** يختار أول مصدر موجود من القائمة (backend أولًا ثم الجذر). */
+  function pickOverlaySource(...candidates) {
+    return candidates.find((p) => fs.existsSync(p));
   }
 
   const overlays = [
-    ['@prisma/client', path.join(rootNodeModules, '@prisma', 'client')],
-    ['.prisma', path.join(rootNodeModules, '.prisma')],
+    ['@prisma/client', pickOverlaySource(
+      path.join(backendNodeModulesSrc, '@prisma', 'client'),
+      path.join(rootNodeModules, '@prisma', 'client'),
+    )],
+    ['.prisma', pickOverlaySource(
+      path.join(backendNodeModulesSrc, '.prisma'),
+      path.join(rootNodeModules, '.prisma'),
+    )],
   ];
   for (const [label, srcDir] of overlays) {
-    if (!fs.existsSync(srcDir)) {
-      throw new Error(`لم يُعثر على ${label} في جذر المستودع — شغّل "npm run db:generate" أولًا.`);
+    if (!srcDir) {
+      throw new Error(`لم يُعثر على ${label} في backend/node_modules ولا في جذر المستودع — شغّل "npm run db:generate" أولًا.`);
     }
     const destDir = path.join(STAGE_DIR, 'node_modules', label);
-    log(`استبدال ${label} بالنسخة المُولَّدة من جذر المستودع...`);
+    log(`استبدال ${label} بالنسخة المُولَّدة من: ${srcDir}`);
     fs.rmSync(destDir, { recursive: true, force: true });
     fs.cpSync(srcDir, destDir, { recursive: true, filter: packageFilter });
   }
+
+  verifyPackagedPrismaSchema();
 
   const backendNodeModules = path.join(BACKEND_DIR, 'node_modules');
   log(`نسخ node_modules المعزولة إلى ${backendNodeModules}...`);
@@ -123,4 +178,6 @@ function main() {
   log('اكتمل — backend/node_modules الآن مكتفٍ ذاتيًا لأغراض التغليف.');
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { readModelSet };
