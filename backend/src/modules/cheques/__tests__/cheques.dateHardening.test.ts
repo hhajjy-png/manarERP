@@ -10,12 +10,16 @@ import { createChequeSchema, updateChequeSchema } from '../cheques.schema';
  * الشيك (لا المدقّق المشترك وحده) أن الصيغة القانونية فقط تُقبَل.
  */
 
+// `bankAccountId` بدل `bankName` منذ Multi-Bank Cheques Foundation v1: هوية البنك
+// صارت الحساب البنكي، و`bankName` يُشتق في الخدمة من `Bank.nameAr` ولا يُقبل من
+// العميل إطلاقًا. هذا الملف يختبر تشديد التاريخ وحده، والقاعدة هنا محدَّثة فقط
+// لتبقى حمولة صالحة.
 const VALID_BASE = {
   chequeNumber: 'CHQ-1001',
   beneficiaryName: 'شركة الاختبار',
   amount: 100,
   currency: 'KWD' as const,
-  bankName: 'بنك الخليج',
+  bankAccountId: 1,
 };
 
 function parseCreate(chequeDate: unknown) {

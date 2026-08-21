@@ -12,6 +12,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
+import { bankRegistryResponse, gulfChequeAccountFields } from './helpers/bankRegistry';
 
 vi.mock('../api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -34,13 +35,18 @@ import { printCurrentViewWithResult } from '../utils/print';
 import Cheques from '../pages/Cheques';
 import { FinancialPeriodProvider } from '../context/FinancialPeriodContext';
 
+// `gulfChequeAccountFields()` = حقول الحساب البنكي التي صار الخادم يرفقها بكل
+// شيك؛ الدفعة تتحقق من `printEnabled` لكل عنصر قبل طباعته.
 const CHEQUES = [
-  { id: 1, chequeNumber: 'C-1', chequeDate: '2026-01-01', beneficiaryName: 'Ali', amount: 100, currency: 'KWD', description: null, bankName: 'بنك الخليج', status: 'DRAFT', printedAt: null, cancelledAt: null, notes: null, paymentVoucherNumber: null, createdAt: '2026-01-01' },
-  { id: 2, chequeNumber: 'C-2', chequeDate: '2026-01-02', beneficiaryName: 'Sara', amount: 200, currency: 'KWD', description: null, bankName: 'بنك الخليج', status: 'DRAFT', printedAt: null, cancelledAt: null, notes: null, paymentVoucherNumber: null, createdAt: '2026-01-02' },
+  { id: 1, chequeNumber: 'C-1', chequeDate: '2026-01-01', beneficiaryName: 'Ali', amount: 100, currency: 'KWD', description: null, bankName: 'بنك الخليج', status: 'DRAFT', printedAt: null, cancelledAt: null, notes: null, paymentVoucherNumber: null, createdAt: '2026-01-01', ...gulfChequeAccountFields() },
+  { id: 2, chequeNumber: 'C-2', chequeDate: '2026-01-02', beneficiaryName: 'Sara', amount: 200, currency: 'KWD', description: null, bankName: 'بنك الخليج', status: 'DRAFT', printedAt: null, cancelledAt: null, notes: null, paymentVoucherNumber: null, createdAt: '2026-01-02', ...gulfChequeAccountFields() },
 ];
 
 function mockApi() {
   vi.mocked(api.get).mockImplementation((url: string) => {
+    // سجل البنوك — بنك الخليج بحسابه الرئيسي المهيأ للطباعة، كما في الإنتاج.
+    const registry = bankRegistryResponse(url);
+    if (registry) return Promise.resolve(registry as never);
     if (url === '/cheques') return Promise.resolve({ data: { data: { data: CHEQUES, meta: { total: 2 } } } } as never);
     if (url === '/cheques/stats') return Promise.resolve({ data: { data: { total: 2, draft: 2, printed: 0, cancelled: 0 } } } as never);
     if (url === '/settings') return Promise.resolve({ data: { data: { settings: [] } } } as never);

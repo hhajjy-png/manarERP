@@ -49,6 +49,9 @@ import payrollBankExportRoutes from './modules/payrollBankExport/payrollBankExpo
 import entitlementsBankExportRoutes from './modules/entitlementsBankExport/entitlementsBankExport.routes';
 import bankStatementImportRoutes from './modules/bankStatementImport/routes.js';
 import bankAccountsRoutes from './modules/bankAccounts/bankAccounts.routes.js';
+// سجل البنوك والحسابات (Multi-Bank Cheques Foundation v1) — كيان مخزَّن، مستقل
+// تمامًا عن `bankAccountsRoutes` أعلاه وهو عرض مشتق من حركات كشوف البنوك.
+import banksRoutes from './modules/banks/banks.routes';
 import expirationsRoutes from './modules/expirations/expirations.routes';
 import financialAnalysisRoutes from './modules/financialAnalysis/financialAnalysis.routes';
 import collectionAnalysisRoutes from './modules/collectionAnalysis/collectionAnalysis.routes';
@@ -150,6 +153,7 @@ export function createApp(): Application {
   app.use('/api/entitlements-bank-export', entitlementsBankExportRoutes);
   app.use('/api/bank-statement-import', bankStatementImportRoutes);
   app.use('/api/bank-accounts', bankAccountsRoutes);
+  app.use('/api/banks', banksRoutes);
   app.use('/api/expirations', expirationsRoutes);
   app.use('/api/financial-analysis', financialAnalysisRoutes);
   // تحليل التحصيلات — محرّك مستقل يربط سنة إصدار الفاتورة بسنة تحصيلها.

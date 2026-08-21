@@ -5,6 +5,10 @@ import { reprintChequeSchema, saveTemplateVersionSchema, calibrationGeometrySche
 vi.mock('../../../config/database', () => ({
   prisma: {
     cheque: { findUnique: vi.fn(), update: vi.fn() },
+    // حساب مهيأ للطباعة — بوابة الحساب تمر، والتسلسل هو موضوع الاختبار.
+    bankAccount: { findUnique: vi.fn().mockResolvedValue({ id: 1, accountName: 'الحساب الرئيسي', isActive: true, printProfileKey: 'CLASSIC_GULF_V1', bank: { id: 1, code: 'GULF_BANK', nameAr: 'بنك الخليج', isActive: true } }) },
+    // `bank.findMany` = مرجعية «البنوك القابلة للطباعة» (Legacy hardening gate).
+    bank: { findMany: vi.fn().mockResolvedValue([{ nameAr: 'بنك الخليج' }]) },
     setting: { findUnique: vi.fn(), upsert: vi.fn() },
     chequePrintLog: { create: vi.fn(), findMany: vi.fn() },
     chequeTemplateVersion: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn() },
@@ -27,6 +31,9 @@ function makeCheque(overrides: Record<string, unknown> = {}) {
     amount: 500.75,
     currency: 'KWD',
     bankName: 'NBK',
+    // مربوط بحساب بنكي مهيأ للطباعة — هذه المجموعة تختبر تسلسل إعادة الطباعة،
+    // لا بوابة قالب الطباعة (مختبَرة في cheques.multiBank.test.ts).
+    bankAccountId: 1,
     status: 'DRAFT',
     printedAt: null,
     cancelledAt: null,

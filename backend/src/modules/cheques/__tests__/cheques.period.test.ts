@@ -6,7 +6,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
  */
 
 vi.mock('../../../config/database', () => ({
-  prisma: { cheque: { count: vi.fn(), findMany: vi.fn(), aggregate: vi.fn() } },
+  prisma: {
+    cheque: { count: vi.fn(), findMany: vi.fn(), aggregate: vi.fn() },
+    // `bank.findMany` = مرجعية «البنوك القابلة للطباعة» (Legacy hardening gate).
+    bank: { findMany: vi.fn() },
+  },
 }));
 
 import { prisma } from '../../../config/database';
@@ -19,6 +23,7 @@ beforeEach(() => {
   mp.cheque.count.mockResolvedValue(0);
   mp.cheque.findMany.mockResolvedValue([]);
   mp.cheque.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+  mp.bank.findMany.mockResolvedValue([]);
 });
 
 describe('cheques.stats — period range', () => {

@@ -108,6 +108,13 @@ const MODULE_ACTIONS: Record<string, string[]> = {
   //   `update` للتصحيح الكتابي وحده (رقم وثيقة مكتوب خطأً)، لا للتجديد.
   //   `export` يحرس تصدير Excel لنتائج الشاشة الحالية.
   vehicleInsurance: ['read', 'create', 'update', 'export'],
+  // سجل البنوك والحسابات البنكية — مصدر هوية البنك لوحدة الشيكات.
+  //   `read` يحرس مطالعة البنوك والحسابات، ويحتاجه أيضًا منتقي الحساب داخل
+  //   نموذج الشيك، فكل من يسجّل شيكًا يحتاجه.
+  //   `manage` يحرس إنشاء/تعديل/إيقاف البنوك والحسابات.
+  //   لا `delete`: بنك أو حساب صدرت عليه شيكات سجل تاريخي دائم، ولا مسار حذف
+  //   في الخدمة أصلًا، ومفتاح بلا مسار خلفه يظهر في شاشة الأدوار كقدرة لا تفعل شيئًا.
+  banks: ['read', 'manage'],
 };
 
 const ACTION_AR: Record<string, string> = {
@@ -191,7 +198,9 @@ async function main() {
       (k) => !k.startsWith('users.') && k !== 'settings.update' && k !== 'financial.overrideLock',
     ),
     ACCOUNTANT: [
-      ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques', 'statements']),
+      // `banks` مع `cheques`: المحاسب هو مالك وحدة الشيكات، وهوية البنك صارت
+      // جزءًا من تسجيل الشيك — فمن يسجّل شيكًا يجب أن يرى حساباته ويديرها.
+      ...keysForModules(['invoices', 'expenses', 'transactions', 'suppliers', 'reports', 'customers', 'cheques', 'banks', 'statements']),
       ...keysForModules(['aging', 'gl', 'trialbalance', 'journal', 'finreports']),
       // جاهزية XBRL — المحاسب هو مالك إعداد التقارير المالية، فله المفاتيح الثلاثة.
       // لا أثر محاسبي لأيٍّ منها: الوحدة لا تكتب خارج جداول `xbrl_*`.
@@ -354,6 +363,46 @@ async function main() {
     });
   }
   console.log(`  ✓ ${SYSTEM_ACCOUNTS.length} حساب في دليل الحسابات`);
+
+  // 7) سجل البنوك (Multi-Bank Cheques Foundation v1)
+  //
+  // `code` معرّف داخلي ثابت لا يعتمد على الاسم العربي، ويطابق مفردات استيراد
+  // كشوف البنوك (bankStatementImport/parser.ts) ليكون توحيد الوحدتين لاحقًا
+  // ربطًا لا إعادة تسمية.
+  //
+  // ملاحظة: الـmigration نفسه (20260821120000) يبذر هذه البنوك وينشئ حساب بنك
+  // الخليج الرئيسي ويربط شيكاته القديمة — فهو المسار المضمون في الإنتاج حيث
+  // `prisma migrate deploy` يعمل تلقائيًا عند بدء الخدمة. ما هنا تكرار
+  // idempotent لمسار `db:seed` وحده، ولا يعيد الكتابة فوق أي قيمة قائمة.
+  const banks = [
+    { code: 'NBK',         nameAr: 'بنك الكويت الوطني',    nameEn: 'National Bank of Kuwait (NBK)' },
+    { code: 'KFH',         nameAr: 'بيت التمويل الكويتي',  nameEn: 'Kuwait Finance House (KFH)' },
+    { code: 'GULF_BANK',   nameAr: 'بنك الخليج',           nameEn: 'Gulf Bank' },
+    { code: 'CBK',         nameAr: 'البنك التجاري الكويتي', nameEn: 'Commercial Bank of Kuwait' },
+    { code: 'BURGAN',      nameAr: 'بنك برقان',            nameEn: 'Burgan Bank' },
+    { code: 'BOUBYAN',     nameAr: 'بنك بوبيان',           nameEn: 'Boubyan Bank' },
+    { code: 'WARBA',       nameAr: 'بنك وربة',             nameEn: 'Warba Bank' },
+    { code: 'ABK',         nameAr: 'البنك الأهلي الكويتي',  nameEn: 'Al Ahli Bank of Kuwait' },
+    { code: 'AHLI_UNITED', nameAr: 'البنك الأهلي المتحد',   nameEn: 'Ahli United Bank' },
+    { code: 'KIB',         nameAr: 'بنك الكويت الدولي',     nameEn: 'Kuwait International Bank' },
+  ];
+  for (const b of banks) {
+    await prisma.bank.upsert({ where: { code: b.code }, update: {}, create: b });
+  }
+
+  // حساب بنك الخليج الرئيسي — الحساب الوحيد الذي يحمل قالب طباعة معتمدًا في
+  // هذه الحزمة، وهو ما يُبقي طباعة بنك الخليج تعمل بمسار Classic دون تغيير.
+  // أي حساب آخر يبقى printProfileKey = null فتُمنع طباعته حتى تُعتمد أبعاد
+  // شيكه الحقيقية في حزمة لاحقة.
+  const gulfBank = await prisma.bank.findUnique({ where: { code: 'GULF_BANK' } });
+  if (gulfBank) {
+    await prisma.bankAccount.upsert({
+      where: { bankId_accountName: { bankId: gulfBank.id, accountName: 'الحساب الرئيسي' } },
+      update: {},
+      create: { bankId: gulfBank.id, accountName: 'الحساب الرئيسي', printProfileKey: 'CLASSIC_GULF_V1' },
+    });
+  }
+  console.log(`  ✓ ${banks.length} بنك + حساب بنك الخليج الرئيسي`);
 
   console.log('✅ اكتملت البيانات الأولية.');
 }

@@ -1214,3 +1214,27 @@
 .xpl-actionbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; flex-wrap: wrap; }
 .xpl-actionbar-main { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .xpl-actionbar-danger { display: flex; align-items: center; gap: 8px; }
+
+/* ─── Info notice ─────────────────────────────────────────────────────────────
+   شريط معلوماتي داخل نموذج: يشرح قيدًا قائمًا دون أن يمنع الحفظ.
+   أُضيف مع Multi-Bank Cheques Foundation v1 لرسالة «قالب الطباعة غير معدّ»،
+   وهو نمط عام تستهلكه شاشتا الشيكات والبنوك من تعريف واحد.
+   فئة جديدة تمامًا — لا يستخدم اسمها أي ترميز قائم، فلا أثر على أي شاشة حالية. */
+.xpl-info-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(59, 130, 246, .08);
+  border: 1px solid rgba(59, 130, 246, .25);
+  color: var(--xpl-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.xpl-info-notice .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 18px !important;
+  color: var(--xpl-blue);
+}

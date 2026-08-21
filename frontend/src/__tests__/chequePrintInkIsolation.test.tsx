@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { flushAsyncUpdates } from './helpers/flush';
+import { bankRegistryResponse } from './helpers/bankRegistry';
 import { MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
 
@@ -42,6 +43,9 @@ import { FinancialPeriodProvider } from '../context/FinancialPeriodContext';
 
 function mockApi() {
   vi.mocked(api.get).mockImplementation((url: string) => {
+    // سجل البنوك — بنك الخليج بحسابه الرئيسي المهيأ للطباعة، كما في الإنتاج.
+    const registry = bankRegistryResponse(url);
+    if (registry) return Promise.resolve(registry as never);
     if (url === '/cheques') return Promise.resolve({ data: { data: { data: [], meta: null } } } as never);
     if (url === '/cheques/stats') return Promise.resolve({ data: { data: { total: 0, draft: 0, printed: 0, cancelled: 0 } } } as never);
     if (url === '/settings') return Promise.resolve({ data: { data: { settings: [] } } } as never);
@@ -74,8 +78,11 @@ describe('cheque print ink isolation', () => {
 
   it('mounts the real-cheque print layer when the calibrator is CLOSED', async () => {
     const { container } = renderPage();
-    await waitFor(() => expect(api.get).toHaveBeenCalledWith('/settings'));
-    expect(container.querySelector('.cheque-print-only')).toBeInTheDocument();
+    // الطبقة تنتظر إعدادات الطباعة **وسجل الحسابات** معًا منذ Multi-Bank Cheques
+    // Foundation v1: تركيبها مشروط بحساب بنكي له قالب طباعة معتمد. الانتظار على
+    // الطبقة نفسها بدل الانتظار على `/settings` وحده يجعل الاختبار يقيس الشرط
+    // الفعلي، لا ترتيب وصول طلبَين مستقلَّين.
+    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
     expect(container.querySelector('.chq-calib-testprint')).toBeNull();
   });
 

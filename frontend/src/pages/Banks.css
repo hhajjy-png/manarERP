@@ -1,0 +1,57 @@
+/* البنوك والحسابات البنكية — Multi-Bank Cheques Foundation v1.
+   فئات مقصورة على هذه الصفحة (بادئة bnk-)، تتبع نفس اصطلاح Cheques.css.
+   الألوان والحدود من متغيرات --xpl-* المشتركة، فلا لون مكتوب خارج السمة. */
+
+.bnk-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(200px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 900px) { .bnk-metrics { grid-template-columns: 1fr; } }
+
+/* شريط النجاح — مطابق لـ.chqx-success حتى تقرأ الشاشتان كنظام واحد. */
+.bnk-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, .08);
+  border: 1px solid rgba(16, 185, 129, .25);
+  color: var(--xpl-green);
+  font-size: 13.5px;
+}
+.bnk-success .material-symbols-outlined { font-size: 18px !important; }
+
+/* نص شارح أسفل حقل أو أعلى جدول. */
+.bnk-hint {
+  margin: 0 0 10px;
+  color: var(--xpl-muted);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+/* أسماء حسابات البنك تحت اسمه في جدول السجل. */
+.bnk-subtext {
+  margin-top: 2px;
+  color: var(--xpl-muted);
+  font-size: 12px;
+}
+
+.bnk-field-hint {
+  margin-top: 4px;
+  color: var(--xpl-muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+/* خانة اختيار الحالة (نشط/موقوف). */
+.bnk-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.bnk-checkbox input { width: 16px; height: 16px; cursor: pointer; }

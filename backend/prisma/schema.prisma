@@ -1441,15 +1441,33 @@ model ProjectPrice {
 // ─────────────────────────────────────────────────────────────────────────
 
 model Cheque {
-  id                   Int       @id @default(autoincrement())
-  chequeNumber         String    @unique
-  chequeDate           DateTime
-  beneficiaryName      String
-  amount               Float
-  currency             String    @default("KWD")
-  description          String?
-  bankName             String
-  templateName         String?
+  id           Int      @id @default(autoincrement())
+  // رقم الشيك يُدخله المستخدم يدويًا دائمًا — هو الرقم المطبوع مسبقًا على ورقة
+  // الشيك الصادرة من البنك. لا ترقيم تلقائي ولا اقتراح رقم تالٍ في أي مسار.
+  //
+  // التفرد صار **لكل حساب بنكي** لا عالميًا: الرقم 123456 يمكن أن يوجد في بنك
+  // الخليج وفي بنك آخر، وهما شيكان مختلفان تمامًا. القيد أدناه
+  // @@unique([bankAccountId, chequeNumber]) هو التعبير عن ذلك.
+  //
+  // ملاحظة SQLite: القيم NULL متمايزة داخل الفهرس الفريد، فالشيكات القديمة غير
+  // المربوطة بحساب (bankAccountId = NULL) لا يحرسها الفهرس. الخدمة تحرسها:
+  // فحص التكرار فيها يُجرى ضمن نطاق نفس الـbankAccountId شاملًا حالة NULL.
+  chequeNumber    String
+  chequeDate      DateTime
+  beneficiaryName String
+  amount          Float
+  currency        String   @default("KWD")
+  description     String?
+  // الحساب البنكي المُصدِر — هوية البنك الحقيقية.
+  // اختياري عمدًا: شيكات Legacy بقيمة bankName لا يمكن ربطها بأمان تبقى بلا حساب
+  // ولا تُخمَّن (انظر migration 20260821...). كل شيك جديد يُنشأ بحساب إلزامي.
+  bankAccountId Int?
+  bankAccount   BankAccount? @relation(fields: [bankAccountId], references: [id])
+  // اسم البنك النصي — يبقى للتوافق مع القراءات القائمة (البحث، الفرز، التقارير،
+  // Excel، سجل التدقيق). لم يعد يُدخله المستخدم: يُشتق داخليًا من Bank.nameAr
+  // للحساب المختار في كل مسار إنشاء/تعديل جديد.
+  bankName     String
+  templateName String?
   status               String    @default("DRAFT") // DRAFT | PRINTED | CANCELLED
   printedAt            DateTime?
   cancelledAt          DateTime?
@@ -1465,10 +1483,84 @@ model Cheque {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // تفرد رقم الشيك ضمن الحساب البنكي الواحد — لا عالميًا.
+  @@unique([bankAccountId, chequeNumber])
   @@index([status])
   @@index([chequeDate])
   @@index([beneficiaryName])
+  @@index([bankAccountId])
   @@map("cheques")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  سجل البنوك والحسابات البنكية (Bank Registry)
+//  Multi-Bank Cheques Foundation v1.
+//
+//  الهدف: تحويل هوية البنك في وحدة الشيكات من نص حر (`Cheque.bankName`) إلى
+//  بنية حقيقية Bank → BankAccount → Cheque.
+//
+//  هذا السجل **مستقل تمامًا** عن وحدة `bankAccounts` القائمة (مسار
+//  `/api/bank-accounts`)، فتلك عرض مشتق (derived view) من `accountKey` في
+//  حركات كشوف البنوك ولا تملك جدولًا. هذا السجل هو الكيان المخزَّن. الجسر
+//  بينهما هو `BankAccount.statementAccountKey` الاختياري أدناه.
+// ─────────────────────────────────────────────────────────────────────────
+
+model Bank {
+  id Int @id @default(autoincrement())
+  // معرّف داخلي ثابت لا يعتمد على الاسم العربي. كل ربط داخلي يمر عبر `id`،
+  // و`code` هو المرساة المستقرة عبر النسخ وعمليات البذر — فإعادة تسمية البنك
+  // بالعربية لا تكسر شيئًا (وهو ما كان يحدث حين كان الاسم العربي مفتاحًا).
+  // القيم تطابق مفردات استيراد كشوف البنوك (NBK / KFH / GULF_BANK / ...)
+  // ليكون التوحيد بين الوحدتين لاحقًا مسألة ربط لا إعادة تسمية.
+  code     String  @unique
+  nameAr   String
+  nameEn   String?
+  isActive Boolean @default(true)
+
+  accounts BankAccount[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("banks")
+}
+
+model BankAccount {
+  id     Int  @id @default(autoincrement())
+  bankId Int
+  bank   Bank @relation(fields: [bankId], references: [id])
+  // اسم الحساب هو المميِّز الوحيد المعروض للمستخدم: «بنك الخليج — الحساب الرئيسي».
+  // لا رقم حساب ولا IBAN في هذه الحزمة — لا يُخزَّنان ولا يُعرضان في نموذج الشيك.
+  accountName String
+  isActive    Boolean @default(true)
+
+  // جسر اختياري إلى عالم كشوف البنوك: `accountKey` المشتق هناك
+  // (IBAN:… | ACCT:<bank>:<acct> | BANK:<bank>). يُستخدم لجعل مطابقة حركات
+  // الكشف بالشيكات واعية بالحساب. فارغ = لا ربط، وعندها تعود المطابقة إلى
+  // السلوك القديم **فقط عندما تكون غير ملتبسة**.
+  statementAccountKey String?
+
+  // بوابة الطباعة. `null` = لا يوجد قالب طباعة معتمد لهذا الحساب ⇒ الطباعة
+  // والمعاينة ممنوعتان (الحفظ والإدارة تبقيان مسموحتين).
+  //
+  // في هذه الحزمة القيمة الوحيدة المسموحة هي 'CLASSIC_GULF_V1' وتُمنح حصريًا
+  // لحساب بنك الخليج الرئيسي عبر الـmigration — أي عقد Legacy صريح ومسمّى، لا
+  // علم مبهم. الحزمة اللاحقة (Per-Account Print Profiles) تستبدل هذا الحقل
+  // بعلاقة إلى قالب حقيقي؛ حتى ذلك الحين لا بنك جديد يحصل على قيمة هنا، ولا
+  // يوجد أي مسار في الكود يكتبها.
+  printProfileKey String?
+
+  cheques Cheque[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([bankId, accountName])
+  @@index([bankId])
+  @@index([isActive])
+  @@index([statementAccountKey])
+  @@map("bank_accounts")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

@@ -16,7 +16,12 @@ import { ChequesService } from '../cheques.service';
 
 vi.mock('../../../config/database', () => ({
   prisma: {
-    cheque: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    // `findFirst` هو مسار فحص تفرّد رقم الشيك منذ Multi-Bank Cheques Foundation
+    // v1: التفرّد صار ضمن الحساب البنكي، وهو استعلام مركّب لا `findUnique`.
+    cheque: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    bankAccount: { findUnique: vi.fn() },
+    // `bank.findMany` = مرجعية «البنوك القابلة للطباعة» في Legacy hardening gate.
+    bank: { findMany: vi.fn() },
     chequePrintLog: { create: vi.fn(), findMany: vi.fn(), deleteMany: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -38,6 +43,7 @@ function makeCheque(overrides: Record<string, unknown> = {}) {
     amount: 1370,
     currency: 'KWD',
     description: 'حساب فواتير شهر 7-2026',
+    bankAccountId: 1,
     bankName: 'بنك الخليج',
     notes: null,
     status: 'DRAFT',
@@ -49,7 +55,14 @@ function makeCheque(overrides: Record<string, unknown> = {}) {
   } as any;
 }
 
-/** A fully-populated edit, covering every field the update form exposes. */
+/**
+ * A fully-populated edit, covering every field the update form exposes.
+ *
+ * `bankName` is NOT among them since Multi-Bank Cheques Foundation v1: the client
+ * sends `bankAccountId`, and the service derives `bankName` from that account's
+ * bank. Sending both would let the stored bank name contradict the linked
+ * account — a contradiction the server could never detect after the fact.
+ */
 const FULL_EDIT = {
   chequeNumber: '000009',
   chequeDate: new Date('2026-09-15T00:00:00.000Z'),
@@ -57,19 +70,29 @@ const FULL_EDIT = {
   amount: 2480.5,
   currency: 'KWD',
   description: 'وصف مصحّح',
-  bankName: 'بنك الكويت الوطني',
+  bankAccountId: 2,
   notes: 'ملاحظة مصحّحة',
+};
+
+/** الحساب الهدف الذي يشير إليه `FULL_EDIT.bankAccountId`. */
+const TARGET_ACCOUNT = {
+  id: 2,
+  accountName: 'الحساب الرئيسي',
+  isActive: true,
+  printProfileKey: null,
+  bank: { id: 2, code: 'NBK', nameAr: 'بنك الكويت الوطني', isActive: true },
 };
 
 const service = new ChequesService();
 
 /**
- * `update()` calls `findUnique` twice: once by `{ id }` to load the current
- * record, and once by `{ chequeNumber }` for the uniqueness check. The harness
- * dispatches on the where-clause so the uniqueness probe reports "no duplicate"
- * unless a test deliberately supplies one — and `update` echoes the CURRENT
- * record merged with the written data, so print state carried by `current` is
- * observable in the result.
+ * `update()` reads through three mocked paths:
+ *   • `cheque.findUnique({ id })`   — loads the current record;
+ *   • `cheque.findFirst(...)`       — the per-account uniqueness probe;
+ *   • `bankAccount.findUnique(...)` — only when the edit changes the account.
+ * The probe reports "no duplicate" unless a test supplies one, and `update`
+ * echoes the CURRENT record merged with the written data, so print state carried
+ * by `current` stays observable in the result.
  */
 // `prisma as any` mirrors the sibling cheque suites: Prisma's generated client
 // types do not describe a plain mock implementation (they expect a
@@ -77,8 +100,10 @@ const service = new ChequesService();
 const mp = prisma as any;
 
 function givenCurrent(current: any, duplicate: any = null) {
-  mp.cheque.findUnique.mockImplementation(async (args: any) =>
-    (args.where?.chequeNumber !== undefined ? duplicate : current));
+  mp.cheque.findUnique.mockImplementation(async () => current);
+  mp.cheque.findFirst.mockImplementation(async () => duplicate);
+  mp.bankAccount.findUnique.mockImplementation(async () => TARGET_ACCOUNT);
+  mp.bank.findMany.mockResolvedValue([{ nameAr: 'بنك الخليج' }]);
   mp.cheque.update.mockImplementation(async (args: any) => ({
     ...current,
     ...args.data,
@@ -110,6 +135,8 @@ describe('editing a PRINTED cheque', () => {
     expect(data.amount).toBe(2480.5);
     expect(data.currency).toBe('KWD');
     expect(data.description).toBe('وصف مصحّح');
+    expect(data.bankAccountId).toBe(2);
+    // مشتق من بنك الحساب الهدف، لا من نص أرسله العميل.
     expect(data.bankName).toBe('بنك الكويت الوطني');
     expect(data.notes).toBe('ملاحظة مصحّحة');
   });
@@ -135,13 +162,14 @@ describe('editing a PRINTED cheque', () => {
 // ── Print state / history must survive the edit ──────────────────────────────
 
 describe('print state and history are preserved by an edit', () => {
-  it('writes ONLY the eight business fields — never status/printedAt/printCount/cancelledAt', async () => {
+  it('writes ONLY the business fields — never status/printedAt/printCount/cancelledAt', async () => {
     givenCurrent(makeCheque({ status: 'PRINTED', printedAt: new Date('2026-08-03'), printCount: 3 }));
     await service.update(46, FULL_EDIT as any, req);
 
+    // تسعة حقول: الثمانية الأصلية + `bankAccountId` (هوية البنك الحقيقية).
     const data = mp.cheque.update.mock.calls[0][0].data as Record<string, unknown>;
     expect(Object.keys(data).sort()).toEqual([
-      'amount', 'bankName', 'beneficiaryName', 'chequeDate',
+      'amount', 'bankAccountId', 'bankName', 'beneficiaryName', 'chequeDate',
       'chequeNumber', 'currency', 'description', 'notes',
     ]);
     for (const protectedField of ['status', 'printedAt', 'printCount', 'cancelledAt', 'paymentVoucherNumber']) {

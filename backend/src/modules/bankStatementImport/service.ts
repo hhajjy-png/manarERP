@@ -79,7 +79,16 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
     else                                skipIndices.push(i);
   }
 
-  const matchResults = await matchAllTransactions(normalized.filter((_, i) => insertIndices.includes(i)));
+  // هوية حساب الكشف تُشتق قبل المطابقة (Multi-Bank Cheques Foundation v1) لتُحصر
+  // مرشّحات الشيكات في هذا الحساب — رقم الشيك لم يعد فريدًا عالميًا. القيمة نفسها
+  // تُستخدم أدناه لتسمية الحساب في سجل الاستيراد.
+  const accountKey = dedupResults[0]?.accountKey ??
+                     (normalized[0] ? buildAccountKey(normalized[0]) : null);
+
+  const matchResults = await matchAllTransactions(
+    normalized.filter((_, i) => insertIndices.includes(i)),
+    accountKey,
+  );
 
   // Summary stats over ALL rows (file totals stay unchanged)
   const totalDebits  = normalized.reduce((s, r) => s + r.debit,  0);
@@ -89,9 +98,7 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
   const fromDate = req.fromDate ? new Date(req.fromDate) : (dates[0]   ? new Date(dates[0])   : undefined);
   const toDate   = req.toDate   ? new Date(req.toDate)   : (dates.at(-1) ? new Date(dates.at(-1)!) : undefined);
 
-  // Derive session-level accountKey
-  const accountKey = dedupResults[0]?.accountKey ??
-                     (normalized[0] ? buildAccountKey(normalized[0]) : null);
+  // (`accountKey` مشتق أعلاه قبل المطابقة — نفس القيمة، بلا حساب مكرر.)
 
   const insertedNewCount        = insertIndices.length - potentialIndices.length;
   const skippedDuplicateCount   = skipIndices.length;

@@ -29,6 +29,7 @@ import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-li
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
+import { bankRegistryResponse, gulfChequeAccountFields } from './helpers/bankRegistry';
 
 vi.mock('../api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -59,6 +60,8 @@ function makeCheque(over: Record<string, unknown>) {
     description: null, bankName: 'بنك الخليج', status: 'PRINTED',
     printedAt: '2026-08-03T00:00:00.000Z', cancelledAt: null, notes: null,
     paymentVoucherNumber: null, printCount: 1, createdAt: '2026-07-30',
+    // حقول الحساب البنكي التي صار الخادم يرفقها بكل شيك.
+    ...gulfChequeAccountFields(),
     ...over,
   };
 }
@@ -75,6 +78,9 @@ let rows: ReturnType<typeof makeCheque>[] = [];
 function mockApi(seed: ReturnType<typeof makeCheque>[]) {
   rows = seed;
   vi.mocked(api.get).mockImplementation((url: string) => {
+    // سجل البنوك — بنك الخليج بحسابه الرئيسي المهيأ للطباعة، كما في الإنتاج.
+    const registry = bankRegistryResponse(url);
+    if (registry) return Promise.resolve(registry as never);
     if (url === '/cheques') return Promise.resolve({ data: { data: { data: rows, meta: { total: rows.length } } } } as never);
     if (url === '/cheques/stats') return Promise.resolve({ data: { data: { total: rows.length, draft: 0, printed: rows.length, cancelled: 0 } } } as never);
     if (url === '/settings') return Promise.resolve({ data: { data: { settings: [{ key: 'cheques.defaultPrintProvider', value: 'classic' }] } } } as never);
@@ -151,7 +157,9 @@ describe('A) Open → Save without edits', () => {
       beneficiaryName: 'ساير طليحان العذاب',
       amount: 1370,
       currency: 'KWD',
-      bankName: 'بنك الخليج',
+      // هوية البنك في الحمولة صارت الحساب البنكي منذ Multi-Bank Cheques
+      // Foundation v1؛ `bankName` يشتقه الخادم من بنك ذلك الحساب ولا يُرسَل.
+      bankAccountId: 1,
     });
     expect(rows.find((r) => r.id === 46)!.chequeDate).toBe('2026-08-02T00:00:00.000Z');
   });
@@ -170,7 +178,7 @@ describe('B) Edit amount only', () => {
     expect(body.amount).toBe(2480.5);
     expect(body.chequeDate).toBe('2026-08-02');
     expect(body.beneficiaryName).toBe('ساير طليحان العذاب');
-    expect(body.bankName).toBe('بنك الخليج');
+    expect(body.bankAccountId).toBe(1);
     expect(body.chequeNumber).toBe('000002');
     // The persisted record's date must survive the round trip unchanged.
     expect(rows.find((r) => r.id === 46)!.chequeDate).toBe('2026-08-02T00:00:00.000Z');
@@ -190,7 +198,7 @@ describe('C) Edit payee only', () => {
     expect(body.beneficiaryName).toBe('مستفيد مصحّح');
     expect(body.chequeDate).toBe('2026-08-02');
     expect(body.amount).toBe(1370);
-    expect(body.bankName).toBe('بنك الخليج');
+    expect(body.bankAccountId).toBe(1);
     expect(rows.find((r) => r.id === 46)!.chequeDate).toBe('2026-08-02T00:00:00.000Z');
   });
 });
