@@ -8,7 +8,15 @@ interface InvoiceRecord  { id: number; invoiceNumber: string; total: number; }
 interface PaymentRecord  { id: number; reference: string | null; amount: number; invoiceId: number; }
 interface ExpenseRecord  { id: number; code: string; amount: number; description: string; }
 interface JournalRecord  { id: number; entryNumber: string; }
-interface ChequeRecord   { id: number; chequeNumber: string; amount: number; }
+interface ChequeRecord   {
+  id: number;
+  chequeNumber: string;
+  amount: number;
+  /** الحساب البنكي المُصدِر — `null` لشيكات Legacy غير المربوطة. */
+  bankAccountId: number | null;
+  /** `accountKey` الخاص بحساب الشيك، إن رُبط الحساب بعالم كشوف البنوك. */
+  accountKey: string | null;
+}
 interface PayrollRecord  { id: number; month: number; year: number; netSalary: number; }
 
 export interface MatcherContext {
@@ -37,7 +45,13 @@ export async function loadMatcherContext(): Promise<MatcherContext> {
       select: { id: true, entryNumber: true },
     }),
     prisma.cheque.findMany({
-      select: { id: true, chequeNumber: true, amount: true },
+      select: {
+        id: true,
+        chequeNumber: true,
+        amount: true,
+        bankAccountId: true,
+        bankAccount: { select: { statementAccountKey: true } },
+      },
       where: { status: { not: 'CANCELLED' } },
     }),
     prisma.payroll.findMany({
@@ -51,7 +65,13 @@ export async function loadMatcherContext(): Promise<MatcherContext> {
     payments:  payments.map((p) => ({ id: p.id, reference: p.reference, amount: Number(p.amount), invoiceId: p.invoiceId })),
     expenses:  expenses.map((e) => ({ id: e.id, code: e.code, amount: Number(e.amount), description: e.description })),
     journals:  journals.map((j) => ({ id: j.id, entryNumber: j.entryNumber })),
-    cheques:   cheques.map((c) => ({ id: c.id, chequeNumber: c.chequeNumber, amount: Number(c.amount) })),
+    cheques:   cheques.map((c) => ({
+      id: c.id,
+      chequeNumber: c.chequeNumber,
+      amount: Number(c.amount),
+      bankAccountId: c.bankAccountId,
+      accountKey: c.bankAccount?.statementAccountKey ?? null,
+    })),
     payrolls:  payrolls.map((p) => ({ id: p.id, month: p.month, year: p.year, netSalary: Number(p.netSalary) })),
   };
 }
@@ -87,19 +107,60 @@ function containsRef(text: string, ref: string): boolean {
 
 // ── Match engine ───────────────────────────────────────────────────────────────
 
+/**
+ * يختار الشيك المطابق لرقم معيّن **دون تخمين** — Multi-Bank Cheques Foundation v1.
+ *
+ * رقم الشيك لم يعد فريدًا عالميًا (صار فريدًا لكل حساب بنكي)، فالبحث القديم
+ * `cheques.find(c => c.chequeNumber === n)` صار قادرًا على إعادة شيك من بنك
+ * مختلف تمامًا لمجرد أنه أول ما صادفه في المصفوفة — أي مطابقة مالية خاطئة
+ * صامتة. القواعد هنا، بالترتيب:
+ *
+ *   1. عند توفّر هوية الحساب (`accountKey` للحركة يطابق `statementAccountKey`
+ *      لحساب الشيك) تُحصر المطابقة في شيكات ذلك الحساب.
+ *   2. عند غياب هوية الحساب — وهو حال كشوف Legacy المستوردة قبل هذا السجل —
+ *      يُقبل السلوك القديم **فقط إذا كان غير ملتبس**: مرشّح واحد لا غير.
+ *   3. عند التباس حقيقي (نفس الرقم في حسابين) لا يُختار شيء ويُعاد `ambiguous`،
+ *      فتبقى الحركة «غير مطابَقة» ليقررها إنسان بدل أن يخمّنها النظام.
+ */
+function resolveChequeByNumber(
+  chequeNumber: string,
+  ctx: MatcherContext,
+  accountKey: string | null,
+): { cheque: ChequeRecord | null; ambiguous: boolean } {
+  const byNumber = ctx.cheques.filter((c) => c.chequeNumber === chequeNumber);
+  if (byNumber.length === 0) return { cheque: null, ambiguous: false };
+  if (byNumber.length === 1) return { cheque: byNumber[0], ambiguous: false };
+
+  // أكثر من شيك يحمل الرقم — نضيّق بهوية الحساب إن توفّرت.
+  if (accountKey) {
+    const scoped = byNumber.filter((c) => c.accountKey === accountKey);
+    if (scoped.length === 1) return { cheque: scoped[0], ambiguous: false };
+    // صفر أو أكثر من واحد داخل الحساب نفسه: لا قرار آمن.
+    return { cheque: null, ambiguous: true };
+  }
+
+  return { cheque: null, ambiguous: true };
+}
+
 export function matchTransaction(
   tx: StatementTransaction,
   ctx: MatcherContext,
+  /** هوية حساب الحركة (`accountKey` للاستيراد). غيابها = كشف Legacy بلا ربط. */
+  accountKey: string | null = null,
 ): MatchResult {
   const candidates: MatchCandidate[] = [];
   const amount = txAmount(tx);
   const desc   = (tx.description + ' ' + (tx.reference ?? '') + ' ' + (tx.transactionId ?? '')).toLowerCase();
+  /** أرقام شيكات التبس أمرها بين حسابين — لا تُطابَق بأي قاعدة لاحقة أيضًا. */
+  const ambiguousChequeNumbers = new Set<string>();
 
   // 1. Exact cheque number match — confidence 100
   if (tx.chequeNumber) {
-    const cheque = ctx.cheques.find((c) => c.chequeNumber === tx.chequeNumber);
+    const { cheque, ambiguous } = resolveChequeByNumber(tx.chequeNumber, ctx, accountKey);
     if (cheque) {
       candidates.push(candidate('cheque', cheque.id, cheque.chequeNumber, 100, 'cheque_number'));
+    } else if (ambiguous) {
+      ambiguousChequeNumbers.add(tx.chequeNumber);
     }
   }
 
@@ -126,9 +187,22 @@ export function matchTransaction(
   }
 
   // 5. Cheque number in description (even if chequeNumber field is null) — confidence 90
-  for (const cheque of ctx.cheques) {
-    if (!tx.chequeNumber && containsRef(desc, cheque.chequeNumber)) {
-      candidates.push(candidate('cheque', cheque.id, cheque.chequeNumber, 90, 'cheque_in_desc'));
+  //
+  // يمر عبر `resolveChequeByNumber` نفسه: رقم موجود في حسابين لا يُطابَق هنا
+  // أيضًا. سابقًا كانت هذه الحلقة تدفع مرشّحًا لكل شيك يحمل الرقم، فينتهي
+  // الترتيب باختيار أحدهما اعتباطًا — نفس الخطأ الصامت الذي تغلقه القاعدة 1.
+  if (!tx.chequeNumber) {
+    const seenNumbers = new Set<string>();
+    for (const cheque of ctx.cheques) {
+      if (seenNumbers.has(cheque.chequeNumber)) continue;
+      if (!containsRef(desc, cheque.chequeNumber)) continue;
+      seenNumbers.add(cheque.chequeNumber);
+      const resolved = resolveChequeByNumber(cheque.chequeNumber, ctx, accountKey);
+      if (resolved.cheque) {
+        candidates.push(candidate('cheque', resolved.cheque.id, resolved.cheque.chequeNumber, 90, 'cheque_in_desc'));
+      } else if (resolved.ambiguous) {
+        ambiguousChequeNumbers.add(cheque.chequeNumber);
+      }
     }
   }
 
@@ -165,14 +239,24 @@ export function matchTransaction(
   const unique = [...deduped.values()].sort((a, b) => b.confidence - a.confidence);
   const best = unique[0] ?? null;
 
-  return { best, candidates: unique };
+  return {
+    best,
+    candidates: unique,
+    // تحذير صريح بدل تخمين صامت: هذه الأرقام موجودة في أكثر من حساب بنكي ولم
+    // تُطابَق. تبقى الحركة «غير مطابَقة» ليربطها المستخدم يدويًا بالشيك الصحيح.
+    ...(ambiguousChequeNumbers.size > 0
+      ? { ambiguousChequeNumbers: [...ambiguousChequeNumbers] }
+      : {}),
+  };
 }
 
 // ── Batch match (for preview) ──────────────────────────────────────────────────
 
 export async function matchAllTransactions(
   rows: StatementTransaction[],
+  /** هوية حساب الكشف المستورد. غيابها = السلوك القديم غير الملتبس فقط. */
+  accountKey: string | null = null,
 ): Promise<MatchResult[]> {
   const ctx = await loadMatcherContext();
-  return rows.map((tx) => matchTransaction(tx, ctx));
+  return rows.map((tx) => matchTransaction(tx, ctx, accountKey));
 }

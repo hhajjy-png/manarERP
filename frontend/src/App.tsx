@@ -24,6 +24,8 @@ const Backup = lazy(() => import('./pages/Backup'));
 const Users = lazy(() => import('./pages/Users'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Cheques = lazy(() => import('./pages/Cheques'));
+// سجل البنوك والحسابات البنكية — مصدر هوية البنك لوحدة الشيكات.
+const Banks = lazy(() => import('./pages/Banks'));
 const DataImport = lazy(() => import('./pages/DataImport'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
 const Maintenance = lazy(() => import('./pages/Maintenance'));
@@ -177,6 +179,7 @@ export default function App() {
             <Route path="/backup" element={<Backup />} />
             <Route path="/inventory" element={<Inventory />} />
             <Route path="/cheques" element={<Cheques />} />
+            <Route path="/banks" element={<Banks />} />
             <Route path="/import" element={<DataImport />} />
             <Route path="/payroll/bank-import" element={<Navigate to="/import?bankModule=payroll" replace />} />
             <Route path="/payroll/bank-analytics" element={<BankSalaryAnalytics />} />

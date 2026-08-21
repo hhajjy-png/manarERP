@@ -1,44 +1,54 @@
 import { z } from 'zod';
 import { dateOnlySchema } from '../../core/utils/dateOnly';
 
+/**
+ * رقم الشيك — يُدخله المستخدم يدويًا دائمًا.
+ *
+ * هو الرقم الحقيقي المطبوع مسبقًا على ورقة الشيك الصادرة من البنك، فلا ترقيم
+ * تلقائي ولا اقتراح «الرقم التالي» ولا زيادة تلقائية في أي مسار من مسارات
+ * النظام. تفرّده يُفرض **ضمن الحساب البنكي الواحد** (انظر الخدمة).
+ */
+const chequeNumberSchema = z
+  .string()
+  .trim()
+  .min(3, 'رقم الشيك يجب أن يكون 3 أحرف على الأقل')
+  .regex(/^\S+$/, 'رقم الشيك لا يجب أن يحتوي على مسافات');
+
+const chequeDateSchema = dateOnlySchema.refine(
+  (d) => d.getUTCFullYear() >= 2020 && d.getUTCFullYear() <= 2035,
+  { message: 'تاريخ الشيك غير صالح' },
+);
+
+/**
+ * لا `bankName` في مخططات الإنشاء/التعديل بعد الآن.
+ *
+ * هوية البنك صارت `bankAccountId`، و`Cheque.bankName` يُشتق داخليًا في الخدمة
+ * من `Bank.nameAr` للحساب المختار. قبول نص بنك من العميل كان يعني أن الواجهة
+ * تستطيع كتابة اسم بنك لا يطابق الحساب المرتبط — وهو تناقض لا يمكن للخادم
+ * كشفه بعد وقوعه.
+ */
 export const createChequeSchema = z.object({
   body: z.object({
-    chequeNumber: z
-      .string()
-      .trim()
-      .min(3, 'رقم الشيك يجب أن يكون 3 أحرف على الأقل')
-      .regex(/^\S+$/, 'رقم الشيك لا يجب أن يحتوي على مسافات'),
-    chequeDate: dateOnlySchema
-      .refine((d) => d.getUTCFullYear() >= 2020 && d.getUTCFullYear() <= 2035, {
-        message: 'تاريخ الشيك غير صالح',
-      }),
+    chequeNumber: chequeNumberSchema,
+    chequeDate: chequeDateSchema,
     beneficiaryName: z.string().min(1, 'اسم المستفيد مطلوب'),
     amount: z.coerce.number().positive('المبلغ يجب أن يكون موجبًا'),
     currency: z.enum(['KWD', 'USD', 'SAR', 'AED']).default('KWD'),
     description: z.string().nullable().optional(),
-    bankName: z.string().min(1, 'اسم البنك مطلوب'),
+    bankAccountId: z.coerce.number().int().positive('الحساب البنكي مطلوب'),
     notes: z.string().nullable().optional(),
   }),
 });
 
 export const updateChequeSchema = z.object({
   body: z.object({
-    chequeNumber: z
-      .string()
-      .trim()
-      .min(3, 'رقم الشيك يجب أن يكون 3 أحرف على الأقل')
-      .regex(/^\S+$/, 'رقم الشيك لا يجب أن يحتوي على مسافات')
-      .optional(),
-    chequeDate: dateOnlySchema
-      .refine((d) => d.getUTCFullYear() >= 2020 && d.getUTCFullYear() <= 2035, {
-        message: 'تاريخ الشيك غير صالح',
-      })
-      .optional(),
+    chequeNumber: chequeNumberSchema.optional(),
+    chequeDate: chequeDateSchema.optional(),
     beneficiaryName: z.string().min(1).optional(),
     amount: z.coerce.number().positive().optional(),
     currency: z.enum(['KWD', 'USD', 'SAR', 'AED']).optional(),
     description: z.string().nullable().optional(),
-    bankName: z.string().min(1).optional(),
+    bankAccountId: z.coerce.number().int().positive().optional(),
     notes: z.string().nullable().optional(),
   }),
 });

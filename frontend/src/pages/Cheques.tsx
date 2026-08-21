@@ -29,6 +29,11 @@ import { buildChequeRuntimeData } from '../components/chequeTemplateManager/cheq
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
+import { listBanks, listBankAccounts, PRINT_PROFILE_MISSING_MESSAGE } from '../api/banks';
+import type { BankAccount } from '../api/banks';
+// صورة الشيك — **مرجع بصري للمعاينة على الشاشة فقط**. لا تُطبع إطلاقًا: قاعدة
+// `.cheque-bg-img { display: none !important }` داخل `@media print` أدناه تُخفيها،
+// فالمخرج على ورقة الشيك الحقيقية حبر البيانات وحده بلا خلفية ولا شعار.
 import gulfBankImg from '../assets/cheakv1.png';
 import {
   DEFAULT_TEMPLATE,
@@ -82,6 +87,11 @@ interface Cheque {
   currency: string;
   description: string | null;
   bankName: string;
+  /** الحساب البنكي المُصدِر — `null` لشيكات Legacy التي لم تُربَط بحساب. */
+  bankAccountId: number | null;
+  bankAccount: { id: number; accountName: string; bankNameAr: string; label: string; isActive: boolean } | null;
+  /** هل لحساب هذا الشيك قالب طباعة معتمد؟ يقرّره الخادم، والواجهة تحرس به فقط. */
+  printEnabled: boolean;
   status: string;
   printedAt: string | null;
   cancelledAt: string | null;
@@ -99,7 +109,8 @@ interface FormState {
   amount: string;
   currency: string;
   description: string;
-  bankName: string;
+  /** هوية البنك في النموذج — الحساب، لا اسم بنك نصي. '' = لم يُختَر بعد. */
+  bankAccountId: string;
   notes: string;
 }
 
@@ -122,10 +133,21 @@ function isPrintProvider(v: string): v is PrintProvider {
 
 function defaultForm(): FormState {
   const today = todayDateOnly();
-  return { chequeNumber: '', chequeDate: today, beneficiaryName: '', amount: '', currency: 'KWD', description: '', bankName: 'بنك الخليج', notes: '' };
+  // لا بنك افتراضي مثبّت بعد الآن: الحساب يُختار من البيانات الفعلية، ويُملأ
+  // تلقائيًا حين يوجد حساب نشط واحد لا غير (انظر `useEffect` التعبئة التلقائية).
+  return { chequeNumber: '', chequeDate: today, beneficiaryName: '', amount: '', currency: 'KWD', description: '', bankAccountId: '', notes: '' };
 }
 
-const KUWAITI_BANKS = [
+/**
+ * قائمة احتياطية لأسماء البنوك — **ليست المرجع التشغيلي**.
+ *
+ * المرجع التشغيلي لإصدار الشيكات صار سجل البنوك والحسابات من الخادم
+ * (`/api/banks`). هذه القائمة تُستخدم حصرًا كقيمة احتياطية لأسماء بنوك
+ * استوديو معايرة Classic القديم إذا تعذّر تحميل السجل — أي أن غياب الشبكة
+ * لا يُفرِغ الاستوديو من البنوك التي لها قوالب محفوظة أصلًا.
+ * لا يُبنى عليها أي منتقٍ في نموذج الشيك.
+ */
+const FALLBACK_BANK_NAMES = [
   'بنك الكويت الوطني', 'بيت التمويل الكويتي', 'بنك الخليج', 'البنك التجاري الكويتي', 'بنك برقان',
   'بنك بوبيان', 'بنك وربة', 'البنك الأهلي الكويتي', 'البنك الأهلي المتحد', 'بنك الكويت الدولي',
 ] as const;
@@ -260,7 +282,15 @@ export default function Cheques() {
   const [printConfigState, setPrintConfigState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [exportingExcel, setExportingExcel] = useState(false);
   const [makeDefault, setMakeDefault] = useState(false);
-  const [allTemplates, setAllTemplates] = useState<Record<string, ChequeTemplate>>({});
+  // ── سجل البنوك والحسابات (Multi-Bank Cheques Foundation v1) ────────────────
+  const [accounts, setAccounts] = useState<BankAccount[]>([]);
+  const [accountsState, setAccountsState] = useState<'loading' | 'ready' | 'error'>('loading');
+  /** أسماء بنوك استوديو معايرة Classic — من السجل الحقيقي، لا من ثابت في الشيفرة. */
+  const [bankNames, setBankNames] = useState<string[]>([]);
+  /** إعدادات الخادم الخام — منها تُشتق قوالب معايرة Classic لكل بنك. */
+  const [rawSettings, setRawSettings] = useState<{ key: string; value: string }[]>([]);
+  /** ما حفظه استوديو المعايرة في هذه الجلسة، ليظهر فورًا بلا إعادة تحميل. */
+  const [templateOverrides, setTemplateOverrides] = useState<Record<string, ChequeTemplate>>({});
   const [busy, setBusy] = useState(false);
   const [restoringDefault, setRestoringDefault] = useState(false);
   const [cancelConfirmCheque, setCancelConfirmCheque] = useState<Cheque | null>(null);
@@ -324,11 +354,16 @@ export default function Cheques() {
   // ── Load cheque templates from Settings on mount ───────────────────────────
 
   useEffect(() => {
+    // أسماء بنوك استوديو المعايرة تأتي من السجل الحقيقي حين يتوفّر، لا من مصفوفة
+    // ثابتة في الشيفرة. فشل تحميل السجل لا يمنع الطباعة: بوابة الطباعة تعتمد على
+    // `printEnabled` المرافق لكل شيك من الخادم، لا على هذه القائمة.
+    listBanks()
+      .then((banks) => setBankNames(banks.length ? banks.map((b) => b.nameAr) : [...FALLBACK_BANK_NAMES]))
+      .catch(() => setBankNames([...FALLBACK_BANK_NAMES]));
+
     api.get('/settings').then((res) => {
       const settings: { key: string; value: string }[] = res.data?.data?.settings ?? [];
-      const result: Record<string, ChequeTemplate> = {};
-      for (const bank of KUWAITI_BANKS) result[bank] = templateFromSettings(settings, bank);
-      setAllTemplates(result);
+      setRawSettings(settings);
       // Restore the saved default print provider (absent → 'classic', unchanged behavior).
       const providerRow = settings.find((s) => s.key === DEFAULT_PRINT_PROVIDER_SETTING);
       if (providerRow && isPrintProvider(providerRow.value)) setPrintProvider(providerRow.value);
@@ -338,12 +373,77 @@ export default function Cheques() {
       // left the provider at its initial 'classic' — so a print issued here used a
       // different provider AND different geometry than the user had configured.
       // Printing is now blocked with a visible error instead.
-      const result: Record<string, ChequeTemplate> = {};
-      for (const bank of KUWAITI_BANKS) result[bank] = cloneDefaultTemplate();
-      setAllTemplates(result);
+      setRawSettings([]);
       setPrintConfigState('error');
     });
   }, []);
+
+  // ── سجل الحسابات البنكية (منتقي نموذج الشيك) ────────────────────────────────
+  //
+  // مستقل عن بوابة الطباعة عمدًا: الطباعة تُحرَس بـ`printEnabled` الذي يرسله
+  // الخادم مع كل شيك، فتعذّر تحميل هذه القائمة يعطّل **إنشاء** شيك جديد فقط
+  // ولا يفتح أي ثغرة طباعة، ولا يمنع طباعة شيك قائم.
+  const loadAccounts = useCallback(async () => {
+    setAccountsState('loading');
+    try {
+      setAccounts(await listBankAccounts({ activeOnly: true }));
+      setAccountsState('ready');
+    } catch {
+      setAccounts([]);
+      setAccountsState('error');
+    }
+  }, []);
+
+  useEffect(() => { loadAccounts(); }, [loadAccounts]);
+
+  /** معرّف الحساب حين يوجد حساب نشط واحد لا غير — وإلا '' فيختار المستخدم. */
+  const soleActiveAccountId = accounts.length === 1 ? String(accounts[0].id) : '';
+
+  // حساب نشط واحد فقط ⇒ يُحدَّد تلقائيًا، فلا خطوة إضافية على المستخدم في
+  // الحالة الشائعة (حساب بنك الخليج الرئيسي وحده). أكثر من حساب ⇒ يختار.
+  // هذا التأثير يغطي وصول الحسابات **بعد** فتح النموذج؛ فتحه بعد وصولها يغطيه
+  // `resetForm` أدناه.
+  useEffect(() => {
+    if (!soleActiveAccountId) return;
+    setForm((f) => (f.bankAccountId ? f : { ...f, bankAccountId: soleActiveAccountId }));
+  }, [soleActiveAccountId]);
+
+  /**
+   * قوالب معايرة Classic لكل بنك، مشتقّة من الإعدادات.
+   *
+   * كانت تُبنى من مصفوفة البنوك الثابتة؛ صارت تُبنى من أسماء السجل الحقيقي.
+   * `templateOverrides` تحمل ما حفظه الاستوديو في هذه الجلسة حتى تظهر المعايرة
+   * فورًا دون إعادة تحميل الإعدادات — نفس سلوك `setAllTemplates` السابق.
+   */
+  const allTemplates: Record<string, ChequeTemplate> = useMemo(() => {
+    const result: Record<string, ChequeTemplate> = {};
+    for (const bank of bankNames) {
+      result[bank] = printConfigState === 'error'
+        ? cloneDefaultTemplate()
+        : templateFromSettings(rawSettings, bank);
+    }
+    return { ...result, ...templateOverrides };
+  }, [bankNames, rawSettings, templateOverrides, printConfigState]);
+
+  /** الحساب المختار في النموذج (لشيك جديد أو أثناء التعديل). */
+  const selectedAccount = useMemo(
+    () => accounts.find((a) => String(a.id) === form.bankAccountId) ?? null,
+    [accounts, form.bankAccountId],
+  );
+
+  /**
+   * هل الطباعة/المعاينة مسموحة للشيك الذي بين اليدين؟
+   *
+   * لشيك محفوظ: من `printEnabled` الذي يرسله الخادم مع الشيك نفسه — فلا تعتمد
+   * البوابة على قائمة الحسابات وقد تفشل. لمسودة غير محفوظة: من الحساب المختار.
+   *
+   * حساب بلا قالب طباعة معتمد لا يطبع ولا يعاين، ولا يرث قالب بنك الخليج ولا
+   * صورته ولا مقاساته ولا معايرته — لا يوجد fallback من أي نوع.
+   */
+  const printEnabledForTarget = printTarget ? printTarget.printEnabled : (selectedAccount?.printEnabled ?? false);
+
+  /** اسم بنك الشيك الحالي — لاختيار قالب معايرة Classic ولاستوديو المعايرة. */
+  const activeBankName = printTarget?.bankName ?? selectedAccount?.bankNameAr ?? '';
 
   // ── Print configuration readiness (settings load race) ──────────────────────
   // `printProvider` starts at 'classic' and `allTemplates` starts empty; both are
@@ -381,12 +481,37 @@ export default function Cheques() {
   }
 
   /** Guard every production print entry point. Returns false (and explains) when not ready. */
-  function assertPrintReady(): boolean {
-    if (printReady) return true;
-    setFormError(printConfigState === 'error'
-      ? 'تعذّر تحميل إعدادات الطباعة. أعد تحميل الصفحة قبل الطباعة — لن تتم الطباعة بإعدادات غير مؤكدة.'
-      : 'جارٍ تحميل إعدادات الطباعة… حاول بعد لحظة.');
-    return false;
+  function assertPrintReady(cheque?: Cheque): boolean {
+    if (!printReady) {
+      setFormError(printConfigState === 'error'
+        ? 'تعذّر تحميل إعدادات الطباعة. أعد تحميل الصفحة قبل الطباعة — لن تتم الطباعة بإعدادات غير مؤكدة.'
+        : 'جارٍ تحميل إعدادات الطباعة… حاول بعد لحظة.');
+      return false;
+    }
+    return assertAccountPrintable(cheque);
+  }
+
+  /**
+   * بوابة الحساب البنكي (Multi-Bank Cheques Foundation v1).
+   *
+   * حساب بلا قالب طباعة معتمد لا يطبع ولا يعاين — فلا تسريب لقالب بنك الخليج
+   * ولا لصورته ولا لمقاساته إلى أي بنك آخر. المصدر يختلف بحسب ما بين اليدين:
+   *   • شيك محفوظ ⇒ `printEnabled` الذي أرسله الخادم مع الشيك نفسه؛
+   *   • مسودة غير محفوظة اختير لها حساب ⇒ رايةُ ذلك الحساب؛
+   *   • مسودة بلا حساب مختار ⇒ تمرّ من هنا عمدًا: لا يوجد حساب غير مهيأ لتحرسه
+   *     هذه البوابة، و`validateForm` هو من يرفض بالرسالة الصحيحة («الحساب
+   *     البنكي مطلوب») بدل رسالة قالب طباعة لا تصف المشكلة.
+   */
+  function assertAccountPrintable(cheque?: Cheque): boolean {
+    const target = cheque ?? printTarget;
+    const enabled = target
+      ? target.printEnabled
+      : (form.bankAccountId ? (selectedAccount?.printEnabled ?? false) : true);
+    if (!enabled) {
+      setFormError(PRINT_PROFILE_MISSING_MESSAGE);
+      return false;
+    }
+    return true;
   }
 
 
@@ -395,7 +520,10 @@ export default function Cheques() {
   function field(name: keyof FormState, value: string) { setForm((f) => ({ ...f, [name]: value })); }
 
   function resetForm() {
-    setForm(defaultForm());
+    // الحساب الوحيد يُحدَّد هنا أيضًا لا في التأثير وحده: التأثير يعمل حين تصل
+    // الحسابات، أما فتح نموذج جديد **بعد** وصولها فيمرّ من هذا المسار فقط، وكان
+    // يفرغ الاختيار فيضطر المستخدم لإعادة انتقاء حسابه الوحيد في كل شيك.
+    setForm({ ...defaultForm(), bankAccountId: soleActiveAccountId });
     setEditId(null);
     setPrintTarget(null);
     setFormError('');
@@ -423,7 +551,9 @@ export default function Cheques() {
       amount: String(cheque.amount),
       currency: cheque.currency,
       description: cheque.description ?? '',
-      bankName: cheque.bankName,
+      // شيك Legacy بلا حساب مربوط يفتح بمنتقٍ فارغ: لا يُخمَّن له حساب، ويختاره
+      // المستخدم بنفسه إن أراد ربطه.
+      bankAccountId: cheque.bankAccountId != null ? String(cheque.bankAccountId) : '',
       notes: cheque.notes ?? '',
     });
     setEditId(cheque.id);
@@ -437,7 +567,7 @@ export default function Cheques() {
     if (!form.chequeDate) return t('error.cheque.date_required');
     if (!form.beneficiaryName.trim()) return t('error.cheque.beneficiary_required');
     if (!form.amount || Number(form.amount) <= 0) return t('error.cheque.amount_required');
-    if (!form.bankName.trim()) return t('error.cheque.bank_required');
+    if (!form.bankAccountId) return t('error.cheque.bank_account_required');
     if (!form.currency.trim()) return t('error.cheque.currency_required');
     return '';
   }
@@ -457,7 +587,7 @@ export default function Cheques() {
         amount: Number(form.amount),
         currency: form.currency.trim(),
         description: form.description.trim() || null,
-        bankName: form.bankName.trim(),
+        bankAccountId: Number(form.bankAccountId),
         notes: form.notes.trim() || null,
       };
       let saved: Cheque;
@@ -524,6 +654,14 @@ export default function Cheques() {
     if (job.index >= job.items.length) { finishChequeBatch('done'); return; }
     setBatchCurrent(job.index + 1);
     const cheque = job.items[job.index];
+    // بوابة الحساب البنكي تُقيَّم **لكل عنصر**: دفعة مختلطة قد تضم شيكًا على حساب
+    // مهيأ وآخر على حساب بلا قالب. الدفعة تتوقف عند أول شيك غير قابل للطباعة بدلًا
+    // من طباعته بقالب بنك آخر — نفس سياسة التوقف عند أي فشل طباعة أدناه.
+    if (!cheque.printEnabled) {
+      setFormError(PRINT_PROFILE_MISSING_MESSAGE);
+      finishChequeBatch('stopped');
+      return;
+    }
     setPrintTarget(cheque);
     setEditId(cheque.id);
     // Two rAF ticks so the hidden `.cheque-print-only` layer (which reads
@@ -584,6 +722,15 @@ export default function Cheques() {
     if (!assertPrintReady()) return;
     const items = cheques.filter((c) => selectedIds.has(c.id) && c.status !== 'CANCELLED');
     if (!items.length) { setFormError(t('error.cheque.batch_none_printable')); return; }
+
+    // بوابة الحساب البنكي على مستوى الدفعة كاملة، لكلا مزوّدَي الطباعة.
+    // الرفض صريح ولا تُسقَط العناصر غير القابلة للطباعة بصمت: إسقاطها كان
+    // سيطبع البقية ويترك المستخدم يظن أن كل ما اختاره طُبع.
+    const blocked = items.filter((c) => !c.printEnabled);
+    if (blocked.length) {
+      setFormError(`${PRINT_PROFILE_MISSING_MESSAGE} (${blocked.map((c) => c.chequeNumber).join('، ')})`);
+      return;
+    }
 
     if (printProvider === 'classic') {
       clearSelection();
@@ -663,7 +810,8 @@ export default function Cheques() {
           beneficiaryName: form.beneficiaryName.trim(),
           amount: Number(form.amount),
           currency: form.currency.trim(),
-          bankName: form.bankName.trim(),
+          // بيانات عرض لمحرّك القالب — اسم البنك مشتق من الحساب المختار، لا نص حر.
+          bankName: selectedAccount?.bankNameAr ?? '',
         };
   }
 
@@ -753,7 +901,7 @@ export default function Cheques() {
           amount: Number(form.amount),
           currency: form.currency.trim(),
           description: form.description.trim() || null,
-          bankName: form.bankName.trim(),
+          bankAccountId: Number(form.bankAccountId),
           notes: form.notes.trim() || null,
         };
         const res = await api.post('/cheques', payload);
@@ -955,12 +1103,12 @@ export default function Cheques() {
       // updates the active template inside that transaction — never a silent,
       // unrecoverable overwrite. Previous versions are preserved.
       await api.post('/cheques/template-versions', {
-        bankName: form.bankName,
+        bankName: activeBankName,
         template: DEFAULT_TEMPLATE,
         note: 'استعادة القالب الافتراضي',
       });
-      setAllTemplates((prev) => ({ ...prev, [form.bankName]: cloneDefaultTemplate() }));
-      setSuccess(t('msg.cheque.template_restored', { bank: bankLabel(form.bankName, t) }));
+      setTemplateOverrides((prev) => ({ ...prev, [activeBankName]: cloneDefaultTemplate() }));
+      setSuccess(t('msg.cheque.template_restored', { bank: bankLabel(activeBankName, t) }));
     } catch (e) {
       setFormError(errorMessage(e));
     } finally {
@@ -972,22 +1120,27 @@ export default function Cheques() {
 
   const previewData: PreviewData = printTarget
     ? { chequeNumber: printTarget.chequeNumber, chequeDate: printTarget.chequeDate, beneficiaryName: printTarget.beneficiaryName, amount: printTarget.amount, currency: printTarget.currency, description: printTarget.description, bankName: printTarget.bankName }
-    : { chequeNumber: form.chequeNumber, chequeDate: form.chequeDate, beneficiaryName: form.beneficiaryName, amount: form.amount, currency: form.currency, description: form.description || null, bankName: form.bankName };
+    : { chequeNumber: form.chequeNumber, chequeDate: form.chequeDate, beneficiaryName: form.beneficiaryName, amount: form.amount, currency: form.currency, description: form.description || null, bankName: activeBankName };
 
   // The bank calibration for the cheque ACTUALLY being printed. Reading this from
-  // `form.bankName` meant a Classic batch printed every cheque with whichever bank
+  // the form's bank meant a Classic batch printed every cheque with whichever bank
   // was last loaded into the form — data from cheque N, geometry from cheque 0.
   // `previewData` follows `printTarget`, which the batch step sets per item, so
   // single and batch now both resolve the calibration from the cheque in hand.
-  const currentTemplate: ChequeTemplate = allTemplates[previewData.bankName] ?? DEFAULT_TEMPLATE;
+  //
+  // `null` بدل السقوط على `DEFAULT_TEMPLATE` (إحداثيات بنك الخليج): بنك بلا قالب
+  // محفوظ لا يُطبع بقالب بنك آخر. الطبقة أدناه لا تُركَّب أصلًا في تلك الحالة،
+  // فلا حبر يخرج بهندسة لا تخص هذا الشيك.
+  const currentTemplate: ChequeTemplate | null = allTemplates[previewData.bankName] ?? null;
 
   const isPrintable =
-    (!!printTarget && printTarget.status !== 'CANCELLED') ||
-    (!printTarget && !!form.chequeNumber && !!form.beneficiaryName && !!form.amount && !!form.bankName);
+    printEnabledForTarget &&
+    ((!!printTarget && printTarget.status !== 'CANCELLED') ||
+      (!printTarget && !!form.chequeNumber && !!form.beneficiaryName && !!form.amount && !!form.bankAccountId));
   const isPrintedCheque = !!printTarget && printTarget.status === 'PRINTED';
 
   function handleCalibSaved(bank: string, template: ChequeTemplate) {
-    setAllTemplates((prev) => ({ ...prev, [bank]: template }));
+    setTemplateOverrides((prev) => ({ ...prev, [bank]: template }));
   }
 
   const calibPreviewData = {
@@ -1100,7 +1253,7 @@ export default function Cheques() {
     <div className="xpl-scope xpl-page">
       {/* Calibration overlay — UNCHANGED */}
       {showCalibrator && (
-        <ChequeStudioOverlay banks={KUWAITI_BANKS} initialBank={form.bankName} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} chequeRecord={printTarget} />
+        <ChequeStudioOverlay banks={bankNames} initialBank={activeBankName || bankNames[0] || ''} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} chequeRecord={printTarget} />
       )}
 
       {/* Hidden print area + print CSS — print output UNCHANGED.
@@ -1110,7 +1263,11 @@ export default function Cheques() {
           mounted at all. Unmounting beats CSS suppression: no !important tie to lose
           on document order, and no z-index/stacking-context to fight. Outside the
           calibrator this mounts and prints exactly as before. */}
-      {!showCalibrator && (
+      {/* PRINT PROFILE GATE (Multi-Bank Cheques Foundation v1): الطبقة لا تُركَّب
+          إلا لحساب بنكي له قالب طباعة معتمد **و**قالب معايرة محفوظ لبنكه فعلًا.
+          الشرطان معًا يمنعان أي fallback صامت: بنك جديد لا يطبع بإحداثيات بنك
+          الخليج ولا بصورته ولا بمقاساته، وعدم التركيب أقوى من إخفاء بالـCSS. */}
+      {!showCalibrator && printEnabledForTarget && currentTemplate && (
         <div className="cheque-print-only" style={{ display: 'none' }}>
           <div style={{ transform: `translate(${CHEQUE_PAGE_OFFSET_X_MM}mm, ${CHEQUE_PAGE_OFFSET_Y_MM}mm)` }}>
             <ChequePrintOutput data={previewData} template={currentTemplate} />
@@ -1158,7 +1315,9 @@ export default function Cheques() {
           subtitle={t('page.cheques.subtitle')}
           chips={
             <>
-              <IdChip icon="account_balance" tone="indigo">{bankLabel(form.bankName, t)}</IdChip>
+              {/* على مستوى الصفحة لم يعد هناك «بنك واحد» يُعرض: النظام صار متعدد
+                  البنوك، فالشريحة تعرض عدد الحسابات البنكية المتاحة للإصدار. */}
+              <IdChip icon="account_balance" tone="indigo">{accounts.length} {t('unit.bank_account')}</IdChip>
               <IdChip icon="receipt_long" tone="indigo">{stats.total} {t('unit.cheque')}</IdChip>
               <IdChip icon="print" tone="green">{stats.printed} {t('cheque.status.printed')}</IdChip>
               {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} {t('cheque.status.draft')}</IdChip>}
@@ -1513,12 +1672,37 @@ export default function Cheques() {
             )}
           </DialogSection>
 
+          {/* الحساب البنكي — هوية البنك الحقيقية للشيك.
+              يُحمَّل من سجل الحسابات الفعلي، ويُعرض بصيغة «اسم البنك — اسم الحساب»
+              فقط: لا رقم حساب ولا IBAN ولا معرّف بنك في نموذج الشيك. */}
           <DialogSection title={t('sec.bank')} icon="account_balance">
             <div className="xpl-field xpl-field--full">
-              <label>{t('field.cheque.bank')} <span className="req">*</span></label>
-              <select className="xpl-select" value={form.bankName} onChange={(e) => field('bankName', e.target.value)} disabled aria-label={t('field.cheque.bank')}>
-                {KUWAITI_BANKS.map((bank) => <option key={bank} value={bank}>{bankLabel(bank, t)}</option>)}
+              <label>{t('field.cheque.bank_account')} <span className="req">*</span></label>
+              <select
+                className="xpl-select"
+                value={form.bankAccountId}
+                onChange={(e) => field('bankAccountId', e.target.value)}
+                disabled={(!!editId && !canUpdate) || accountsState !== 'ready' || accounts.length === 0}
+                aria-label={t('field.cheque.bank_account')}
+              >
+                <option value="">{t('ph.cheque.bank_account')}</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>{account.label}</option>
+                ))}
               </select>
+              {accountsState === 'loading' && <div className="xpl-field-hint">{t('msg.bank_accounts.loading')}</div>}
+              {accountsState === 'error' && <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{t('error.bank_accounts.load_failed')}</div>}
+              {accountsState === 'ready' && accounts.length === 0 && (
+                <div className="xpl-form-error"><span className="material-symbols-outlined">error</span>{t('error.bank_accounts.none')}</div>
+              )}
+              {/* تنبيه صريح لا منع للحفظ: تسجيل الشيك مسموح على أي حساب، والطباعة
+                  وحدها هي المحجوبة حتى تُعتمد أبعاد الشيك الفعلية لهذا الحساب. */}
+              {selectedAccount && !selectedAccount.printEnabled && (
+                <div className="chqx-print-notice">
+                  <span className="material-symbols-outlined">info</span>
+                  {PRINT_PROFILE_MISSING_MESSAGE}
+                </div>
+              )}
             </div>
           </DialogSection>
 
@@ -1592,7 +1776,7 @@ export default function Cheques() {
         <ConfirmModal title={t('page.cheques.cancel_cheque')} message={t('page.cheques.confirm_cancel')} variant="warning" onConfirm={() => executeCancel(cancelConfirmCheque)} onCancel={() => setCancelConfirmCheque(null)} />
       )}
       {showRestoreConfirm && (
-        <ConfirmModal message={t('confirm.cheque.restore_default', { bank: bankLabel(form.bankName, t) })} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
+        <ConfirmModal message={t('confirm.cheque.restore_default', { bank: bankLabel(activeBankName, t) })} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
       )}
     </div>
   );

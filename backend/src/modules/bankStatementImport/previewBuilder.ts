@@ -21,7 +21,15 @@ export async function buildPreview(
   const dupSet = detectFileDuplicates(rows);
 
   // 4. Match
-  const matchResults = await matchAllTransactions(rows);
+  //
+  // هوية الحساب تُشتق قبل المطابقة لا بعدها (Multi-Bank Cheques Foundation v1):
+  // رقم الشيك لم يعد فريدًا عالميًا، فالمطابق يحتاج معرفة حساب الكشف ليحصر
+  // مرشّحي الشيكات فيه. مفاتيح `BANK:` مستبعدة لأنها لا تعرّف حسابًا بعينه —
+  // نفس القاعدة التي يستخدمها حساب `accountKey` أدناه، مُستخرجة إلى ثابت واحد
+  // لئلا يتباعد التعريفان.
+  const accountKey = rows.map(buildAccountKey).find((k) => !k.startsWith('BANK:')) ??
+                     (rows[0] ? buildAccountKey(rows[0]) : null);
+  const matchResults = await matchAllTransactions(rows, accountKey);
 
   // 5. Assemble preview rows
   const previewRows: PreviewRow[] = rows.map((tx, i) => {
@@ -70,10 +78,8 @@ export async function buildPreview(
     if (r.matchResult.best && r.matchResult.best.confidence >= 75) matched++;
   }
 
-  // Incremental import v2: dedup + coverage summary
-  const accountKey = rows.map(buildAccountKey).find((k) => !k.startsWith('BANK:')) ??
-                     (rows[0] ? buildAccountKey(rows[0]) : null);
-
+  // Incremental import v2: dedup + coverage summary — يعيد استخدام `accountKey`
+  // المشتق أعلاه قبل المطابقة (نفس القيمة حرفيًا، بلا حساب مكرر).
   const [dedupSummary, coverageSummary] = accountKey
     ? await Promise.all([
         buildDedupSummary(rows, bankName),

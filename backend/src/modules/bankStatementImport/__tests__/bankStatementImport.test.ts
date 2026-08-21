@@ -460,7 +460,7 @@ describe('detectBankFee', () => {
 describe('matchTransaction', () => {
   it('matches cheque number at confidence 100', () => {
     const tx = makeTx({ chequeNumber: 'CHQ-001', debit: 500 });
-    const ctx = makeCtx({ cheques: [{ id: 1, chequeNumber: 'CHQ-001', amount: 500 }] });
+    const ctx = makeCtx({ cheques: [{ id: 1, chequeNumber: 'CHQ-001', amount: 500, bankAccountId: 1, accountKey: 'ACCT:GULF_BANK:111' }] });
     const result = matchTransaction(tx, ctx);
     expect(result.best?.confidence).toBe(100);
     expect(result.best?.type).toBe('cheque');
@@ -499,13 +499,62 @@ describe('matchTransaction', () => {
   it('prefers higher confidence when multiple matches exist', () => {
     const tx = makeTx({ chequeNumber: 'CHQ-100', description: 'INV-100 payment', debit: 500 });
     const ctx = makeCtx({
-      cheques:  [{ id: 1, chequeNumber: 'CHQ-100', amount: 500 }],
+      cheques:  [{ id: 1, chequeNumber: 'CHQ-100', amount: 500, bankAccountId: 1, accountKey: 'ACCT:GULF_BANK:111' }],
       invoices: [{ id: 2, invoiceNumber: 'INV-100', total: 500 }],
     });
     const result = matchTransaction(tx, ctx);
     // Cheque exact match (100) should win over invoice ref (90)
     expect(result.best?.confidence).toBe(100);
     expect(result.best?.type).toBe('cheque');
+  });
+
+  // ── Multi-bank cheque-number safety (Multi-Bank Cheques Foundation v1) ──────
+  //
+  // رقم الشيك لم يعد فريدًا عالميًا: 123456 في بنك الخليج و123456 في بنك آخر
+  // شيكان مختلفان. هذه الاختبارات هي عقد «لا تخمين» للمطابق.
+
+  const gulfCheque = { id: 1, chequeNumber: 'CHQ-777', amount: 500, bankAccountId: 1, accountKey: 'ACCT:GULF_BANK:111' };
+  const nbkCheque  = { id: 2, chequeNumber: 'CHQ-777', amount: 500, bankAccountId: 2, accountKey: 'ACCT:NBK:222' };
+
+  it('does not match when the same cheque number exists in two accounts and the statement account is unknown', () => {
+    const tx = makeTx({ chequeNumber: 'CHQ-777', debit: 500 });
+    const ctx = makeCtx({ cheques: [gulfCheque, nbkCheque] });
+    const result = matchTransaction(tx, ctx, null);
+    const chequeCandidates = result.candidates.filter((c) => c.type === 'cheque');
+    expect(chequeCandidates).toHaveLength(0);
+    expect(result.ambiguousChequeNumbers).toEqual(['CHQ-777']);
+  });
+
+  it('matches the right account when the same cheque number exists in two accounts', () => {
+    const tx = makeTx({ chequeNumber: 'CHQ-777', debit: 500 });
+    const ctx = makeCtx({ cheques: [gulfCheque, nbkCheque] });
+    const result = matchTransaction(tx, ctx, 'ACCT:NBK:222');
+    expect(result.best?.type).toBe('cheque');
+    expect(result.best?.id).toBe(2);
+    expect(result.ambiguousChequeNumbers).toBeUndefined();
+  });
+
+  it('keeps the legacy behaviour when the match is unambiguous and no account is known', () => {
+    const tx = makeTx({ chequeNumber: 'CHQ-777', debit: 500 });
+    const ctx = makeCtx({ cheques: [gulfCheque] });
+    const result = matchTransaction(tx, ctx, null);
+    expect(result.best?.type).toBe('cheque');
+    expect(result.best?.id).toBe(1);
+  });
+
+  it('matches an unlinked legacy cheque (no bank account) when it is the only holder of the number', () => {
+    const tx = makeTx({ chequeNumber: 'CHQ-LEGACY', debit: 500 });
+    const ctx = makeCtx({ cheques: [{ id: 9, chequeNumber: 'CHQ-LEGACY', amount: 500, bankAccountId: null, accountKey: null }] });
+    const result = matchTransaction(tx, ctx, 'ACCT:GULF_BANK:111');
+    expect(result.best?.id).toBe(9);
+  });
+
+  it('does not guess from the description either when the number is shared across accounts', () => {
+    const tx = makeTx({ chequeNumber: null, transactionId: null, description: 'صرف شيك CHQ-777', debit: 500 });
+    const ctx = makeCtx({ cheques: [gulfCheque, nbkCheque] });
+    const result = matchTransaction(tx, ctx, null);
+    expect(result.candidates.filter((c) => c.type === 'cheque')).toHaveLength(0);
+    expect(result.ambiguousChequeNumbers).toEqual(['CHQ-777']);
   });
 
   it('deduplicates candidates per (type, id)', () => {

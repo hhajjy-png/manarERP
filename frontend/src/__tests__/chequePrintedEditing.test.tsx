@@ -13,6 +13,7 @@ import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-li
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
+import { bankRegistryResponse, gulfChequeAccountFields } from './helpers/bankRegistry';
 
 vi.mock('../api/client', () => ({
   api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
@@ -38,6 +39,8 @@ const PRINTED_CHEQUE = {
   description: null, bankName: 'بنك الخليج', status: 'PRINTED',
   printedAt: '2026-08-03T00:00:00.000Z', cancelledAt: null, notes: null,
   paymentVoucherNumber: null, printCount: 1, createdAt: '2026-07-30',
+  // حقول الحساب البنكي التي صار الخادم يرفقها بكل شيك.
+  ...gulfChequeAccountFields(),
 };
 const DRAFT_CHEQUE = { ...PRINTED_CHEQUE, id: 47, chequeNumber: '000003', beneficiaryName: 'مستفيد مسودة', status: 'DRAFT', printedAt: null, printCount: 0 };
 const CANCELLED_CHEQUE = { ...PRINTED_CHEQUE, id: 48, chequeNumber: '000004', beneficiaryName: 'ملغي', status: 'CANCELLED', cancelledAt: '2026-08-04' };
@@ -47,6 +50,9 @@ let rows = [PRINTED_CHEQUE, DRAFT_CHEQUE, CANCELLED_CHEQUE];
 function mockApi() {
   rows = [PRINTED_CHEQUE, DRAFT_CHEQUE, CANCELLED_CHEQUE];
   vi.mocked(api.get).mockImplementation((url: string) => {
+    // سجل البنوك — بنك الخليج بحسابه الرئيسي المهيأ للطباعة، كما في الإنتاج.
+    const registry = bankRegistryResponse(url);
+    if (registry) return Promise.resolve(registry as never);
     if (url === '/cheques') return Promise.resolve({ data: { data: { data: rows, meta: { total: rows.length } } } } as never);
     if (url === '/cheques/stats') return Promise.resolve({ data: { data: { total: rows.length, draft: 1, printed: 1, cancelled: 1 } } } as never);
     if (url === '/settings') return Promise.resolve({ data: { data: { settings: [{ key: 'cheques.defaultPrintProvider', value: 'classic' }] } } } as never);

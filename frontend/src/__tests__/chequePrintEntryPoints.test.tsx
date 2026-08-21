@@ -19,6 +19,7 @@ import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/re
 import '@testing-library/jest-dom';
 import { MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
+import { bankRegistryResponse, GULF_BANK_FIXTURE, NBK_BANK_FIXTURE, GULF_ACCOUNT_FIXTURE, NBK_ACCOUNT_FIXTURE } from './helpers/bankRegistry';
 
 const navigateMock = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -49,8 +50,19 @@ import { DEFAULT_TEMPLATE } from '../utils/chequeTemplate';
 const BANK_X = 'بنك الخليج';
 const BANK_Y = 'بنك الكويت الوطني';
 
-const CHEQUE_X = { id: 1, chequeNumber: 'C-1', chequeDate: '2026-08-02T00:00:00.000Z', beneficiaryName: 'Ali', amount: 1370, currency: 'KWD', description: null, bankName: BANK_X, status: 'DRAFT', printedAt: null, cancelledAt: null, notes: null, paymentVoucherNumber: null, createdAt: '2026-01-01' };
-const CHEQUE_Y = { ...CHEQUE_X, id: 2, chequeNumber: 'C-2', beneficiaryName: 'Sara', amount: 250, bankName: BANK_Y };
+/**
+ * كل شيك مربوط بحساب بنكه — Multi-Bank Cheques Foundation v1.
+ *
+ * البنكان هنا **كلاهما** مهيأ للطباعة (`printEnabled: true`): موضوع هذا الملف هو
+ * عزل المعايرة بين بنكين أثناء طباعة دفعة مختلطة، لا بوابة قالب الطباعة. حجب
+ * أحدهما كان سيُسقط الاختبار لسبب لا علاقة له بما يقيسه. بوابة الحساب غير
+ * المهيأ مختبَرة في مكانها: `chequeAccountSelection.test.tsx` والـbackend.
+ */
+const ACCOUNT_X = { id: 1, accountName: 'الحساب الرئيسي', bankNameAr: BANK_X, label: `${BANK_X} — الحساب الرئيسي`, isActive: true };
+const ACCOUNT_Y = { id: 2, accountName: 'الحساب الجاري', bankNameAr: BANK_Y, label: `${BANK_Y} — الحساب الجاري`, isActive: true };
+
+const CHEQUE_X = { id: 1, chequeNumber: 'C-1', chequeDate: '2026-08-02T00:00:00.000Z', beneficiaryName: 'Ali', amount: 1370, currency: 'KWD', description: null, bankName: BANK_X, bankAccountId: 1, bankAccount: ACCOUNT_X, printEnabled: true, status: 'DRAFT', printedAt: null, cancelledAt: null, notes: null, paymentVoucherNumber: null, createdAt: '2026-01-01' };
+const CHEQUE_Y = { ...CHEQUE_X, id: 2, chequeNumber: 'C-2', beneficiaryName: 'Sara', amount: 250, bankName: BANK_Y, bankAccountId: 2, bankAccount: ACCOUNT_Y };
 const CHEQUES = [CHEQUE_X, CHEQUE_Y];
 
 /** Distinct per-bank calibrations, so a leak between them is observable. */
@@ -96,6 +108,13 @@ function mockApi(provider = 'classic') {
     settingsDeferred.reject = reject;
   });
   vi.mocked(api.get).mockImplementation((url: string) => {
+    // سجل البنوك — بنكان مهيّأ أحدهما فقط، ليعكس واقع الحزمة: بنك الخليج يطبع،
+    // وأي بنك آخر مسجَّل لكن بلا قالب طباعة معتمد.
+    const registry = bankRegistryResponse(url, {
+      banks: [GULF_BANK_FIXTURE, NBK_BANK_FIXTURE],
+      accounts: [GULF_ACCOUNT_FIXTURE, { ...NBK_ACCOUNT_FIXTURE, printEnabled: true }],
+    });
+    if (registry) return Promise.resolve(registry as never);
     if (url === '/cheques') return Promise.resolve({ data: { data: { data: CHEQUES, meta: { total: 2 } } } } as never);
     if (url === '/cheques/stats') return Promise.resolve({ data: { data: { total: 2, draft: 2, printed: 0, cancelled: 0 } } } as never);
     if (url === '/settings') return settingsDeferred.promise as never;

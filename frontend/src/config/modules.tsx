@@ -536,6 +536,8 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
     { key: 'invoices', label: 'nav.invoices', icon: 'receipt_long', permission: 'invoices.read' },
     { key: 'expenses', label: 'nav.expenses', icon: 'payments', permission: 'expenses.read' },
     { key: 'cheques', label: 'nav.cheques', icon: 'edit_note', permission: 'cheques.read' },
+    // البنوك والحسابات — مصدر هوية البنك لوحدة الشيكات، فموضعها بجوارها مباشرةً.
+    { key: 'banks', label: 'nav.banks', icon: 'account_balance', permission: 'banks.read' },
     { key: 'salaries', label: 'nav.salaries', icon: 'account_balance_wallet', permission: 'payroll.read' },
     { key: 'suppliers', label: 'nav.suppliers', icon: 'inventory_2', permission: 'suppliers.read' },
     { key: 'accounting', label: 'nav.accounting', icon: 'account_balance', permission: 'transactions.read' },

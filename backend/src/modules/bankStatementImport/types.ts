@@ -104,6 +104,13 @@ export interface MatchCandidate {
 export interface MatchResult {
   best:        MatchCandidate | null;
   candidates:  MatchCandidate[];
+  /**
+   * أرقام شيكات وُجدت في أكثر من حساب بنكي فتعذّرت مطابقتها بأمان
+   * (Multi-Bank Cheques Foundation v1). وجودها يعني: النظام امتنع عن الاختيار
+   * عمدًا — الحركة تبقى «غير مطابَقة» ليربطها المستخدم بالشيك الصحيح يدويًا.
+   * غائب في الحالة الطبيعية، فلا يتأثر أي مستهلك قائم.
+   */
+  ambiguousChequeNumbers?: string[];
 }
 
 // ── Preview ────────────────────────────────────────────────────────────────────

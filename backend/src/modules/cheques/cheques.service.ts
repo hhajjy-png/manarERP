@@ -93,6 +93,90 @@ export function buildChequeFilterWhere(query: ChequeFilterQuery): Prisma.ChequeW
 /** Default row order for the cheques list — reused by the report so both agree. */
 export const CHEQUES_REPORT_ORDER = CHEQUES_DEFAULT_ORDER;
 
+/** الحساب البنكي كما يُرفق بكل شيك في المخرجات. */
+const chequeAccountInclude = {
+  bankAccount: {
+    select: {
+      id: true,
+      accountName: true,
+      isActive: true,
+      printProfileKey: true,
+      bank: { select: { id: true, code: true, nameAr: true, isActive: true } },
+    },
+  },
+} as const;
+
+type ChequeWithAccount = Prisma.ChequeGetPayload<{ include: typeof chequeAccountInclude }>;
+
+/**
+ * يضيف لكل شيك ما تحتاجه الواجهة عن حسابه البنكي.
+ *
+ * `printProfileKey` **لا يُسرَّب كقيمة** — يُختزل إلى راية `printEnabled`. الواجهة
+ * تحتاج أن تعرف «هل الطباعة مسموحة؟» لا «أي قالب؟»؛ تمرير المفتاح كان سيغري
+ * ببناء منطق اختيار قالب في العميل، وهو قرار يخصّ الخادم وحده.
+ *
+ * كل الحقول القائمة تبقى كما هي حرفيًا — الإضافة إضافية بحتة، فلا يتأثر
+ * التصدير إلى Excel ولا التقارير ولا أي قارئ حالي.
+ */
+function withAccountView(cheque: ChequeWithAccount, printableBankNames: ReadonlySet<string>) {
+  const account = cheque.bankAccount;
+  return {
+    ...cheque,
+    bankAccount: account
+      ? {
+          id: account.id,
+          accountName: account.accountName,
+          isActive: account.isActive && account.bank.isActive,
+          bankId: account.bank.id,
+          bankCode: account.bank.code,
+          bankNameAr: account.bank.nameAr,
+          label: `${account.bank.nameAr} — ${account.accountName}`,
+        }
+      : null,
+    /**
+     * الطباعة مسموحة فقط لحساب يحمل قالب طباعة معتمدًا.
+     *
+     * شيك Legacy بلا حساب (`bankAccountId = null`) لا يُسمح بطباعته لمجرد غياب
+     * الحساب: يُسمح فقط إذا كان اسم بنكه النصي يطابق بنكًا **له فعلًا** حساب
+     * بقالب طباعة معتمد. بنك Legacy مجهول لا يُخمَّن ولا يُطبع بقالب بنك آخر.
+     */
+    printEnabled: account ? !!account.printProfileKey : printableBankNames.has(cheque.bankName),
+  };
+}
+
+/**
+ * أسماء البنوك (`Bank.nameAr`) التي لها فعلًا حساب واحد على الأقل بقالب طباعة
+ * معتمد — أي البنوك التي يستطيع النظام الطباعة لها حقًا.
+ *
+ * هذه هي المرجعية الوحيدة للحكم على شيك Legacy بلا `bankAccountId`: اسم بنكه
+ * النصي إمّا يطابق بنكًا قابلًا للطباعة فتُسمح طباعته بقالبه، أو لا يطابق فلا
+ * يُطبع إطلاقًا. مشتقّة من السجل لا من اسم بنك مكتوب في الشيفرة، فإضافة بنك
+ * ثانٍ قابل للطباعة مستقبلًا لا تحتاج تعديل سطر هنا.
+ */
+async function loadPrintableBankNames(): Promise<ReadonlySet<string>> {
+  const banks = await prisma.bank.findMany({
+    where: { accounts: { some: { printProfileKey: { not: null } } } },
+    select: { nameAr: true },
+  });
+  return new Set(banks.map((b) => b.nameAr));
+}
+
+const NO_PRINTABLE_BANKS: ReadonlySet<string> = new Set<string>();
+
+/**
+ * نفس المرجعية، لكن تُحمَّل **فقط عند الحاجة**: هي لا تعني شيئًا إلا لشيك بلا
+ * `bankAccountId`. الشيك المربوط بحساب تُقرأ رايته من قالب حسابه مباشرةً.
+ *
+ * قاعدة إنتاج مُرحَّلة بالكامل ليس فيها شيك غير مربوط، فهذا المسار لا يُصدر أي
+ * استعلام إضافي في الحالة الطبيعية.
+ */
+async function printableBankNamesFor(
+  cheques: readonly { bankAccountId: number | null }[],
+): Promise<ReadonlySet<string>> {
+  const hasUnlinked = cheques.some((c) => c.bankAccountId == null);
+  return hasUnlinked ? loadPrintableBankNames() : NO_PRINTABLE_BANKS;
+}
+
 export class ChequesService {
   /** إحصاء الشيكات — يتبع نفس نطاق الفترة (chequeDate) الذي تتبعه القائمة.
    *  printedTotal: إجمالي مبلغ كل الشيكات PRINTED ضمن نفس نطاق الفترة، محسوبًا على
@@ -123,24 +207,72 @@ export class ChequesService {
         skip: pagination.skip,
         take: pagination.take,
         orderBy,
+        include: chequeAccountInclude,
       }),
       prisma.cheque.count({ where }),
     ]);
-    return buildPaginatedResult(data, total, pagination);
+    const printableBankNames = await printableBankNamesFor(data);
+    return buildPaginatedResult(data.map((c) => withAccountView(c, printableBankNames)), total, pagination);
   }
 
   async getById(id: number) {
-    const cheque = await prisma.cheque.findUnique({ where: { id } });
+    const cheque = await prisma.cheque.findUnique({ where: { id }, include: chequeAccountInclude });
     if (!cheque) throw AppError.notFound('الشيك غير موجود');
-    return cheque;
+    return withAccountView(cheque, await printableBankNamesFor([cheque]));
   }
 
-  async create(input: CreateChequeInput, req: Request) {
-    const existing = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });
+  /**
+   * يحمّل حسابًا بنكيًا صالحًا للإصدار عليه، أو يرمي خطأً مفهومًا.
+   *
+   * حساب موقوف — أو حساب بنكه موقوف — لا يجوز إصدار شيك جديد عليه. الشيكات
+   * القديمة المرتبطة به تبقى كما هي بلا أي مساس؛ الإيقاف يمنع الإصدار الجديد
+   * فقط، وهو الفرق بين «أوقفنا الحساب» و«نحذف تاريخه».
+   */
+  private async requireIssuableAccount(bankAccountId: number) {
+    const account = await prisma.bankAccount.findUnique({
+      where: { id: bankAccountId },
+      include: { bank: true },
+    });
+    if (!account) throw AppError.notFound('الحساب البنكي غير موجود');
+    if (!account.isActive) throw AppError.badRequest(`الحساب البنكي «${account.accountName}» موقوف — لا يمكن إصدار شيكات جديدة عليه`);
+    if (!account.bank.isActive) throw AppError.badRequest(`البنك «${account.bank.nameAr}» موقوف — لا يمكن إصدار شيكات جديدة عليه`);
+    return account;
+  }
+
+  /**
+   * يفرض تفرّد رقم الشيك **ضمن الحساب البنكي الواحد**.
+   *
+   * الرقم 123456 يمكن أن يوجد في بنك الخليج وفي بنك آخر، وهما شيكان مختلفان
+   * تمامًا — فالتفرّد العالمي القديم كان يمنع واقعًا مشروعًا.
+   *
+   * `bankAccountId: null` يمرّ هنا كـ`IS NULL` في Prisma، فالشيكات القديمة غير
+   * المربوطة بحساب تظل محروسة على مستوى الخدمة رغم أن فهرس SQLite الفريد لا
+   * يحرسها (القيم NULL متمايزة داخل الفهارس الفريدة هناك).
+   */
+  private async assertChequeNumberFree(
+    bankAccountId: number | null,
+    chequeNumber: string,
+    excludeChequeId?: number,
+  ) {
+    const existing = await prisma.cheque.findFirst({
+      where: {
+        chequeNumber,
+        bankAccountId,
+        ...(excludeChequeId ? { id: { not: excludeChequeId } } : {}),
+      },
+    });
+    if (!existing) return;
     // `chequeDate` عمود DateTime، فـ`String(date)` ينتج صيغة Date الكاملة بالإنجليزية
     // ("Sat Aug 16 2026 03:00:00 GMT+0300…") و`slice(0,10)` يقتطع منها "Sat Aug 16":
     // اسم يوم إنجليزي بلا سنة داخل رسالة عربية. `toLocalDateString` هو المُنسّق المعتمد.
-    if (existing) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${existing.beneficiaryName}، التاريخ: ${toLocalDateString(existing.chequeDate)})`);
+    throw AppError.conflict(
+      `رقم الشيك «${chequeNumber}» مستخدم بالفعل في هذا الحساب البنكي (المستفيد: ${existing.beneficiaryName}، التاريخ: ${toLocalDateString(existing.chequeDate)})`,
+    );
+  }
+
+  async create(input: CreateChequeInput, req: Request) {
+    const account = await this.requireIssuableAccount(input.bankAccountId);
+    await this.assertChequeNumberFree(account.id, input.chequeNumber);
 
     const cheque = await prisma.cheque.create({
       data: {
@@ -151,10 +283,14 @@ export class ChequesService {
         amount: roundMoney(input.amount),
         currency: input.currency ?? 'KWD',
         description: input.description ?? null,
-        bankName: input.bankName,
+        bankAccountId: account.id,
+        // مشتق من البنك، لا من نص يرسله العميل — فلا يمكن أن يتناقض اسم البنك
+        // المخزَّن مع الحساب المرتبط.
+        bankName: account.bank.nameAr,
         notes: input.notes ?? null,
         status: 'DRAFT',
       },
+      include: chequeAccountInclude,
     });
     await recordAudit({
       req,
@@ -164,13 +300,15 @@ export class ChequesService {
       newValue: {
         chequeNumber: cheque.chequeNumber,
         beneficiaryName: cheque.beneficiaryName,
+        bankAccountId: cheque.bankAccountId,
         bankName: cheque.bankName,
+        bankAccount: `${account.bank.nameAr} — ${account.accountName}`,
         amount: cheque.amount,
         currency: cheque.currency,
         chequeDate: cheque.chequeDate,
       },
     });
-    return cheque;
+    return withAccountView(cheque, await printableBankNamesFor([cheque]));
   }
 
   async update(id: number, input: UpdateChequeInput, req: Request) {
@@ -197,9 +335,22 @@ export class ChequesService {
     // Re-printing an edited PRINTED cheque continues to go through the existing
     // reprint flow (justification + logged), which is deliberately unchanged.
 
-    if (input.chequeNumber && input.chequeNumber !== current.chequeNumber) {
-      const dup = await prisma.cheque.findUnique({ where: { chequeNumber: input.chequeNumber } });
-      if (dup) throw AppError.conflict(`رقم الشيك «${input.chequeNumber}» مستخدم بالفعل (المستفيد: ${dup.beneficiaryName}، التاريخ: ${toLocalDateString(dup.chequeDate)})`);
+    // تغيير الحساب البنكي: يُعاد اشتقاق `bankName` من البنك الجديد، ويُعاد فحص
+    // تفرّد الرقم ضمن الحساب الهدف — فنقل شيك إلى حساب يحمل الرقم نفسه مرفوض.
+    // عدم تمرير `bankAccountId` يُبقي الشيك على حسابه الحالي كما هو (بما في ذلك
+    // شيكات Legacy غير المربوطة: تبقى بلا حساب ولا تُخمَّن).
+    const accountChanged =
+      input.bankAccountId !== undefined && input.bankAccountId !== current.bankAccountId;
+    const account = accountChanged ? await this.requireIssuableAccount(input.bankAccountId!) : null;
+    const targetAccountId = account ? account.id : current.bankAccountId;
+
+    const numberChanged = !!input.chequeNumber && input.chequeNumber !== current.chequeNumber;
+    if (numberChanged || accountChanged) {
+      await this.assertChequeNumberFree(
+        targetAccountId,
+        input.chequeNumber ?? current.chequeNumber,
+        id,
+      );
     }
 
     const cheque = await prisma.cheque.update({
@@ -211,9 +362,11 @@ export class ChequesService {
         amount: input.amount === undefined ? current.amount : roundMoney(input.amount),
         currency: input.currency ?? current.currency,
         description: input.description === undefined ? current.description : (input.description ?? null),
-        bankName: input.bankName ?? current.bankName,
+        bankAccountId: targetAccountId,
+        bankName: account ? account.bank.nameAr : current.bankName,
         notes: input.notes === undefined ? current.notes : (input.notes ?? null),
       },
+      include: chequeAccountInclude,
     });
     await recordAudit({
       req,
@@ -221,9 +374,57 @@ export class ChequesService {
       module: 'cheques',
       entityId: id,
       oldValue: current,
-      newValue: input,
+      // تغيير الحساب البنكي حدث جوهري (يغيّر هوية الشيك ونطاق تفرّد رقمه)، فيُذكر
+      // صراحةً في السجل بدل أن يُستنتج من فرق حقول.
+      newValue: accountChanged
+        ? {
+            ...input,
+            bankAccountChanged: { from: current.bankAccountId, to: targetAccountId },
+            bankName: cheque.bankName,
+          }
+        : input,
     });
-    return cheque;
+    return withAccountView(cheque, await printableBankNamesFor([cheque]));
+  }
+
+  // ── بوابة الطباعة (Multi-Bank Cheques Foundation v1) ───────────────────────
+
+  /**
+   * يمنع تسجيل طباعة شيك على حساب بنكي بلا قالب طباعة معتمد.
+   *
+   * في هذه الحزمة الحساب الوحيد المهيأ هو حساب بنك الخليج الرئيسي
+   * (`printProfileKey = 'CLASSIC_GULF_V1'`)، فطباعته تستمر بمسار Classic بلا
+   * أي تغيير. أي بنك أو حساب جديد يُمنع من الطباعة — لا يرث صورة بنك الخليج
+   * ولا مقاساته ولا إحداثياته ولا معايرته، ولا يوجد fallback من أي نوع.
+   *
+   * الحفظ والتعديل والإلغاء والإدارة تبقى مسموحة: الممنوع هو الطباعة وحدها.
+   *
+   * الشيكات القديمة غير المربوطة بحساب (`bankAccountId = null`) تُترك على
+   * سلوكها السابق عمدًا: منعها كان سيكسر إعادة طباعة سجلات قائمة لم يخترها
+   * المستخدم ولا يستطيع إصلاحها من داخل هذه الحزمة.
+   */
+  private async assertAccountPrintable(bankAccountId: number | null, bankName?: string) {
+    if (bankAccountId == null) {
+      // شيك Legacy بلا حساب: لا يُطبع لمجرد غياب الحساب. يُسمح فقط إذا كان اسم
+      // بنكه النصي يطابق بنكًا له فعلًا حساب بقالب طباعة معتمد — وإلا فبنكه
+      // مجهول للنظام، ولا يجوز تخمينه ولا طباعته بقالب بنك آخر.
+      // هنا الشيك بلا حساب يقينًا، فالتحميل مطلوب لا كسول.
+      const printableBankNames = await loadPrintableBankNames();
+      if (bankName && printableBankNames.has(bankName)) return;
+      throw AppError.badRequest(
+        `هذا الشيك غير مرتبط بحساب بنكي، وبنكه «${bankName ?? 'غير معروف'}» ليس له حساب بقالب طباعة معتمد. اربطه بالحساب البنكي الصحيح قبل الطباعة.`,
+      );
+    }
+    const account = await prisma.bankAccount.findUnique({
+      where: { id: bankAccountId },
+      include: { bank: true },
+    });
+    if (!account) throw AppError.notFound('الحساب البنكي غير موجود');
+    if (!account.printProfileKey) {
+      throw AppError.badRequest(
+        `لم يتم إعداد قالب الطباعة للحساب البنكي «${account.bank.nameAr} — ${account.accountName}» بعد. سيتم تفعيله بعد إدخال نموذج الشيك والأبعاد الفعلية.`,
+      );
+    }
   }
 
   async markPrinted(id: number, req: Request) {
@@ -231,6 +432,7 @@ export class ChequesService {
     if (!current) throw AppError.notFound('الشيك غير موجود');
     if (current.status === 'CANCELLED') throw AppError.badRequest('لا يمكن طباعة شيك ملغي');
     if (current.status === 'PRINTED') throw AppError.badRequest('الشيك مطبوع بالفعل');
+    await this.assertAccountPrintable(current.bankAccountId, current.bankName);
 
     // First print: flip status and open the print log (sequence 1, no reason).
     // Atomic so the counter and the log row can never diverge. Lifecycle rules
@@ -275,6 +477,7 @@ export class ChequesService {
     if (current.status !== 'PRINTED') {
       throw AppError.badRequest('إعادة الطباعة متاحة فقط لشيك مطبوع مسبقاً');
     }
+    await this.assertAccountPrintable(current.bankAccountId, current.bankName);
 
     const { cheque, sequence } = await prisma.$transaction(async (tx) => {
       // Re-read inside the transaction so the sequence is derived from the
