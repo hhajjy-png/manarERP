@@ -73,7 +73,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.6
+## Latest Release — Multi-Bank Cheques Foundation v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | Multi-Bank Cheques Foundation v1 — تحويل هوية البنك في وحدة الشيكات من نص حر (`Cheque.bankName`) إلى بنية حقيقية `Bank → BankAccount → Cheque` |
+| **Release status** | **RELEASED** — Product Owner manual visual review **completed and approved** prior to merge; no blocking visual findings |
+| **Feature commit** | `c2de9a12` — `feat(cheques): add multi-bank cheques foundation v1` |
+| **Merge** | `a684c66a` — `--no-ff` merge of `feature/multi-bank-cheques-foundation-v1` |
+| **Tags** | `stable-multi-bank-cheques-foundation-v1` → `a684c66a` · `checkpoint-multi-bank-cheques-foundation-v1` → `c40d14ef` (production HEAD قبل الدمج مباشرةً) |
+| **Schema / migration** | جدولان جديدان `banks` و`bank_accounts` + عمود `cheques.bankAccountId`. ترحيل واحد `20260821120000_multi_bank_cheques_foundation_v1`. **70 مجلد ترحيل**، `migrate status`: «Database schema is up to date»، وانحراف المخطط (drift) = صفر |
+| **تفرّد رقم الشيك** | انتقل من عالمي إلى **لكل حساب بنكي**: `@@unique([bankAccountId, chequeNumber])`. الرقم 123456 مشروع في بنكين مختلفين لأنهما شيكان مختلفان. SQLite يعدّ `NULL` متمايزة داخل الفهارس الفريدة، فشيكات Legacy غير المربوطة يحرسها فحص خدمي ضمن نطاق `bankAccountId: null` نفسه |
+| **رقم الشيك يدوي 100%** | Cheque numbers remain **manually entered** from the physical pre-printed cheque. لا ترقيم تلقائي، لا اقتراح «الرقم التالي»، لا زيادة تلقائية، ولا كيان `ChequeBook` في أي مسار |
+| **Backfill** | بذر البنوك الكويتية العشرة بمعرّفات `code` ثابتة غير عربية (`GULF_BANK`/`NBK`/…) + حساب «الحساب الرئيسي» لبنك الخليج، ثم ربط شيكاته القديمة بمطابقة **حرفية محصورة** على `'بنك الخليج'` — لا `LIKE`، لا تقريب، لا تخمين. النتيجة الفعلية: 56/56 شيك مربوط، صفر غير مربوط، وصفر تغيير في أي رقم شيك أو مبلغ أو تاريخ أو حالة أو سجل طباعة |
+| **Legacy hardening gate** | شيك قديم بلا `bankAccountId` **لا يُطبع لمجرد غياب الحساب**: يُسمح فقط إذا كان اسم بنكه النصي يطابق بنكًا له فعلًا حساب بقالب طباعة معتمد. بنك Legacy مجهول لا يُخمَّن ولا يُطبع بقالب بنك آخر. المرجعية مشتقّة من السجل (`loadPrintableBankNames`) لا من اسم بنك مكتوب في الشيفرة، وتُحمَّل كسولًا فلا استعلام إضافي في قاعدة مُرحَّلة بالكامل |
+| **Gulf Bank print contract** | **UNCHANGED** — نفس Classic provider، نفس الأبعاد والإحداثيات والمعايرة والمعاينة والطباعة والطباعة الجماعية. لا Regression على أي شيك قديم |
+| **حبر فقط عند الطباعة** | المخرَج على ورقة الشيك الحقيقية يقتصر على التاريخ والمستفيد والمبلغ الرقمي والتفقيط. **ممنوع** طباعة صورة الشيك أو شعار البنك أو الخلفية أو أي تصميم ورقي؛ الصور مرجع بصري للمعاينة والمعايرة فقط. مثبَّت باختبار `chequePrintNoBackground.test.tsx` على المسارين (Classic و Designer) |
+| **البنوك الجديدة** | **Record-ready but NOT print-enabled** — يمكن إنشاء البنك والحساب وتسجيل شيكاته وتعديلها وإلغاؤها، والطباعة/المعاينة ممنوعتان حتى توفير نموذج الشيك الحقيقي والأبعاد الفعلية واعتماد القالب. خمس بوابات مستقلة: حارس الخادم في `markPrinted`/`reprint`، زر طباعة معطّل، طبقة `.cheque-print-only` لا تُركَّب أصلًا، `currentTemplate = null` بدل السقوط على `DEFAULT_TEMPLATE`، ورفض صريح للدفعة يسمّي أرقام الشيكات. **لا fallback إلى صورة أو مقاسات أو إحداثيات بنك الخليج بأي مسار** |
+| **Bank statement matching** | صار **واعيًا بالحساب البنكي**: مرشّح واحد ⇒ يُطابَق (سلوك Legacy محفوظ)؛ عدة مرشّحين مع `accountKey` معروف ⇒ يُحصر في الحساب؛ التباس حقيقي ⇒ **لا اختيار** ويُعاد `ambiguousChequeNumbers` كتحذير صريح. القاعدة 5 (الرقم داخل الوصف) خضعت للحارس نفسه — كانت تدفع مرشّحًا لكل شيك يحمل الرقم فينتهي الترتيب باختيار أحدهما اعتباطًا |
+| **UI** | صفحة «البنوك والحسابات» (`/banks`، ExplorerKit، عربية RTL) + استبدال قائمة البنوك المعطّلة في نموذج الشيك بمنتقي **الحساب البنكي** يُحمَّل من البيانات الفعلية. العرض «اسم البنك — اسم الحساب» فقط: **لا رقم حساب ولا IBAN** في نموذج الشيك ولا في الـAPI. حساب نشط واحد ⇒ يُحدَّد تلقائيًا |
+| **Permissions / Audit** | مفتاحان جديدان `banks.read` / `banks.manage` يُزامَنان **داخل الـmigration نفسه** (مسار `prisma migrate deploy` التلقائي عند بدء الخدمة) لا عبر إعادة بذر يدوية، ويُمنحان لـ`SYSTEM_ADMIN`/`GENERAL_MANAGER`/`ACCOUNTANT`. تدقيق كامل لإنشاء/تعديل/تفعيل/إيقاف البنوك والحسابات وتغيير الحساب البنكي المرتبط بشيك (`ACTIVATE`/`DEACTIVATE` كإجراءين مستقلين لا `UPDATE` عام) |
+| **خارج النطاق صراحةً** | **No GL integration** (لا قيد، لا `journal_entry`، لا مساس بالحساب `1010`) · **No ChequeBook** · **No automatic cheque numbering** · **Multi-Bank Print Profiles = future phase** (لا معايرة ولا مصمّم متعدد البنوك، ولا أبعاد أو قوالب افتراضية لأي بنك جديد) · لا تنظيف لـ`PrintedCheque` أو `ProfessionalFormTemplate` · وحدة `bankAccounts` القائمة (`/api/bank-accounts`، عرض مشتق من كشوف البنوك) لم تُمسّ — السجل الجديد على `/api/banks/*` والجسر بينهما `statementAccountKey` الاختياري |
+| **Validation** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · `prisma validate` ✅ · `prisma migrate status` 70/70 مطبّقة، drift صفر ✅ · Backend **3512** اختبارًا / 218 ملفًا (2 متخطّى مسبقًا) ✅ · Frontend **4109** اختبارًا / 225 ملفًا ✅ · `build:back` + `build:front` ✅ |
+| **اختبارات جديدة** | 41 اختبارًا: `cheques.multiBank` (27، شاملة Legacy hardening gate) · `banks.service` (17) · `banks.migration` (22 عقدًا على SQL الترحيل نفسه) · `chequeAccountSelection` (15) · `chequePrintNoBackground` (6) · 5 في المطابق متعدد البنوك. عقد Regression لبنك الخليج (`chequePrintDeterministicGeometry`, `chequePrintInkIsolation`, `chequeClassicBatchPrinting`) أخضر بلا إضعاف أي تأكيد |
+| **الإصدار** | لا تغيير في `package.json` — حزمة backend/frontend، بلا إعادة بناء مثبِّت |
+
+---
+
+## Previous Release — Production Release 2026.5.6
 
 | Field | Value |
 |-------|-------|

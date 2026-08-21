@@ -33,12 +33,12 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `0d33b9ea` (merge of `feature/production-release-2026.5.6` — **Production Release 2026.5.6**). A packaging release: it introduces no new feature work, only `package.json` `2026.5.5` → `2026.5.6`, and bundles into a new self-contained Windows installer everything merged onto `production` since the 2026.5.5 installer — **C-1 Critical Accounting Fix Pack v1** (merge `1963201a`), which blocks changing a purchase invoice's `paymentMethod` after GL posting (that edit re-derived the journal's credit account while freezing the settlement state, so Cash got credited twice and Accounts Payable went to a debit balance), and **Packaging Hardening Pack v1** (merge `788c8fe0`), which root-causes the recurring stale-Prisma-client packaging defect (copy source moved to `backend/node_modules` plus a fail-closed model-set guard that ran and confirmed 85/85 in this build) and closes the `__livetest__`/`__probe__` dev-code leak that was verifiably shipping inside the 2026.5.5 installer |
-| **Current Documentation Commit** | `2ecf7b26` |
-| **Current Stable Tag** | `stable-production-release-2026.5.6` → `0d33b9ea` · checkpoint `checkpoint-production-release-2026.5.6` → `788c8fe0` (production HEAD immediately before the release) (previous: `stable-c1-critical-accounting-fix-pack-v1` → `1963201a`) |
-| **Current Release Date** | 2026-08-20 |
-| **Application Version** | `2026.5.6` — new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.6.exe` (132.02 MiB, 138,436,813 bytes, SHA-256 `2b44d5a677f7f29a78d15f6eac373204d56cc928d967fd5f8285e8388bb6e44e`, Windows 10/11 x64, zero external runtime prerequisites); `win-unpacked` 3,376 files / 470,059,994 bytes. Golden Database SHA-256 `03fb8e5e18cef47e04a19c7d80e06359779aefd6c402d9d821ffd5249690f880` (3,870,720 bytes, `integrity_check = ok`, 0 foreign-key violations, 86 tables, 69 applied migrations) verified byte-identical in four places (source · `win-unpacked` · inside `Setup.exe` · `seed-data/golden-manifest.json`). The packaged Prisma client carries all **85** models, model set identical to `backend/prisma/schema.prisma` — confirmed both by the new fail-closed build guard and by extracting the client from inside `Setup.exe`. Packaging audit over 4,107 `Setup.exe` entries and 686 `app.asar` entries: zero source maps, tests, `.ts`/`.d.ts`, `.env`, `.bak`, journals, secrets, non-Windows engines — and, for the first time, **zero `__livetest__`/`__probe__` dev files**, which the 2026.5.5 installer verifiably shipped |
-| **Total Stable Releases** | 446 (window 2026-06-07 → 2026-08-20) — `git tag -l "stable-*"` count |
+| **Current Merge Commit** | `a684c66a` (merge of `feature/multi-bank-cheques-foundation-v1` — **Multi-Bank Cheques Foundation v1**, feature commit `c2de9a12`). Bank identity in the cheques module becomes a real `Bank → BankAccount → Cheque` structure; Gulf Bank printing unchanged; new banks are record-ready but not print-enabled. Product Owner visual review completed and approved before merge. Previous merge commit: `0d33b9ea` (merge of `feature/production-release-2026.5.6` — **Production Release 2026.5.6**). A packaging release: it introduces no new feature work, only `package.json` `2026.5.5` → `2026.5.6`, and bundles into a new self-contained Windows installer everything merged onto `production` since the 2026.5.5 installer — **C-1 Critical Accounting Fix Pack v1** (merge `1963201a`), which blocks changing a purchase invoice's `paymentMethod` after GL posting (that edit re-derived the journal's credit account while freezing the settlement state, so Cash got credited twice and Accounts Payable went to a debit balance), and **Packaging Hardening Pack v1** (merge `788c8fe0`), which root-causes the recurring stale-Prisma-client packaging defect (copy source moved to `backend/node_modules` plus a fail-closed model-set guard that ran and confirmed 85/85 in this build) and closes the `__livetest__`/`__probe__` dev-code leak that was verifiably shipping inside the 2026.5.5 installer |
+| **Current Documentation Commit** | see `docs:` commit on top of `a684c66a` (previous: `2ecf7b26`) |
+| **Current Stable Tag** | `stable-multi-bank-cheques-foundation-v1` → `a684c66a` · checkpoint `checkpoint-multi-bank-cheques-foundation-v1` → `c40d14ef` (production HEAD immediately before the merge). Previous: `stable-production-release-2026.5.6` → `0d33b9ea` · checkpoint `checkpoint-production-release-2026.5.6` → `788c8fe0` (previous: `stable-c1-critical-accounting-fix-pack-v1` → `1963201a`) |
+| **Current Release Date** | 2026-08-21 |
+| **Application Version** | `2026.5.6` — **unchanged by Multi-Bank Cheques Foundation v1** (backend/frontend pack, no installer rebuild), so the shipped installer predates that pack and its 70th migration. Installer figures below describe the 2026.5.6 build: new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.6.exe` (132.02 MiB, 138,436,813 bytes, SHA-256 `2b44d5a677f7f29a78d15f6eac373204d56cc928d967fd5f8285e8388bb6e44e`, Windows 10/11 x64, zero external runtime prerequisites); `win-unpacked` 3,376 files / 470,059,994 bytes. Golden Database SHA-256 `03fb8e5e18cef47e04a19c7d80e06359779aefd6c402d9d821ffd5249690f880` (3,870,720 bytes, `integrity_check = ok`, 0 foreign-key violations, 86 tables, 69 applied migrations) verified byte-identical in four places (source · `win-unpacked` · inside `Setup.exe` · `seed-data/golden-manifest.json`). The packaged Prisma client carries all **85** models, model set identical to `backend/prisma/schema.prisma` — confirmed both by the new fail-closed build guard and by extracting the client from inside `Setup.exe`. Packaging audit over 4,107 `Setup.exe` entries and 686 `app.asar` entries: zero source maps, tests, `.ts`/`.d.ts`, `.env`, `.bak`, journals, secrets, non-Windows engines — and, for the first time, **zero `__livetest__`/`__probe__` dev files**, which the 2026.5.5 installer verifiably shipped |
+| **Total Stable Releases** | 447 (window 2026-06-07 → 2026-08-21) — `git tag -l "stable-*"` count |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — full mechanical release ledger; this file is the distilled AI-readable summary |
 
 ---
@@ -415,6 +415,42 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Multi-Bank Cheques Foundation v1**
+  (2026-08-21, `stable-multi-bank-cheques-foundation-v1`) —
+  turns bank identity in the cheques module from a free-text `Cheque.bankName` string
+  into a real `Bank → BankAccount → Cheque` structure. Two new tables (`banks`,
+  `bank_accounts`) plus `cheques.bankAccountId`; one migration
+  `20260821120000_multi_bank_cheques_foundation_v1` (70 migration folders total, zero
+  drift). Cheque-number uniqueness moves from global to **per bank account** —
+  `123456` is legitimate at two different banks because they are two different cheques.
+  **Cheque numbers remain manually entered** from the physical pre-printed cheque: no
+  automatic numbering, no next-number suggestion, no `ChequeBook`. The backfill seeds the
+  ten Kuwaiti banks under stable non-Arabic `code` identifiers, creates Gulf Bank's
+  «الحساب الرئيسي» — the only account with an approved print profile — and links its
+  legacy cheques by an exact, narrow `bankName` match (56/56 linked, zero unlinked,
+  no cheque number/amount/date/status/print-log altered). Any other legacy value is left
+  unlinked and surfaced in a report rather than guessed. A legacy cheque with no account
+  is not printable merely because the account is missing: it prints only when its bank
+  name matches a bank that really has a print-enabled account, so an unknown legacy bank
+  is never printed with another bank's template. **Gulf Bank Classic printing is
+  unchanged** (provider, dimensions, coordinates, calibration, preview, print, batch
+  print). Printed output stays ink-only — date, payee, numeric amount, tafqeet — and no
+  cheque image, bank logo or background ever prints, on either the Classic or Designer
+  path. New banks are **record-ready but not print-enabled** until real cheque dimensions
+  and an approved profile are supplied, guarded independently in five places with no
+  fallback to Gulf Bank's image, sizes or coordinates. Bank-statement matching becomes
+  account-aware and returns an explicit `ambiguousChequeNumbers` warning instead of
+  arbitrarily picking one of two cheques sharing a number. New `/banks` management page
+  (no account number or IBAN anywhere), new `banks.read`/`banks.manage` keys synchronised
+  inside the migration itself rather than by a manual reseed, and full audit of bank and
+  account create/update/activate/deactivate plus cheque account changes. **Not included:**
+  GL integration, `ChequeBook`, automatic numbering, multi-bank calibration or designer,
+  default templates or dimensions for new banks, IBAN/account-number UI, or cleanup of
+  `PrintedCheque`/`ProfessionalFormTemplate`. Multi-Bank Print Profiles remain a future
+  phase. 41 files (+3,410/−129), 41 new tests; backend 3512 · frontend 4109 green;
+  feature commit `c2de9a12`, merge `a684c66a`. Product Owner visual review completed and
+  approved before merge.
 
 - **Vehicle Insurance Management v1**
   (2026-08-19, `stable-vehicle-insurance-management-v1`) —
