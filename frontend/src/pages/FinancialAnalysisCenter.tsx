@@ -585,8 +585,32 @@ function CollectionsSectionView({ report, onDrill, expanded, onToggle }: Expanda
       money: kpis.collected,
       onClick: () => onDrill({ kind: 'collections', title: t('fac.kpi.collected') }),
     },
-    { key: 'outstanding', icon: 'pending_actions', tone: 'orange', label: t('fac.kpi.outstanding'), money: kpis.outstanding },
-    { key: 'rate', icon: 'percent', tone: 'indigo', label: t('fac.kpi.collection_rate'), text: percentText(kpis.collectionRate) },
+    // رصيد أول المدة كان موجودًا في الحمولة بلا عرض، فبدت المعادلة مكسورة على الشاشة:
+    // الرصيد الختامي لا يساوي «المفوتَر − المحصَّل». إظهاره يجعل المعادلة مقروءة.
+    {
+      key: 'opening',
+      icon: 'history',
+      tone: 'blue',
+      label: t('fac.kpi.opening_ar'),
+      money: kpis.openingAr,
+      sub: t('fac.kpi.opening_ar_sub'),
+    },
+    {
+      key: 'outstanding',
+      icon: 'pending_actions',
+      tone: 'orange',
+      label: t('fac.kpi.outstanding'),
+      money: kpis.outstanding,
+      sub: t('fac.kpi.closing_sub'),
+    },
+    {
+      key: 'rate',
+      icon: 'percent',
+      tone: 'indigo',
+      label: t('fac.kpi.collection_rate'),
+      text: percentText(kpis.collectionRate),
+      sub: t('fac.kpi.cei_sub'),
+    },
     { key: 'avg', icon: 'functions', tone: 'indigo', label: t('fac.kpi.average_collection'), money: kpis.averageCollection },
   ];
 
@@ -620,8 +644,9 @@ function CollectionsSectionView({ report, onDrill, expanded, onToggle }: Expanda
         />
       ),
     },
-    { key: 'outstanding', label: t('fac.col.outstanding'), align: 'end', render: (r) => <MoneyCell value={r.outstanding} /> },
-    { key: 'rate', label: t('fac.col.collection_rate'), align: 'end', render: (r) => <PercentCell value={r.collectionRate} /> },
+    { key: 'opening', label: t('fac.col.opening_ar'), align: 'end', render: (r) => <MoneyCell value={r.openingAr} /> },
+    { key: 'outstanding', label: t('fac.col.closing_balance'), align: 'end', render: (r) => <MoneyCell value={r.outstanding} /> },
+    { key: 'rate', label: t('fac.col.cei_rate'), align: 'end', render: (r) => <PercentCell value={r.collectionRate} /> },
   ];
 
   return (

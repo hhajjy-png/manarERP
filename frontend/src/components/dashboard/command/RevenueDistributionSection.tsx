@@ -89,7 +89,9 @@ export default function RevenueDistributionSection({
         </ResponsiveContainer>
         <div className="db-cc-donut-center">
           <div className="db-cc-donut-total">{formatInteger(total)}</div>
-          <div className="db-cc-donut-caption">{t('kpi.total_revenue')}</div>
+          {/* الخلفية تقصّ إلى أعلى 5 عملاء قبل الإرسال، فهذا مجموعهم لا إجمالي إيراد
+              الشركة — والنسب في وسيلة الإيضاح أدناه محسوبة على المجموع نفسه. */}
+          <div className="db-cc-donut-caption">{t('db.cc.top5_total')}</div>
         </div>
       </div>
 
