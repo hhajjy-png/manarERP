@@ -133,13 +133,24 @@ export class PayrollService {
       where.status = { not: 'CANCELLED' };
     }
 
+    // «مدفوع» عدّادٌ داخل **نفس مجموعة الشاشة**، لا مجموعة مستقلة. النشر السابق
+    // (`{ ...where, status: 'PAID' }`) كان يكتب فوق فلتر الحالة الذي اختاره المستخدم،
+    // فيعرض عدد المدفوعة الكامل للفترة بينما بقية البطاقات تعرض المسوّدات وحدها.
+    // مع فلتر حالة صريح: العدّاد جزء من المجموعة المفلترة — أي كلّها إن كان PAID،
+    // وصفر لأي حالة أخرى (لا تقاطع بينها وبين PAID).
+    const paidQuery = query.status
+      ? (query.status === 'PAID'
+          ? prisma.payroll.count({ where })
+          : Promise.resolve(0))
+      : prisma.payroll.count({ where: { ...where, status: 'PAID' } });
+
     const [agg, paid] = await Promise.all([
       prisma.payroll.aggregate({
         where,
         _sum: { grossSalary: true, netSalary: true },
         _count: { _all: true },
       }),
-      prisma.payroll.count({ where: { ...where, status: 'PAID' } }),
+      paidQuery,
     ]);
 
     const computedCount = agg._count._all;

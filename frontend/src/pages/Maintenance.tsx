@@ -27,6 +27,7 @@ import {
   Button,
 } from '../components/explorer/ExplorerKit';
 import DateInput from '../components/DateInput';
+import UnavailableValue from '../components/UnavailableValue';
 import '../components/explorer/explorer-kit.css';
 import './Maintenance.css';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
@@ -88,36 +89,61 @@ function maintSortValue<T extends { equipment?: { code: string } }>(row: T, key:
 
 // ── Summary KPIs ──────────────────────────────────────────────────────────────
 
+/**
+ * مؤشرات رأس الصفحة — **على مستوى الوحدة كلها، لا التبويب المعروض**.
+ *
+ * تُجلب مرة واحدة بلا فلاتر عمدًا: هي صورة الوحدة الإجمالية التي تعلو التبويبات، لا
+ * ملخّصًا للجدول أسفلها. لذلك تحمل كل بطاقة وصف نطاقها صراحةً، فلا تُقرأ كمجموع
+ * نتائج التبويب النشط الذي قد يكون مفلترًا بمعدة أو حالة.
+ *
+ * وفشل الطلب لم يعد يعرض أصفارًا: البطاقات تعرض «—» مع سبب بدل أن توحي بأن الوحدة فارغة.
+ */
 function SummaryKPIs() {
   const { t } = useT();
-  const [records, setRecords] = useState<MaintenanceRecord[]>([]);
-  const [breakdowns, setBreakdowns] = useState<Breakdown[]>([]);
-  const [due, setDue] = useState<MaintenanceRecord[]>([]);
+  const [records, setRecords] = useState<MaintenanceRecord[] | null>(null);
+  const [breakdowns, setBreakdowns] = useState<Breakdown[] | null>(null);
+  const [due, setDue] = useState<MaintenanceRecord[] | null>(null);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([
       api.get('/maintenance/records', { params: { pageSize: 500 } }),
       api.get('/maintenance/breakdowns', { params: { pageSize: 500 } }),
       api.get('/maintenance/due'),
     ]).then(([rRes, bRes, dRes]) => {
+      if (cancelled) return;
       setRecords(rRes.data.data ?? []);
       setBreakdowns(bRes.data.data ?? []);
       setDue(dRes.data.data ?? []);
-    }).catch(() => {});
+      setFailed(false);
+    }).catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
   }, []);
 
-  const totalRecords = records.length;
-  const openBreakdowns = breakdowns.filter((b) => b.status === 'OPEN').length;
-  const completed = records.filter((r) => r.status === 'COMPLETED').length;
-  const dueSoon = due.length;
+  const totalRecords   = records ? records.length : null;
+  const openBreakdowns = breakdowns ? breakdowns.filter((b) => b.status === 'OPEN').length : null;
+  const completed      = records ? records.filter((r) => r.status === 'COMPLETED').length : null;
+  const dueSoon        = due ? due.length : null;
+
+  const val = (n: number | null) => (n == null ? <UnavailableValue /> : n);
+  const moduleScope = t('stat.maint.module_scope');
 
   return (
     <div className="mntx-metrics">
-      <HeroMetric icon="build" label={t('stat.maint.total')} value={totalRecords} sub={<><span className="material-symbols-outlined">check_circle</span>{`${completed} ${t('lbl.maint.completed_suffix')}`}</>} />
+      {failed && <ErrorBanner>{t('lbl.stats_unavailable')}</ErrorBanner>}
+      <HeroMetric
+        icon="build"
+        label={t('stat.maint.total')}
+        value={val(totalRecords)}
+        sub={completed == null
+          ? moduleScope
+          : <><span className="material-symbols-outlined">check_circle</span>{`${completed} ${t('lbl.maint.completed_suffix')} · ${moduleScope}`}</>}
+      />
       <div className="xpl-kpi-grid">
-        <MetricCard icon="check_circle" tone="green" label={t('stat.maint.completed')} value={completed} />
-        <MetricCard icon="error" tone={openBreakdowns > 0 ? 'red' : 'green'} label={t('stat.maint.open')} value={openBreakdowns} sub={openBreakdowns > 0 ? t('stat.maint.needs_attention') : undefined} />
-        <MetricCard icon="event_upcoming" tone={dueSoon > 0 ? 'orange' : 'green'} label={t('stat.maint.due_soon')} value={dueSoon} sub={dueSoon > 0 ? t('stat.maint.within_30_days') : undefined} />
+        <MetricCard icon="check_circle" tone="green" label={t('stat.maint.completed')} value={val(completed)} sub={moduleScope} />
+        <MetricCard icon="error" tone={openBreakdowns ? 'red' : 'green'} label={t('stat.maint.open')} value={val(openBreakdowns)} sub={openBreakdowns ? `${t('stat.maint.needs_attention')} · ${moduleScope}` : moduleScope} />
+        <MetricCard icon="event_upcoming" tone={dueSoon ? 'orange' : 'green'} label={t('stat.maint.due_soon')} value={val(dueSoon)} sub={dueSoon ? `${t('stat.maint.within_30_days')} · ${moduleScope}` : moduleScope} />
       </div>
     </div>
   );

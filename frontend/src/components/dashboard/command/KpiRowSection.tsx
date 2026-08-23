@@ -1,6 +1,7 @@
 import { MetricCard } from '../../explorer/ExplorerKit';
 import { Skeleton } from '../Skeleton';
 import PrivateAmount from '../../PrivateAmount';
+import UnavailableValue from '../../UnavailableValue';
 import type { FinancialSummary } from './types';
 import { useT } from '../../../lib/i18n';
 
@@ -35,6 +36,12 @@ export default function KpiRowSection({
   loading: boolean;
 }) {
   const { t } = useT();
+  /**
+   * القيم تتبع الفترة المختارة، لكن شارة الاتجاه دائمًا «هذا الشهر مقابل الشهر
+   * الماضي» (مثبَّتة في الخلفية). اختيار «السنة السابقة» كان يعرض إيراد تلك السنة
+   * بسهم اتجاه هذا الشهر بلا أي تمييز. المعادلة لم تتغيّر — الوصف صار يذكر مرجعها.
+   */
+  const withMom = (base: string, trend: unknown) => (trend ? `${base} · ${t('kpirow.sub.mom_suffix')}` : base);
   if (loading) {
     return (
       <div className="xpl-kpi-grid">
@@ -57,8 +64,10 @@ export default function KpiRowSection({
   const f = financial;
   const mom = f.monthOnMonthChanges;
   const profitPositive = f.netProfit >= 0;
-  const cash = cashFlow ?? 0;
-  const cashPositive = cash >= 0;
+  // `cashFlow ?? 0` كان يعرض صفرًا بنغمة «فائض» خضراء حين يفشل طلب مركز القرار —
+  // قيمة مالية مخترَعة لا يمكن للمستخدم تمييزها عن صفر حقيقي.
+  const cashAvailable = cashFlow != null && Number.isFinite(cashFlow);
+  const cashPositive = cashAvailable && cashFlow >= 0;
 
   return (
     <div className="xpl-kpi-grid">
@@ -68,7 +77,7 @@ export default function KpiRowSection({
         icon="payments"
         tone="green"
         trend={momTrend(mom.revenue)}
-        sub={t('kpirow.sub.total_revenue_recorded')}
+        sub={withMom(t('kpirow.sub.total_revenue_recorded'), momTrend(mom.revenue))}
       />
       <MetricCard
         label={t('kpi.net_profit')}
@@ -76,7 +85,7 @@ export default function KpiRowSection({
         icon="trending_up"
         tone={profitPositive ? 'blue' : 'red'}
         trend={momTrend(mom.profit)}
-        sub={profitPositive ? t('kpirow.sub.revenue_minus_expenses') : t('kpirow.sub.expenses_exceed_revenue')}
+        sub={withMom(profitPositive ? t('kpirow.sub.revenue_minus_expenses') : t('kpirow.sub.expenses_exceed_revenue'), momTrend(mom.profit))}
       />
       <MetricCard
         label={t('kpi.total_expenses')}
@@ -84,14 +93,16 @@ export default function KpiRowSection({
         icon="trending_down"
         tone="red"
         trend={momTrend(mom.expenses, true)}
-        sub={t('kpirow.sub.total_expenses_approved')}
+        sub={withMom(t('kpirow.sub.total_expenses_approved'), momTrend(mom.expenses, true))}
       />
       <MetricCard
         label={t('kpirow.net_cash_this_month')}
-        value={<PrivateAmount value={cash} />}
+        value={cashAvailable ? <PrivateAmount value={cashFlow} /> : <UnavailableValue />}
         icon="account_balance_wallet"
-        tone={cashPositive ? 'green' : 'red'}
-        sub={`${cashPositive ? t('kpirow.cash_surplus') : t('kpirow.cash_deficit')} ${t('kpirow.sub.net_cash_formula')}`}
+        tone={cashAvailable ? (cashPositive ? 'green' : 'red') : 'blue'}
+        sub={cashAvailable
+          ? `${cashPositive ? t('kpirow.cash_surplus') : t('kpirow.cash_deficit')} ${t('kpirow.sub.net_cash_formula')}`
+          : t('lbl.value_unavailable')}
       />
       <MetricCard
         label={t('exec.kpi.outstanding_receivables')}

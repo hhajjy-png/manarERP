@@ -7,7 +7,7 @@ import { api } from '../api/client';
 import { financialApi } from '../api/financial';
 import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
-import { downloadBlob } from '../utils/exportUtils';
+import { downloadBlob, fetchAllRows } from '../utils/exportUtils';
 import { formatDate } from '../lib/date';
 import { fcCurrency, referenceTypeLabel, accountTypeLabel, fcMoneyCell, fcMoneyHeader } from '../components/financial/financialLabels';
 import { useT } from '../lib/i18n';
@@ -172,15 +172,13 @@ export default function FinancialCenter() {
 
   // ── Entity list (Statement tab) ────────────────────────────────────────────
   const [entities, setEntities] = useState<EntityOption[]>([]);
+  // كانت تطلب 500 والخادم يقصّها إلى `MAX_PAGE_SIZE = 200`، فيختفي كيان من قائمة
+  // اختيار كشف الحساب بلا أي أثر مرئي. `fetchAllRows` يجلب المجموعة كاملة بحجم
+  // الصفحة المسموح به بدل رفع الحدّ العالمي.
   useEffect(() => {
     const url = entityType === 'customer' ? '/customers' : '/suppliers';
-    api.get(url, { params: { pageSize: 500, page: 1 } })
-      .then(r => {
-        const list: EntityOption[] = (r.data?.data?.data ?? []).map(
-          (e: { id: number; name: string; code: string }) => ({ id: e.id, name: e.name, code: e.code })
-        );
-        setEntities(list);
-      })
+    fetchAllRows<{ id: number; name: string; code: string }>(url)
+      .then((rows) => setEntities(rows.map((e) => ({ id: e.id, name: e.name, code: e.code }))))
       .catch(() => {});
   }, [entityType]);
 
@@ -529,13 +527,22 @@ export default function FinancialCenter() {
           )}
 
           {result?.summary && (
-            <SummaryCards cards={[
-              { label: t('fc.opening_balance'),      value: result.summary.openingBalance, variant: 'neutral' },
-              { label: t('lbl.acc.total_debit'),  value: result.summary.totalDebit,    variant: 'blue'    },
-              { label: t('lbl.acc.total_credit'), value: result.summary.totalCredit,   variant: 'green'   },
-              { label: t('fc.closing_balance'),      value: result.summary.closingBalance,
-                variant: (result.summary.closingBalance ?? 0) < 0 ? 'red' : 'neutral' },
-            ]} />
+            <>
+              <SummaryCards cards={[
+                { label: t('fc.opening_balance'),      value: result.summary.openingBalance, variant: 'neutral' },
+                { label: t('lbl.acc.total_debit'),  value: result.summary.totalDebit,    variant: 'blue'    },
+                { label: t('lbl.acc.total_credit'), value: result.summary.totalCredit,   variant: 'green'   },
+                { label: t('fc.closing_balance'),      value: result.summary.closingBalance,
+                  variant: (result.summary.closingBalance ?? 0) < 0 ? 'red' : 'neutral' },
+              ]} />
+              {/* «إخفاء المسدد» فلتر عرض في المتصفح: يُخفي صفوفًا ولا يمسّ الكشف.
+                  البطاقات أعلاه أرصدةُ الحساب للفترة كاملةً — إخفاء صفٍّ لا يُلغي أثره
+                  في الرصيد. التنويه يظهر وقت التعارض فقط كي لا يُقرأ الرصيد كمجموع
+                  الصفوف الظاهرة. */}
+              {hideSettled && allRows.length !== displayRows.length && (
+                <p className="fc-hint">{t('fc.hint.cards_full_statement')}</p>
+              )}
+            </>
           )}
 
           {result && displayRows.length > 0 && (

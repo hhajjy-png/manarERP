@@ -6,6 +6,7 @@ import { CHART_INITIAL_DIMENSION } from '../../lib/rechartsDefaults';
 import { Skeleton } from './Skeleton';
 import { money, TextWithMoney, MoneyText } from '../../config/modules';
 import PrivateAmount from '../PrivateAmount';
+import UnavailableValue from '../UnavailableValue';
 import { formatCurrency, formatPercent, formatCompact } from '../../lib/format';
 import { formatMonthShort, formatMonthLabel } from '../../lib/date';
 import { useT } from '../../lib/i18n';
@@ -287,9 +288,12 @@ interface Props {
 
 export default function FinancialIntelPanel({ data, loading }: Props) {
   const { t } = useT();
-  const collections = data?.collectionsThisMonth ?? 0;
-  const expenses    = data?.expensesThisMonth ?? 0;
-  const outstanding = data?.agingSummary.totalOutstanding ?? 0;
+  // `?? 0` كان يجعل فشل الطلب يعرض 0.000 د.ك كأنه قيمة حقيقية — أخطر صورة للخطأ
+  // الصامت في شاشة مالية. القيمة الغائبة تبقى `null` وتُعرض «—» مع سبب صريح، وهو
+  // العُرف المتّبع أصلًا في `formatMoneyCell` وبطاقات مركز التحليل المالي.
+  const collections = data ? data.collectionsThisMonth : null;
+  const expenses    = data ? data.expensesThisMonth : null;
+  const outstanding = data ? data.agingSummary.totalOutstanding : null;
   const debtors     = data?.topDebtors ?? [];
   const aging       = data?.agingSummary ?? null;
   const trend       = data?.collectionTrend ?? [];
@@ -345,20 +349,26 @@ export default function FinancialIntelPanel({ data, loading }: Props) {
           </>
         ) : (
           <>
-            <div className="db-kpi c-green">
+            <div className={`db-kpi ${collections == null ? '' : 'c-green'}`}>
               <div className="db-kpi-icon">💰</div>
               <div className="db-kpi-label">{t('finintel.kpi.collections_this_month')}</div>
-              <div className="db-kpi-val"><PrivateAmount value={collections} /></div>
+              <div className="db-kpi-val">
+                {collections == null ? <UnavailableValue /> : <PrivateAmount value={collections} />}
+              </div>
             </div>
-            <div className="db-kpi c-red">
+            <div className={`db-kpi ${expenses == null ? '' : 'c-red'}`}>
               <div className="db-kpi-icon">📤</div>
               <div className="db-kpi-label">{t('finintel.kpi.expenses_this_month')}</div>
-              <div className="db-kpi-val"><PrivateAmount value={expenses} /></div>
+              <div className="db-kpi-val">
+                {expenses == null ? <UnavailableValue /> : <PrivateAmount value={expenses} />}
+              </div>
             </div>
-            <div className={`db-kpi ${outstanding > 0 ? 'c-amber' : 'c-blue'}`}>
+            <div className={`db-kpi ${outstanding == null ? '' : outstanding > 0 ? 'c-amber' : 'c-blue'}`}>
               <div className="db-kpi-icon">⏳</div>
               <div className="db-kpi-label">{t('finintel.kpi.total_outstanding')}</div>
-              <div className="db-kpi-val"><PrivateAmount value={outstanding} /></div>
+              <div className="db-kpi-val">
+                {outstanding == null ? <UnavailableValue /> : <PrivateAmount value={outstanding} />}
+              </div>
             </div>
           </>
         )}

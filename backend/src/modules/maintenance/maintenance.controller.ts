@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { maintenanceService } from './maintenance.service';
 import { ok, created } from '../../core/utils/response';
+import { startOfLocalDay, endOfLocalDay } from '../../core/utils/dateWindows';
 
 const eqId = (req: Request) => (req.query.equipmentId ? Number(req.query.equipmentId) : undefined);
 
@@ -12,8 +13,11 @@ export const maintenanceController = {
       equipmentId: equipmentId ? Number(equipmentId) : undefined,
       status:      status      || undefined,
       type:        type        || undefined,
-      dateFrom:    dateFrom    ? new Date(dateFrom) : undefined,
-      dateTo:      dateTo      ? new Date(dateTo)   : undefined,
+      // `new Date('YYYY-MM-DD')` منتصف ليل UTC لا محليًا: في الكويت (UTC+03:00) كان
+      // `dateTo` ينتهي الساعة 03:00 من اليوم الأخير فيسقط معظمه بصمت. العقد الموحَّد
+      // في الخلفية هو حدود اليوم المحلي شاملةً الطرفين.
+      dateFrom:    startOfLocalDay(dateFrom),
+      dateTo:      endOfLocalDay(dateTo),
     }));
   },
   async createRecord(req: Request, res: Response) {
