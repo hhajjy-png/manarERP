@@ -3,6 +3,8 @@ import type { ExpirationFilters } from './expirations.schema';
 import { buildExcel } from '@shared/services/reportEngine/excel.service';
 import type { ReportColumn } from '@shared/services/reportEngine/excel.service';
 import { formatDisplayDate } from '@shared/utils/dateDisplay';
+import { daysUntil } from '@core/utils/daysRemaining';
+import { EXPIRATION_CENTER_BANDS } from '@config/thresholds';
 
 export type DocCategory =
   | 'EMPLOYEE_RESIDENCY'
@@ -36,16 +38,13 @@ export interface ExpirationSummary {
 }
 
 function urgencyBand(days: number): UrgencyBand {
-  if (days < 0)   return 'expired';
-  if (days <= 7)  return '7';
-  if (days <= 30) return '30';
-  if (days <= 60) return '60';
-  if (days <= 90) return '90';
+  const B = EXPIRATION_CENTER_BANDS;
+  if (days < 0)             return 'expired';
+  if (days <= B.critical)   return '7';
+  if (days <= B.warning)    return '30';
+  if (days <= B.notice)     return '60';
+  if (days <= B.watch)      return '90';
   return 'ok';
-}
-
-function msToDays(ms: number): number {
-  return Math.floor(ms / 86_400_000);
 }
 
 function buildRecord(
@@ -56,7 +55,11 @@ function buildRecord(
   expiryDate: Date,
   now: Date,
 ): ExpirationRecord {
-  const daysRemaining = msToDays(expiryDate.getTime() - now.getTime());
+  // كان `Math.floor((expiry − now) / 86_400_000)` بطابع زمني حيّ: تواريخ الوثائق
+  // تُخزَّن عند منتصف ليل UTC، فبعد منتصف ليل اليوم يصير الفرق سالبًا ويُقرَّب لأسفل —
+  // فوثيقة تنتهي **اليوم** كانت تُعرض «منتهية» طوال يومها الأخير، بينما تعرضها وحدتا
+  // التأمين والمعدات «سارية اليوم». العقد المشترك يوحّد الإجابة.
+  const daysRemaining = daysUntil(expiryDate, now);
   return {
     id: `${category}-${entityId}`,
     category,

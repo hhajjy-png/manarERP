@@ -1,4 +1,5 @@
 import { prisma } from '@config/database.js';
+import { roundMoney } from '@shared/utils/money.js';
 import type { Prisma } from '@prisma/client';
 import { AppError } from '@core/errors/AppError.js';
 import { localDateRange } from '@core/utils/dateWindows.js';
@@ -116,8 +117,8 @@ export async function execute(req: ExecuteImportRequest, importedBy: string): Pr
         fromDate,
         toDate,
         totalRows:    total,
-        totalDebits:  Math.round(totalDebits  * 1000) / 1000,
-        totalCredits: Math.round(totalCredits * 1000) / 1000,
+        totalDebits:  roundMoney(totalDebits),
+        totalCredits: roundMoney(totalCredits),
         status:       'ACTIVE',
         accountKey,
         insertedNewCount,
@@ -563,12 +564,13 @@ export function summariseTransactions(rows: TimelineTransaction[]): TimelineTota
     }
   }
 
-  const round = (n: number): number => Math.round(n * 1000) / 1000;
+  // كان `Math.round(n * 1000) / 1000` محليًا — بلا تصحيح EPSILON، فيخالف تقريب دفتر
+  // الأستاذ عند نصف الفلس. التراكم أعلاه يبقى خامًا ويُقرَّب **مرة واحدة** هنا.
   return {
-    totalDebits:  round(totalDebits),
-    totalCredits: round(totalCredits),
-    netMovement:  round(totalCredits - totalDebits),
-    turnover:     round(totalDebits + totalCredits),
+    totalDebits:  roundMoney(totalDebits),
+    totalCredits: roundMoney(totalCredits),
+    netMovement:  roundMoney(totalCredits - totalDebits),
+    turnover:     roundMoney(totalDebits + totalCredits),
     currencies:   [...currencies].sort(),
     duplicateCount,
     filteredFromDate: min,
@@ -664,16 +666,16 @@ export async function getTimeline(
       prisma.bankStatementTransaction.count({ where: { AND: [where, { isDuplicate: true }] } }),
     ]);
 
-    const totalDebits  = Math.round(Number(agg._sum.debit  ?? 0) * 1000) / 1000;
-    const totalCredits = Math.round(Number(agg._sum.credit ?? 0) * 1000) / 1000;
+    const totalDebits  = roundMoney(Number(agg._sum.debit  ?? 0));
+    const totalCredits = roundMoney(Number(agg._sum.credit ?? 0));
 
     return {
       ...base,
       totalCount:   total,
       totalDebits,
       totalCredits,
-      netMovement:  Math.round((totalCredits - totalDebits) * 1000) / 1000,
-      turnover:     Math.round((totalDebits + totalCredits) * 1000) / 1000,
+      netMovement:  roundMoney(totalCredits - totalDebits),
+      turnover:     roundMoney(totalDebits + totalCredits),
       filteredFromDate: agg._min.statementDate ? agg._min.statementDate.toISOString().substring(0, 10) : null,
       filteredToDate:   agg._max.statementDate ? agg._max.statementDate.toISOString().substring(0, 10) : null,
       currencies:     currencyGroups.map((g) => g.currency).filter(Boolean).sort(),

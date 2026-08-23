@@ -1,6 +1,9 @@
 import type { MonthFin, RevenueSlice } from './types';
+// نسخة محلية سابقة من التقريب استُبدلت بوحدة النقود المشتركة — نفس السياسة حرفيًا،
+// لكن بمصدر واحد يطابق `backend/src/shared/utils/money.ts`.
+import { roundMoney } from '../../../lib/money';
 
-const round3 = (v: number): number => Math.round((Number(v || 0) + Number.EPSILON) * 1000) / 1000;
+const round3 = roundMoney;
 
 /**
  * Real net cash flow for the current month = collections − expenses.

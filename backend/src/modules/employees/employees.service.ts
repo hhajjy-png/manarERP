@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { EMPLOYEE_DOCUMENT_ALERT_DAYS } from '../../config/thresholds';
 import { BaseRepository } from '../../shared/repositories/BaseRepository';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
@@ -130,9 +131,12 @@ export class EmployeesService {
    * ملاحظة: رخصة المركبة (vehicleLicenseExpiry) مُستثناة عمدًا —
    * انتهاء تسجيل المركبة يُتابَع من وحدة المعدات (equipment.registrationExpiry).
    */
-  async expiringDocuments(days = 30) {
+  async expiringDocuments(days = EMPLOYEE_DOCUMENT_ALERT_DAYS) {
     const until = new Date();
     until.setDate(until.getDate() + days);
+    // نهاية اليوم المحلي لا لحظة التنفيذ — وإلا تغيّرت النتيجة بتغيّر ساعة الطلب
+    // لمستندٍ ينتهي بعد `days` يومًا بالضبط. (المنتهية أصلًا محتسَبة عمدًا: تنبيه قائم.)
+    until.setHours(23, 59, 59, 999);
     const employees = await prisma.employee.findMany({
       where: {
         status: { not: 'TERMINATED' },

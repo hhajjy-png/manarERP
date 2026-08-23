@@ -2,6 +2,7 @@ import fs from 'fs';
 import { Request } from 'express';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database';
+import { roundMoney } from '../../shared/utils/money';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { localDateRange } from '../../core/utils/dateWindows';
@@ -102,6 +103,10 @@ export class ExpensesService {
 
   async create(input: CreateExpenseInput, req: Request) {
     const code = input.code ?? (await this.generateCode());
+    // سياسة النقود تُطبَّق عند الكتابة كما في الشيكات والفواتير — لا اعتمادًا على
+    // `step="0.001"` في النموذج وحده. مبلغٌ يصل من الاستيراد أو الـAPI بأربع خانات
+    // كان يُخزَّن كما هو ثم يُعرض مقرَّبًا، فيختلف المعروض عن المخزَّن في التصدير.
+    const amount = roundMoney(input.amount);
     const expenseDate = input.date ?? new Date();
     assertDateWithinBillingPeriod(expenseDate, input.billingMonth, input.billingYear);
     // المصروف يُنشأ بحالة PENDING فلا يمرّ بـ createBalancedJournal بعد؛ الحارس صريح هنا.
@@ -111,7 +116,7 @@ export class ExpensesService {
         code,
         category: input.category,
         description: input.description,
-        amount: input.amount,
+        amount,
         date: expenseDate,
         billingMonth: input.billingMonth ?? null,
         billingYear: input.billingYear ?? null,
@@ -125,7 +130,7 @@ export class ExpensesService {
       },
       include: FULL_INCLUDE,
     });
-    await recordAudit({ req, action: 'CREATE', module: 'expenses', entityId: expense.id, newValue: { code, amount: input.amount } });
+    await recordAudit({ req, action: 'CREATE', module: 'expenses', entityId: expense.id, newValue: { code, amount } });
     await recordHistoricalEntry({
       req,
       module: 'expenses',
@@ -162,7 +167,8 @@ export class ExpensesService {
       data: {
         category: input.category ?? current.category,
         description: input.description ?? current.description,
-        amount: input.amount ?? current.amount,
+        // نفس التطبيع عند التعديل؛ السجلات التاريخية لا تُمَس (لا Backfill).
+        amount: input.amount !== undefined ? roundMoney(input.amount) : current.amount,
         date: finalDate,
         billingMonth: finalBillingMonth,
         billingYear: finalBillingYear,
@@ -499,7 +505,7 @@ export class ExpensesService {
     return { deleted: true, ...counts };
   }
 
-  async stats(query: { category?: string; status?: string; supplierId?: string; billingMonth?: string; billingYear?: string; from?: string; to?: string }) {
+  async stats(query: { category?: string; status?: string; supplierId?: string; billingMonth?: string; billingYear?: string; from?: string; to?: string; search?: string }) {
     const where: Prisma.ExpenseWhereInput = {};
     if (query.category) where.category = query.category;
     if (query.status) where.status = query.status;
@@ -508,6 +514,16 @@ export class ExpensesService {
     if (query.billingYear) where.billingYear = Number(query.billingYear);
     const dateRange = localDateRange(query.from, query.to);
     if (dateRange) where.date = dateRange;
+    // الواجهة كانت ترسل `search` وهذه الخدمة لا تقبله، فيضيّق البحثُ الجدولَ وتبقى
+    // البطاقات على مجموعتها الأوسع. نفس فروع البحث المستخدمة في `list()` حرفيًا،
+    // فتتطابق البطاقة والجدول على أي مصطلح بحث.
+    if (query.search) {
+      where.OR = [
+        { description: { contains: query.search } },
+        { code: { contains: query.search } },
+        { supplierName: { contains: query.search } },
+      ];
+    }
 
     // تجميع في قاعدة البيانات بدل جلب كل صفوف المصروفات ثم reduce/تصنيف في الذاكرة.
     // الإجماليات عبر aggregate، والتصنيفات عبر groupBy — بلا اقتطاع مهما كبر التاريخ.

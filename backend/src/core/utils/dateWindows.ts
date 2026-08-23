@@ -56,6 +56,26 @@ export function monthWindowsBetween(start: Date, end: Date): MonthWindow[] {
 }
 
 /**
+ * يقصّ نوافذ الأشهر على مدى فعلي، فلا تمتدّ نافذة الشهر خارج النطاق المطلوب.
+ *
+ * `monthWindowsBetween` تُنتج أشهرًا **كاملة** دائمًا (من اليوم الأول إلى الأخير)، وهو
+ * الصحيح للوحات YTD. لكن تقريرًا يعرض في عنوانه «15/08 إلى 31/08» ثم يحسب أغسطس كاملًا
+ * يضمّ بيانات ما قبل تاريخ البداية المعروض. القصّ يُبقي صفًّا لكل شهر — فيبقى التقرير
+ * شهريًا كما هو — لكن كل صف يقتصر على ما يقع داخل النطاق المختار فعلًا.
+ *
+ * النوافذ الواقعة خارج المدى كليًا تُحذف.
+ */
+export function clampMonthWindows(windows: MonthWindow[], start: Date, end: Date): MonthWindow[] {
+  return windows
+    .filter((w) => w.end >= start && w.start <= end)
+    .map((w) => ({
+      label: w.label,
+      start: w.start < start ? start : w.start,
+      end:   w.end   > end   ? end   : w.end,
+    }));
+}
+
+/**
  * نهاية اليوم محليًا (23:59:59.999).
  *
  * ضروري لتقارير «كما في تاريخ»: `asOfDate` يصل كـ `2024-12-31` أي منتصف الليل،
