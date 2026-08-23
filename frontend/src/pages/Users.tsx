@@ -63,6 +63,8 @@ export default function Users() {
   const [tab, setTab] = useState<'users' | 'roles'>('users');
 
   const [users, setUsers] = useState<UserRow[]>([]);
+  /** إجمالي المستخدمين من الخادم — مستقل عن حجم الصفحة المحمَّلة. */
+  const [usersTotal, setUsersTotal] = useState<number | null>(null);
   const [usersLoading, setUsersLoading] = useState(true);
   const [search, setSearch] = useState('');
   // فرز الأعمدة الموحّد (محلي — المجموعة كاملة محمّلة بلا ترقيم خادمي).
@@ -82,11 +84,17 @@ export default function Users() {
 
   const toast = useToast();
 
+  /**
+   * بطاقات هذه الصفحة كانت تَعُدّ مصفوفة الصفحة المحمَّلة (200 صف كحدّ)، فتكذب صامتةً
+   * فور تجاوز عدد المستخدمين ذلك الحدّ. العدّ الآن من `meta.total` الذي تحسبه الخلفية
+   * على المجموعة كاملة، والمصفوفة تبقى لعرض الجدول وحده.
+   */
   async function loadUsers() {
     setUsersLoading(true);
     try {
       const res = await api.get('/users', { params: { pageSize: 200 } });
       setUsers(res.data.data.data ?? []);
+      setUsersTotal(res.data.data.meta?.total ?? null);
     } catch { /* ignore */ } finally {
       setUsersLoading(false);
     }
@@ -188,11 +196,15 @@ export default function Users() {
   );
 
   const kpi = useMemo(() => ({
-    total: users.length,
+    // الإجمالي من الخادم؛ يسقط إلى طول المصفوفة فقط إن غابت البيانات الوصفية.
+    total: usersTotal ?? users.length,
+    // «النشطون» لا يوجد له عدّاد خادم مستقل، فيبقى محسوبًا من الصفحة المحمَّلة —
+    // ويُعرض بوصف نطاقه حين تتجاوز المجموعة ما حُمِّل فعلًا كي لا يُقرأ كإجمالي.
     active: users.filter((u) => u.isActive).length,
+    activeIsPartial: usersTotal != null && usersTotal > users.length,
     roles: roles.length,
     systemRoles: roles.filter((r) => r.isSystem).length,
-  }), [users, roles]);
+  }), [users, usersTotal, roles]);
 
   const selectedRole = useMemo(() => roles.find((r) => String(r.id) === form.roleId), [roles, form.roleId]);
 
@@ -213,7 +225,7 @@ export default function Users() {
 
       <div className="xpl-kpi-grid">
         <MetricCard icon="group" tone="indigo" label={t('tab.users.users')} value={kpi.total} />
-        <MetricCard icon="task_alt" tone="green" label={t('status.active')} value={kpi.active} />
+        <MetricCard icon="task_alt" tone="green" label={t('status.active')} value={kpi.active} sub={kpi.activeIsPartial ? t('users.kpi.loaded_scope', { n: users.length }) : undefined} />
         <MetricCard icon="shield" tone="blue" label={t('tab.users.roles')} value={kpi.roles} />
         <MetricCard icon="verified_user" tone="orange" label={t('lbl.users.system_role')} value={kpi.systemRoles} />
       </div>

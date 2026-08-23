@@ -4,6 +4,7 @@
  * منطق صافٍ بلا Prisma ولا Express: يُختبر وحدةً، ويستدعيه الخادم والتقرير معًا فلا
  * يمكن أن تتباعد شارة الشاشة عن عمود التقرير.
  */
+import { todayAsStoredDate, daysUntil } from '../../core/utils/daysRemaining';
 
 /** نطاق التنبيه المطلوب في الحزمة: منتهية | 7 أيام | 15 يومًا | 30 يومًا | سارية. */
 export type InsuranceUrgency = 'EXPIRED' | 'DUE_7' | 'DUE_15' | 'DUE_30' | 'VALID';
@@ -17,22 +18,17 @@ export const INSURANCE_ALERT_DAYS = { critical: 7, warning: 15, notice: 30 } as 
 /**
  * منتصف ليل UTC لليوم التقويمي **المحلي** الحالي.
  *
- * تواريخ الوثائق تُخزَّن عند منتصف ليل UTC (عقد `dateOnlySchema`)، فلا يصحّ طرح طابع
- * زمني حيّ منها: وثيقة تنتهي اليوم كانت ستُحسَب «منتهية منذ يوم» بعد الساعة 00:00.
- * نطبّع «اليوم» إلى نفس التمثيل أولًا، فيصبح الفرق عددًا صحيحًا من الأيام دائمًا.
+ * كان هذا المنطق يُعرَّف هنا، وصار العقد المشترك لكل الوحدات في
+ * `core/utils/daysRemaining.ts` — هذه الوحدة كانت الأصحّ من بين ثلاث طرق متباينة،
+ * فرُفعت إلى المشترك وبقي الاسمان هنا للتوافق مع مستدعيها الحاليين.
  */
-export function todayUtcMidnight(now: Date = new Date()): Date {
-  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-}
+export const todayUtcMidnight = todayAsStoredDate;
 
 /**
  * عدد الأيام المتبقية حتى تاريخ الانتهاء. صفر = تنتهي اليوم (لا تزال سارية اليوم)،
  * وسالب = منتهية منذ ذلك العدد من الأيام.
  */
-export function daysUntilExpiry(endDate: Date, now: Date = new Date()): number {
-  const end = Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate());
-  return Math.round((end - todayUtcMidnight(now).getTime()) / 86_400_000);
-}
+export const daysUntilExpiry = daysUntil;
 
 /** النطاق التنبيهي المشتقّ من الأيام المتبقية. */
 export function insuranceUrgency(daysRemaining: number): InsuranceUrgency {

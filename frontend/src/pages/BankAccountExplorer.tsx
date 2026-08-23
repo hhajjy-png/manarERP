@@ -39,6 +39,7 @@ import {
 import { txCategoryView, txCategory, txCategoryLabel, txCategoryIcon } from './bankTransactionCategory';
 import { TransactionIntelligencePanel } from './TransactionIntelligencePanel';
 import { formatCurrency, formatNumber } from '../lib/format';
+import { roundMoney } from '../lib/money';
 import { formatDate, formatMonthLabel } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import './BankAccountExplorer.css';
@@ -1534,10 +1535,13 @@ export function AnalyticsTab({ dashboard }: { dashboard: BankAccountDashboard })
 
   // Cumulative running balance (opening balance + Σ net flow).
   const balanceData = useMemo(() => {
+    // الرصيد الجاري يتراكم خامًا ويُقرَّب **عند العرض فقط**: التقريب عند كل خطوة كان
+    // يجمع أخطاء الفلس على طول السلسلة. و`parseFloat(x.toFixed(3))` كان عائلة تقريب
+    // خامسة — استُبدل بوحدة النقود المشتركة.
     let running = safeNum(dashboard.openingBalance);
     return monthly.map((m) => {
       running += safeNum(m.netFlow);
-      return { name: monthLabel(m), الرصيد: parseFloat(running.toFixed(3)) };
+      return { name: monthLabel(m), الرصيد: roundMoney(running) };
     });
   }, [monthly, dashboard.openingBalance]);
 

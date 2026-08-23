@@ -2,6 +2,7 @@ import type { QuotationPrintData, PrintLineItem } from '../engine/types';
 import type { QuotationPrintFields, QuotationItem } from '../../forms/QuotationTemplate';
 import { getDefaultCompanyPrintData } from '../adapters/companyData';
 import { formatDateForPrint } from '../utils/formatDate';
+import { roundMoney, sumMoney } from '../../lib/money';
 
 // ─── Shared warning type (same shape as invoicePreviewIntegration) ────────────
 
@@ -50,7 +51,9 @@ function toLineItem(item: QuotationItem, index: number): PrintLineItem {
     unit: item.unit || '',
     quantity,
     unitPrice,
-    total: Math.round(quantity * unitPrice * 1000) / 1000,
+    // كان `Math.round(n * 1000) / 1000` بلا تصحيح EPSILON — عائلة تقريب رابعة تنحرف
+    // عن الخلفية عند نقاط التعادل النصفي. صار من وحدة النقود المشتركة.
+    total: roundMoney(quantity * unitPrice),
   };
 }
 
@@ -66,7 +69,8 @@ function toLineItem(item: QuotationItem, index: number): PrintLineItem {
  */
 export function adaptFormToQuotationPrintData(fields: QuotationPrintFields): QuotationPrintData {
   const lineItems = fields.items.map(toLineItem);
-  const subtotal = Math.round(lineItems.reduce((s, i) => s + i.total, 0) * 1000) / 1000;
+  // مجموع مقرَّب مرة واحدة في النهاية — لا تقريبًا تراكميًا عند كل سطر.
+  const subtotal = sumMoney(lineItems.map((i) => i.total));
 
   const terms = fields.paymentTerms.trim() ? [fields.paymentTerms.trim()] : undefined;
 

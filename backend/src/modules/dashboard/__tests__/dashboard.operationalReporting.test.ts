@@ -182,11 +182,32 @@ describe('Dashboard — single operational source (Invoice + Expense + Payment),
       mockOperational(5000, 0);
       await dashboardService.executive();
 
-      const revenueCall = vi.mocked(prisma.invoice.aggregate).mock.calls.find(
+      // مؤشّر الذمم صار هو الآخر مقيَّدًا بـ SALES (Hotfix Pack v1، البند 6)، فيلزم
+      // تمييزه عن استعلام الإيراد: الذمم تفلتر بقائمة حالات (`in`)، والإيراد لا يفعل.
+      const salesCalls = vi.mocked(prisma.invoice.aggregate).mock.calls.filter(
         (c) => (c[0] as any)?.where?.direction === 'SALES',
       );
+      const revenueCall = salesCalls.find((c) => !(c[0] as any).where.status?.in);
       expect(revenueCall).toBeDefined();
       expect((revenueCall![0] as any).where.status).toEqual({ not: 'CANCELLED' });
+    });
+
+    it('«الدفعات المستحقة» مؤشّر ذمم عملاء — مقيَّد بفواتير البيع وحدها', async () => {
+      mockOperational(5000, 0);
+      await dashboardService.executive();
+
+      const unpaidCall = vi.mocked(prisma.invoice.aggregate).mock.calls.find(
+        (c) => (c[0] as any)?.where?.status?.in,
+      );
+      expect(unpaidCall).toBeDefined();
+      expect((unpaidCall![0] as any).where.direction).toBe('SALES');
+
+      // الدفعات المخصومة من المستحق تتبع المجموعة نفسها — لا فواتير موردين.
+      const paymentCall = vi.mocked(prisma.payment.aggregate).mock.calls.find(
+        (c) => (c[0] as any)?.where?.invoice?.status?.in,
+      );
+      expect(paymentCall).toBeDefined();
+      expect((paymentCall![0] as any).where.invoice.direction).toBe('SALES');
     });
 
     it('payroll expenses (approved, entered via the Expense module) are included automatically — no category filter narrows the engine query', async () => {

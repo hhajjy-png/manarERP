@@ -1,5 +1,6 @@
 import { Request } from 'express';
 import { prisma } from '../../config/database';
+import { MAINTENANCE_DUE_ALERT_DAYS } from '../../config/thresholds';
 import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import {
@@ -78,12 +79,25 @@ export class MaintenanceService {
     return { deleted: true };
   }
 
-  /** تنبيهات الصيانة الدورية المستحقة خلال عدد أيام. */
-  async dueMaintenance(days = 30) {
+  /**
+   * تنبيهات الصيانة الدورية المستحقة خلال عدد أيام.
+   *
+   * تُستبعد السجلات الملغاة: إلغاء عمل الصيانة يُبطل جدولته، فلا يبقى موعده التالي
+   * «مستحقًا». أما المكتملة فتبقى محتسَبة عمدًا — `nextDueDate` يُكتب عند إتمام
+   * الصيانة ليدلّ على موعد الخدمة القادمة، فهي **مصدر** التنبيه لا استثناء منه
+   * (الحالة الافتراضية عند الإنشاء هي COMPLETED أصلًا؛ استبعادها يُفرغ المؤشر).
+   *
+   * الحدّ الأعلى نهاية اليوم المحلي لا لحظة التنفيذ، فلا يعتمد الناتج على ساعة الطلب.
+   */
+  async dueMaintenance(days = MAINTENANCE_DUE_ALERT_DAYS) {
     const until = new Date();
     until.setDate(until.getDate() + days);
+    until.setHours(23, 59, 59, 999);
     return prisma.maintenanceRecord.findMany({
-      where: { nextDueDate: { not: null, lte: until } },
+      where: {
+        nextDueDate: { not: null, lte: until },
+        status: { not: 'CANCELLED' },
+      },
       orderBy: { nextDueDate: 'asc' },
       include: { equipment: { select: { id: true, code: true, name: true } } },
     });

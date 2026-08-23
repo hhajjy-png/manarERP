@@ -214,7 +214,13 @@ describe('منع الطباعة عند انعدام المبلغ النقدي', 
 
   it('زر السند في شاشة الشهر معطَّل عند انعدام المبلغ', () => {
     const month = readFileSync('src/pages/EmployeeCompensationMonth.tsx', 'utf8');
-    expect(month).toContain('const cashNet = saved ? Number((saved.netAmount - saved.basicSalarySnapshot).toFixed(3)) : 0;');
+    // المعادلة نفسها لم تتغيّر (`netAmount − basicSalarySnapshot`)، لكن تقريبها انتقل
+    // من `Number(x.toFixed(3))` — عائلة تقريب تخالف الخلفية عند نصف الفلس — إلى وحدة
+    // النقود المشتركة (Pack v4، البند 1).
+    expect(month).toContain('const cashNet = saved ? roundMoney(saved.netAmount - saved.basicSalarySnapshot) : 0;');
+    expect(month).toContain("import { roundMoney } from '../lib/money';");
+    // الساعات تحتفظ بقاعدتها الخاصة (`derivedHours`) — الممنوع هو تقريب **المال** بها.
+    expect(month).not.toContain('basicSalarySnapshot).toFixed(3)');
     expect(month).toContain('disabled={!saved || cashNet <= 0}');
   });
 });

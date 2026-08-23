@@ -12,7 +12,7 @@ import DateInput from '../components/DateInput';
 import { money, MoneyText, MoneyCell } from '../config/modules';
 import ForceDeleteProjectPriceModal from '../components/ForceDeleteProjectPriceModal';
 import ConfirmModal from '../components/ConfirmModal';
-import { downloadBlob } from '../utils/exportUtils';
+import { downloadBlob, fetchAllRows } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import {
   ExecutiveHeader,
@@ -102,6 +102,7 @@ export default function Prices() {
   const [archiveConfirmId, setArchiveConfirmId] = useState<number | null>(null);
 
   const [stats, setStats] = useState<PricesStats | null>(null);
+  const [statsError, setStatsError] = useState('');
   const [usageReport, setUsageReport] = useState<UsageReport | null>(null);
   const [showUsage, setShowUsage] = useState(false);
   const [usageLoading, setUsageLoading] = useState(false);
@@ -118,12 +119,20 @@ export default function Prices() {
     setBoardVisible(next);
   }
 
+  // كانت تطلب 200 — أي حدّ الخادم بالضبط، فأول عميل بعده يختفي من فلتر الاتفاقيات
+  // بلا أي أثر. `fetchAllRows` يجلب المجموعة كاملة عبر الصفحات.
   useEffect(() => {
-    api.get('/customers', { params: { pageSize: 200 } }).then((res) => setCustomers(res.data.data.data ?? [])).catch(() => {});
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fetchAllRows<any>('/customers').then(setCustomers).catch(() => {});
   }, []);
 
+  // بطاقات الأسعار عامة عمدًا (لا تتبع فلاتر الجدول) — لكن فشلها كان يخفيها بصمت
+  // فتبدو الصفحة كأنها بلا اتفاقيات. تُبطَل القيمة القديمة ويظهر سبب صريح.
   const loadStats = useCallback(() => {
-    api.get('/prices/stats').then((res) => setStats(res.data.data)).catch(() => {});
+    api.get('/prices/stats')
+      .then((res) => { setStats(res.data.data); setStatsError(''); })
+      .catch(() => { setStats(null); setStatsError(t('lbl.stats_unavailable')); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => { loadStats(); }, [loadStats]);
 
@@ -222,6 +231,7 @@ export default function Prices() {
       />
 
       {error && <ErrorBanner>{error}</ErrorBanner>}
+      {statsError && <ErrorBanner>{statsError}</ErrorBanner>}
 
       {stats && (
         <div className="xpl-kpi-grid">

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
+import { roundMoney } from '../lib/money';
 import DateInput from '../components/DateInput';
 import { downloadBlob } from '../utils/exportUtils';
 import { exportReportAsPdf } from '../utils/pdfExport';
@@ -209,13 +210,15 @@ const REPORT_TYPES: ReportType[] = [
     descKey: 'report.desc.expenses_by_company',
     statusType: 'needs-filter',
   },
-  {
-    key: 'invoices-by-customer', label: 'report.type.invoices_by_customer', icon: '📊', group: 'report.group.operational', groupLabelKey: RC_GRP_OPERATIONAL_FULL,
-    filters: ['date', 'billingMonth', 'billingYear', 'customer', 'direction', 'status'],
-    statuses: [['UNPAID', 'inv.status.unpaid'], ['PARTIAL', 'inv.status.partial'], ['PAID', 'inv.status.paid'], ['OVERDUE', 'inv.status.overdue']],
-    descKey: 'report.desc.invoices_by_customer',
-    statusType: 'needs-filter',
-  },
+  /**
+   * `invoices-by-customer` — **مُعطَّلة بانتظار قرار مالك المنتج**، لا محذوفة.
+   *
+   * لا يوجد لها تنفيذ خلفي، وتعريفها المقصود غير محسوم: تقرير «الفواتير» يُنتج أصلًا
+   * جدول تلخيص لكل عميل (العميل/عدد الفواتير/الإجمالي/الأشهر عبر `invoicePrintLayout`)،
+   * وتقرير «أرصدة العملاء» يُنتج صفًّا لكل عميل بالمفوتَر والمحصَّل والرصيد. فما الذي
+   * يضيفه هذا التقرير عليهما تحديدًا — وبأي أعمدة؟ سؤال منتج لا سؤال تنفيذ، وإكماله
+   * تخمينًا يعني اختراع دلالة مالية. البطاقة تبقى معلّقة هنا حتى يُحسم التعريف.
+   */
   {
     key: 'prices-usage', label: 'agreements.usage.title', icon: '🤝', group: 'report.group.operational', groupLabelKey: RC_GRP_OPERATIONAL_FULL,
     filters: ['customer', 'company', 'workType'],
@@ -340,8 +343,12 @@ function compareCells(a: unknown, b: unknown): number {
   return String(a ?? '').localeCompare(String(b ?? ''), 'ar', { numeric: true });
 }
 
-/** تقريب مجموع عائم إلى ثلاث منازل — نفس دقّة الدينار المعتمدة في العرض. */
-const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+/**
+ * تقريب مجموع عائم إلى ثلاث منازل — نفس دقّة الدينار المعتمدة في العرض.
+ * كان تعريفًا محليًا ثالثًا لنفس السياسة؛ صار يشير إلى وحدة النقود المشتركة، فمجاميع
+ * المعاينة المفلترة تطابق مجاميع الخادم عند نقاط التعادل بدل أن تنحرف بفلس.
+ */
+const round3 = roundMoney;
 
 /**
  * جدول التقرير — نفس الترميز المستخدم منذ البداية للجدول الرئيسي، مُستخرَج كي

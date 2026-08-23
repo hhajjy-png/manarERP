@@ -1,5 +1,6 @@
 import { prisma } from '@config/database.js';
 import { localDateRange } from '@core/utils/dateWindows.js';
+import { roundMoney } from '@shared/utils/money.js';
 import type { ReconcileStatus, ReconciliationTransaction, ReconciliationWorkspace } from './types.js';
 
 // ── Status transition rules ────────────────────────────────────────────────────
@@ -32,7 +33,18 @@ export interface WorkspaceFilter {
   pageSize?:  number;
 }
 
-function buildWhereClause(f: WorkspaceFilter) {
+/**
+ * يبني شرط تصفية مساحة التسوية.
+ *
+ * البحث النصي ومدى المبلغ **مجموعتا OR مستقلّتان تتقاطعان بـ AND**. كانت النسخة
+ * السابقة تُلحِق فرعَي المبلغ بمصفوفة `where.OR` نفسها التي تحمل فروع البحث، فتصير
+ * الدلالة «(مطابق للبحث) أو (المبلغ ضمن المدى)» بدل «و» — فيتّسع العدّ والصفوف
+ * والترقيم بصمت عند تفعيل الفلترين معًا. باني الخط الزمني (`service.ts`) كان يفعلها
+ * صحيحةً عبر مجموعات AND، وهذه المواءمة تُلغي الفرق.
+ *
+ * مُصدَّرة كي تُختبَر مباشرةً بلا قاعدة بيانات.
+ */
+export function buildWhereClause(f: WorkspaceFilter) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: Record<string, any> = { importId: f.importId };
 
@@ -40,14 +52,19 @@ function buildWhereClause(f: WorkspaceFilter) {
   if (f.isBankFee != null)  where.isBankFee       = f.isBankFee;
   if (f.isDuplicate != null) where.isDuplicate     = f.isDuplicate;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const andGroups: Record<string, any>[] = [];
+
   if (f.search) {
-    where.OR = [
-      { description:    { contains: f.search } },
-      { reference:      { contains: f.search } },
-      { transactionId:  { contains: f.search } },
-      { chequeNumber:   { contains: f.search } },
-      { normalizedText: { contains: f.search } },
-    ];
+    andGroups.push({
+      OR: [
+        { description:    { contains: f.search } },
+        { reference:      { contains: f.search } },
+        { transactionId:  { contains: f.search } },
+        { chequeNumber:   { contains: f.search } },
+        { normalizedText: { contains: f.search } },
+      ],
+    });
   }
 
   const dateRange = localDateRange(f.fromDate, f.toDate);
@@ -58,12 +75,15 @@ function buildWhereClause(f: WorkspaceFilter) {
     const amtFilter: Record<string, number> = {};
     if (f.minAmount != null) amtFilter.gte = f.minAmount;
     if (f.maxAmount != null) amtFilter.lte = f.maxAmount;
-    where.OR = [
-      ...(where.OR ?? []),
-      { debit:  amtFilter },
-      { credit: amtFilter },
-    ];
+    andGroups.push({
+      OR: [
+        { debit:  amtFilter },
+        { credit: amtFilter },
+      ],
+    });
   }
+
+  if (andGroups.length) where.AND = andGroups;
 
   return where;
 }
@@ -101,7 +121,7 @@ export async function getWorkspace(filter: WorkspaceFilter): Promise<Reconciliat
   const pageSize = Math.min(100, Math.max(1, filter.pageSize ?? 50));
   const where    = buildWhereClause(filter);
 
-  const [importRec, total, transactions, counts] = await Promise.all([
+  const [importRec, total, transactions, counts, storedAgg] = await Promise.all([
     prisma.bankStatementImport.findUniqueOrThrow({ where: { id: filter.importId } }),
     prisma.bankStatementTransaction.count({ where }),
     prisma.bankStatementTransaction.findMany({
@@ -115,6 +135,13 @@ export async function getWorkspace(filter: WorkspaceFilter): Promise<Reconciliat
       where: { importId: filter.importId },
       _count: true,
     }),
+    // إجماليات ما دخل قاعدة البيانات فعلًا لهذا الاستيراد — بلا أي فلتر شاشة، كي
+    // تبقى «إجمالي المساحة» ثابتًا لا يتبع الصفحة الحالية ولا فلاتر البحث.
+    prisma.bankStatementTransaction.aggregate({
+      where:  { importId: filter.importId },
+      _sum:   { debit: true, credit: true },
+      _count: { _all: true },
+    }),
   ]);
 
   const statusCounts = Object.fromEntries(counts.map((c) => [c.reconcileStatus, c._count]));
@@ -125,6 +152,11 @@ export async function getWorkspace(filter: WorkspaceFilter): Promise<Reconciliat
     fileName:     importRec.fileName,
     importedAt:   importRec.importedAt.toISOString(),
     totalRows:    importRec.totalRows,
+    fileDebits:   roundMoney(Number(importRec.totalDebits  ?? 0)),
+    fileCredits:  roundMoney(Number(importRec.totalCredits ?? 0)),
+    storedDebits:  roundMoney(Number(storedAgg._sum.debit  ?? 0)),
+    storedCredits: roundMoney(Number(storedAgg._sum.credit ?? 0)),
+    storedRows:    storedAgg._count._all,
     unmatched:    statusCounts['UNMATCHED']  ?? 0,
     matched:      statusCounts['MATCHED']    ?? 0,
     ignored:      statusCounts['IGNORED']    ?? 0,

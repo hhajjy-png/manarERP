@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
+import { TOP_DEBTOR_CARD_HIGH_KWD } from '../../config/thresholds';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { resolvePeriod } from '../../core/utils/periodFilter';
 import {
@@ -328,8 +329,10 @@ export class ExecutiveService {
         id: 'dc-highest-outstanding',
         title: 'أعلى ذمة مستحقة',
         value: formatCurrency(topDebtor.outstanding),
-        explanation: `${topDebtor.name} لديه أعلى رصيد مستحق (${topDebtor.oldestDays} يوم منذ أقدم فاتورة)`,
-        priority: topDebtor.outstanding > 5000 ? 'HIGH' : 'MEDIUM',
+        explanation: `${topDebtor.name} صاحب أعلى رصيد مستحق (${topDebtor.oldestDays} يوم منذ أقدم فاتورة) — عالية عند تجاوز 5,000 د.ك`,
+        // عتبة بطاقة القرار الفردية غير عتبة تنبيهات أعلى 5 مدينين في الذكاء التنفيذي:
+        // غرضان مختلفان، والقيمتان مقصودتان — كلٌّ باسمها في `config/thresholds.ts`.
+        priority: topDebtor.outstanding > TOP_DEBTOR_CARD_HIGH_KWD ? 'HIGH' : 'MEDIUM',
         recommendedAction: 'إرسال كشف حساب محدث والتواصل المباشر لترتيب جدول السداد',
         relatedId: topDebtor.customerId, relatedType: 'CUSTOMER', amount: topDebtor.outstanding,
       });
@@ -400,9 +403,11 @@ export class ExecutiveService {
       const expAmt = n(topExpContract._sum.amount);
       cards.push({
         id: 'dc-top-expense-project',
-        title: 'أعلى مصروفات عقد',
+        // البطاقات المجاورة مقيَّدة بالفترة المختارة، وهذه وحدها تجمع كل الزمن
+        // (`groupBy` بلا فلتر تاريخ). العنوان يصرّح بذلك بدل تركه فرقًا خفيًّا.
+        title: 'أعلى مصروفات عقد (كل الفترات)',
         value: formatCurrency(roundMoney(expAmt)),
-        explanation: `العقد ${topExpContractInfo.code} (${topExpContractInfo.asphaltPlant}) يمثل أعلى مصروفات في النظام`,
+        explanation: `العقد ${topExpContractInfo.code} (${topExpContractInfo.asphaltPlant}) يمثل أعلى مصروفات في النظام منذ بدايته — لا ضمن الفترة المختارة`,
         priority: 'MEDIUM',
         recommendedAction: 'مراجعة تفاصيل المصروفات ومدى توافقها مع الميزانية التقديرية',
         relatedId: topExpContractInfo.id, relatedType: 'CONTRACT', amount: roundMoney(expAmt),

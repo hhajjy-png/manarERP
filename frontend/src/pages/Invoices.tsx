@@ -262,6 +262,7 @@ export default function Invoices() {
   const [editing, setEditing] = useState<any | null>(null);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState('');
+  const [statsError, setStatsError] = useState('');
   const [stats, setStats] = useState<InvStats | null>(null);
   const [showMonthlyReport, setShowMonthlyReport] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -318,16 +319,22 @@ export default function Invoices() {
     } finally {
       if (reqId === reqIdRef.current) setLoading(false);
     }
+    // البطاقات غير حرجة للتصفّح لكنها ليست قابلة للتقادم: إبقاء أرقام الفلتر السابق
+    // فوق جدول الفلتر الجديد يعرض رقمًا صحيحًا لمجموعة خاطئة. تُبطَل ويظهر سبب.
     api.get('/invoices/stats', { params: filterParams })
-      .then((r) => { if (reqId === reqIdRef.current) setStats(r.data.data ?? null); })
-      .catch(() => { /* stats are non-critical */ });
+      .then((r) => { if (reqId === reqIdRef.current) { setStats(r.data.data ?? null); setStatsError(''); } })
+      .catch(() => { if (reqId === reqIdRef.current) { setStats(null); setStatsError(t('lbl.stats_unavailable')); } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search, statusFilter, directionFilter, customerFilter, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
   useEffect(() => { load(); }, [load]);
 
+  // كانت تطلب 300 والخادم يقصّها إلى `MAX_PAGE_SIZE = 200` بصمت، فتختفي عملاء من
+  // القائمة ومن بحث شريط العميل. `fetchAllRows` هو المسار الموجود أصلًا للتجاوز:
+  // يكرّر على الصفحات بحجم الخادم المسموح بدل رفع حدّ عالمي.
   useEffect(() => {
-    api.get('/customers', { params: { pageSize: 300 } })
-      .then((r) => setCustomers(r.data?.data?.data ?? []))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    fetchAllRows<any>('/customers')
+      .then(setCustomers)
       .catch(() => {});
   }, []);
 
@@ -426,6 +433,7 @@ export default function Invoices() {
         )}
       />
 
+      {statsError && <ErrorBanner>{statsError}</ErrorBanner>}
       {loadError && (
         <ErrorBanner>
           {loadError}{' '}
@@ -444,7 +452,7 @@ export default function Invoices() {
           <KpiStatGrid>
             <KpiStat icon="description" tone="blue" label={t('inv.stats.count')} value={stats.count.toLocaleString()} />
             <KpiStat icon="task_alt" tone="green" label={t('inv.stats.collected')} value={moneyParts(stats.totalCollected).number} unit={moneyParts(stats.totalCollected).currency} />
-            <KpiStat icon="pending_actions" tone="red" label={t('inv.stats.remaining')} value={moneyParts(stats.totalRemaining).number} unit={moneyParts(stats.totalRemaining).currency} />
+            <KpiStat icon="pending_actions" tone="red" label={t('inv.stats.remaining')} value={moneyParts(stats.totalRemaining).number} unit={moneyParts(stats.totalRemaining).currency} sub={t('inv.stats.remaining_sub')} />
             <KpiStat icon="functions" tone="indigo" label={t('inv.stats.average')} value={moneyParts(stats.average).number} unit={moneyParts(stats.average).currency} />
           </KpiStatGrid>
         </div>
@@ -709,11 +717,9 @@ export default function Invoices() {
       {correcting && <CorrectCollectionDate payment={correcting} onClose={() => setCorrecting(null)} onSaved={(msg) => { toast.ok(msg || t('toast.inv.collection_date_corrected')); load(); }} />}
       {showMonthlyReport && (
         <MonthlyReportModal
-          filters={{
-            direction: directionFilter || undefined,
-            status: statusFilter || undefined,
-            customerId: customerFilter || undefined,
-          }}
+          /* نفس فلاتر الشاشة بالكامل — بما فيها الفترة والبحث — كي لا تعرض النافذة
+             كل الزمن بينما بطاقات رأس الصفحة تعرض الفترة المختارة. */
+          filters={filterParams}
           onClose={() => setShowMonthlyReport(false)}
         />
       )}

@@ -28,6 +28,10 @@ const REPORT_EXTRA_PERMISSION: Record<string, string> = {
   // تأمين المركبات — يتبع نفس السابقة: مركز التقارير ليس بابًا خلفيًا لبيانات وحدة
   // لا يملك المستخدم قراءتها في شاشتها.
   'vehicle-insurance': 'vehicleInsurance.read',
+  // التقريران المُكمَلان في Financial Accuracy Hotfix Pack v1 — يقرآن بيانات وحدتيهما
+  // فيرثان مفتاحيهما بنفس القاعدة أعلاه.
+  'expenses-by-company': 'expenses.read',
+  'prices-usage': 'prices.read',
 };
 
 function assertReportAccess(type: string, roleName: string, permissions: string[]): void {

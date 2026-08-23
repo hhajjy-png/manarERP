@@ -30,8 +30,14 @@ export interface CashEntitlement {
   cashNet: number;
 }
 
-/** تقريب الدينار الثلاثي — يُطبَّق على الفرق لا على أطرافه، فلا يتراكم خطأ الكسر. */
-const round3 = (n: number) => Math.round((n + Number.EPSILON) * 1000) / 1000;
+import { roundMoney } from '../lib/money';
+
+/**
+ * تقريب الدينار الثلاثي — يُطبَّق على الفرق لا على أطرافه، فلا يتراكم خطأ الكسر.
+ * مصدره الآن وحدة النقود المشتركة (`lib/money`) لا نسخة محلية، فيطابق تقريب الخلفية
+ * عند نقاط التعادل النصفي بدل أن ينحرف عنه بفلس.
+ */
+const round3 = roundMoney;
 
 export function deriveCashEntitlement(input: {
   basicSalary: number;

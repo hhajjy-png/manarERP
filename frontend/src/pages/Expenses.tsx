@@ -76,6 +76,7 @@ export default function Expenses() {
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [statsError, setStatsError] = useState('');
   const [page, setPage] = usePersistedState('exp:page', 1);
   const [search, setSearch] = usePersistedState('exp:search', '');
   const [statusFilter, setStatusFilter] = usePersistedState('exp:status', '');
@@ -148,9 +149,11 @@ export default function Expenses() {
     }
     finally { if (reqId === reqIdRef.current) setLoading(false); }
 
+    // فشل هذا الطلب كان يُبتلع صامتًا فتبقى بطاقات الفلتر السابق معروضة فوق جدول
+    // الفلتر الجديد — رقم صحيح لمجموعة خاطئة. الآن تُبطَل القيمة القديمة ويظهر سبب.
     api.get('/expenses/stats', { params: filterParams })
-      .then((r) => { if (reqId === reqIdRef.current) setStats(r.data.data ?? null); })
-      .catch(() => {});
+      .then((r) => { if (reqId === reqIdRef.current) { setStats(r.data.data ?? null); setStatsError(''); } })
+      .catch(() => { if (reqId === reqIdRef.current) { setStats(null); setStatsError(t('lbl.stats_unavailable')); } });
   // الفترة العالمية ضمن التبعيات ليُعاد الجلب عند تغييرها.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search, statusFilter, categoryFilter, supplierFilter, period.fromDate, period.toDate, period.isAllPeriods, sort.sortBy, sort.sortDir]);
@@ -358,11 +361,14 @@ export default function Expenses() {
       {/* ── KPI hero + secondary ── */}
       {stats && (
         <div className="expx-metrics">
+          {/* هذه الصفحة تعرض كل حالات المصروف (بما فيها المعلَّقة والمرفوضة)، فلا تحمل
+              اسم المؤشر التشغيلي `kpi.total_expenses` الذي يعني المعتمدة وحدها في لوحة
+              المعلومات ومركز القرار وملخص العقد. */}
           <HeroMetric
             icon="account_balance_wallet"
-            label={t('kpi.total_expenses')}
+            label={t('exp.stats.total_all_statuses')}
             value={<MoneyText value={stats.total} />}
-            sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} ${t('unit.expense')}`}</>}
+            sub={<><span className="material-symbols-outlined">receipt_long</span>{`${stats.count} ${t('unit.expense')} · ${t('exp.stats.all_statuses_sub')}`}</>}
           />
           <KpiStatGrid>
             <KpiStat icon="tag" tone="indigo" label={t('stat.expense_count')} value={stats.count.toLocaleString()} />
@@ -432,6 +438,7 @@ export default function Expenses() {
         </SectionCard>
       )}
 
+      {statsError && <ErrorBanner>{statsError}</ErrorBanner>}
       {loadError && <ErrorBanner>{loadError} <button type="button" className="xpl-clear-link" onClick={load} disabled={loading}>{t('action.refresh')}</button></ErrorBanner>}
       {error && <ErrorBanner>{error}</ErrorBanner>}
 

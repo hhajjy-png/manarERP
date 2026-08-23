@@ -1318,7 +1318,12 @@ export default function Cheques() {
               {/* على مستوى الصفحة لم يعد هناك «بنك واحد» يُعرض: النظام صار متعدد
                   البنوك، فالشريحة تعرض عدد الحسابات البنكية المتاحة للإصدار. */}
               <IdChip icon="account_balance" tone="indigo">{accounts.length} {t('unit.bank_account')}</IdChip>
-              <IdChip icon="receipt_long" tone="indigo">{stats.total} {t('unit.cheque')}</IdChip>
+              {/* عدّادات الفترة: مصدرها `/cheques/stats` الذي يتقيّد بـ`from/to` وحدهما
+                  ولا يرى بحث الجدول ولا فلتر حالته — إجمالٌ للفترة لا مجموع نتائج
+                  الجدول. الشريحة تصرّح بذلك كي لا تُقرأ كملخّص للصفوف المعروضة. */}
+              <IdChip icon="receipt_long" tone="indigo">
+                {stats.total} {t('unit.cheque')} · {t('cheque.chips.period_scope')}
+              </IdChip>
               <IdChip icon="print" tone="green">{stats.printed} {t('cheque.status.printed')}</IdChip>
               {stats.draft > 0 && <IdChip icon="edit_note" tone="orange">{stats.draft} {t('cheque.status.draft')}</IdChip>}
             </>

@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
 import { roundMoney } from '../../shared/utils/money';
+import { HIGH_OUTSTANDING_ALERT_HIGH_KWD } from '../../config/thresholds';
 import { formatCurrency, formatPercent } from '../../shared/utils/currency';
 import { ytdMonths } from '../../core/utils/dateWindows';
 import {
@@ -122,9 +123,12 @@ export class DashboardService {
         prisma.contract.count(),
         prisma.contract.count({ where: { status: 'ACTIVE' } }),
         prisma.invoice.count(),
-        prisma.invoice.count({ where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } }),
+        // «الدفعات المستحقة» / «فاتورة غير مسددة» مؤشرا **ذمم عملاء**، فيقتصران على
+        // فواتير البيع كبقية مؤشرات الذمم في النظام. بلا فلتر الاتجاه كانت فواتير
+        // الموردين تُحتسب ضمنهما، فيختلفان عن كل رقم ذمم آخر على الشاشة نفسها.
+        prisma.invoice.count({ where: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } }),
         prisma.invoice.aggregate({
-          where: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
+          where: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } },
           _sum: { total: true },
         }),
         prisma.expense.aggregate({ where: { status: 'APPROVED' }, _count: { _all: true }, _sum: { amount: true } }),
@@ -192,7 +196,7 @@ export class DashboardService {
     const totalExpense  = pl.expenses;
     // المتبقّي = الإجمالي − Σ الدفعات على نفس الفواتير (تعريف المحرك)، لا لقطة paidAmount.
     const unpaidPaymentsAgg = await prisma.payment.aggregate({
-      where: { invoice: { status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } },
+      where: { invoice: { direction: 'SALES', status: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] } } },
       _sum: { amount: true },
     });
     const unpaidAmount  = roundMoney((invoicesUnpaidAgg._sum.total ?? 0) - (unpaidPaymentsAgg._sum.amount ?? 0));
@@ -590,9 +594,12 @@ export class DashboardService {
       .slice(0, 5)
       .map(d => ({
         id: `high-os-${d.customerId}`,
-        severity: (d.outstanding > 10000 ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
+        // عتبة هذا التنبيه تخصّ قائمة أعلى 5 مدينين، وهي غير عتبة بطاقة «أعلى ذمة
+        // مستحقة» في مركز القرار التي تصف مدينًا واحدًا بغرض إجرائي مختلف. الرقمان
+        // مقصودان ولم يُوحَّدا — كلٌّ باسمه في `config/thresholds.ts`.
+        severity: (d.outstanding > HIGH_OUTSTANDING_ALERT_HIGH_KWD ? 'HIGH' : 'MEDIUM') as 'HIGH' | 'MEDIUM' | 'LOW',
         type: 'HIGH_OUTSTANDING', title: `مديونية عالية: ${d.name}`,
-        description: `إجمالي الذمم المستحقة`,
+        description: `ضمن أعلى 5 مدينين — عالية عند تجاوز ${HIGH_OUTSTANDING_ALERT_HIGH_KWD.toLocaleString('en-US')} د.ك`,
         amount: d.outstanding, relatedId: d.customerId, relatedType: 'CUSTOMER',
         actionLabel: 'مراجعة الحساب',
       }));

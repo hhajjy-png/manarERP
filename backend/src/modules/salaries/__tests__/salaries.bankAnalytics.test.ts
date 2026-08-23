@@ -97,12 +97,15 @@ describe('bankAnalyticsService.searchEmployees', () => {
     expect(prisma.employee.findMany).not.toHaveBeenCalled();
   });
 
-  it('calls findMany with OR filter for non-empty query', async () => {
+  // كان هذا التوقّع يثبّت العيب نفسه: `'active'` بحروف صغيرة بينما القيمة المخزَّنة
+  // `'ACTIVE'` — ومقارنة النصوص في SQLite حساسة لحالة الأحرف، فالبحث كان يعيد فراغًا
+  // دائمًا. صُحِّح مع الإصلاح (Financial Accuracy Hotfix Pack v1، البند 4).
+  it('calls findMany with OR filter and the stored ACTIVE status for non-empty query', async () => {
     vi.mocked(prisma.employee.findMany).mockResolvedValue([]);
     await bankAnalyticsService.searchEmployees('أحمد');
     expect(prisma.employee.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ status: 'active' }),
+        where: expect.objectContaining({ status: 'ACTIVE' }),
       }),
     );
   });

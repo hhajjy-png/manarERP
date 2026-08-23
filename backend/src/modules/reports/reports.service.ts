@@ -8,13 +8,16 @@ import { translateInvoiceStatusAr, translateChequeStatusAr } from '../../shared/
 // Reused from the cheques module so the report can never diverge from the screen —
 // see the `cheques()` report below for why this is imported rather than re-derived.
 import { buildChequeFilterWhere, CHEQUES_REPORT_ORDER } from '../cheques/cheques.service';
+// مُعاد استخدامها من وحدة الأسعار للسبب نفسه الذي دعا لاستيراد فلتر الشيكات أعلاه:
+// تقرير الاستخدام يقرأ ما تقرأه الشاشة حرفيًا فلا يمكن أن يتباعدا.
+import { getPricesUsageReport } from '../prices/prices.service';
 import { expenseCategoryAr, expenseStatusAr } from '../../shared/utils/expenseLabels';
 import { buildExpenseAnalysis } from './expenseAnalysis';
 import { buildCollectionsAnalysis } from './collectionsAnalysis';
 import { buildEmployeeEntitlementsReport } from './employeeEntitlementsReport';
 import { buildVehicleInsuranceReport } from './vehicleInsuranceReport';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
-import { monthWindowsBetween, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
+import { monthWindowsBetween, clampMonthWindows, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
 import { getMonthlyOperationalProfitAndLoss } from '../../shared/services/operational.reporting';
 
@@ -56,6 +59,30 @@ interface ReportQuery {
   supplierId?: string;
   /** إضافي (تقرير مستحقات الموظفين الشهرية): القسم كما هو محفوظ في لقطة الكشف. */
   department?: string;
+  /**
+   * مجموعة الشركة. في «المصروفات حسب الشركة» قيمتها أحد تصنيفات الأشخاص
+   * (HASSAN/GHANEM/NATHEER/HAROON) — وهي قيم `Expense.category` نفسها. وفي
+   * «استخدام الاتفاقيات» هي `ProjectPrice.companyName` النصّي.
+   */
+  company?: string;
+  /** إضافي (استخدام الاتفاقيات): وحدة العقد — `ProjectPrice.contractUnit`. */
+  workType?: string;
+}
+
+/**
+ * تصنيفات المصروفات التي تُمثِّل «أشخاصًا/شركات»؛ ما عداها يندرج تحت «عمليات».
+ *
+ * نفس المجموعة المستخدمة في `expenses.service.stats().byCompanyGroup` التي تغذّي
+ * رقاقات صفحة المصروفات منذ إصدارها — التقرير يتبنّى التعريف المشحون ولا يخترع غيره.
+ */
+const EXPENSE_PERSON_CATEGORIES = ['HASSAN', 'GHANEM', 'NATHEER', 'HAROON'] as const;
+const OPERATIONS_GROUP_LABEL = 'عمليات';
+
+/** مجموعة الشركة لمصروفٍ ما — اسم الشخص إن كان تصنيفه منها، وإلا «عمليات». */
+export function expenseCompanyGroup(category: string): string {
+  return (EXPENSE_PERSON_CATEGORIES as readonly string[]).includes(category)
+    ? expenseCategoryAr(category)
+    : OPERATIONS_GROUP_LABEL;
 }
 
 /** يبني محتوى التقرير (أعمدة + صفوف) حسب النوع. التنسيق (PDF/Excel) منفصل. */
@@ -96,6 +123,10 @@ export class ReportsService {
         return this.cheques(query);
       case 'employee-entitlements-monthly':
         return this.employeeEntitlementsMonthly(query);
+      case 'expenses-by-company':
+        return this.expensesByCompany(query);
+      case 'prices-usage':
+        return this.pricesUsage(query);
       // تأمين المركبات — يقرأ جدولَي الوحدة وحدهما، ولا يمسّ أي تقرير قائم.
       case 'vehicle-insurance':
         return buildVehicleInsuranceReport({ status: query.status });
@@ -310,6 +341,109 @@ export class ReportsService {
         notes: e.notes ?? '',
       })),
       totalsRow: { description: 'الإجمالي', amount: total },
+    };
+  }
+
+  /**
+   * المصروفات حسب الشركة — صفّ لكل مجموعة شركة بإجمالياتها.
+   *
+   * يتبنّى تعريف المجموعات المشحون في صفحة المصروفات (`byCompanyGroup`) حرفيًا بدل
+   * اختراع تصنيف جديد. الفلاتر نفسها التي تعلنها بطاقة التقرير في الواجهة:
+   * الفترة وشهر/سنة الحساب والحالة، إضافةً إلى فلتر الشركة الذي يحصر النتيجة في
+   * تصنيف شخص واحد.
+   */
+  private async expensesByCompany(q: ReportQuery): Promise<ReportInput> {
+    const where: Prisma.ExpenseWhereInput = {
+      ...dateWhere(q.from, q.to) as Prisma.ExpenseWhereInput,
+    };
+    if (q.status) where.status = q.status;
+    if (q.billingMonth) where.billingMonth = Number(q.billingMonth);
+    if (q.billingYear) where.billingYear = Number(q.billingYear);
+    // فلتر الشركة = تصنيف المصروف نفسه (قيم القائمة في الواجهة هي قيم التصنيف).
+    if (q.company) where.category = q.company;
+
+    const grouped = await prisma.expense.groupBy({
+      by: ['category'],
+      where,
+      _sum: { amount: true },
+      _count: { _all: true },
+    });
+
+    const byGroup = new Map<string, { total: number; count: number }>();
+    for (const row of grouped) {
+      const label = expenseCompanyGroup(row.category);
+      const entry = byGroup.get(label) ?? { total: 0, count: 0 };
+      entry.total += num(row._sum.amount);
+      entry.count += row._count._all;
+      byGroup.set(label, entry);
+    }
+
+    const rows = [...byGroup.entries()]
+      .map(([company, e]) => ({ company, count: e.count, amount: round3(e.total) }))
+      .sort((a, b) => b.amount - a.amount);
+
+    const total = round3(rows.reduce((s, r) => s + r.amount, 0));
+    const count = rows.reduce((s, r) => s + r.count, 0);
+
+    return {
+      title: 'تقرير المصروفات حسب الشركة',
+      subtitle: `${formatDateRange(q.from, q.to)} — عدد المصروفات: ${count} — الإجمالي: ${formatCurrency(total)}`,
+      columns: [
+        { header: 'الشركة', key: 'company', width: 28 },
+        { header: 'عدد المصروفات', key: 'count', width: 18, type: 'number' },
+        { header: 'إجمالي المصروفات', key: 'amount', width: 20, numFmt: '#,##0.000', format: 'currency' },
+      ],
+      rows,
+      totalsRow: { company: 'الإجمالي', count, amount: total },
+    };
+  }
+
+  /**
+   * استخدام اتفاقيات الأسعار — صفّ لكل اتفاقية بعدد مرات الاستخدام والكميات والقيمة.
+   *
+   * يستهلك خدمة الاتفاقيات نفسها التي تغذّي شاشة الأسعار (`getPricesUsageReport`) بدل
+   * إعادة تجميع البنود هنا، فلا يمكن أن يتباعد التقرير عن الشاشة. الفلاتر الثلاثة
+   * التي تعلنها بطاقة التقرير (العميل، الشركة، وحدة العمل) تُطبَّق على صفوف الخدمة.
+   */
+  private async pricesUsage(q: ReportQuery): Promise<ReportInput> {
+    const { report, note } = await getPricesUsageReport();
+
+    const customerId = q.customerId ? Number(q.customerId) : undefined;
+    const rowsSrc = report.filter((r) =>
+      (customerId === undefined || r.customer?.id === customerId) &&
+      (!q.company  || r.companyName === q.company) &&
+      (!q.workType || r.contractUnit === q.workType));
+
+    const totalAmount = round3(rowsSrc.reduce((s, r) => s + num(r.totalAmount), 0));
+    const totalQty    = round3(rowsSrc.reduce((s, r) => s + num(r.totalQuantity), 0));
+    const usedCount   = rowsSrc.filter((r) => r.usageCount > 0).length;
+
+    return {
+      title: 'تقرير استخدام اتفاقيات الأسعار',
+      subtitle: `عدد الاتفاقيات: ${rowsSrc.length} — المستخدَمة: ${usedCount} — إجمالي الفواتير: ${formatCurrency(totalAmount)} — ${note}`,
+      columns: [
+        { header: 'المصنع', key: 'asphaltPlant', width: 22 },
+        { header: 'الشركة', key: 'companyName', width: 22 },
+        { header: 'العميل', key: 'customer', width: 24 },
+        { header: 'الموقع', key: 'contractLocation', width: 22 },
+        { header: 'وحدة العمل', key: 'contractUnit', width: 14 },
+        { header: 'سعر الوحدة', key: 'unitPrice', width: 16, numFmt: '#,##0.000', format: 'currency' },
+        { header: 'مرات الاستخدام', key: 'usageCount', width: 16, type: 'number' },
+        { header: 'إجمالي الكمية', key: 'totalQuantity', width: 16, type: 'number' },
+        { header: 'إجمالي الفواتير', key: 'totalAmount', width: 20, numFmt: '#,##0.000', format: 'currency' },
+      ],
+      rows: rowsSrc.map((r) => ({
+        asphaltPlant:     r.asphaltPlant,
+        companyName:      r.companyName,
+        customer:         r.customer?.name ?? '',
+        contractLocation: r.contractLocation ?? '',
+        contractUnit:     r.contractUnit ?? '',
+        unitPrice:        num(r.unitPrice),
+        usageCount:       r.usageCount,
+        totalQuantity:    round3(num(r.totalQuantity)),
+        totalAmount:      round3(num(r.totalAmount)),
+      })),
+      totalsRow: { asphaltPlant: 'الإجمالي', totalQuantity: totalQty, totalAmount },
     };
   }
 
@@ -578,7 +712,10 @@ export class ReportsService {
       rangeEnd = requestedEnd ?? maxBound ?? rangeStart;
     }
 
-    const months = monthWindowsBetween(rangeStart, rangeEnd);
+    // نوافذ الأشهر تُقصّ على النطاق الفعلي: نطاق جزئي مثل 15/08→31/08 كان يتوسّع إلى
+    // أغسطس كاملًا، فيحسب التقرير بيانات ما قبل تاريخ البداية الذي يعرضه عنوانه.
+    // التقرير يبقى شهريًا (صفّ لكل شهر) — الصف وحده صار محصورًا داخل ما اختاره المستخدم.
+    const months = clampMonthWindows(monthWindowsBetween(rangeStart, rangeEnd), rangeStart, rangeEnd);
     const monthly = await getMonthlyOperationalProfitAndLoss(months);
 
     const totalRevenue = monthly.reduce((s, m) => s + m.revenue, 0);

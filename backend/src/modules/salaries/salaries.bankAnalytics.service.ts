@@ -453,7 +453,9 @@ class BankAnalyticsService {
           { fullNameEn: { contains: term } },
           { civilId: { contains: term } },
         ],
-        status: 'active',
+        // قيمة التعداد المخزَّنة هي 'ACTIVE' (config/constants.ts)، ومقارنة النصوص في
+        // SQLite حساسة لحالة الأحرف — فكان 'active' يُفرغ نتيجة البحث دائمًا.
+        status: 'ACTIVE',
       },
       select: { id: true, code: true, fullName: true, fullNameEn: true, civilId: true, bankAccount: true },
       take: 20,

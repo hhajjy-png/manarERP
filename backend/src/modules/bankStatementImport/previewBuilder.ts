@@ -4,6 +4,7 @@ import { matchAllTransactions } from './matcher.js';
 import { detectBankFee } from './bankFeeDetector.js';
 import { buildDedupSummary, buildCoverageSummary } from './dedupDetector.js';
 import { buildAccountKey } from './fingerprint.js';
+import { roundMoney } from '@shared/utils/money.js';
 import type { StatementTransaction, ImportPreviewSummary, PreviewRow } from './types.js';
 
 export async function buildPreview(
@@ -93,8 +94,9 @@ export async function buildPreview(
     fromDate,
     toDate,
     totalRows:    previewRows.length,
-    totalDebits:  Math.round(totalDebits  * 1000) / 1000,
-    totalCredits: Math.round(totalCredits * 1000) / 1000,
+    // وحدة النقود المعتمدة بدل تقريب محلي بلا تصحيح EPSILON.
+    totalDebits:  roundMoney(totalDebits),
+    totalCredits: roundMoney(totalCredits),
     valid:        previewRows.length - invalid,
     invalid,
     warnings,

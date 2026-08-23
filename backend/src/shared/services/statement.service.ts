@@ -1,4 +1,5 @@
 import { prisma } from '@config/database';
+import { roundMoney } from '@shared/utils/money';
 import type {
   StatementInput,
   StatementResult,
@@ -114,7 +115,9 @@ async function calcCustomerOpeningBalance(entityId: number, before: Date): Promi
       _sum: { amount: true },
     }),
   ]);
-  return Number(invAgg._sum.total ?? 0) - Number(pmtAgg._sum.amount ?? 0);
+  // الرصيد الافتتاحي هو نقطة انطلاق تراكم الرصيد الجاري لكل سطور الكشف. إعادته خامًا
+  // كانت تُدخل ضجيج الطرح الثنائي (`…000000004`) في السلسلة كلها من أول سطر.
+  return roundMoney(Number(invAgg._sum.total ?? 0) - Number(pmtAgg._sum.amount ?? 0));
 }
 
 // ─── Supplier Statement ───────────────────────────────────────────────────────
@@ -249,10 +252,11 @@ async function calcSupplierOpeningBalance(entityId: number, before: Date): Promi
       _sum: { amount: true },
     }),
   ]);
-  return (
+  // مقرَّب كنظيره في جانب العميل — نقطة انطلاق تراكم الرصيد الجاري لا تبدأ خامًا.
+  return roundMoney(
     Number(invAgg._sum.total ?? 0) +
     Number(expAgg._sum.amount ?? 0) -
-    Number(pmtAgg._sum.amount ?? 0)
+    Number(pmtAgg._sum.amount ?? 0),
   );
 }
 

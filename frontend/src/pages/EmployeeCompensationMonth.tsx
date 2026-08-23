@@ -68,6 +68,7 @@ import { kd as money } from '../employee-compensation/units';
 import { withFormOpenIntent } from '../forms/shared/formOpenIntent';
 import { formatDate } from '../lib/date';
 import { useT } from '../lib/i18n';
+import { roundMoney } from '../lib/money';
 import { useAuth } from '../stores/authStore';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -539,7 +540,9 @@ export default function EmployeeCompensationMonth() {
    * فشهرٌ بلا مستحقات إضافية (أو تبتلعها استقطاعاته) لا يُصرف فيه نقد. المنع مُكرّر في
    * الصفحة نفسها فلا يُطبع سند بصفر ولو فُتح المسار مباشرةً.
    */
-  const cashNet = saved ? Number((saved.netAmount - saved.basicSalarySnapshot).toFixed(3)) : 0;
+  // كان `Number(x.toFixed(3))` — عائلة تقريب مختلفة عن الخلفية عند نصف الفلس، على
+  // قيمة نقدية تحكم ظهور سند الصرف. صار من وحدة النقود المشتركة.
+  const cashNet = saved ? roundMoney(saved.netAmount - saved.basicSalarySnapshot) : 0;
 
   return (
     <div className="xpl-scope xpl-page ecmp-page ecmp-month-page">

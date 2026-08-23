@@ -6,6 +6,8 @@ import { AppError } from '../../core/errors/AppError';
 import { recordAudit } from '../../core/middleware/audit';
 import { buildPaginatedResult, getPagination, PaginationQuery } from '../../core/utils/pagination';
 import { buildOrderBy, SortWhitelist } from '../../core/utils/sort';
+import { daysUntil as daysUntilShared } from '../../core/utils/daysRemaining';
+import { EQUIPMENT_REGISTRATION_ALERT_DAYS } from '../../config/thresholds';
 import { CreateEquipmentInput, UpdateEquipmentInput } from './equipment.schema';
 
 class EquipmentRepository extends BaseRepository<{ id: number }> {
@@ -42,16 +44,15 @@ const SORTABLE: SortWhitelist = {
 };
 const DEFAULT_ORDER = [{ id: 'desc' as const }];
 
-const MS_DAY = 86_400_000;
-
-/** عدد الأيام حتى تاريخ معيّن (سالب = منتهٍ). */
+/**
+ * عدد الأيام حتى تاريخ معيّن (سالب = منتهٍ).
+ *
+ * كان يطبّع الطرفين إلى منتصف الليل **المحلي** — يعطي العدد الصحيح نفسه، لكنه تعريف
+ * ثالث لنفس المفهوم. صار يفوّض إلى العقد المشترك (`core/utils/daysRemaining`) فتتطابق
+ * دلالة «أمس / اليوم / غدًا» حرفيًا بين المعدات وتأمين المركبات ومركز الوثائق.
+ */
 function daysUntil(date: Date | null): number | null {
-  if (!date) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return Math.round((d.getTime() - today.getTime()) / MS_DAY);
+  return date ? daysUntilShared(date) : null;
 }
 
 /** معلومات المدة الباقية على انتهاء دفتر المركبة (أيام/أشهر + حالة التنبيه). */
@@ -65,7 +66,7 @@ function registrationInfo(date: Date | null) {
   const rem = days % 30;
   let text = `${days} يوم`;
   if (months > 0) text += ` (≈ ${months} شهر${rem ? ` و${rem} يوم` : ''})`;
-  return { expiry: date, remainingDays: days, remainingText: text, expiringSoon: days <= 30, expired: false };
+  return { expiry: date, remainingDays: days, remainingText: text, expiringSoon: days <= EQUIPMENT_REGISTRATION_ALERT_DAYS, expired: false };
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,10 +110,20 @@ export class EquipmentService {
     return buildPaginatedResult(data.map(withRegistration), total, pagination);
   }
 
-  /** المركبات التي يقترب انتهاء دفترها (افتراضيًا خلال 30 يومًا) أو انتهى. */
-  async expiringRegistrations(days = 30) {
+  /**
+   * المركبات التي يقترب انتهاء دفترها (افتراضيًا خلال 30 يومًا) **أو انتهى بالفعل**.
+   *
+   * لا حدّ سفلي عن قصد: المستهلك الوحيد تغذيةُ تنبيهات لوحة المعلومات، ودفترٌ منتهٍ
+   * منذ شهر مشكلة قائمة لا مشكلة زالت — إخفاؤه يكتم إنذارًا حقيقيًا. الواجهة تميّز
+   * الحالتين نصًّا («منتهٍ منذ N يوم» مقابل المتبقّي)، والتسمية تذكرهما معًا.
+   *
+   * الحدّ الأعلى نهاية اليوم المحلي لا لحظة التنفيذ: قبل ذلك كان دفترٌ ينتهي بعد 30
+   * يومًا بالضبط يدخل النتيجة أو يخرج منها تبعًا لساعة إرسال الطلب.
+   */
+  async expiringRegistrations(days = EQUIPMENT_REGISTRATION_ALERT_DAYS) {
     const until = new Date();
     until.setDate(until.getDate() + days);
+    until.setHours(23, 59, 59, 999);
     const rows = await prisma.equipment.findMany({
       where: { registrationExpiry: { not: null, lte: until } },
       orderBy: { registrationExpiry: 'asc' },
