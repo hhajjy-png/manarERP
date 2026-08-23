@@ -17,7 +17,11 @@ export default function MonthlyReportModal({
   filters,
   onClose,
 }: {
-  filters: { direction?: string; status?: string; customerId?: string; billingYear?: string };
+  filters: {
+    direction?: string; status?: string; customerId?: string; billingYear?: string;
+    /** الفترة العالمية والبحث — يمرَّران كما هما إلى الخلفية فيطابق التقرير الشاشة. */
+    from?: string; to?: string; search?: string;
+  };
   onClose: () => void;
 }) {
   const { t } = useT();

@@ -103,6 +103,19 @@ export async function getPricesStats() {
   };
 }
 
+/**
+ * بنود الفواتير المحتسَبة في استخدام الاتفاقيات.
+ *
+ * «إجمالي الفواتير» لكل اتفاقية مؤشر **مبيعات تشغيلية**، فيتبع تعريف المحرك التشغيلي:
+ * فواتير بيع غير ملغاة. بلا هذا الشرط كانت فاتورة ملغاة تضخّم إيراد الاتفاقية إلى
+ * الأبد. الشرط واحد في المواضع الثلاثة (تقرير الاستخدام، التجميع حسب الشركة، لوحة
+ * الاتفاقيات) فلا تتباعد أرقامها.
+ */
+const USAGE_ITEM_WHERE = {
+  priceId: { not: null },
+  invoice: { direction: 'SALES', status: { not: 'CANCELLED' } },
+} as const;
+
 export async function getPricesUsageReport() {
   const [prices, items] = await Promise.all([
     prisma.projectPrice.findMany({
@@ -111,7 +124,7 @@ export async function getPricesUsageReport() {
       orderBy: { asphaltPlant: 'asc' },
     }),
     prisma.invoiceItem.findMany({
-      where: { priceId: { not: null } },
+      where: USAGE_ITEM_WHERE,
       select: { priceId: true, quantity: true, total: true },
     }),
   ]);
@@ -151,7 +164,7 @@ export async function getPricesUsageReport() {
 
 export async function getPricesUsageByCompany() {
   const items = await prisma.invoiceItem.findMany({
-    where: { priceId: { not: null } },
+    where: USAGE_ITEM_WHERE,
     select: {
       priceId: true,
       quantity: true,
@@ -203,7 +216,7 @@ export async function getAgreementsDashboard() {
       orderBy: { asphaltPlant: 'asc' },
     }),
     prisma.invoiceItem.findMany({
-      where: { priceId: { not: null } },
+      where: USAGE_ITEM_WHERE,
       select: { priceId: true, quantity: true, total: true },
     }),
   ]);

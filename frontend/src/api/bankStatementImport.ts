@@ -197,7 +197,15 @@ export interface ReconciliationWorkspace {
   bankName:        string;
   fileName:        string;
   importedAt:      string;
+  /** عدد صفوف **الملف** المستورَد كاملًا (يشمل ما تُخُطِّي كمكرر). */
   totalRows:       number;
+  /** إجماليات **الملف** — تشمل الصفوف المُتخطّاة، فلا تصف ما تعرضه المساحة. */
+  fileDebits:      number;
+  fileCredits:     number;
+  /** إجماليات **الصفوف المخزَّنة فعليًا** لهذا الاستيراد — وحدها تطابق قائمة العمليات. */
+  storedDebits:    number;
+  storedCredits:   number;
+  storedRows:      number;
   unmatched:       number;
   matched:         number;
   ignored:         number;

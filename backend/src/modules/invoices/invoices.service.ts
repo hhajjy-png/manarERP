@@ -45,6 +45,28 @@ function applyIssueDateRange(where: Prisma.InvoiceWhereInput, from?: string, to?
 }
 
 /**
+ * الفترة المحاسبية التي تُنسَب إليها الفاتورة في التجميع الشهري.
+ *
+ * شهر/سنة الحساب إن كانا محفوظين، وإلا شهر وسنة تاريخ الإصدار (بالتقويم المحلي، فلا
+ * تنزلق فاتورة أول الشهر إلى الشهر السابق بفارق التوقيت). يُرجع `null` فقط حين
+ * يغيب الاثنان معًا — حالة لا تنشأ عمليًا لأن تاريخ الإصدار إلزامي.
+ *
+ * مُصدَّرة كي تُختبَر مباشرةً بلا قاعدة بيانات.
+ */
+export function resolveInvoicePeriod(
+  inv: { billingMonth?: number | null; billingYear?: number | null; issueDate?: Date | null },
+): { year: number | null; month: number | null } {
+  if (inv.billingYear != null && inv.billingMonth != null) {
+    return { year: inv.billingYear, month: inv.billingMonth };
+  }
+  if (inv.issueDate) {
+    const d = inv.issueDate instanceof Date ? inv.issueDate : new Date(inv.issueDate);
+    if (!Number.isNaN(d.getTime())) return { year: d.getFullYear(), month: d.getMonth() + 1 };
+  }
+  return { year: null, month: null };
+}
+
+/**
  * مُعاد تصديرها من `gl.service.ts` — التنفيذ الفعلي (وحلقة إعادة المحاولة على تعارض
  * entryNumber) صار مركزيًا هناك داخل `createBalancedJournal` نفسها، فيرثه كل مستدعٍ
  * (فواتير، رواتب، مصروفات) تلقائيًا دون تكرار الحارس هنا. أُبقي على هذا التصدير
@@ -176,43 +198,74 @@ export class InvoicesService {
       ];
     }
 
-    const [count, agg] = await Promise.all([
+    // «المتبقي» رصيد مستحق، والفاتورة الملغاة لا رصيد لها (الإلغاء يشترط paidAmount=0)
+    // فكانت تُضيف كامل قيمتها إلى المتبقي. يُحسب على مجموعة منفصلة تستبعد الملغاة،
+    // بينما العدّ والإجمالي يبقيان على مجموعة الشاشة نفسها كي لا تتباعد البطاقة عن
+    // الجدول. المستخدم الذي يفلتر CANCELLED صراحةً يرى متبقيًا = صفر، وهو الصحيح.
+    const remainingWhere: Prisma.InvoiceWhereInput = { ...where };
+    if (!query.status) remainingWhere.status = { not: 'CANCELLED' };
+
+    const [count, agg, remainingAgg] = await Promise.all([
       prisma.invoice.count({ where }),
       prisma.invoice.aggregate({ where, _sum: { total: true, paidAmount: true } }),
+      prisma.invoice.aggregate({ where: remainingWhere, _sum: { total: true, paidAmount: true } }),
     ]);
 
     const totalSales = Number(agg._sum.total ?? 0);
     const totalCollected = Number(agg._sum.paidAmount ?? 0);
+    const remainingBase = Number(remainingAgg._sum.total ?? 0) - Number(remainingAgg._sum.paidAmount ?? 0);
 
     return {
       count,
       totalSales,
       totalCollected,
-      totalRemaining: totalSales - totalCollected,
+      totalRemaining: query.status === 'CANCELLED' ? 0 : roundMoney(remainingBase),
       average: count > 0 ? totalSales / count : 0,
     };
   }
 
+  /**
+   * التقرير الشهري للفواتير.
+   *
+   * التجميع على شهر/سنة الحساب (`billingMonth/billingYear`) **مع الرجوع إلى تاريخ
+   * الإصدار عند غيابهما**. الحقلان اختياريان ولا تحملهما الفواتير المستورَدة تاريخيًا،
+   * فكانت كلها تتجمّع في صفّ واحد بلا فترة («—») يبتلع أغلب قيمة الفواتير بينما
+   * الأشهر المسمّاة لا تعرض إلا الباقي. لا تُعدَّل أي بيانات محفوظة — الرجوع للعرض فقط.
+   *
+   * يحترم أيضًا نطاق الفترة والبحث النصي تمامًا كما تفعل شاشة الفواتير وبطاقاتها،
+   * فلا تعرض النافذة كل الزمن بينما رأس الصفحة يعرض الفترة المختارة.
+   */
   async monthlyReport(query: {
     direction?: string;
     status?: string;
     customerId?: string;
     billingYear?: string;
+    from?: string;
+    to?: string;
+    search?: string;
   }) {
     const where: Prisma.InvoiceWhereInput = {};
     if (query.direction) where.direction = query.direction;
     if (query.status) where.status = query.status;
     if (query.customerId) where.customerId = Number(query.customerId);
     if (query.billingYear) where.billingYear = Number(query.billingYear);
+    applyIssueDateRange(where, query.from, query.to);
+    if (query.search) {
+      where.OR = [
+        { invoiceNumber: { contains: query.search } },
+        { number: { contains: query.search } },
+      ];
+    }
 
     const invoices = await prisma.invoice.findMany({
       where,
-      select: { billingMonth: true, billingYear: true, total: true, paidAmount: true },
+      select: { billingMonth: true, billingYear: true, issueDate: true, total: true, paidAmount: true },
     });
 
     const groups = new Map<string, { count: number; totalSales: number; totalCollected: number }>();
     for (const inv of invoices) {
-      const key = `${inv.billingYear ?? 0}-${String(inv.billingMonth ?? 0).padStart(2, '0')}`;
+      const period = resolveInvoicePeriod(inv);
+      const key = `${period.year ?? 0}-${String(period.month ?? 0).padStart(2, '0')}`;
       const g = groups.get(key) ?? { count: 0, totalSales: 0, totalCollected: 0 };
       g.count++;
       g.totalSales += Number(inv.total);
@@ -241,6 +294,9 @@ export class InvoicesService {
     status?: string;
     customerId?: string;
     billingYear?: string;
+    from?: string;
+    to?: string;
+    search?: string;
   }): Promise<ReportInput> {
     const data = await this.monthlyReport(query);
     const rows = data.map((r) => ({

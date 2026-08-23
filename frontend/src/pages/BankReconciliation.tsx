@@ -1369,9 +1369,13 @@ export default function BankReconciliation() {
     );
   }
 
-  // ── Workspace-level totals (from importMeta or pageTotals fallback) ─────────
-  const wsDebit  = importMeta?.totalDebits  ?? pageTotals.debit;
-  const wsCredit = importMeta?.totalCredits ?? pageTotals.credit;
+  // ── Workspace-level totals ──────────────────────────────────────────────────
+  // مصدرها إجماليات **الصفوف المخزَّنة فعليًا** لهذا الاستيراد، لا إجماليات الملف
+  // المستورَد. الملف يشمل الصفوف التي تُخُطِّيت كمكررات، وفي الاستيراد التزايدي كان
+  // ذلك يعرض إجمالي ستين صفًا فوق قائمة تحوي ثلاثة — تضخيمًا بعشرات الأضعاف.
+  const wsScoped = workspace != null;
+  const wsDebit  = workspace?.storedDebits  ?? pageTotals.debit;
+  const wsCredit = workspace?.storedCredits ?? pageTotals.credit;
   const bankLabel = workspace ? bankLabelFor(workspace.bankName, t) : '—';
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -1840,7 +1844,7 @@ export default function BankReconciliation() {
               <p className="recon-kpi-value" style={{ color: 'var(--red)', fontSize: 17 }}>
                 <PrivateAmount value={wsDebit} currency="" />
               </p>
-              <p className="recon-kpi-sub">{importMeta ? t('bank.recon.entire_statement') : t('bank.recon.current_page')}</p>
+              <p className="recon-kpi-sub">{wsScoped ? t('bank.recon.stored_rows_scope') : t('bank.recon.current_page')}</p>
             </div>
           </div>
 
@@ -1852,7 +1856,7 @@ export default function BankReconciliation() {
               <p className="recon-kpi-value" style={{ color: 'var(--green)', fontSize: 17 }}>
                 <PrivateAmount value={wsCredit} currency="" />
               </p>
-              <p className="recon-kpi-sub">{importMeta ? t('bank.recon.entire_statement') : t('bank.recon.current_page')}</p>
+              <p className="recon-kpi-sub">{wsScoped ? t('bank.recon.stored_rows_scope') : t('bank.recon.current_page')}</p>
             </div>
           </div>
 
@@ -1909,7 +1913,10 @@ export default function BankReconciliation() {
               <p className="recon-kpi-value" style={{ color: 'var(--red)', fontSize: 17 }}>
                 <PrivateAmount value={analyticalStats.maxDebit} currency="" />
               </p>
-              <p className="recon-kpi-sub">{t('bank.recon.max_debit_transaction')}</p>
+              {/* محسوبة من صفوف الصفحة الحالية كبقية مؤشرات هذا الصف — تُذكر النافذة
+                  كي لا تُقرأ كأكبر عملية في الاستيراد كله (بطاقات الاستيراد تحمل
+                  نطاقها الخاص: «العمليات المضافة لهذا الاستيراد»). */}
+              <p className="recon-kpi-sub">{t('bank.recon.max_debit_transaction')} · {t('bank.recon.current_page')}</p>
             </div>
           </div>
 
@@ -1921,7 +1928,7 @@ export default function BankReconciliation() {
               <p className="recon-kpi-value" style={{ color: 'var(--green)', fontSize: 17 }}>
                 <PrivateAmount value={analyticalStats.maxCredit} currency="" />
               </p>
-              <p className="recon-kpi-sub">{t('bank.recon.max_credit_transaction')}</p>
+              <p className="recon-kpi-sub">{t('bank.recon.max_credit_transaction')} · {t('bank.recon.current_page')}</p>
             </div>
           </div>
 
