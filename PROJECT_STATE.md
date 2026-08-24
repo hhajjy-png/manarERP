@@ -80,9 +80,9 @@ in a table cell.
 | **Package** | «قالب شيك الخليج» — قالب طباعة الشيك المقيس (180 × 90 مم) على ورقة A4 أفقية، مدمجًا في استوديو المعايرة الاحترافي القائم، مع إعادة بناء حقل التاريخ ككتلة واحدة |
 | **Release status** | **RELEASED** — ثلاث حزم مُصدَرة معًا: **Gulf Bank A4 cheque template = RELEASED** · **Professional calibration integration = RELEASED** · **Date Block rebuild = RELEASED** |
 | **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج، بما فيها إصلاح التاريخ ككتلة واحدة؛ لا ملاحظات بصرية مانعة |
-| **Pack commit** | `__FEATURE_SHA__` |
-| **Merge** | `__MERGE_SHA__` — `--no-ff` merge of `feature/gulf-a4-cheque-template-calibration-v1` |
-| **Tags** | `stable-gulf-a4-cheque-template-v1` → `__MERGE_SHA__` · `checkpoint-gulf-a4-cheque-template-v1` → `60b4ada8` (production HEAD قبل الدمج مباشرةً) |
+| **Pack commit** | `7080d1ed` |
+| **Merge** | `2ea4aae8` — `--no-ff` merge of `feature/gulf-a4-cheque-template-calibration-v1` |
+| **Tags** | `stable-gulf-a4-cheque-template-v1` → `2ea4aae8` · `checkpoint-gulf-a4-cheque-template-v1` → `60b4ada8` (production HEAD قبل الدمج مباشرةً) |
 | **Schema / migration** | **لا شيء** — صفر ترحيل، صفر تغيير مخطط، صفر مفتاح صلاحية جديد، وصفر تعديل على أي سجل تاريخي |
 | **هندسة الصفحة** | A4 Landscape `297 × 210 mm` — landscape بالأبعاد لا بالتدوير، هوامش صفر، مقياس 100% |
 | **منطقة الشيك على A4** | `X = 117.0` · `Y = 60.0` · `W = 180.0` · `H = 90.0` مم — الحافة اليمنى للشيك على الحافة اليمنى للورقة تمامًا، وتوسيط رأسي `(210 − 90) / 2` |
