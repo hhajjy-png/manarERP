@@ -22,6 +22,8 @@ type Props = {
   resolveText?: (field: DesignerField) => string;
   /** Optional predicate: is this field bound to a data source? Drives a subtle indicator. */
   isFieldBound?: (field: DesignerField) => boolean;
+  /** Optional resolver for a slot's display text, by slot key. Defaults to empty. */
+  resolveSlotText?: (key: string) => string;
 };
 
 const RESIZE_CORNERS: ResizeCorner[] = ['tl', 'tr', 'bl', 'br'];
@@ -36,7 +38,7 @@ const RESIZE_CORNERS: ResizeCorner[] = ['tl', 'tr', 'bl', 'br'];
  * into Drag/Resize/Rotation, and holds the one piece of purely-rendering
  * state (`activeGuides`), cleared as soon as a gesture ends.
  */
-export default function DesignerFieldLayer({ fields, selection, mutation, resolveText, isFieldBound }: Props) {
+export default function DesignerFieldLayer({ fields, selection, mutation, resolveText, isFieldBound, resolveSlotText }: Props) {
   const layerRef = useRef<HTMLDivElement>(null);
   const [activeGuides, setActiveGuides] = useState<AlignmentGuide[]>([]);
 
@@ -87,7 +89,23 @@ export default function DesignerFieldLayer({ fields, selection, mutation, resolv
             onPointerUp={drag.handlePointerUp}
             onPointerCancel={drag.handlePointerCancel}
           >
-            <span className="ctd-field-text" style={textStyle}>{displayText}</span>
+            {field.slots && field.slots.length > 0 ? (
+              // Internal slots — rendering detail inside this ONE field. They are
+              // not selectable, carry no handles, and share the field's box and
+              // typography, so the editor shows exactly what will print.
+              field.slots.map((slot) => (
+                <span
+                  key={slot.key}
+                  className="ctd-field-slot"
+                  data-slot={slot.key}
+                  style={{ ...textStyle, left: `${slot.xPercent}%`, width: `${slot.widthPercent}%`, textAlign: 'center' }}
+                >
+                  {resolveSlotText ? resolveSlotText(slot.key) : ''}
+                </span>
+              ))
+            ) : (
+              <span className="ctd-field-text" style={textStyle}>{displayText}</span>
+            )}
             {bound && <span className="ctd-field-binding-dot" aria-hidden="true" title="مرتبط ببيانات" />}
             {isSelected && (
               <>

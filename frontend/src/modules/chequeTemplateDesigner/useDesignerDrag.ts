@@ -13,8 +13,9 @@ import type { FieldMutationApi } from './fieldGeometry';
  *
  * The surface's own bounding box (read through `boundaryRef`) is the sole
  * coordinate reference and drag boundary. This hook holds no field data of
- * its own: it reads a field's starting x/y at pointer-down and writes the
- * next x/y through the shared `mutation` API.
+ * its own: it reads the starting x/y at pointer-down and writes the next x/y
+ * through the shared `mutation` API.
+ *
  */
 
 type DragSession = {

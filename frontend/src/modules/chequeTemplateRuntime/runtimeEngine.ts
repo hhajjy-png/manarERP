@@ -17,7 +17,7 @@
  */
 import { clampNumber, PHYSICAL_CHEQUE_SURFACE_CM } from '../chequeTemplateDesigner';
 import type { DesignerSurfaceSpec, DesignerTextAlign } from '../chequeTemplateDesigner';
-import { textDefinitelyOverflows } from '../chequePrint/textFit';
+import { maxLinesFor, textDefinitelyOverflows } from '../chequePrint/textFit';
 import { MOCK_RUNTIME_DATA } from './mockRuntimeData';
 import {
   REQUIRED_PRINT_KEYS,
@@ -26,6 +26,7 @@ import {
   type ResolvedGeometry,
   type ResolvedRenderField,
   type ResolvedRenderModel,
+  type ResolvedRenderSlot,
   type ResolvedSurface,
   type RuntimeData,
   type RuntimeTemplateInput,
@@ -56,6 +57,41 @@ interface SafeField {
   color: string;
   zIndex: number;
   visible: boolean;
+  /** Opt-in wrapping. Absent/non-true on every historical field ⇒ single line. */
+  multiline: boolean;
+  /** Internal sub-cells. Empty on every ordinary field. */
+  slots: SafeSlot[];
+}
+
+interface SafeSlot {
+  key: string;
+  xPercent: number;
+  widthPercent: number;
+}
+
+/**
+ * Defensively normalize a field's slot list.
+ *
+ * A slot is accepted only when it is fully specified and geometrically sane;
+ * anything else is dropped, which degrades a slotted field to a plain one rather
+ * than drawing a cell at an unknown place. Offsets are percentages of the parent
+ * box, so they are clamped to [0, 100] exactly as field coordinates are.
+ */
+function normalizeSlots(raw: unknown): SafeSlot[] {
+  if (!Array.isArray(raw)) return [];
+  const slots: SafeSlot[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const s = item as Record<string, unknown>;
+    if (typeof s.key !== 'string' || !s.key) continue;
+    if (!isFiniteNumber(s.xPercent) || !isFiniteNumber(s.widthPercent) || s.widthPercent <= 0) continue;
+    slots.push({
+      key: s.key,
+      xPercent: clampNumber(s.xPercent, 0, 100),
+      widthPercent: clampNumber(s.widthPercent, 0, 100),
+    });
+  }
+  return slots;
 }
 
 /** Type guard: is a value one of the stable semantic keys? */
@@ -217,6 +253,8 @@ function normalizeField(raw: unknown, index: number): { field: SafeField | null;
     color: typeof r.color === 'string' && r.color ? r.color : '#000000',
     zIndex: isFiniteNumber(r.zIndex) ? r.zIndex : 0,
     visible,
+    multiline: r.multiline === true,
+    slots: normalizeSlots(r.slots),
   };
   return { field, issues };
 }
@@ -297,6 +335,53 @@ function resolveText(
       message: `الحقل «${field.id}» مرتبط بـ (${binding}) بلا قيمة — يُطبع نصه الثابت.`,
     },
   };
+}
+
+/**
+ * Resolve a slotted field's sub-cells.
+ *
+ * Each slot resolves against the SAME runtime data and the SAME required-key
+ * rule a bound field does: in print mode a slot whose key is a required cheque
+ * value and has no real data raises a blocking error, so an empty day can never
+ * be printed onto a cheque. Slot text is never substituted from the field's
+ * static value — a date cell has no meaningful placeholder.
+ */
+function resolveSlots(
+  field: SafeField,
+  runtime: RuntimeData,
+  surface: ResolvedSurface,
+  mode: ResolveMode,
+  issues: RenderIssue[],
+): ResolvedRenderSlot[] {
+  return field.slots.map((slot) => {
+    const binding = isSemanticKey(slot.key) ? slot.key : null;
+    const value = binding ? runtime[binding] : undefined;
+    const text = value ?? '';
+
+    if (mode === 'print' && field.visible) {
+      if (!text && binding && REQUIRED_KEYS.has(binding)) {
+        issues.push({
+          code: 'UNRESOLVED_DATA_BINDING',
+          severity: 'error',
+          fieldId: field.id,
+          message: `الحقل «${field.id}» يحتوي خانة (${slot.key}) بلا قيمة حقيقية — الطباعة موقوفة حتى لا يُطبع تاريخ ناقص على شيك حقيقي.`,
+        });
+      }
+      // Each cell is measured against ITS OWN width, not the whole box: a date
+      // cell that cannot hold its digits is the defect worth reporting.
+      const slotWidthPercent = (field.width * slot.widthPercent) / 100;
+      if (text && textDefinitelyOverflows(text, field.fontSize, slotWidthPercent, surface.widthCm)) {
+        issues.push({
+          code: 'FIELD_TEXT_OVERFLOW',
+          severity: 'error',
+          fieldId: field.id,
+          message: `القيمة في خانة «${slot.key}» داخل الحقل «${field.id}» أوسع من الخانة ولا يمكن طباعتها كاملة — وسّع الحقل أو صغّر الخط.`,
+        });
+      }
+    }
+
+    return { key: slot.key, text, binding, xPercent: slot.xPercent, widthPercent: slot.widthPercent };
+  });
 }
 
 function emptyModel(issues: RenderIssue[]): ResolvedRenderModel {
@@ -396,12 +481,19 @@ function resolveModel(
     if (!field) return;
 
     const binding = bindingResolver(field);
+    const slots = resolveSlots(field, runtime, surface, mode, issues);
+    // A slotted field renders its slots, never its own text — so its own text is
+    // not measured for overflow either; each slot is measured against its cell.
     const { text, issue } = resolveText(field, runtime, binding, mode);
-    if (issue) issues.push(issue);
+    if (issue && slots.length === 0) issues.push(issue);
+    // A single-line field has exactly one line of usable run length; a field that
+    // opted into wrapping has as many as its own HEIGHT holds. Either way the box
+    // is the limit — wrapping widens what fits, it never disables the check.
+    const maxLines = field.multiline ? maxLinesFor(field.height, surface.heightCm, field.fontSize) : 1;
     // Print mode only: a value that cannot fit its own box would be clipped by the
     // renderer. Clipping protects the neighbouring fields, but an amount or payee
     // must never be silently cropped on a real cheque — so report and block.
-    if (mode === 'print' && field.visible && textDefinitelyOverflows(text, field.fontSize, field.width, surface.widthCm)) {
+    if (mode === 'print' && field.visible && slots.length === 0 && textDefinitelyOverflows(text, field.fontSize, field.width, surface.widthCm, maxLines)) {
       issues.push({
         code: 'FIELD_TEXT_OVERFLOW',
         severity: 'error',
@@ -419,6 +511,9 @@ function resolveModel(
       color: field.color,
       visible: field.visible,
       zIndex: field.zIndex,
+      multiline: field.multiline,
+      maxLines,
+      slots,
     });
   });
 

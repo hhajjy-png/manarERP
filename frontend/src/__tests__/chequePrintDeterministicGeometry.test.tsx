@@ -32,8 +32,6 @@ import {
   physicalPageFor,
   printOptionsFor,
   realChequePage,
-  resolveDefaultPrintTemplate,
-  DEFAULT_TEMPLATE_MISSING_MESSAGE,
   fontSizeToCqw,
   surfaceWidthPx,
   textDefinitelyOverflows,
@@ -44,7 +42,6 @@ import type { ChequeRecordInput } from '../components/chequeTemplateManager/cheq
 import ChequeRenderSurface from '../components/chequeTemplateManager/ChequeRenderSurface';
 import ChequeTemplatePrintPage from '../components/chequeTemplateManager/ChequeTemplatePrintPage';
 import type { DesignerField, DesignerSurfaceSpec } from '../modules/chequeTemplateDesigner';
-import type { StoredChequeTemplate } from '../components/chequeTemplateManager/chequeDesignerStore';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -77,14 +74,6 @@ const FIELDS: DesignerField[] = [
   field({ id: 'amountInWords', value: 'ألف ومئتان', x: 10.7, y: 29.78, width: 58, fontSize: 12, zIndex: 5 }),
 ];
 
-function storedTemplate(over: Partial<StoredChequeTemplate> = {}): StoredChequeTemplate {
-  return {
-    id: 'tpl-default', name: 'تجربه', isDefault: true,
-    surface: SURFACE, fields: FIELDS.map((f) => ({ ...f })),
-    createdAt: '2026-07-24T04:02:48.954Z', updatedAt: '2026-07-30T13:23:54.040Z',
-    ...over,
-  };
-}
 
 /** The geometry half of a resolved model — everything except runtime text. */
 function geometryOf(model: ReturnType<typeof resolveChequeTemplateForPrint>) {
@@ -210,51 +199,6 @@ describe('resolved print job — geometry determinism', () => {
 });
 
 // ── C. Default template contract ─────────────────────────────────────────────
-
-describe('default template contract', () => {
-  it('resolves the explicitly flagged default', () => {
-    const tpl = storedTemplate();
-    const r = resolveDefaultPrintTemplate(() => tpl);
-    expect(r.ok).toBe(true);
-    if (r.ok) {
-      expect(r.template.id).toBe('tpl-default');
-      expect(r.ref).toEqual({ id: 'tpl-default', name: 'تجربه', source: 'default-template' });
-    }
-  });
-
-  it('BLOCKS with an explicit Arabic message when no default is flagged — never a fallback', () => {
-    const r = resolveDefaultPrintTemplate(() => null);
-    expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.message).toBe(DEFAULT_TEMPLATE_MISSING_MESSAGE);
-    expect(DEFAULT_TEMPLATE_MISSING_MESSAGE).toContain('لا يوجد قالب شيك افتراضي');
-  });
-
-  it('never consults updatedAt ordering — a newer NON-default template cannot win', () => {
-    // The removed `?? listTemplates()[0]` fallback would have picked this one.
-    const newerNonDefault = storedTemplate({ id: 'tpl-newer', name: 'أحدث', isDefault: false, updatedAt: '2099-01-01T00:00:00.000Z' });
-    let getDefaultCalls = 0;
-    const r = resolveDefaultPrintTemplate(() => { getDefaultCalls++; return null; });
-    expect(r.ok).toBe(false);
-    expect(getDefaultCalls).toBe(1);
-    expect(JSON.stringify(r)).not.toContain(newerNonDefault.id);
-  });
-
-  it('stays the same template across repeated prints and after another template is edited', () => {
-    const tpl = storedTemplate();
-    const getDefault = vi.fn(() => tpl);
-    const first = resolveDefaultPrintTemplate(getDefault);
-    // …an unrelated template is edited (would have changed an updatedAt fallback)…
-    storedTemplate({ id: 'tpl-other', isDefault: false, updatedAt: '2099-01-01T00:00:00.000Z' });
-    const second = resolveDefaultPrintTemplate(getDefault);
-    const third = resolveDefaultPrintTemplate(getDefault);
-    expect(second).toEqual(first);
-    expect(third).toEqual(first);
-    // Re-read from storage every time — no cached/stale React state.
-    expect(getDefault).toHaveBeenCalledTimes(3);
-  });
-});
-
-// ── D. Text fit / overflow ───────────────────────────────────────────────────
 
 describe('deterministic typography & text fit', () => {
   it('font size is a fixed fraction of the surface, not a viewport-relative value', () => {

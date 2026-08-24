@@ -61,3 +61,28 @@
   width: 100%;
   white-space: nowrap;
 }
+
+/* Opt-in wrapping for a field whose measured box is genuinely a multi-line area
+   (the tafqeet band on 180 × 90 mm Gulf Bank stock is 16 mm tall and takes a
+   second line). It stays inside `.crs-field`'s `overflow: hidden`, so it can no
+   more reach a neighbouring field than a single-line value can, and the engine
+   still blocks a value longer than the box's own line count can hold. */
+.crs-field-text--wrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* A sub-cell of a SLOTTED field (the cheque date's day / month / year). Every
+   slot fills the parent's full height and shares its typography, so the digits
+   are centred on one line — no per-slot y, height or line-height exists to
+   drift. Only the horizontal offset differs, and it is the measured one. */
+.crs-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+}

@@ -17,7 +17,7 @@
 }
 html[data-theme="dark"] .chq-studio-overlay { background: var(--bg); }
 
-/* ── Tab bar ── */
+/* ── Studio bar ── */
 .chq-studio-tabs {
   display: flex;
   align-items: center;
@@ -28,28 +28,18 @@ html[data-theme="dark"] .chq-studio-overlay { background: var(--bg); }
   flex-shrink: 0;
 }
 
-.chq-studio-tab {
+.chq-studio-title {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
-  border: 1px solid var(--border, #e2e8f0);
-  border-radius: 8px;
-  background: var(--surface, #fff);
-  color: var(--text-muted, #64748b);
   font-size: 14px;
   font-weight: 700;
-  cursor: pointer;
+  color: var(--text, #0f172a);
 }
 
-.chq-studio-tab .material-symbols-outlined {
+.chq-studio-title .material-symbols-outlined {
   font-size: 18px;
-}
-
-.chq-studio-tab.active {
-  background: var(--primary, #2563eb);
-  border-color: var(--primary, #2563eb);
-  color: #fff;
+  color: var(--primary, #2563eb);
 }
 
 .chq-studio-tabs-spacer {
@@ -81,23 +71,9 @@ html[data-theme="dark"] .chq-studio-overlay { background: var(--bg); }
   position: relative;
 }
 
-/*
- * Calibration host — SCREEN ONLY. A `transform` turns this element into the
- * containing block for the (unmodified) ChequeCalibrator's `position: fixed`
- * root, so the calibrator fills this area (below the tab bar) instead of the
- * viewport. In print there is NO transform, so the calibrator's fixed
- * test-sheet anchors to the page exactly as it always has — the print path is
- * untouched.
- */
 @media screen {
   .chq-studio-body {
     overflow: hidden;
-  }
-
-  .chq-studio-calib-host {
-    position: absolute;
-    inset: 0;
-    transform: translateZ(0);
   }
 }
 

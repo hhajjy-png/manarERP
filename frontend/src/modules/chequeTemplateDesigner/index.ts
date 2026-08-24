@@ -15,7 +15,7 @@ export { default as ChequeTemplateDesigner } from './ChequeTemplateDesigner';
 export type { ChequeTemplateDesignerProps } from './ChequeTemplateDesigner';
 
 // Model
-export type { DesignerField, DesignerTextAlign } from './designerField.types';
+export type { DesignerField, DesignerFieldSlot, DesignerTextAlign } from './designerField.types';
 
 // Surface
 export type { DesignerSurfaceSpec } from './surface.constants';

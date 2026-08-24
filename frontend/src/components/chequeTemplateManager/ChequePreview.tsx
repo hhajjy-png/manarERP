@@ -2,6 +2,7 @@ import type { RenderIssue, ResolvedRenderModel } from '../../modules/chequeTempl
 import ChequeRenderSurface from './ChequeRenderSurface';
 import ChequeA4Sheet from './ChequeA4Sheet';
 import type { ChequePaperMode } from './ChequeA4Sheet';
+import type { ChequeA4Placement } from '../../modules/chequePrint';
 import './chequePreview.css';
 
 /**
@@ -24,6 +25,13 @@ type Props = {
   backgroundSrc?: string;
   /** Which outer paper surface to present the (identical) cheque on. Default: real cheque. */
   paperMode?: ChequePaperMode;
+  /**
+   * A4 mode only. Where the cheque area sits on the sheet, in true millimetres,
+   * as decided by the open print profile. Absent ⇒ the A4 sheet's historical
+   * default placement, so every existing caller is unchanged. This is the SAME
+   * value the print job carries, so preview and print never disagree.
+   */
+  placement?: ChequeA4Placement;
 };
 
 function issueIcon(severity: RenderIssue['severity']): string {
@@ -56,7 +64,7 @@ export function PreviewIssues({ issues }: { issues: RenderIssue[] }) {
   );
 }
 
-export default function ChequePreview({ model, backgroundSrc, paperMode = 'real-cheque' }: Props) {
+export default function ChequePreview({ model, backgroundSrc, paperMode = 'real-cheque', placement }: Props) {
   return (
     <div className="chp-root">
       <div className="chp-header">
@@ -66,7 +74,7 @@ export default function ChequePreview({ model, backgroundSrc, paperMode = 'real-
 
       <div className="chp-frame">
         {paperMode === 'a4' ? (
-          <ChequeA4Sheet model={model} backgroundSrc={backgroundSrc} />
+          <ChequeA4Sheet model={model} backgroundSrc={backgroundSrc} placement={placement} />
         ) : (
           <ChequeRenderSurface model={model} backgroundSrc={backgroundSrc} />
         )}

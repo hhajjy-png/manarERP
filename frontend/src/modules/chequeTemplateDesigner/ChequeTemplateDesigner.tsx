@@ -52,6 +52,8 @@ export interface ChequeTemplateDesignerProps {
   resolveText?: (field: DesignerField) => string;
   /** Optional predicate driving a subtle "bound" indicator per field. */
   isFieldBound?: (field: DesignerField) => boolean;
+  /** Optional resolver for an internal slot's display text, by slot key. */
+  resolveSlotText?: (key: string) => string;
   /** Extra class on the root element. */
   className?: string;
 }
@@ -65,6 +67,7 @@ export default function ChequeTemplateDesigner({
   renderFieldExtras,
   resolveText,
   isFieldBound,
+  resolveSlotText,
   className,
 }: ChequeTemplateDesignerProps) {
   const history = useDesignerHistory(initialFields);
@@ -137,7 +140,7 @@ export default function ChequeTemplateDesigner({
         <div className="ctd-canvas">
           <DesignerSurface spec={surface} onClick={selection.clearSelection}>
             {backgroundSrc && <img src={backgroundSrc} alt="" className="ctd-surface-image" />}
-            <DesignerFieldLayer fields={fields} selection={selection} mutation={mutation} resolveText={resolveText} isFieldBound={isFieldBound} />
+            <DesignerFieldLayer fields={fields} selection={selection} mutation={mutation} resolveText={resolveText} isFieldBound={isFieldBound} resolveSlotText={resolveSlotText} />
           </DesignerSurface>
         </div>
         <PropertiesPanel

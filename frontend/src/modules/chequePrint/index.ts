@@ -19,7 +19,38 @@ export {
   cssPageRule,
   printOptionsFor,
 } from './physicalPage';
-export type { PhysicalPageSpec, ChequePaperKind, ChequePrintOptions } from './physicalPage';
+export type { PhysicalPageSpec, ChequePaperKind, ChequePrintOptions, ChequeA4Placement } from './physicalPage';
+
+export {
+  GULF_A4_TEMPLATE_NAME,
+  GULF_BANK_CODE,
+  GULF_BANK_NAME_AR,
+  GULF_CHEQUE_WIDTH_MM,
+  GULF_CHEQUE_HEIGHT_MM,
+  GULF_CHEQUE_SURFACE_CM,
+  GULF_CHEQUE_BASE_X_MM,
+  GULF_CHEQUE_BASE_Y_MM,
+  GULF_A4_OFFSET_X_MM,
+  GULF_A4_OFFSET_Y_MM,
+  GULF_A4_CALIBRATION,
+  GULF_A4_CALIBRATION_SETTING_KEY,
+  GULF_A4_CALIBRATION_SETTING_GROUP,
+  GULF_LOCAL_FIELDS,
+  gulfChequeAreaMm,
+  gulfChequeFields,
+  gulfFieldFinalMm,
+  gulfCalibrationFromSettings,
+  parseGulfCalibration,
+  serializeGulfCalibration,
+  GULF_A4_PROFILE_ID,
+  GULF_DATE_SLOTS_MM,
+  gulfFactoryProfile,
+  parseGulfProfile,
+  serializeGulfProfile,
+  gulfProfileFromSettings,
+  gulfProfilePlacement,
+} from './gulfBankA4Profile';
+export type { GulfCalibration, GulfLocalField, GulfA4Profile } from './gulfBankA4Profile';
 
 export { buildChequePrintJob } from './chequePrintJob';
 export type {
@@ -31,13 +62,13 @@ export type {
   BuildChequePrintJobInput,
 } from './chequePrintJob';
 
-export { DEFAULT_TEMPLATE_MISSING_MESSAGE, resolveDefaultPrintTemplate } from './resolveTemplate';
-export type { TemplateResolution } from './resolveTemplate';
 
 export {
   MIN_GLYPH_ADVANCE_EM,
+  WRAPPED_LINE_HEIGHT_FACTOR,
   surfaceWidthPx,
   fontSizeToCqw,
   estimateTextWidthPx,
   textDefinitelyOverflows,
+  maxLinesFor,
 } from './textFit';

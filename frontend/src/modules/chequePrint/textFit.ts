@@ -22,9 +22,14 @@
 
 import { CSS_PX_PER_MM, MM_PER_CM } from './physicalPage';
 
+/** Centimetres → CSS reference pixels. Axis-agnostic; the two helpers below name the axis. */
+function cmToPx(cm: number): number {
+  return cm * MM_PER_CM * CSS_PX_PER_MM;
+}
+
 /** CSS reference pixels across a surface of the given centimetre width. */
 export function surfaceWidthPx(widthCm: number): number {
-  return widthCm * MM_PER_CM * CSS_PX_PER_MM;
+  return cmToPx(widthCm);
 }
 
 /**
@@ -66,15 +71,50 @@ export function estimateTextWidthPx(text: string, fontSizePx: number): number {
  * `widthPercent` is the field's width as a percentage of the surface, matching
  * the template model. Returns true only when even the lower-bound width estimate
  * exceeds the box — i.e. when overflow is certain.
+ *
+ * `lines` is the number of text lines the box can hold. It is 1 for every
+ * ordinary cheque field (they are single-line by nature, and the renderer pins
+ * `white-space: nowrap` on them); a field explicitly marked as wrapping passes
+ * the count its own HEIGHT allows, so the usable run length is `box width ×
+ * lines`. Nothing else about the check changes, and a `lines` of 1 reproduces
+ * the original behaviour exactly.
  */
 export function textDefinitelyOverflows(
   text: string,
   fontSizePx: number,
   widthPercent: number,
   surfaceWidthCm: number,
+  lines = 1,
 ): boolean {
   if (!text) return false;
-  const boxPx = (widthPercent / 100) * surfaceWidthPx(surfaceWidthCm);
+  const usableLines = Number.isFinite(lines) && lines >= 1 ? Math.floor(lines) : 1;
+  const boxPx = (widthPercent / 100) * surfaceWidthPx(surfaceWidthCm) * usableLines;
   if (!Number.isFinite(boxPx) || boxPx <= 0) return false;
   return estimateTextWidthPx(text, fontSizePx) > boxPx;
+}
+
+/**
+ * Rendered line box height as a multiple of the font size — must match the
+ * `line-height` the renderer applies to a wrapping field, or the line count
+ * below would not describe what actually gets painted.
+ */
+export const WRAPPED_LINE_HEIGHT_FACTOR = 1.35;
+
+/**
+ * How many wrapped lines fit inside a field box of `heightPercent` on a surface
+ * `surfaceHeightCm` tall. Always at least 1 — a box too short for even one line
+ * still renders that line (clipped by `overflow: hidden`), and the width check
+ * above is what reports it.
+ */
+export function maxLinesFor(
+  heightPercent: number,
+  surfaceHeightCm: number,
+  fontSizePx: number,
+): number {
+  // `surfaceWidthPx` is a plain cm → CSS-px conversion, so it reads the vertical
+  // axis just as correctly as the horizontal one.
+  const boxPx = (heightPercent / 100) * cmToPx(surfaceHeightCm);
+  const linePx = fontSizePx * WRAPPED_LINE_HEIGHT_FACTOR;
+  if (!Number.isFinite(boxPx) || !Number.isFinite(linePx) || linePx <= 0) return 1;
+  return Math.max(1, Math.floor(boxPx / linePx));
 }

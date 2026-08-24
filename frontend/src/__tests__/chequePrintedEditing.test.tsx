@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MemoryRouter } from 'react-router-dom';
+import { Route, Routes, useLocation, MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
 import { bankRegistryResponse, gulfChequeAccountFields } from './helpers/bankRegistry';
 
@@ -71,9 +71,34 @@ function mockApi() {
 function renderPage() {
   return render(
     <FinancialPeriodProvider>
-      <MemoryRouter future={ROUTER_FUTURE}><Cheques /></MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/cheques']}>
+        <Routes>
+          <Route path="/cheques" element={<Cheques />} />
+          <Route path="/cheque-template/print" element={<PrintStateProbe />} />
+        </Routes>
+      </MemoryRouter>
     </FinancialPeriodProvider>,
   );
+}
+
+/**
+ * The printed values used to be observable in the hidden Classic print layer.
+ * That layer was removed with the Classic template ("Keep Gulf Bank Template
+ * Only"); printing now navigates to the cheque print route carrying the resolved
+ * runtime data. This probe renders at that route and exposes the state, so these
+ * tests still assert what ACTUALLY reaches the paper — one step closer to it than
+ * the old DOM layer was.
+ */
+function PrintStateProbe() {
+  const { state } = useLocation() as { state: { runtimeData?: Record<string, string> } | null };
+  return <div data-testid="print-state">{JSON.stringify(state?.runtimeData ?? {})}</div>;
+}
+
+/** Print the currently selected cheque and return the runtime data handed to the printer. */
+async function printedRuntimeData(): Promise<Record<string, string>> {
+  fireEvent.click(await screen.findByRole('button', { name: /page\.cheques\.print/ }));
+  const probe = await screen.findByTestId('print-state');
+  return JSON.parse(probe.textContent || '{}') as Record<string, string>;
 }
 
 /** Open a cheque's details drawer from its table row. */
@@ -168,16 +193,13 @@ describe('editing a PRINTED cheque end to end', () => {
     fireEvent.click(screen.getByRole('button', { name: 'page.cheques.save' }));
     await waitFor(() => expect(api.put).toHaveBeenCalled());
 
-    // The hidden Classic print layer renders from `previewData`, which follows the
-    // saved record — so a reprint after an edit carries the corrected values.
-    await waitFor(() => {
-      const layer = document.querySelector('.cheque-print-only');
-      expect(layer?.textContent).toContain('مستفيد مصحّح');
-    });
-    const layer = document.querySelector('.cheque-print-only');
-    expect(layer?.textContent).toContain('#2,480.500#');
-    expect(layer?.textContent).not.toContain('ساير طليحان العذاب');
-    expect(layer?.textContent).not.toContain('#1,370.000#');
+    // The print job is built from the saved record — so a reprint after an edit
+    // carries the corrected values and never the pre-edit ones.
+    const runtime = await printedRuntimeData();
+    expect(runtime.beneficiary).toBe('مستفيد مصحّح');
+    expect(runtime.amount).toBe('#2,480.500#');
+    expect(runtime.beneficiary).not.toBe('ساير طليحان العذاب');
+    expect(runtime.amount).not.toBe('#1,370.000#');
   });
 
   it('the cheque stays PRINTED after the edit — print state is not reset by the UI', async () => {

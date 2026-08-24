@@ -73,7 +73,36 @@ in a table cell.
 
 ---
 
-## Latest Release — Financial Accuracy & KPI Integrity v1
+## Latest Release — Gulf Bank A4 Cheque Template + Professional Calibration + Date Block v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | «قالب شيك الخليج» — قالب طباعة الشيك المقيس (180 × 90 مم) على ورقة A4 أفقية، مدمجًا في استوديو المعايرة الاحترافي القائم، مع إعادة بناء حقل التاريخ ككتلة واحدة |
+| **Release status** | **RELEASED** — ثلاث حزم مُصدَرة معًا: **Gulf Bank A4 cheque template = RELEASED** · **Professional calibration integration = RELEASED** · **Date Block rebuild = RELEASED** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج، بما فيها إصلاح التاريخ ككتلة واحدة؛ لا ملاحظات بصرية مانعة |
+| **Pack commit** | `__FEATURE_SHA__` |
+| **Merge** | `__MERGE_SHA__` — `--no-ff` merge of `feature/gulf-a4-cheque-template-calibration-v1` |
+| **Tags** | `stable-gulf-a4-cheque-template-v1` → `__MERGE_SHA__` · `checkpoint-gulf-a4-cheque-template-v1` → `60b4ada8` (production HEAD قبل الدمج مباشرةً) |
+| **Schema / migration** | **لا شيء** — صفر ترحيل، صفر تغيير مخطط، صفر مفتاح صلاحية جديد، وصفر تعديل على أي سجل تاريخي |
+| **هندسة الصفحة** | A4 Landscape `297 × 210 mm` — landscape بالأبعاد لا بالتدوير، هوامش صفر، مقياس 100% |
+| **منطقة الشيك على A4** | `X = 117.0` · `Y = 60.0` · `W = 180.0` · `H = 90.0` مم — الحافة اليمنى للشيك على الحافة اليمنى للورقة تمامًا، وتوسيط رأسي `(210 − 90) / 2` |
+| **إحداثيات الحقول (محلية بالمليمتر)** | المستفيد `8.0 / 23.5 / 108.0 / 7.0` · **كتلة التاريخ** `135.0 / 23.0 / 28.0 / 7.0` · التفقيط `10.0 / 33.0 / 105.0 / 16.0` · المبلغ رقمًا `132.0 / 40.0 / 38.5 / 8.5`. الإحداثيات المخزَّنة محلية دائمًا؛ موضع A4 مشتق: `final = chequeArea + fieldLocal + calibration` |
+| **كتلة التاريخ** | حقل **واحد** (`chequeDate`) وخاناته الثلاث Internal Slots عند `0 / 9 / 18` مم داخله — فتُطبع عند `135 / 144 / 153` مم كما كانت. الخانة تحمل إزاحة أفقية وعرضًا فقط (لا y ولا ارتفاع ولا خط)، فالأرقام على خط أفقي واحد بالبناء؛ لا تحديد ولا إطار ولا مقابض لأي خانة، ولم يبقَ أي مفهوم Group في النظام |
+| **المعايرة الاحترافية** | القالب وثيقة تُسلَّم لاستوديو المصمّم القائم فيرث قدراته كاملة (سحب/تحجيم/تدوير/أسهم/خطوط محاذاة/Undo-Redo/لوحة الخصائص/ربط البيانات/معاينة حية/طباعة تجريبية) + إزاحتا الورقة العامتان اللتان تحرّكان منطقة الشيك ولا تعيدان كتابة أي إحداثي حقل |
+| **التخزين** | صفّ واحد في `settings`: `cheque.calibration.gulf-a4.v1` (group `cheques`) عبر `PUT /settings` القائم — بلا جدول ولا endpoint ولا migration. الافتراضي `0 / 0` و«استعادة الافتراضي» تعود للهندسة المقيسة |
+| **قالب واحد فقط** | أُزيلت من مسار عمل الشيكات: Classic · قالب 178×89 · قالب A4 العام · قوالب المصمّم في قاعدة البيانات · منتقي «طريقة الطباعة» ومفتاح `cheques.defaultPrintProvider`. المعاينة والمعايرة والطباعة تعمل مباشرة على «قالب شيك الخليج» |
+| **البيانات التاريخية** | **لم تُمس** — لا migration ولا تعديل جماعي. صفوف `cheque.template.<bank>` وجدول `cheque_designer_templates` ونسخ القوالب ووحدات الخلفية باقية كما هي فتبقى الشيكات القديمة قابلة للقراءة؛ لا سطح شيكات يقرأها بعد الآن. `printProfileKey` بلا تغيير |
+| **إعادة الاستخدام** | لا محرك طباعة جديد ولا Renderer ولا محرك معايرة ولا نظام تخزين: `Gulf profile → Runtime Engine → ChequeRenderSurface / ChequeA4Sheet → ChequeTemplatePrintPage → Print IPC` القائم. التفقيط `amountToWordsKWD` وتنسيق المال `fmtChequeAmount` (KWD 3 منازل) وصيغة `DD / MM / YYYY` كلها من `buildChequeRuntimeData` |
+| **المطبوع فعليًا** | التاريخ والمستفيد والمبلغ رقمًا والتفقيط **فقط**. لا شعار ولا اسم بنك/شركة ولا `KD`/`د.ك` ولا رقم شيك ولا MICR ولا خطوط ولا guides. صورة الشيك **Preview only** — شجرة الطباعة لا تحتوي عنصر صورة إطلاقًا |
+| **الحذف** | `ChequeCalibrator` + `components/calibrator/*` · `utils/chequeGeometry.ts` · `chequeDesignerStore.ts` · `modules/chequePrint/resolveTemplate.ts` · محرك Classic وطبقته المخفية في `Cheques.tsx` · 10 مجموعات اختبار لقوالب لم تعد موجودة |
+| **Validation** | frontend `tsc --noEmit` ✅ · backend `tsc --noEmit` ✅ · Frontend **178** ملف اختبار ✅ · مجموعات الخليج الثلاث **70** اختبارًا ✅ · `build:front` + `build:back` ✅ |
+| **اختبارات جديدة** | `gulfBankChequeA4Profile` (هندسة A4 والمنطقة والإحداثيات المحلية والمطبوع) · `gulfBankA4Calibration` (القالب داخل الاستوديو، الحفظ/التحميل، الاستقلال عن الصفوف التاريخية) · `gulfDateBlockCalibration` (كيان تاريخ واحد، خط أساس واحد، سحب/أسهم/خصائص تحرّك الكتلة) |
+| **الإصدار** | لا تغيير في `package.json` — حزمة frontend، **بلا إعادة بناء مثبِّت** |
+| **متبقٍ لاختبار الطابعة** | قيمتا الإزاحة `X/Y` بعد طباعة اختبار واقعية (تُدخلان في الاستوديو وتُحفظان، بلا تغيير كود) · قرار معلّق: علامتا `#` حول المبلغ الرقمي (`#1,250.750#`) من منسّق المال المشترك |
+
+---
+
+## Previous Release — Financial Accuracy & KPI Integrity v1
 
 | Field | Value |
 |-------|-------|

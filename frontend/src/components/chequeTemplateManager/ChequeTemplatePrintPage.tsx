@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { resolveChequeTemplateForPrint } from '../../modules/chequeTemplateRuntime';
 import type { RuntimeData } from '../../modules/chequeTemplateRuntime';
 import { cssPageRule, physicalPageFor, printOptionsFor } from '../../modules/chequePrint';
+import type { ChequeA4Placement } from '../../modules/chequePrint';
 import type { DesignerField, DesignerSurfaceSpec } from '../../modules/chequeTemplateDesigner';
 import { printCurrentViewWithResult } from '../../utils/print';
 import type { PrintOutcome } from '../../utils/print';
@@ -67,6 +68,26 @@ interface PrintState {
   runtimeData?: RuntimeData;
   /** Outer paper surface: real cheque (178×89mm) or A4 landscape. Default: real cheque. */
   paperMode?: ChequePaperMode;
+  /**
+   * A4 mode only. Where the cheque area sits on the sheet, in true millimetres,
+   * as decided by the print profile (see `gulfChequeAreaMm`). Absent ⇒ the A4
+   * sheet's historical default placement, so no existing caller changes.
+   *
+   * The SAME value drives the on-screen preview and the printed page — there is
+   * no second, preview-only geometry anywhere.
+   */
+  placement?: ChequeA4Placement;
+  /**
+   * Screen-only: show the cheque photo behind the fields so the operator can
+   * judge alignment before committing paper.
+   *
+   * The photo can NEVER print. It is not hidden by a print stylesheet — the
+   * printed subtree is a SEPARATE element that is rendered with
+   * `showBackground={false}`, so it contains no `<img>` at all. The preview
+   * element carrying the photo is `display: none` in `@media print` on top of
+   * that. Two independent guarantees, and the stronger one is structural.
+   */
+  showPreviewBackground?: boolean;
   /** Single-print path: absent for an unsaved form draft — no tracking is
    *  attempted then, exactly as before this pack. */
   tracking?: ChequeTrackingInfo;
@@ -208,8 +229,9 @@ export default function ChequeTemplatePrintPage() {
     );
   }
 
-  const { surface, fields } = state;
+  const { surface, fields, placement } = state;
   const paperMode: ChequePaperMode = state.paperMode === 'a4' ? 'a4' : 'real-cheque';
+  const showPreviewBackground = state.showPreviewBackground === true;
   // The ONE physical page for this job: derived from the template surface + paper
   // mode, and used for BOTH the CSS @page rule and the Electron print options, so
   // layout and paper are guaranteed to agree. A test print uses the identical
@@ -370,17 +392,35 @@ export default function ChequeTemplatePrintPage() {
           <PreviewIssues issues={model.issues} />
         </div>
       ) : (
-        <div className="ctpp-print-area">
-          {/* NEVER print the cheque background — ink lands on pre-printed stock;
-              only the resolved fields print. A4 mode wraps the SAME cheque
-              surface on an A4 page at the fixed position — the cheque itself,
-              its model, coordinates, typography and bindings are identical. */}
-          {paperMode === 'a4' ? (
-            <ChequeA4Sheet model={model} backgroundSrc={chequeBg} showBackground={false} />
-          ) : (
-            <ChequeRenderSurface model={model} backgroundSrc={chequeBg} showBackground={false} />
+        <>
+          {/* SCREEN-ONLY alignment preview. Same profile, same model, same
+              placement, same renderer as the printed subtree below — the ONLY
+              difference is the cheque photo behind the fields, which lets the
+              operator confirm the four values land on the real cheque's boxes
+              before any paper is committed. `display: none` in `@media print`. */}
+          {showPreviewBackground && (
+            <div className="ctpp-preview-area" aria-label="معاينة الورقة قبل الطباعة">
+              {paperMode === 'a4' ? (
+                <ChequeA4Sheet model={model} backgroundSrc={chequeBg} showBackground placement={placement} />
+              ) : (
+                <ChequeRenderSurface model={model} backgroundSrc={chequeBg} showBackground />
+              )}
+            </div>
           )}
-        </div>
+          {/* THE PRINTED SUBTREE. It never contains a background image at all —
+              `showBackground={false}` means no `<img>` is rendered, so no photo
+              can reach pre-printed cheque stock even if a stylesheet failed to
+              load. Only the resolved fields print. A4 mode wraps the SAME cheque
+              surface on an A4 page — the cheque itself, its model, coordinates,
+              typography and bindings are identical to the preview above. */}
+          <div className={`ctpp-print-area${showPreviewBackground ? ' ctpp-print-area--print-only' : ''}`}>
+            {paperMode === 'a4' ? (
+              <ChequeA4Sheet model={model} backgroundSrc={chequeBg} showBackground={false} placement={placement} />
+            ) : (
+              <ChequeRenderSurface model={model} backgroundSrc={chequeBg} showBackground={false} />
+            )}
+          </div>
+        </>
       )}
 
       {currentState.printResult?.outcome === 'success' && tracking?.status === 'DRAFT' && !currentState.trackingDone && (

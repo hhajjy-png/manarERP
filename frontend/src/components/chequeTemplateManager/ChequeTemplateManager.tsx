@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ConfirmModal from '../ConfirmModal';
-import {
-  ChequeTemplateDesigner,
-  PHYSICAL_CHEQUE_SURFACE_CM,
-} from '../../modules/chequeTemplateDesigner';
+import { ChequeTemplateDesigner } from '../../modules/chequeTemplateDesigner';
 import type {
   DesignerField,
   DesignerSurfaceSpec,
@@ -15,45 +11,52 @@ import {
   resolveRuntimeValues,
   resolveFieldText,
   defaultBindingResolver,
+  isSemanticKey,
 } from '../../modules/chequeTemplateRuntime';
 import chequeBg from '../../assets/cheakv1.png';
 import DataSourceControl from './DataSourceControl';
 import ChequePreview from './ChequePreview';
-import type { ChequePaperMode } from './ChequeA4Sheet';
-import { buildChequePrintJob } from '../../modules/chequePrint';
+import {
+  buildChequePrintJob,
+  GULF_A4_CALIBRATION_SETTING_GROUP,
+  GULF_A4_CALIBRATION_SETTING_KEY,
+  gulfFactoryProfile,
+  gulfProfilePlacement,
+  serializeGulfProfile,
+} from '../../modules/chequePrint';
+import type { GulfA4Profile, GulfCalibration } from '../../modules/chequePrint';
+import { api } from '../../api/client';
 import { buildChequeRuntimeData } from './chequeRuntimeData';
 import type { ChequeRecordInput } from './chequeRuntimeData';
-import {
-  listTemplates,
-  getTemplate,
-  getDefaultTemplate,
-  createTemplate,
-  saveTemplate,
-  renameTemplate,
-  deleteTemplate,
-  setDefaultTemplate,
-  type StoredChequeTemplate,
-} from './chequeDesignerStore';
 import './chequeTemplateManager.css';
 
 /**
- * Cheque Template Manager — Cheque Template Manager v1.
+ * Cheque Template studio — the professional calibration surface for the ONE
+ * approved cheque template, «قالب شيك الخليج».
  *
- * Wraps the reused generic ChequeTemplateDesigner with a compact toolbar and
- * real template management: New, Open, Save, Save As, Rename, Delete, and
- * marking a Default template. Persistence is an INDEPENDENT localStorage
- * namespace (see chequeDesignerStore.ts) — it never touches Classic
- * Calibration storage, the Settings API, the database, or the Professional
- * module. No printing, print-mode switching, or runtime data binding.
+ * ── What this used to be ───────────────────────────────────────────────────
+ * A manager over MANY cheque templates: New / Open / Save As / Rename / Delete /
+ * Set-default over database-stored Designer templates, plus a paper-surface
+ * toggle, because several templates could be printed. The system now prints one
+ * approved template, so choosing, creating, renaming and deleting alternative
+ * templates has no meaning and was removed together with those templates.
+ *
+ * ── What is unchanged ──────────────────────────────────────────────────────
+ * Everything that actually calibrates: the reused generic ChequeTemplateDesigner
+ * and all its engines (drag, resize, rotate, keyboard nudge, alignment guides,
+ * undo/redo, the properties panel, data-source binding), the Runtime Engine, the
+ * shared render surface, the live preview, and the test print — which still goes
+ * through `buildChequePrintJob` and the existing print page and print IPC.
+ *
+ * Calibration has two levels, both edited here:
+ *   • per field — position, size, rotation, font, alignment, colour, visibility,
+ *     z-order (the designer + properties panel);
+ *   • whole cheque — the A4 placement offsets, which move the cheque AREA on the
+ *     sheet and never rewrite a field coordinate.
+ *
+ * The calibrated document is saved to the profile's own `settings` row through
+ * the existing `PUT /settings` endpoint. No template row is created or touched.
  */
-
-/** Standard starter fields for a new template. Bound to semantic sources by default (no live data). */
-const STARTER_FIELDS: DesignerField[] = [
-  { id: 'beneficiary', binding: 'beneficiary', label: 'اسم المستفيد', value: 'اسم المستفيد', x: 22, y: 31, width: 45, height: 6, rotation: 0, fontSize: 14, fontWeight: 400, textAlign: 'right', color: '#000000', zIndex: 3, visible: true },
-  { id: 'date', binding: 'chequeDate', label: 'التاريخ', value: '24 / 07 / 2026', x: 70, y: 12, width: 22, height: 6, rotation: 0, fontSize: 13, fontWeight: 400, textAlign: 'center', color: '#000000', zIndex: 1, visible: true },
-  { id: 'amount', binding: 'amount', label: 'المبلغ رقمًا', value: '#1,250.000#', x: 78, y: 44, width: 16, height: 6, rotation: 0, fontSize: 14, fontWeight: 700, textAlign: 'center', color: '#000000', zIndex: 4, visible: true },
-  { id: 'amountInWords', binding: 'amountInWords', label: 'المبلغ كتابةً', value: 'ألف ومئتان وخمسون ديناراً فقط', x: 14, y: 44, width: 58, height: 6, rotation: 0, fontSize: 12, fontWeight: 400, textAlign: 'right', color: '#000000', zIndex: 5, visible: true },
-];
 
 // ── Runtime Engine integration ────────────────────────────────────────────────
 // The engine is the SINGLE source of truth for binding + text resolution. The
@@ -65,8 +68,12 @@ function designerIsFieldBound(field: DesignerField): boolean {
 }
 
 interface ChequeTemplateManagerProps {
-  /** The current official cheque record to print. Null = design mode (mock preview, print disabled). */
+  /** The current official cheque record. Null = design mode (mock preview, test print disabled). */
   chequeRecord?: ChequeRecordInput | null;
+  /** The calibrated profile currently in force, read from `/settings` by the host page. */
+  gulfProfile: GulfA4Profile;
+  /** Persisted successfully, so the host can apply it to preview and printing at once. */
+  onGulfProfileSaved?: (profile: GulfA4Profile) => void;
 }
 
 const AR_PANEL_LABELS: Partial<PropertiesPanelLabels> = {
@@ -78,76 +85,47 @@ const AR_PANEL_LABELS: Partial<PropertiesPanelLabels> = {
   duplicate: 'تكرار', delete: 'حذف', bringForward: 'تقديم', sendBackward: 'تأخير', bringToFront: 'إلى الأمام', sendToBack: 'إلى الخلف',
 };
 
+/** The document being calibrated — the profile, as the studio holds it. */
 interface Current {
-  id: string | null;
   name: string;
   surface: DesignerSurfaceSpec;
   fields: DesignerField[];
-  isDefault: boolean;
+  calibration: GulfCalibration;
 }
 
-function newCurrent(): Current {
+function profileToCurrent(profile: GulfA4Profile): Current {
   return {
-    id: null,
-    name: 'قالب جديد',
-    surface: { ...PHYSICAL_CHEQUE_SURFACE_CM },
-    fields: STARTER_FIELDS.map((f) => ({ ...f })),
-    isDefault: false,
+    name: profile.name,
+    surface: { ...profile.surface },
+    fields: profile.fields.map((f) => ({ ...f })),
+    calibration: { ...profile.calibration },
   };
 }
 
-function recordToCurrent(rec: StoredChequeTemplate): Current {
-  return {
-    id: rec.id,
-    name: rec.name,
-    surface: { ...rec.surface },
-    fields: rec.fields.map((f) => ({ ...f })),
-    isDefault: rec.isDefault,
-  };
-}
-
-type NameMode = 'saveas' | 'rename';
-type ModalState =
-  | { kind: 'none' }
-  | { kind: 'open' }
-  | { kind: 'name'; mode: NameMode; value: string }
-  | { kind: 'delete' };
-
-export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateManagerProps) {
+export default function ChequeTemplateManager({
+  chequeRecord,
+  gulfProfile,
+  onGulfProfileSaved,
+}: ChequeTemplateManagerProps) {
   const navigate = useNavigate();
-  const [current, setCurrent] = useState<Current>(newCurrent);
+  const [current, setCurrent] = useState<Current>(() => profileToCurrent(gulfProfile));
   const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [designerKey, setDesignerKey] = useState(0);
-  const [modal, setModal] = useState<ModalState>({ kind: 'none' });
-  const [rows, setRows] = useState<StoredChequeTemplate[]>([]);
   const [msg, setMsg] = useState('');
-  // Presentation surface only (view state — never persisted in the template).
-  const [paperMode, setPaperMode] = useState<ChequePaperMode>('real-cheque');
-
-  // ── Initial template load ──────────────────────────────────────────────────
-  // Templates now live in the database (Cheque Template Persistence Migration
-  // Pack v1), so the editor's starting template is fetched rather than read
-  // synchronously from browser storage. Same selection rule as before: the
-  // flagged default, else the most-recently-updated template, else a new one.
-  //
-  // The result is discarded if the user has already started working in the
-  // meantime, so a slow response can never overwrite live edits.
   const touchedRef = useRef(false);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const initial = (await getDefaultTemplate()) ?? (await listTemplates())[0] ?? null;
-        if (cancelled || !initial || touchedRef.current) return;
-        load(recordToCurrent(initial));
-      } catch {
-        /* keep the blank starter template — the toolbar still works */
-      }
-    })();
-    return () => { cancelled = true; };
-    // Mount-only: this establishes the editor's starting document.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+
+  /**
+   * The A4 placement of the open document. The SAME value feeds the live preview
+   * and the test-print navigation, so there is exactly one set of calibrated
+   * coordinates — never a preview copy and a print copy.
+   */
+  const placement = gulfProfilePlacement({
+    ...gulfFactoryProfile(),
+    surface: current.surface,
+    fields: current.fields,
+    calibration: current.calibration,
+  });
 
   // Runtime data: real cheque values when a cheque is present, else mock.
   const runtimeData = useMemo(
@@ -159,6 +137,11 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
     (field: DesignerField) => resolveFieldText(field, effectiveRuntime, defaultBindingResolver(field)),
     [effectiveRuntime],
   );
+  /** An internal slot's text — the SAME runtime values the print path resolves. */
+  const designerResolveSlotText = useCallback(
+    (key: string) => (isSemanticKey(key) ? effectiveRuntime[key] ?? '' : ''),
+    [effectiveRuntime],
+  );
 
   // Live Preview render model — resolved by the Runtime Engine (the single
   // rendering authority) from the current layout + runtime data. Recomputes on
@@ -168,57 +151,14 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
     [current.surface, current.fields, runtimeData],
   );
 
-  /**
-   * TEST PRINT — Deterministic Geometry & Unified Pipeline Pack v1.
-   *
-   * This button prints the template CURRENTLY OPEN IN THE DESIGNER, including
-   * unsaved edits, because that is the only useful thing to print from a design
-   * surface. It was previously indistinguishable from production printing: it
-   * silently ignored the flagged default template, carried its own paper-mode
-   * toggle, and passed no tracking — so a designer draft could be printed on real
-   * cheque stock while the cheque's printed status, printCount and print log were
-   * never updated.
-   *
-   * It is now an EXPLICIT test print: labelled as such, banner-flagged on the
-   * print page, and structurally unable to record production tracking
-   * (`buildChequePrintJob` strips tracking from `purpose: 'test'` jobs). Physical
-   * geometry is the identical shared contract production printing uses, so what
-   * you measure here is what a production print will land.
-   *
-   * Production cheque printing lives on the Cheques page and always uses the
-   * flagged default template.
-   */
-  function handleTestPrint() {
-    if (!chequeRecord || !runtimeData) return;
-    const job = buildChequePrintJob({
-      purpose: 'test',
-      template: { id: current.id, name: current.name, source: 'designer-open-template' },
-      surface: current.surface,
-      fields: current.fields,
-      paperMode,
-      items: [{ runtimeData }],
-    });
-    navigate('/cheque-template/print', {
-      state: {
-        surface: job.surface,
-        fields: job.fields,
-        paperMode: job.paperMode,
-        purpose: job.purpose,
-        templateName: job.template.name,
-        runtimeData: job.items[0].runtimeData,
-      },
-    });
-  }
-
   function flash(text: string) {
     setMsg(text);
     window.setTimeout(() => setMsg(''), 2500);
   }
 
-  /** Load a different template into the editor (remounts the designer so it resets cleanly). */
+  /** Load a document into the editor (remounts the designer so it resets cleanly). */
   function load(next: Current) {
     setCurrent(next);
-    setDirty(false);
     setDesignerKey((k) => k + 1);
   }
 
@@ -228,159 +168,99 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
     setDirty(true);
   }
 
-  // ── Toolbar actions ──────────────────────────────────────────────────────
-  // Every persistence call is now a database round-trip and therefore awaited.
-  // A failed write reports the failure instead of leaving the toolbar claiming
-  // success for something that never reached storage.
-  function handleNew() {
+  function patchCalibration(patch: Partial<GulfCalibration>) {
     touchedRef.current = true;
-    load(newCurrent());
-    flash('تم إنشاء قالب جديد (غير محفوظ).');
+    setCurrent((c) => ({ ...c, calibration: { ...c.calibration, ...patch } }));
+    setDirty(true);
   }
 
-  async function handleOpen() {
-    try {
-      setRows(await listTemplates());
-      setModal({ kind: 'open' });
-    } catch {
-      flash('تعذّر تحميل قائمة القوالب.');
-    }
+  /**
+   * TEST PRINT — Deterministic Geometry & Unified Pipeline Pack v1.
+   *
+   * Prints the template CURRENTLY OPEN IN THE STUDIO, including unsaved edits,
+   * because that is the only useful thing to print from a design surface. It is
+   * an EXPLICIT test print: banner-flagged on the print page and structurally
+   * unable to record production tracking (`buildChequePrintJob` strips tracking
+   * from `purpose: 'test'` jobs). Physical geometry is the identical shared
+   * contract production printing uses — including the same `placement` — so what
+   * you measure here is what a production print will land.
+   */
+  function handleTestPrint() {
+    if (!chequeRecord || !runtimeData) return;
+    const job = buildChequePrintJob({
+      purpose: 'test',
+      template: { id: null, name: current.name, source: 'designer-open-template' },
+      surface: current.surface,
+      fields: current.fields,
+      paperMode: 'a4',
+      items: [{ runtimeData }],
+    });
+    navigate('/cheque-template/print', {
+      state: {
+        surface: job.surface,
+        fields: job.fields,
+        paperMode: job.paperMode,
+        placement,
+        showPreviewBackground: true,
+        purpose: job.purpose,
+        templateName: job.template.name,
+        runtimeData: job.items[0].runtimeData,
+      },
+    });
   }
 
-  async function openTemplate(id: string) {
-    const rec = await getTemplate(id);
-    if (rec) {
-      touchedRef.current = true;
-      load(recordToCurrent(rec));
-      flash(`تم فتح «${rec.name}».`);
-    }
-    setModal({ kind: 'none' });
-  }
-
+  /**
+   * Persist the calibrated document.
+   *
+   * The whole document is written — surface, every field as the studio left it,
+   * and the A4 placement offsets — into the profile's own settings row, through
+   * the existing `PUT /settings` endpoint.
+   */
   async function handleSave() {
-    if (!current.id) {
-      // Unsaved template — Save behaves as Save As (needs a name).
-      setModal({ kind: 'name', mode: 'saveas', value: current.name });
+    if (saving) return;
+    setSaving(true);
+    const profile: GulfA4Profile = {
+      ...gulfFactoryProfile(),
+      surface: current.surface,
+      fields: current.fields,
+      calibration: current.calibration,
+    };
+    try {
+      await api.put('/settings', {
+        settings: [{
+          key: GULF_A4_CALIBRATION_SETTING_KEY,
+          value: serializeGulfProfile(profile),
+          group: GULF_A4_CALIBRATION_SETTING_GROUP,
+        }],
+      });
+    } catch {
+      flash('تعذّر الحفظ.');
       return;
+    } finally {
+      setSaving(false);
     }
-    const saved = await saveTemplate(current.id, { name: current.name, surface: current.surface, fields: current.fields });
-    if (!saved) { flash('تعذّر الحفظ.'); return; }
     setDirty(false);
+    onGulfProfileSaved?.(profile);
     flash('تم الحفظ.');
   }
 
-  function handleSaveAs() {
-    setModal({ kind: 'name', mode: 'saveas', value: `${current.name} نسخة` });
-  }
-
-  function handleRename() {
-    setModal({ kind: 'name', mode: 'rename', value: current.name });
-  }
-
-  async function submitName(value: string) {
-    const name = value.trim();
-    if (!name) return;
-    if (modal.kind !== 'name') return;
+  /** Back to the measured factory geometry — unsaved until the user saves. */
+  function handleRestoreFactory() {
     touchedRef.current = true;
-    setModal({ kind: 'none' });
-    if (modal.mode === 'saveas') {
-      try {
-        const rec = await createTemplate({ name, surface: current.surface, fields: current.fields });
-        setCurrent(recordToCurrent(rec));
-        setDirty(false);
-        flash(`تم الحفظ باسم «${name}».`);
-      } catch {
-        flash('تعذّر الحفظ.');
-      }
-    } else {
-      if (current.id && !(await renameTemplate(current.id, name))) { flash('تعذّرت إعادة التسمية.'); return; }
-      setCurrent((c) => ({ ...c, name }));
-      flash('تمت إعادة التسمية.');
-    }
+    load(profileToCurrent(gulfFactoryProfile()));
+    setDirty(true);
+    flash('تمت استعادة الإحداثيات الأساسية (لم تُحفظ بعد).');
   }
-
-  async function confirmDelete() {
-    const id = current.id;
-    setModal({ kind: 'none' });
-    touchedRef.current = true;
-    if (id) {
-      try {
-        await deleteTemplate(id);
-        flash('تم حذف القالب.');
-      } catch {
-        flash('تعذّر حذف القالب.');
-        return;
-      }
-    }
-    // Re-read the surviving default from the database — the server promotes the
-    // most-recently-updated survivor when the deleted template was the default.
-    const next = (await getDefaultTemplate()) ?? (await listTemplates())[0] ?? null;
-    load(next ? recordToCurrent(next) : newCurrent());
-  }
-
-  async function handleDefault() {
-    if (!current.id) return;
-    try {
-      await setDefaultTemplate(current.id);
-    } catch {
-      flash('تعذّر تعيين القالب كافتراضي.');
-      return;
-    }
-    setCurrent((c) => ({ ...c, isDefault: true }));
-    flash('تم تعيين القالب كافتراضي.');
-  }
-
-  const canDelete = current.id !== null;
-  const canDefault = current.id !== null && !current.isDefault;
 
   return (
     <div className="ctm-root">
-      {/* ── Paper-surface selector — presentation only (Real Cheque default) ── */}
-      <div className="ctm-mode-tabs" role="tablist" aria-label="سطح الورق">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={paperMode === 'real-cheque'}
-          className={`ctm-mode-tab${paperMode === 'real-cheque' ? ' active' : ''}`}
-          onClick={() => setPaperMode('real-cheque')}
-        >
-          <span className="material-symbols-outlined" aria-hidden="true">payments</span>
-          الشيك الحقيقي
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={paperMode === 'a4'}
-          className={`ctm-mode-tab${paperMode === 'a4' ? ' active' : ''}`}
-          onClick={() => setPaperMode('a4')}
-        >
-          <span className="material-symbols-outlined" aria-hidden="true">description</span>
-          قالب A4
-        </button>
-      </div>
-
       {/* ── Compact toolbar ── */}
       <div className="ctm-toolbar">
-        <button type="button" className="btn sm" onClick={handleNew}>
-          <span className="material-symbols-outlined" aria-hidden="true">add</span>جديد
+        <button type="button" className="btn sm" onClick={handleSave} disabled={saving}>
+          <span className="material-symbols-outlined" aria-hidden="true">save</span>{saving ? 'جارٍ الحفظ…' : 'حفظ'}
         </button>
-        <button type="button" className="btn secondary sm" onClick={handleOpen}>
-          <span className="material-symbols-outlined" aria-hidden="true">folder_open</span>فتح
-        </button>
-        <button type="button" className="btn secondary sm" onClick={handleSave}>
-          <span className="material-symbols-outlined" aria-hidden="true">save</span>حفظ
-        </button>
-        <button type="button" className="btn secondary sm" onClick={handleSaveAs}>
-          <span className="material-symbols-outlined" aria-hidden="true">save_as</span>حفظ باسم
-        </button>
-        <button type="button" className="btn secondary sm" onClick={handleRename}>
-          <span className="material-symbols-outlined" aria-hidden="true">edit</span>إعادة تسمية
-        </button>
-        <button type="button" className="btn secondary sm" onClick={() => setModal({ kind: 'delete' })} disabled={!canDelete}>
-          <span className="material-symbols-outlined" aria-hidden="true">delete</span>حذف
-        </button>
-        <button type="button" className="btn secondary sm" onClick={handleDefault} disabled={!canDefault}>
-          <span className="material-symbols-outlined" aria-hidden="true">star</span>تعيين افتراضي
+        <button type="button" className="btn secondary sm" onClick={handleRestoreFactory}>
+          <span className="material-symbols-outlined" aria-hidden="true">restart_alt</span>استعادة الافتراضي
         </button>
         <button
           type="button"
@@ -388,17 +268,42 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
           onClick={handleTestPrint}
           disabled={!chequeRecord}
           title={chequeRecord
-            ? 'طباعة تجريبية للقالب المفتوح حاليًا (بما فيه التعديلات غير المحفوظة). لا تُسجَّل كطباعة شيك ولا تُغيّر حالة الشيك. الطباعة الفعلية تتم من صفحة الشيكات بالقالب الافتراضي.'
+            ? 'طباعة تجريبية للقالب المفتوح حاليًا (بما فيه التعديلات غير المحفوظة). لا تُسجَّل كطباعة شيك ولا تُغيّر حالة الشيك.'
             : 'اختر شيكًا من صفحة الشيكات للطباعة التجريبية'}
         >
           <span className="material-symbols-outlined" aria-hidden="true">science</span>طباعة تجريبية
         </button>
 
+        {/* Whole-cheque placement on the sheet — the profile-level half of
+            calibration, alongside the per-field half the designer performs.
+            Moves the cheque AREA only; no field coordinate is rewritten. */}
+        <div className="ctm-offsets" title="إزاحة منطقة الشيك على ورقة A4 — لا تغيّر إحداثيات الحقول">
+          <label>
+            <span>إزاحة أفقية (مم)</span>
+            <input
+              type="number"
+              step={0.5}
+              aria-label="إزاحة أفقية (مم)"
+              value={current.calibration.offsetXMm}
+              onChange={(e) => patchCalibration({ offsetXMm: parseFloat(e.target.value) || 0 })}
+            />
+          </label>
+          <label>
+            <span>إزاحة رأسية (مم)</span>
+            <input
+              type="number"
+              step={0.5}
+              aria-label="إزاحة رأسية (مم)"
+              value={current.calibration.offsetYMm}
+              onChange={(e) => patchCalibration({ offsetYMm: parseFloat(e.target.value) || 0 })}
+            />
+          </label>
+        </div>
+
         <div className="ctm-toolbar-spacer" />
 
         <div className="ctm-current">
           <span className="ctm-current-name">{current.name}</span>
-          {current.isDefault && <span className="ctm-badge ctm-badge--default">افتراضي</span>}
           {dirty && <span className="ctm-badge ctm-badge--dirty">غير محفوظ</span>}
           {msg && <span className="ctm-msg">{msg}</span>}
         </div>
@@ -415,96 +320,15 @@ export default function ChequeTemplateManager({ chequeRecord }: ChequeTemplateMa
             onChange={handleDesignerChange}
             labels={AR_PANEL_LABELS}
             resolveText={designerResolveText}
+            resolveSlotText={designerResolveSlotText}
             isFieldBound={designerIsFieldBound}
             renderFieldExtras={(field, patch) => <DataSourceControl field={field} onChange={patch} />}
           />
         </div>
         <div className="ctm-preview-pane">
-          <ChequePreview model={previewModel} backgroundSrc={chequeBg} paperMode={paperMode} />
-        </div>
-      </div>
-
-      {/* ── Open picker ── */}
-      {modal.kind === 'open' && (
-        <div className="ctm-modal-scrim" onClick={(e) => e.target === e.currentTarget && setModal({ kind: 'none' })}>
-          <div className="ctm-modal" role="dialog" aria-label="فتح قالب">
-            <h3 className="ctm-modal-title">فتح قالب</h3>
-            {rows.length === 0 ? (
-              <p className="ctm-empty">لا توجد قوالب محفوظة بعد.</p>
-            ) : (
-              <div className="ctm-picker">
-                {rows.map((r) => (
-                  <button key={r.id} type="button" className="ctm-picker-row" onClick={() => openTemplate(r.id)}>
-                    <span className="ctm-picker-name">
-                      {r.name}
-                      {r.isDefault && <span className="ctm-badge ctm-badge--default">افتراضي</span>}
-                    </span>
-                    <span className="ctm-picker-meta">{r.fields.length} حقل</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div className="ctm-modal-foot">
-              <button type="button" className="btn secondary" onClick={() => setModal({ kind: 'none' })}>إغلاق</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Name input (Save As / Rename) ── */}
-      {modal.kind === 'name' && (
-        <NameModal
-          title={modal.mode === 'saveas' ? 'حفظ باسم' : 'إعادة تسمية القالب'}
-          initialValue={modal.value}
-          onSubmit={submitName}
-          onCancel={() => setModal({ kind: 'none' })}
-        />
-      )}
-
-      {/* ── Delete confirm ── */}
-      {modal.kind === 'delete' && (
-        <ConfirmModal
-          title="حذف القالب"
-          message={`سيتم حذف القالب «${current.name}» نهائيًا. هل تريد المتابعة؟`}
-          confirmLabel="حذف"
-          variant="warning"
-          onConfirm={confirmDelete}
-          onCancel={() => setModal({ kind: 'none' })}
-        />
-      )}
-    </div>
-  );
-}
-
-function NameModal({
-  title,
-  initialValue,
-  onSubmit,
-  onCancel,
-}: {
-  title: string;
-  initialValue: string;
-  onSubmit: (value: string) => void;
-  onCancel: () => void;
-}) {
-  const [value, setValue] = useState(initialValue);
-  return (
-    <div className="ctm-modal-scrim" onClick={(e) => e.target === e.currentTarget && onCancel()}>
-      <div className="ctm-modal" role="dialog" aria-label={title}>
-        <h3 className="ctm-modal-title">{title}</h3>
-        <input
-          className="ctm-input"
-          value={value}
-          autoFocus
-          maxLength={80}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') onSubmit(value); }}
-          placeholder="اسم القالب"
-          aria-label="اسم القالب"
-        />
-        <div className="ctm-modal-foot">
-          <button type="button" className="btn" onClick={() => onSubmit(value)} disabled={!value.trim()}>حفظ</button>
-          <button type="button" className="btn secondary" onClick={onCancel}>إلغاء</button>
+          {/* A4 is the profile's paper by definition — the cheque area is placed
+              on the sheet at `placement`, exactly as the print job places it. */}
+          <ChequePreview model={previewModel} backgroundSrc={chequeBg} paperMode="a4" placement={placement} />
         </div>
       </div>
     </div>

@@ -56,6 +56,36 @@ html[data-theme="dark"] .ctpp-root { background: var(--bg); }
   padding: 8px;
 }
 
+/* ── Alignment preview vs. printed subtree ──────────────────────────────────
+   A profile that supplies an alignment preview (Gulf Bank A4) renders the sheet
+   TWICE from the same model, same placement and same renderer: once WITH the
+   cheque photo for the operator to check on screen, once WITHOUT any image at
+   all for paper. The two are mutually exclusive by media, so neither is ever
+   both visible and mis-sized:
+     screen → preview shown, printed subtree hidden;
+     print  → preview hidden, printed subtree shown (and, as everywhere else,
+              anchored at the page origin by the component's inline print CSS).
+   The `<img>` exists only in the preview subtree, so no stylesheet failure can
+   put a cheque photo on the paper. */
+.ctpp-preview-area {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px;
+}
+
+@media screen {
+  .ctpp-print-area--print-only {
+    display: none;
+  }
+}
+
+@media print {
+  .ctpp-preview-area {
+    display: none !important;
+  }
+}
+
 /* Provenance + test-print chips (screen only — .ctpp-chrome is hidden in print). */
 .ctpp-template-name,
 .ctpp-testprint {

@@ -1,82 +1,51 @@
-import { useState } from 'react';
-import ChequeCalibrator from './ChequeCalibrator';
-import type { CalibratorPreviewData } from './ChequeCalibrator';
-import type { ChequeTemplate } from '../utils/chequeTemplate';
 import ChequeTemplateManager from './chequeTemplateManager/ChequeTemplateManager';
 import type { ChequeRecordInput } from './chequeTemplateManager/chequeRuntimeData';
+import type { GulfA4Profile } from '../modules/chequePrint';
 import './chequeStudioOverlay.css';
 
 /**
- * Cheque Studio overlay — Official Cheque Template Integration.
+ * Cheque Studio overlay — the professional cheque calibration studio.
  *
- * A thin tabbed shell hosting the two independent cheque-printing modes inside
- * Official Cheque Management:
- *   • المعايرة   (Classic Calibration) — the DEFAULT tab, renders the existing
- *                 ChequeCalibrator UNCHANGED, with the exact same props.
- *   • قالب الشيك (Cheque Template) — hosts the Cheque Template Manager (the
- *                 reused generic ChequeTemplateDesigner plus template
- *                 management). No printing, print-mode switching, or runtime
- *                 data binding.
+ * The system prints ONE approved cheque template, «قالب شيك الخليج», so the
+ * studio hosts exactly that: the Cheque Template Designer with its toolbar,
+ * live preview and test print, opened on the Gulf A4 profile.
  *
- * Only the active tab is mounted, so the calibration tab is byte-for-byte the
- * previous experience. ChequeCalibrator is `position: fixed; inset: 0`; to sit
- * it below the tab bar without editing it, its host establishes a SCREEN-ONLY
- * CSS containing block (a `transform` in chequeStudioOverlay.css). In print
- * there is no transform, so the calibrator's test-sheet print path is
- * unchanged.
+ * ── What this shell used to be, and what changed ───────────────────────────
+ * It was a two-tab shell — «المعايرة» (the per-bank Classic calibrator) and
+ * «قالب الشيك» (this studio) — because the app supported several cheque print
+ * templates. Those alternatives (Classic, the 178×89 mm template, the generic
+ * A4 template and the database Designer templates) were removed from the cheque
+ * workflow, so a tab strip with one tab is noise: the shell now renders the
+ * studio directly.
+ *
+ * Nothing about the studio itself changed. The Designer, its engines, the
+ * Runtime Engine, ChequeRenderSurface / ChequeA4Sheet, the print page and the
+ * print IPC are all the same components, used the same way.
  */
 
-// Props mirror ChequeCalibrator's exactly — this shell passes them straight
-// through to the (unchanged) calibrator on the calibration tab.
 interface Props {
-  banks: readonly string[];
-  initialBank: string;
-  loadedTemplates: Record<string, ChequeTemplate>;
-  previewData: CalibratorPreviewData;
-  onSaved: (bank: string, template: ChequeTemplate) => void;
   onClose: () => void;
-  isSystemAdmin?: boolean;
-  /** Current official cheque to print via the Cheque Template tab (design mode when null). */
+  /** The cheque being worked on, for a realistic preview and for test printing. */
   chequeRecord?: ChequeRecordInput | null;
+  /** The calibrated profile currently in force, read from `/settings` by the host page. */
+  gulfProfile: GulfA4Profile;
+  /** Persisted successfully, so the host can apply it to preview and printing at once. */
+  onGulfProfileSaved?: (profile: GulfA4Profile) => void;
 }
 
-type StudioTab = 'calibration' | 'template';
-
 export default function ChequeStudioOverlay({
-  banks,
-  initialBank,
-  loadedTemplates,
-  previewData,
-  onSaved,
   onClose,
-  isSystemAdmin,
   chequeRecord,
+  gulfProfile,
+  onGulfProfileSaved,
 }: Props) {
-  const [activeTab, setActiveTab] = useState<StudioTab>('calibration');
-
   return (
     <div className="chq-studio-overlay" dir="rtl">
-      <div className="chq-studio-tabs" role="tablist" aria-label="أوضاع طباعة الشيكات">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'calibration'}
-          className={`chq-studio-tab${activeTab === 'calibration' ? ' active' : ''}`}
-          onClick={() => setActiveTab('calibration')}
-        >
+      <div className="chq-studio-tabs">
+        <span className="chq-studio-title">
           <span className="material-symbols-outlined" aria-hidden="true">tune</span>
-          المعايرة
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'template'}
-          className={`chq-studio-tab${activeTab === 'template' ? ' active' : ''}`}
-          onClick={() => setActiveTab('template')}
-        >
-          <span className="material-symbols-outlined" aria-hidden="true">dashboard_customize</span>
-          قالب الشيك
-        </button>
+          معايرة قالب الشيك
+        </span>
         <div className="chq-studio-tabs-spacer" />
         <button type="button" className="chq-studio-close" onClick={onClose} aria-label="إغلاق">
           <span className="material-symbols-outlined" aria-hidden="true">close</span>
@@ -85,26 +54,13 @@ export default function ChequeStudioOverlay({
       </div>
 
       <div className="chq-studio-body">
-        {activeTab === 'calibration' ? (
-          // Calibration tab — the existing calibrator, UNCHANGED. Hosted in a
-          // screen-only containing block so its fixed overlay sits below the
-          // tab bar; print is unaffected (see chequeStudioOverlay.css).
-          <div className="chq-studio-calib-host">
-            <ChequeCalibrator
-              banks={banks}
-              initialBank={initialBank}
-              loadedTemplates={loadedTemplates}
-              previewData={previewData}
-              onSaved={onSaved}
-              onClose={onClose}
-              isSystemAdmin={isSystemAdmin}
-            />
-          </div>
-        ) : (
-          <div className="chq-studio-designer-host">
-            <ChequeTemplateManager chequeRecord={chequeRecord} />
-          </div>
-        )}
+        <div className="chq-studio-designer-host">
+          <ChequeTemplateManager
+            chequeRecord={chequeRecord}
+            gulfProfile={gulfProfile}
+            onGulfProfileSaved={onGulfProfileSaved}
+          />
+        </div>
       </div>
     </div>
   );

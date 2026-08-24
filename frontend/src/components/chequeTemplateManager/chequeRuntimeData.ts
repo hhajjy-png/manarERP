@@ -26,20 +26,42 @@ export interface ChequeRecordInput {
 /** Official company name (constant — the issuing company). */
 const COMPANY_NAME_AR = 'شركة المنار الدولية لإنشاء وصيانة الشوارع والأرصفة ومستلزمات الطرق ذ.م.م';
 
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
 /** DD / MM / YYYY in Western digits — matches the classic cheque print output format. */
 function formatChequeDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '';
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(d.getDate())} / ${p(d.getMonth() + 1)} / ${d.getFullYear()}`;
+  return `${pad2(d.getDate())} / ${pad2(d.getMonth() + 1)} / ${d.getFullYear()}`;
+}
+
+/**
+ * The SAME cheque date, split into its three digit groups.
+ *
+ * Some cheque stock (Gulf Bank) already carries printed `/` separators in the
+ * date box, so the profile places day, month and year as three separate digit
+ * groups instead of one string. This is a second PRESENTATION of one date, not a
+ * second date: both come from `cheque.chequeDate` and are parsed identically, so
+ * they can never disagree. An unparseable date yields empty parts, exactly as
+ * `formatChequeDate` yields an empty string — and the print-mode guard then
+ * blocks the print rather than printing a blank date.
+ */
+function chequeDateParts(value: string): { day: string; month: string; year: string } {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return { day: '', month: '', year: '' };
+  return { day: pad2(d.getDate()), month: pad2(d.getMonth() + 1), year: String(d.getFullYear()) };
 }
 
 export function buildChequeRuntimeData(cheque: ChequeRecordInput): RuntimeData {
   const amount = Number(cheque.amount) || 0;
   const date = formatChequeDate(cheque.chequeDate);
+  const parts = chequeDateParts(cheque.chequeDate);
   return {
     beneficiary: cheque.beneficiaryName ?? '',
     chequeDate: date,
+    chequeDay: parts.day,
+    chequeMonth: parts.month,
+    chequeYear: parts.year,
     amount: amount > 0 ? fmtChequeAmount(amount) : '',
     amountInWords: amount > 0 ? amountToWordsKWD(amount, 'ar') : '',
     chequeNumber: cheque.chequeNumber ?? '',
