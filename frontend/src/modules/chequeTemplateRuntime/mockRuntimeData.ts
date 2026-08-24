@@ -14,6 +14,10 @@ import type { RuntimeData } from './runtimeTypes';
 export const MOCK_RUNTIME_DATA: RuntimeData = {
   beneficiary: 'شركة الخليج للمقاولات',
   chequeDate: '15/08/2026',
+  // The same date, split for cheque stock with pre-printed `/` separators.
+  chequeDay: '15',
+  chequeMonth: '08',
+  chequeYear: '2026',
   amount: '3500.000 KD',
   amountInWords: 'ثلاثة آلاف وخمسمائة دينار كويتي',
   chequeNumber: '000456',

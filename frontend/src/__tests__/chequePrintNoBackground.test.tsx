@@ -7,8 +7,11 @@
  * النظام **مرجع بصري للمعاينة والمعايرة فقط**.
  *
  * هذه المجموعة تثبّت ذلك على المخرَج الفعلي لا على النية:
- *   • مسار Classic: الصورة موجودة على الشاشة، ومحجوبة داخل `@media print`.
- *   • مسار القوالب (Designer): سطح الطباعة يُركَّب بلا خلفية إطلاقًا.
+ *   • سطح الطباعة (ChequeRenderSurface) يُركَّب بلا خلفية إطلاقًا.
+ *
+ * مسار Classic — الذي كان يُخفي الصورة عبر `@media print` — أُزيل مع قالبه
+ * («Keep Gulf Bank Template Only»)، والضمان الباقي أقوى: لا عنصر صورة يُركَّب
+ * أصلًا في شجرة الطباعة.
  *
  * إسقاط أيٍّ من هذه التأكيدات يعني أن حبرًا زائدًا سيصل ورق شيكات حقيقيًا.
  */
@@ -69,37 +72,6 @@ function renderPage() {
 beforeEach(() => { vi.clearAllMocks(); mockApi(); });
 afterEach(cleanup);
 
-describe('Classic print output carries ink only', () => {
-  it('hides the cheque background image inside @media print', async () => {
-    const { container } = renderPage();
-    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
-
-    const printCss = Array.from(container.querySelectorAll('style'))
-      .map((s) => s.textContent ?? '')
-      .join('\n');
-
-    // القاعدة نفسها، داخل كتلة الطباعة تحديدًا — لا مجرد وجود الاسم في الملف.
-    const printBlock = printCss.slice(printCss.indexOf('@media print'));
-    expect(printBlock).toMatch(/\.cheque-bg-img\s*\{[^}]*display:\s*none\s*!important/);
-  });
-
-  it('still shows the background on screen — it is a preview reference', async () => {
-    const { container } = renderPage();
-    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
-    const img = container.querySelector('.cheque-bg-img') as HTMLImageElement | null;
-    expect(img).not.toBeNull();
-    // موجود في DOM المعاينة، ومحجوب بالطباعة عبر القاعدة أعلاه.
-    expect(img!.getAttribute('aria-hidden')).toBe('true');
-  });
-
-  it('marks the background purely decorative, so it carries no printed meaning', async () => {
-    const { container } = renderPage();
-    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
-    const img = container.querySelector('.cheque-bg-img') as HTMLImageElement;
-    expect(img.getAttribute('alt')).toBe('');
-  });
-});
-
 describe('Designer template print surface carries ink only', () => {
   // `visibleFields` هو ما يرسمه السطح فعلًا؛ فارغ هنا لأن موضوع الاختبار الخلفية.
   const model = {
@@ -118,17 +90,5 @@ describe('Designer template print surface carries ink only', () => {
       <ChequeRenderSurface model={model} showBackground backgroundSrc="data:image/png;base64,AAAA" />,
     );
     expect(container.querySelector('img')).not.toBeNull();
-  });
-});
-
-describe('the print page never opts into printing backgrounds', () => {
-  it('keeps the print layer free of any logo or emblem asset', async () => {
-    const { container } = renderPage();
-    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
-    const layer = container.querySelector('.cheque-print-only')!;
-    // صورة الخلفية الوحيدة المسموح بوجودها هي مرجع المعاينة المحجوب بالطباعة؛
-    // أي أصل آخر (شعار/ختم) لا مكان له في طبقة الطباعة إطلاقًا.
-    const images = Array.from(layer.querySelectorAll('img'));
-    expect(images.every((img) => img.classList.contains('cheque-bg-img'))).toBe(true);
   });
 });

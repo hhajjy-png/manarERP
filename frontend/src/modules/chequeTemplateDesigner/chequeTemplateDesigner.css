@@ -276,3 +276,19 @@ html[data-theme="dark"] .ctd-root .ctd-pill.gray  { background: var(--surface-2)
 @media (max-width: 1000px) {
   .ctd-root .ctd-layout { flex-direction: column; }
 }
+
+
+/* Internal slots of a field — rendering detail inside ONE selectable object.
+   No border, no handle, no pointer target: the field's own frame is the whole
+   selection. Mirrors .crs-slot so the editor and the print agree. */
+.ctd-root .ctd-field-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}

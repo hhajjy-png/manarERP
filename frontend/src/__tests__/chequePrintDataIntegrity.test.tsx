@@ -14,8 +14,13 @@
  *      (`24 / 07 / 2026`) printed instead of the real cheque date.
  *
  * Plus: RTL bidi safety for Latin-ordered values, the print-mode integrity guard
- * (no mock, no placeholder substitution), print-state validation, print-page state
- * safety, and Classic ↔ Designer canonical parity.
+ * (no mock, no placeholder substitution), print-state validation and print-page
+ * state safety.
+ *
+ * The Classic-template suites and the Designer-template storage suite were
+ * removed with those templates ("Keep Gulf Bank Template Only"): the system now
+ * prints one approved template, so there is no second template to keep parity
+ * with and no template store to migrate.
  *
  * PRIMARY FIXTURE — the real cheque 000002 from the forensic audit:
  *   amount     = 1370          → must print  #1,370.000#
@@ -24,14 +29,10 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-// Cheque designer templates live in the database now (Cheque Template
-// Persistence Migration Pack v1), so the store block below talks to a fake of
-// `/api/cheque-designer-templates` that mirrors the real service semantics.
-// Nothing else in this file touches the API client.
-vi.mock('../api/client', async () => {
-  const mod = await import('./helpers/fakeChequeTemplateApi');
-  return { api: mod.fakeApi };
-});
+vi.mock('../api/client', () => ({
+  api: { get: vi.fn(), post: vi.fn(), put: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  errorMessage: (e: unknown) => String(e),
+}));
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
@@ -49,15 +50,6 @@ import {
   LTR_ISOLATED_KEYS,
 } from '../modules/chequeTemplateRuntime';
 import type { RuntimeData, SemanticKey } from '../modules/chequeTemplateRuntime';
-import { fakeTemplateDb, resetFakeTemplateDb, seedFakeTemplates } from './helpers/fakeChequeTemplateApi';
-import {
-  LEGACY_STORAGE_KEY,
-  resetLegacyImportForTests,
-  listTemplates,
-  getTemplate,
-  getDefaultTemplate,
-  saveTemplate,
-} from '../components/chequeTemplateManager/chequeDesignerStore';
 import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import ChequeRenderSurface from '../components/chequeTemplateManager/ChequeRenderSurface';
@@ -105,8 +97,6 @@ const LEGACY_FIELDS: DesignerField[] = [
   field({ id: 'amount', value: '#1,250.000#', x: 76, y: 42.3, width: 16, fontSize: 14, fontWeight: 700, zIndex: 4 }),
   field({ id: 'amountInWords', value: 'ألف ومئتان وخمسون ديناراً فقط', x: 10.7, y: 29.78, width: 58, fontSize: 12, zIndex: 5 }),
 ];
-
-const LEGACY_TEMPLATE_NAMES = ['1', '1 نسخة', 'الخليج', '2026', 'تجربه'];
 
 function legacyTemplate() {
   return { surface: SURFACE, fields: LEGACY_FIELDS.map((f) => ({ ...f })) };
@@ -224,8 +214,7 @@ describe('cheque date binding — legacy alias', () => {
     expect(printed).toContain(CHEQUE_000002.beneficiaryName);
   });
 
-  it.each(LEGACY_TEMPLATE_NAMES)('template shape «%s» resolves the actual selected cheque', (_name) => {
-    // All five stored templates share the same legacy field shape; each must bind.
+  it('the legacy field shape resolves the actual selected cheque', () => {
     const model = resolveChequeTemplateForPrint(legacyTemplate(), buildChequeRuntimeData(CHEQUE_000002));
     expect(textOf(model, 'date')).toBe(EXPECTED_DATE);
     expect(textOf(model, 'amount')).toBe(EXPECTED_AMOUNT);
@@ -280,89 +269,6 @@ describe('template normalization (legacy migration)', () => {
   });
 });
 
-describe('chequeDesignerStore — legacy templates keep working after the move to SQLite', () => {
-  /**
-   * The five real stored templates, verbatim in the legacy (binding-less) shape
-   * the old `localStorage` store wrote. They are seeded into browser storage and
-   * then carried into the database by the one-time import, which is exactly the
-   * path a real upgrading installation takes — so these tests prove the date
-   * defect stays fixed ACROSS the migration, not just before it.
-   */
-  function seedLegacyStore() {
-    const templates = LEGACY_TEMPLATE_NAMES.map((name, i) => ({
-      id: `tpl-${i}`,
-      name,
-      isDefault: name === 'تجربه',
-      surface: SURFACE,
-      fields: LEGACY_FIELDS.map((f) => ({ ...f, binding: undefined })).map(({ binding: _b, ...rest }) => rest),
-      createdAt: '2026-07-24T04:02:48.954Z',
-      updatedAt: `2026-07-30T13:${String(10 + i).padStart(2, '0')}:00.000Z`,
-    }));
-    localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify({ version: 1, templates }));
-  }
-
-  beforeEach(() => {
-    localStorage.clear();
-    resetFakeTemplateDb();
-    resetLegacyImportForTests();
-    seedLegacyStore();
-  });
-  afterEach(() => localStorage.clear());
-
-  it('none of the seeded templates has a stored binding (the legacy shape is real)', () => {
-    const raw = JSON.parse(localStorage.getItem(LEGACY_STORAGE_KEY)!) as { templates: { fields: DesignerField[] }[] };
-    for (const t of raw.templates) {
-      for (const f of t.fields) expect(f.binding).toBeUndefined();
-    }
-  });
-
-  it('every read path hands out normalized bindings — all 5 templates preserved', async () => {
-    const all = await listTemplates();
-    expect(all).toHaveLength(5);
-    expect(all.map((t) => t.name).sort()).toEqual([...LEGACY_TEMPLATE_NAMES].sort());
-    for (const t of all) {
-      expect(t.fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
-      expect(t.fields.find((f) => f.id === 'amount')?.binding).toBe('amount');
-    }
-    expect((await getDefaultTemplate())?.name).toBe('تجربه');
-    expect((await getTemplate('tpl-0'))?.fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
-  });
-
-  it('a normal save PERSISTS the corrected shape (no manual recreation needed)', async () => {
-    const tpl = (await getDefaultTemplate())!;
-    await saveTemplate(tpl.id, { surface: tpl.surface, fields: tpl.fields });
-
-    expect(fakeTemplateDb.templates).toHaveLength(5); // nothing deleted or recreated
-    const saved = fakeTemplateDb.templates.find((t) => t.name === 'تجربه')!;
-    const fields = saved.fields as DesignerField[];
-    expect(fields.find((f) => f.id === 'date')?.binding).toBe('chequeDate');
-  });
-
-  it('a stored template read from the store prints the ACTUAL cheque date end to end', async () => {
-    const tpl = (await getDefaultTemplate())!;
-    const model = resolveChequeTemplateForPrint(
-      { surface: tpl.surface, fields: tpl.fields },
-      buildChequeRuntimeData(CHEQUE_000002),
-    );
-    expect(textOf(model, 'date')).toBe(EXPECTED_DATE);
-    expect(textOf(model, 'amount')).toBe(EXPECTED_AMOUNT);
-    expect(model.meta.hasErrors).toBe(false);
-  });
-
-  it('a malformed stored template degrades safely instead of throwing', async () => {
-    resetFakeTemplateDb();
-    resetLegacyImportForTests();
-    localStorage.clear();
-    seedFakeTemplates([
-      { id: 'x', name: 'broken', isDefault: true, surface: SURFACE, fields: undefined as unknown as unknown[], createdAt: '2026-08-01T00:00:00.000Z', updatedAt: '2026-08-01T00:00:00.000Z' },
-    ]);
-    const rows = await listTemplates();
-    expect(rows[0].fields).toEqual([]);
-  });
-});
-
-// ── 3. Bidi safety ───────────────────────────────────────────────────────────
-
 describe('RTL bidi safety for date / numeric print values', () => {
   function renderSurface(data: RuntimeData) {
     const model = resolveChequeTemplateForPrint(
@@ -413,7 +319,14 @@ describe('RTL bidi safety for date / numeric print values', () => {
   });
 
   it('isolates exactly the declared Latin-ordered keys and nothing else', () => {
-    expect([...LTR_ISOLATED_KEYS].sort()).toEqual(['amount', 'chequeDate', 'chequeNumber', 'issueDate']);
+    // `chequeDay` / `chequeMonth` / `chequeYear` are the same cheque date split
+    // into its three digit groups, for stock whose date box already carries
+    // printed `/` separators (Gulf Bank A4 profile). They are Latin-ordered
+    // numbers on an RTL surface, so they belong in this set for exactly the same
+    // reason `chequeDate` does. The Arabic fields below stay RTL, unchanged.
+    expect([...LTR_ISOLATED_KEYS].sort()).toEqual([
+      'amount', 'chequeDate', 'chequeDay', 'chequeMonth', 'chequeNumber', 'chequeYear', 'issueDate',
+    ]);
   });
 
   it('bidi isolation does not disturb alignment (text-align is physical)', () => {
@@ -662,41 +575,3 @@ describe('ChequeTemplatePrintPage — state safety', () => {
 });
 
 // ── 6. Classic ↔ Designer parity ─────────────────────────────────────────────
-
-describe('Classic ↔ Designer canonical parity', () => {
-  /**
-   * Classic (`ChequePrintOutput`) formats the date inline and the amount through
-   * the same central formatter. This pins the two providers to identical canonical
-   * strings so they can never drift apart again.
-   */
-  function classicValues(record: ChequeRecordInput) {
-    const amount = Number(record.amount) || 0;
-    const d = new Date(record.chequeDate);
-    const date = `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
-    return { date, amount: fmtChequeAmount(amount), words: amountToWordsKWD(amount, 'ar') };
-  }
-
-  it.each([
-    CHEQUE_000002,
-    { ...CHEQUE_000002, amount: 5550.25 },
-    { ...CHEQUE_000002, amount: 90 },
-    { ...CHEQUE_000002, chequeDate: '2026-02-03T00:00:00.000Z', amount: 1550 },
-  ])('both providers produce the same date and amount for amount=$amount', (record) => {
-    const classic = classicValues(record);
-    const designer = resolveChequeTemplateForPrint(legacyTemplate(), buildChequeRuntimeData(record));
-
-    expect(textOf(designer, 'date')).toBe(classic.date);
-    expect(textOf(designer, 'amount')).toBe(classic.amount);
-    expect(textOf(designer, 'amountInWords')).toBe(classic.words);
-  });
-
-  it('cheque 000002 — the audit fixture — is canonical on both providers', () => {
-    const classic = classicValues(CHEQUE_000002);
-    expect(classic.date).toBe(EXPECTED_DATE);
-    expect(classic.amount).toBe(EXPECTED_AMOUNT);
-
-    const designer = resolveChequeTemplateForPrint(legacyTemplate(), buildChequeRuntimeData(CHEQUE_000002));
-    expect(textOf(designer, 'date')).toBe(EXPECTED_DATE);
-    expect(textOf(designer, 'amount')).toBe(EXPECTED_AMOUNT);
-  });
-});

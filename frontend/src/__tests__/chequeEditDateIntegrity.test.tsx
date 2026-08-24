@@ -27,7 +27,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
-import { MemoryRouter } from 'react-router-dom';
+import { Route, Routes, useLocation, MemoryRouter } from 'react-router-dom';
 import { ROUTER_FUTURE } from './helpers/router';
 import { bankRegistryResponse, gulfChequeAccountFields } from './helpers/bankRegistry';
 
@@ -106,9 +106,34 @@ function mockApi(seed: ReturnType<typeof makeCheque>[]) {
 function renderPage() {
   return render(
     <FinancialPeriodProvider>
-      <MemoryRouter future={ROUTER_FUTURE}><Cheques /></MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/cheques']}>
+        <Routes>
+          <Route path="/cheques" element={<Cheques />} />
+          <Route path="/cheque-template/print" element={<PrintStateProbe />} />
+        </Routes>
+      </MemoryRouter>
     </FinancialPeriodProvider>,
   );
+}
+
+/**
+ * The printed values used to be observable in the hidden Classic print layer.
+ * That layer was removed with the Classic template ("Keep Gulf Bank Template
+ * Only"); printing now navigates to the cheque print route carrying the resolved
+ * runtime data. This probe renders at that route and exposes the state, so these
+ * tests still assert what ACTUALLY reaches the paper — one step closer to it than
+ * the old DOM layer was.
+ */
+function PrintStateProbe() {
+  const { state } = useLocation() as { state: { runtimeData?: Record<string, string> } | null };
+  return <div data-testid="print-state">{JSON.stringify(state?.runtimeData ?? {})}</div>;
+}
+
+/** Print the currently selected cheque and return the runtime data handed to the printer. */
+async function printedRuntimeData(): Promise<Record<string, string>> {
+  fireEvent.click(await screen.findByRole('button', { name: /page\.cheques\.print/ }));
+  const probe = await screen.findByTestId('print-state');
+  return JSON.parse(probe.textContent || '{}') as Record<string, string>;
 }
 
 async function openDrawer(beneficiary: string) {
@@ -299,7 +324,7 @@ describe('G) User intentionally changes the date', () => {
 // ── H) Printing after edit uses the corrected chequeDate ────────────────────
 
 describe('H) Printing after edit reads the saved chequeDate', () => {
-  it('the Classic print layer shows the edited date, not the pre-edit one', async () => {
+  it('the print job carries the edited date, not the pre-edit one', async () => {
     mockApi([CHEQUE_AUG2]);
     renderPage();
     await openEditFor('ساير طليحان العذاب');
@@ -308,12 +333,11 @@ describe('H) Printing after edit reads the saved chequeDate', () => {
     fireEvent.blur(dateInput);
     await save();
 
-    await waitFor(() => {
-      const layer = document.querySelector('.cheque-print-only');
-      expect(layer?.textContent).toContain('08 / 02 / 2026');
-    });
-    const layer = document.querySelector('.cheque-print-only');
-    expect(layer?.textContent).not.toContain('02 / 08 / 2026');
+    const runtime = await printedRuntimeData();
+    expect(runtime.chequeDate).toBe('08 / 02 / 2026');
+    expect(runtime.chequeDay).toBe('08');
+    expect(runtime.chequeMonth).toBe('02');
+    expect(runtime.chequeYear).toBe('2026');
   });
 
   it('an unmodified date still prints correctly after an unrelated edit', async () => {
@@ -323,10 +347,8 @@ describe('H) Printing after edit reads the saved chequeDate', () => {
     fireEvent.change(screen.getByLabelText('field.cheque.amount'), { target: { value: '999' } });
     await save();
 
-    await waitFor(() => {
-      const layer = document.querySelector('.cheque-print-only');
-      expect(layer?.textContent).toContain('02 / 08 / 2026');
-    });
+    const runtime = await printedRuntimeData();
+    expect(runtime.chequeDate).toBe('02 / 08 / 2026');
   });
 });
 

@@ -262,7 +262,9 @@ describe('Phase 2B — scope discipline', () => {
   it('did not touch cheques, Reports or PDFKit', () => {
     const cheques = readFileSync('src/pages/Cheques.tsx', 'utf8');
     expect(cheques).not.toMatch(/from\s+['"][^'"]*\/printing['"]/);
-    expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;');
+    // Anchor updated: the Classic page constants went away with the Classic
+    // template. Cheque printing still owns itself via `modules/chequePrint`.
+    expect(cheques).toContain("from '../modules/chequePrint'");
 
     const reports = readFileSync('src/pages/Reports.tsx', 'utf8');
     expect(reports).not.toMatch(/from\s+['"][^'"]*\/printing['"]/); // Reports NOT migrated

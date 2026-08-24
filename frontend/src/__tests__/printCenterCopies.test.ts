@@ -236,6 +236,8 @@ describe('no loop remains anywhere in the print path', () => {
   it('cheque printing is untouched by this fix', () => {
     const cheques = readFileSync('src/pages/Cheques.tsx', 'utf8');
     expect(cheques).not.toMatch(/from\s+['"][^'"]*\/printing['"]/);
-    expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;');
+    // Anchor updated: the Classic page constants went away with the Classic
+    // template. Cheque printing still owns itself via `modules/chequePrint`.
+    expect(cheques).toContain("from '../modules/chequePrint'");
   });
 });

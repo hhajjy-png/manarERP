@@ -24,6 +24,9 @@ type Props = {
 const SEMANTIC_LABELS: Record<string, string> = {
   beneficiary: 'المستفيد',
   chequeDate: 'تاريخ الشيك',
+  chequeDay: 'تاريخ الشيك — اليوم',
+  chequeMonth: 'تاريخ الشيك — الشهر',
+  chequeYear: 'تاريخ الشيك — السنة',
   amount: 'المبلغ',
   amountInWords: 'المبلغ كتابةً',
   chequeNumber: 'رقم الشيك',

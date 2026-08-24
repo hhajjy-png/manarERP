@@ -17,6 +17,9 @@ import type { DesignerField, DesignerSurfaceSpec, DesignerTextAlign } from '../c
 export type SemanticKey =
   | 'beneficiary'
   | 'chequeDate'
+  | 'chequeDay'
+  | 'chequeMonth'
+  | 'chequeYear'
   | 'amount'
   | 'amountInWords'
   | 'chequeNumber'
@@ -28,6 +31,9 @@ export type SemanticKey =
 export const SEMANTIC_KEYS: readonly SemanticKey[] = [
   'beneficiary',
   'chequeDate',
+  'chequeDay',
+  'chequeMonth',
+  'chequeYear',
   'amount',
   'amountInWords',
   'chequeNumber',
@@ -47,10 +53,20 @@ export const SEMANTIC_KEYS: readonly SemanticKey[] = [
  * Keys outside this set (bank/branch/company/cheque number, issue date) are
  * supporting text: an unresolved one falls back to the field's static value and
  * is reported as `info`, never blocking a print.
+ *
+ * `chequeDay` / `chequeMonth` / `chequeYear` are the SAME cheque date, split
+ * into its three digit groups for cheque stock that already carries printed `/`
+ * separators (Gulf Bank). A template uses either the whole `chequeDate` or the
+ * three parts — never both — and either way the date is legally material, so all
+ * four are required. A template that binds none of them is unaffected: the
+ * requirement is only ever evaluated for a field that IS bound to the key.
  */
 export const REQUIRED_PRINT_KEYS: readonly SemanticKey[] = [
   'beneficiary',
   'chequeDate',
+  'chequeDay',
+  'chequeMonth',
+  'chequeYear',
   'amount',
   'amountInWords',
 ] as const;
@@ -68,6 +84,9 @@ export const REQUIRED_PRINT_KEYS: readonly SemanticKey[] = [
  */
 export const LTR_ISOLATED_KEYS: readonly SemanticKey[] = [
   'chequeDate',
+  'chequeDay',
+  'chequeMonth',
+  'chequeYear',
   'issueDate',
   'amount',
   'chequeNumber',
@@ -156,6 +175,32 @@ export interface ResolvedRenderField {
   color: string;
   visible: boolean;
   zIndex: number;
+  /** Carried through from the field: may the text wrap inside its own box? Default false. */
+  multiline: boolean;
+  /** How many wrapped lines the box holds. Always 1 for a single-line field. */
+  maxLines: number;
+  /**
+   * Resolved INTERNAL SLOTS, or `[]` for an ordinary single-value field.
+   *
+   * A slotted field renders its slots INSTEAD of its own text: the field is one
+   * object with one box, and the slots are fixed sub-cells inside it (the cheque
+   * date's day / month / year). They share the parent's vertical box and
+   * typography, so they cannot drift apart vertically, and their horizontal
+   * offsets are percentages of the parent — so moving the field moves them all.
+   */
+  slots: ResolvedRenderSlot[];
+}
+
+/** One resolved sub-cell of a slotted field. */
+export interface ResolvedRenderSlot {
+  key: string;
+  /** Final rendered text for this slot. */
+  text: string;
+  /** The semantic key it resolved against, or null when the key is not a data source. */
+  binding: SemanticKey | null;
+  /** Offsets inside the PARENT field's box, as percentages of that box. */
+  xPercent: number;
+  widthPercent: number;
 }
 
 export interface ResolvedSurface {

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import { LTR_ISOLATED_KEYS } from '../../modules/chequeTemplateRuntime';
 import type { ResolvedRenderModel, SemanticKey } from '../../modules/chequeTemplateRuntime';
-import { fontSizeToCqw } from '../../modules/chequePrint';
+import { fontSizeToCqw, WRAPPED_LINE_HEIGHT_FACTOR } from '../../modules/chequePrint';
 import './chequeRenderSurface.css';
 
 const LTR_ISOLATED = new Set<string>(LTR_ISOLATED_KEYS);
@@ -82,9 +82,49 @@ export default function ChequeRenderSurface({ model, backgroundSrc, showBackgrou
           color: f.color,
           ...bidiStyle(f.binding),
         };
+        // Wrapping is opt-in per field and stays inside the field's own box: the
+        // line height matches `WRAPPED_LINE_HEIGHT_FACTOR`, which is what the
+        // engine counted lines with, and a value longer than the box holds still
+        // raises the blocking FIELD_TEXT_OVERFLOW error rather than spilling.
+        if (f.multiline) textStyle.lineHeight = WRAPPED_LINE_HEIGHT_FACTOR;
+
+        // A SLOTTED field (the cheque date) draws its sub-cells instead of its
+        // own text. Every slot shares this one box's top, height and typography,
+        // so the digits sit on a single baseline by construction — the only thing
+        // that varies between them is the horizontal offset the template author
+        // measured off the cheque.
+        if (f.slots.length > 0) {
+          return (
+            <div key={f.id} className="crs-field" style={wrapperStyle}>
+              {f.slots.map((slot) => (
+                <span
+                  key={slot.key}
+                  className="crs-slot"
+                  data-slot={slot.key}
+                  style={{
+                    ...textStyle,
+                    left: `${slot.xPercent}%`,
+                    width: `${slot.widthPercent}%`,
+                    textAlign: 'center',
+                    ...bidiStyle(slot.binding),
+                  }}
+                >
+                  {slot.text}
+                </span>
+              ))}
+            </div>
+          );
+        }
+
         return (
           <div key={f.id} className="crs-field" style={wrapperStyle}>
-            <span className="crs-field-text" data-binding={f.binding ?? ''} style={textStyle}>{f.text}</span>
+            <span
+              className={`crs-field-text${f.multiline ? ' crs-field-text--wrap' : ''}`}
+              data-binding={f.binding ?? ''}
+              style={textStyle}
+            >
+              {f.text}
+            </span>
           </div>
         );
       })}

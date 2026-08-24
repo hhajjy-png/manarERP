@@ -182,19 +182,12 @@ describe('an account with no approved print profile cannot print', () => {
     fireEvent.click(within(drawer).getByRole('button', { name: 'action.preview_and_print' }));
   };
 
-  it('does not mount the Classic print layer for an unconfigured account', async () => {
+  it('blocks printing for an unconfigured account', async () => {
     mockApi({ rows: [NBK_CHEQUE], accounts: [NBK_ACCOUNT_FIXTURE], banks: [NBK_BANK_FIXTURE] });
-    const { container } = renderPage();
+    renderPage();
     await openCheque('مستفيد الوطني');
-    // ينتظر استقرار الصفحة ثم يؤكد الغياب — لا سقوط على قالب/صورة بنك الخليج.
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/settings'));
-    expect(container.querySelector('.cheque-print-only')).toBeNull();
-  });
-
-  it('DOES mount it for the configured Gulf account — the regression contract', async () => {
-    const { container } = renderPage();
-    await openCheque('مستفيد الخليج');
-    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
+    expect(await screen.findByRole('button', { name: /page\.cheques\.print/ })).toBeDisabled();
   });
 
   it('never reaches the printer for an unconfigured account', async () => {
@@ -219,27 +212,28 @@ describe('an account with no approved print profile cannot print', () => {
 
   // Legacy hardening gate: شيك قديم بلا حساب مربوط. الخادم يحسب `printEnabled`
   // من اسم بنكه: بنك مجهول ⇒ false، فلا طبقة ولا طباعة ولا سقوط على قالب الخليج.
-  it('does not mount the print layer for a legacy cheque of an unknown bank', async () => {
+  it('blocks printing for a legacy cheque of an unknown bank', async () => {
     const legacyUnknown = {
       ...GULF_CHEQUE, id: 3, chequeNumber: '000009', beneficiaryName: 'مستفيد قديم',
       bankName: 'بنك برقان', bankAccountId: null, bankAccount: null, printEnabled: false,
     };
     mockApi({ rows: [legacyUnknown] });
-    const { container } = renderPage();
+    renderPage();
     await openCheque('مستفيد قديم');
     await waitFor(() => expect(api.get).toHaveBeenCalledWith('/settings'));
-    expect(container.querySelector('.cheque-print-only')).toBeNull();
+    expect(await screen.findByRole('button', { name: /page\.cheques\.print/ })).toBeDisabled();
   });
 
-  it('DOES mount it for a legacy cheque whose bank really is Gulf Bank', async () => {
+  it('allows printing a legacy cheque whose bank really is Gulf Bank', async () => {
     const legacyGulf = {
       ...GULF_CHEQUE, id: 4, chequeNumber: '000010', beneficiaryName: 'مستفيد خليج قديم',
       bankAccountId: null, bankAccount: null, printEnabled: true,
     };
     mockApi({ rows: [legacyGulf] });
-    const { container } = renderPage();
+    renderPage();
     await openCheque('مستفيد خليج قديم');
-    await waitFor(() => expect(container.querySelector('.cheque-print-only')).toBeInTheDocument());
+    await waitFor(async () =>
+      expect(await screen.findByRole('button', { name: /page\.cheques\.print/ })).toBeEnabled());
   });
 
   it('still allows SAVING an edit on an unconfigured account', async () => {

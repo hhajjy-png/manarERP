@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { printCurrentViewWithResult } from '../utils/print';
-import { markChequePrinted, reprintCheque, printOutcomeMessage, type ChequeTrackingInfo } from '../utils/chequePrintTracking';
+import type { ChequeTrackingInfo } from '../utils/chequePrintTracking';
 import { useNavigate } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { useAuth } from '../stores/authStore';
@@ -16,35 +15,23 @@ import DateInput from '../components/DateInput';
 import ConfirmModal from '../components/ConfirmModal';
 import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
 import ChequeStudioOverlay from '../components/ChequeStudioOverlay';
-import { getDefaultTemplate } from '../components/chequeTemplateManager/chequeDesignerStore';
-import type { StoredChequeTemplate } from '../components/chequeTemplateManager/chequeDesignerStore';
 import {
-  A4_LANDSCAPE_PAGE,
   buildChequePrintJob,
-  cssPageRule,
-  printOptionsFor,
-  resolveDefaultPrintTemplate,
+  GULF_A4_TEMPLATE_NAME,
+  GULF_BANK_CODE,
+  GULF_BANK_NAME_AR,
+  gulfProfileFromSettings,
+  gulfProfilePlacement,
 } from '../modules/chequePrint';
+import type { GulfA4Profile } from '../modules/chequePrint';
 import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
-import { listBanks, listBankAccounts, PRINT_PROFILE_MISSING_MESSAGE } from '../api/banks';
+import { listBankAccounts, PRINT_PROFILE_MISSING_MESSAGE } from '../api/banks';
 import type { BankAccount } from '../api/banks';
-// صورة الشيك — **مرجع بصري للمعاينة على الشاشة فقط**. لا تُطبع إطلاقًا: قاعدة
-// `.cheque-bg-img { display: none !important }` داخل `@media print` أدناه تُخفيها،
-// فالمخرج على ورقة الشيك الحقيقية حبر البيانات وحده بلا خلفية ولا شعار.
-import gulfBankImg from '../assets/cheakv1.png';
-import {
-  DEFAULT_TEMPLATE,
-  cloneDefaultTemplate,
-  fmtChequeAmount,
-  templateFromSettings,
-  REPRINT_REASONS,
-  REPRINT_REASON_KEYS,
-  bankLabel,
-} from '../utils/chequeTemplate';
-import type { ChequeTemplate, ChequePrintLogRow, ReprintReason } from '../utils/chequeTemplate';
+import { REPRINT_REASON_KEYS, bankLabel } from '../utils/chequeTemplate';
+import type { ChequePrintLogRow } from '../utils/chequeTemplate';
 import {
   ExecutiveHeader,
   IdChip,
@@ -116,18 +103,20 @@ interface FormState {
 
 type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
 
-// Print provider — a lightweight selection layer over the existing, unchanged
-// printing systems. 'classic' = the current ChequePrintOutput path; the two
-// 'template-*' options route to the Official Cheque Template print route
-// (Runtime Engine + ChequeRenderSurface) in Real Cheque / A4 surface modes.
-type PrintProvider = 'classic' | 'template-real' | 'template-a4';
+/**
+ * الشيكات تُطبع بقالب واحد معتمد لا غير: «قالب شيك الخليج» (`gulf-a4`).
+ *
+ * لم يعد هناك منتقي «طريقة الطباعة»: القوالب البديلة (Classic، قالب الشيك
+ * 178×89، قالب A4 العام، قوالب المصمّم) أُزيلت من مسار عمل الشيكات، فالمعاينة
+ * والمعايرة والطباعة تعمل جميعها مباشرة على هذا القالب.
+ *
+ * ما دون ذلك لم يتغيّر: نفس محرك التشغيل، نفس سطح الرسم، نفس صفحة الطباعة،
+ * نفس Print IPC، ونفس استوديو المعايرة الاحترافي.
+ */
 
-const PRINT_PROVIDERS: PrintProvider[] = ['classic', 'template-real', 'template-a4'];
-/** Application-config setting (backed up with the DB) for the default cheque print provider. */
-const DEFAULT_PRINT_PROVIDER_SETTING = 'cheques.defaultPrintProvider';
-function isPrintProvider(v: string): v is PrintProvider {
-  return (PRINT_PROVIDERS as string[]).includes(v);
-}
+/** الرفض حين لا يكون الشيك على ورق بنك الخليج — القالب المعتمد مخصص له وحده. */
+const GULF_PROFILE_WRONG_BANK_MESSAGE =
+  `«${GULF_A4_TEMPLATE_NAME}» مخصص لشيكات بنك الخليج فقط. راجع الحساب البنكي لهذا الشيك.`;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -137,20 +126,6 @@ function defaultForm(): FormState {
   // تلقائيًا حين يوجد حساب نشط واحد لا غير (انظر `useEffect` التعبئة التلقائية).
   return { chequeNumber: '', chequeDate: today, beneficiaryName: '', amount: '', currency: 'KWD', description: '', bankAccountId: '', notes: '' };
 }
-
-/**
- * قائمة احتياطية لأسماء البنوك — **ليست المرجع التشغيلي**.
- *
- * المرجع التشغيلي لإصدار الشيكات صار سجل البنوك والحسابات من الخادم
- * (`/api/banks`). هذه القائمة تُستخدم حصرًا كقيمة احتياطية لأسماء بنوك
- * استوديو معايرة Classic القديم إذا تعذّر تحميل السجل — أي أن غياب الشبكة
- * لا يُفرِغ الاستوديو من البنوك التي لها قوالب محفوظة أصلًا.
- * لا يُبنى عليها أي منتقٍ في نموذج الشيك.
- */
-const FALLBACK_BANK_NAMES = [
-  'بنك الكويت الوطني', 'بيت التمويل الكويتي', 'بنك الخليج', 'البنك التجاري الكويتي', 'بنك برقان',
-  'بنك بوبيان', 'بنك وربة', 'البنك الأهلي الكويتي', 'البنك الأهلي المتحد', 'بنك الكويت الدولي',
-] as const;
 
 const STATUS_META: Record<string, { key: string; tone: Tone; icon: string }> = {
   DRAFT: { key: 'cheque.status.draft', tone: 'orange', icon: 'edit_note' },
@@ -171,82 +146,6 @@ function fmtAmount(v: number | string, currency = moneyParts(0).currency): strin
 function reprintReasonLabel(reason: string, t: (k: string) => string): string {
   const key = (REPRINT_REASON_KEYS as Record<string, string>)[reason];
   return key ? t(key) : reason;
-}
-
-// ── ChequePrintOutput (print engine — UNCHANGED) ───────────────────────────────
-
-const CHEQUE_PAGE_OFFSET_X_MM: number = 0;
-const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;
-
-/**
- * Classic's physical page — A4 landscape, zero margins, 100% scale, orientation
- * baked into the dimensions (Deterministic Geometry & Unified Pipeline Pack v1).
- *
- * Classic positions every field as a percentage of the PAGE WIDTH, so the page is
- * its coordinate system. Leaving it to the print dialog meant the coordinate
- * system itself changed between jobs. `CLASSIC_PAGE` drives both the `@page` rule
- * and the Electron options, so Chromium's layout page and the print job's paper
- * always agree. Field coordinates and the 40 mm feed offset above are untouched.
- */
-const CLASSIC_PAGE = A4_LANDSCAPE_PAGE;
-const CLASSIC_PRINT_OPTIONS = printOptionsFor(CLASSIC_PAGE);
-
-interface PreviewData {
-  chequeNumber: string;
-  chequeDate: string;
-  beneficiaryName: string;
-  amount: string | number;
-  currency: string;
-  description: string | null;
-  bankName: string;
-}
-
-function ChequePrintOutput({ data, template }: { data: PreviewData; template: ChequeTemplate }) {
-  const raw = Number(data.amount ?? 0);
-  const amount = isNaN(raw) ? 0 : raw;
-  const d = new Date(data.chequeDate);
-  const chequeDate =
-    !data.chequeDate || isNaN(d.getTime())
-      ? ''
-      : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
-
-  function fieldStyle(key: keyof ChequeTemplate): React.CSSProperties {
-    const cfg = template[key];
-    return {
-      position: 'absolute',
-      top: `${cfg.top}%`,
-      left: `${cfg.left}%`,
-      width: `${cfg.width}%`,
-      fontSize: `${cfg.fontSize}pt`,
-      fontFamily: cfg.fontFamily === 'monospace' ? 'monospace, monospace' : `'${cfg.fontFamily}', Arial, sans-serif`,
-      fontWeight: cfg.fontWeight,
-      fontStyle: cfg.fontStyle,
-      textAlign: cfg.textAlign,
-      color: cfg.color,
-      lineHeight: 1.55,
-      boxSizing: 'border-box',
-    };
-  }
-
-  return (
-    <div style={{ position: 'relative', width: '100%', aspectRatio: '700 / 272', fontFamily: UI_FONT_STACK, overflow: 'hidden' }}>
-      <div style={{ position: 'absolute', inset: 0 }}>
-        <img src={gulfBankImg} className="cheque-bg-img" alt="" aria-hidden="true" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill' }} />
-        <div style={fieldStyle('beneficiary')}>{data.beneficiaryName}</div>
-        {/* Date & numeric amount are Latin-ordered and must keep their LOGICAL
-            order: this page is RTL, where the bidi algorithm would otherwise lay
-            out `02 / 08 / 2026` right-to-left so it reads `2026 / 08 / 02`.
-            Isolating to LTR pins the order; `text-align` is physical, so no field
-            moves and existing calibrations are unaffected. The Arabic tafqeet
-            below deliberately stays RTL. Same rule as the Designer Template
-            surface (see ChequeRenderSurface `bidiStyle`) — the two providers must
-            print the same string. */}
-        <div style={{ ...fieldStyle('date'), letterSpacing: 0.5, direction: 'ltr', unicodeBidi: 'isolate' }}>{chequeDate}</div>
-        <div style={{ ...fieldStyle('tafqeet'), direction: 'rtl' }}>{amount > 0 ? amountToWordsKWD(amount, 'ar') : ''}</div>
-        <div style={{ ...fieldStyle('numeric'), letterSpacing: 0.5, direction: 'ltr', unicodeBidi: 'isolate' }}>{amount > 0 ? fmtChequeAmount(amount) : ''}</div>
-      </div>
-    </div>
-  );
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -273,35 +172,24 @@ export default function Cheques() {
   const [historyStatus, setHistoryStatus] = useState('');
   const [formError, setFormError] = useState('');
   const [success, setSuccess] = useState('');
-  const [showPrintConfirm, setShowPrintConfirm] = useState(false);
   const [showCalibrator, setShowCalibrator] = useState(false);
-  const [printProvider, setPrintProvider] = useState<PrintProvider>('classic');
   // 'loading' until /settings resolves; production printing is blocked until then
-  // so the initial 'classic' provider + built-in calibration can never be used as
-  // an accidental production fallback.
+  // so an unconfirmed calibration can never be used as an accidental production
+  // fallback.
   const [printConfigState, setPrintConfigState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [exportingExcel, setExportingExcel] = useState(false);
-  const [makeDefault, setMakeDefault] = useState(false);
   // ── سجل البنوك والحسابات (Multi-Bank Cheques Foundation v1) ────────────────
   const [accounts, setAccounts] = useState<BankAccount[]>([]);
   const [accountsState, setAccountsState] = useState<'loading' | 'ready' | 'error'>('loading');
-  /** أسماء بنوك استوديو معايرة Classic — من السجل الحقيقي، لا من ثابت في الشيفرة. */
-  const [bankNames, setBankNames] = useState<string[]>([]);
-  /** إعدادات الخادم الخام — منها تُشتق قوالب معايرة Classic لكل بنك. */
+  /** إعدادات الخادم الخام — منها تُقرأ معايرة «قالب شيك الخليج» المحفوظة. */
   const [rawSettings, setRawSettings] = useState<{ key: string; value: string }[]>([]);
-  /** ما حفظه استوديو المعايرة في هذه الجلسة، ليظهر فورًا بلا إعادة تحميل. */
-  const [templateOverrides, setTemplateOverrides] = useState<Record<string, ChequeTemplate>>({});
+  /** «قالب شيك الخليج» بعد المعايرة في هذه الجلسة، ليظهر فورًا بلا إعادة تحميل. */
+  const [gulfProfileOverride, setGulfProfileOverride] = useState<GulfA4Profile | null>(null);
   const [busy, setBusy] = useState(false);
-  const [restoringDefault, setRestoringDefault] = useState(false);
   const [cancelConfirmCheque, setCancelConfirmCheque] = useState<Cheque | null>(null);
-  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [viewing, setViewing] = useState<Cheque | null>(null);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
-  const [showReprintModal, setShowReprintModal] = useState(false);
-  const [reprintReason, setReprintReason] = useState<ReprintReason | ''>('');
-  const [reprintNote, setReprintNote] = useState('');
-  const [reprintBusy, setReprintBusy] = useState(false);
   const [printLogs, setPrintLogs] = useState<ChequePrintLogRow[]>([]);
   const [printLogsLoading, setPrintLogsLoading] = useState(false);
   // ── Multi-selection & batch printing (Cheque Multi-Selection & Batch Printing Pack v1) ──
@@ -311,9 +199,6 @@ export default function Cheques() {
   // handlers (handlePrint branches, handleMarkPrinted, handleConfirmReprint) one
   // cheque at a time — no parallel print jobs, no duplicated print logic.
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [batchTotal, setBatchTotal] = useState(0);
-  const [batchCurrent, setBatchCurrent] = useState(0);
-  const batchRef = useRef<{ items: Cheque[]; index: number; succeeded: number } | null>(null);
   const canCreate = hasPermission('cheques.create');
   const canUpdate = hasPermission('cheques.update');
   const canPrint = hasPermission('cheques.print');
@@ -351,28 +236,15 @@ export default function Cheques() {
     return () => clearTimeout(id);
   }, [success]);
 
-  // ── Load cheque templates from Settings on mount ───────────────────────────
+  // ── Load the saved cheque calibration from Settings on mount ───────────────
 
   useEffect(() => {
-    // أسماء بنوك استوديو المعايرة تأتي من السجل الحقيقي حين يتوفّر، لا من مصفوفة
-    // ثابتة في الشيفرة. فشل تحميل السجل لا يمنع الطباعة: بوابة الطباعة تعتمد على
-    // `printEnabled` المرافق لكل شيك من الخادم، لا على هذه القائمة.
-    listBanks()
-      .then((banks) => setBankNames(banks.length ? banks.map((b) => b.nameAr) : [...FALLBACK_BANK_NAMES]))
-      .catch(() => setBankNames([...FALLBACK_BANK_NAMES]));
-
     api.get('/settings').then((res) => {
-      const settings: { key: string; value: string }[] = res.data?.data?.settings ?? [];
-      setRawSettings(settings);
-      // Restore the saved default print provider (absent → 'classic', unchanged behavior).
-      const providerRow = settings.find((s) => s.key === DEFAULT_PRINT_PROVIDER_SETTING);
-      if (providerRow && isPrintProvider(providerRow.value)) setPrintProvider(providerRow.value);
+      setRawSettings(res.data?.data?.settings ?? []);
       setPrintConfigState('ready');
     }).catch(() => {
-      // Previously this silently substituted the BUILT-IN default calibration and
-      // left the provider at its initial 'classic' — so a print issued here used a
-      // different provider AND different geometry than the user had configured.
-      // Printing is now blocked with a visible error instead.
+      // Printing stays blocked with a visible error rather than falling back to
+      // an unconfirmed calibration — see `assertPrintReady`.
       setRawSettings([]);
       setPrintConfigState('error');
     });
@@ -409,21 +281,17 @@ export default function Cheques() {
   }, [soleActiveAccountId]);
 
   /**
-   * قوالب معايرة Classic لكل بنك، مشتقّة من الإعدادات.
+   * «قالب شيك الخليج» بعد المعايرة — الوثيقة كاملة (السطح + الحقول + إزاحة
+   * الورقة) من صفّ الإعدادات نفسه الذي يحفظه استوديو المعايرة، مع أولوية لما
+   * حُفظ في هذه الجلسة حتى يُطبَّق فورًا على المعاينة والطباعة بلا إعادة تحميل.
    *
-   * كانت تُبنى من مصفوفة البنوك الثابتة؛ صارت تُبنى من أسماء السجل الحقيقي.
-   * `templateOverrides` تحمل ما حفظه الاستوديو في هذه الجلسة حتى تظهر المعايرة
-   * فورًا دون إعادة تحميل الإعدادات — نفس سلوك `setAllTemplates` السابق.
+   * حين تتعذّر قراءة الإعدادات تبقى الهندسة الأساسية المقيسة — وهي
+   * النتيجة الآمنة: لا شيك يُطبع بمعايرة غير مؤكدة.
    */
-  const allTemplates: Record<string, ChequeTemplate> = useMemo(() => {
-    const result: Record<string, ChequeTemplate> = {};
-    for (const bank of bankNames) {
-      result[bank] = printConfigState === 'error'
-        ? cloneDefaultTemplate()
-        : templateFromSettings(rawSettings, bank);
-    }
-    return { ...result, ...templateOverrides };
-  }, [bankNames, rawSettings, templateOverrides, printConfigState]);
+  const gulfProfile: GulfA4Profile = useMemo(
+    () => gulfProfileOverride ?? gulfProfileFromSettings(rawSettings),
+    [gulfProfileOverride, rawSettings],
+  );
 
   /** الحساب المختار في النموذج (لشيك جديد أو أثناء التعديل). */
   const selectedAccount = useMemo(
@@ -442,45 +310,13 @@ export default function Cheques() {
    */
   const printEnabledForTarget = printTarget ? printTarget.printEnabled : (selectedAccount?.printEnabled ?? false);
 
-  /** اسم بنك الشيك الحالي — لاختيار قالب معايرة Classic ولاستوديو المعايرة. */
-  const activeBankName = printTarget?.bankName ?? selectedAccount?.bankNameAr ?? '';
-
   // ── Print configuration readiness (settings load race) ──────────────────────
-  // `printProvider` starts at 'classic' and `allTemplates` starts empty; both are
-  // filled asynchronously from /settings. A print issued in that window used the
-  // wrong provider and the built-in calibration rather than the saved ones — two
-  // different geometry systems, chosen by timing. Production printing is gated on
-  // this until the real configuration is known.
+  // The saved calibration is filled asynchronously from /settings. A print issued
+  // in that window would use the factory geometry rather than the operator's saved
+  // calibration — geometry chosen by timing. Production printing is gated on this
+  // until the real configuration is known.
   const printReady = printConfigState === 'ready';
 
-  // ── Default cheque template (database-backed) ───────────────────────────────
-  // Cheque designer templates moved out of browser `localStorage` and into
-  // `manar.db` (Cheque Template Persistence Migration Pack v1), so reading the
-  // flagged default is now a request. It is still read AT CLICK TIME — never
-  // cached in React state — which is what preserved the deterministic-geometry
-  // guarantee before and preserves it now.
-  //
-  // The read is wrapped so a transport failure is reported as a transport
-  // failure. Collapsing it into `resolveDefaultPrintTemplate`'s "no default
-  // configured" message would tell the user to go configure a template that is
-  // in fact already configured — and would invite them to create a duplicate.
-  type DefaultTemplateLoad =
-    | { ok: true; get: () => StoredChequeTemplate | null }
-    | { ok: false; message: string };
-
-  async function loadDefaultTemplate(): Promise<DefaultTemplateLoad> {
-    try {
-      const template = await getDefaultTemplate();
-      return { ok: true, get: () => template };
-    } catch {
-      return {
-        ok: false,
-        message: 'تعذّر قراءة قالب الشيك الافتراضي من قاعدة البيانات. تأكد من عمل النظام ثم أعد المحاولة — لن تتم الطباعة بقالب غير مؤكد.',
-      };
-    }
-  }
-
-  /** Guard every production print entry point. Returns false (and explains) when not ready. */
   function assertPrintReady(cheque?: Cheque): boolean {
     if (!printReady) {
       setFormError(printConfigState === 'error'
@@ -648,82 +484,17 @@ export default function Cheques() {
   // result the batch STOPS — nothing after the failed/cancelled item is processed,
   // and nothing is ever marked printed for it. ───────────────────────────────────
 
-  async function runChequeBatchStep() {
-    const job = batchRef.current;
-    if (!job) return;
-    if (job.index >= job.items.length) { finishChequeBatch('done'); return; }
-    setBatchCurrent(job.index + 1);
-    const cheque = job.items[job.index];
-    // بوابة الحساب البنكي تُقيَّم **لكل عنصر**: دفعة مختلطة قد تضم شيكًا على حساب
-    // مهيأ وآخر على حساب بلا قالب. الدفعة تتوقف عند أول شيك غير قابل للطباعة بدلًا
-    // من طباعته بقالب بنك آخر — نفس سياسة التوقف عند أي فشل طباعة أدناه.
-    if (!cheque.printEnabled) {
-      setFormError(PRINT_PROFILE_MISSING_MESSAGE);
-      finishChequeBatch('stopped');
-      return;
-    }
-    setPrintTarget(cheque);
-    setEditId(cheque.id);
-    // Two rAF ticks so the hidden `.cheque-print-only` layer (which reads
-    // `previewData`/`printTarget`) has actually repainted with this cheque's data
-    // before printing captures the page — same requirement `handlePrint` already
-    // relies on via React's own render/commit timing for a single cheque.
-    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-    const result = await printCurrentViewWithResult(CLASSIC_PRINT_OPTIONS);
-    if (result.outcome !== 'success') {
-      setFormError(printOutcomeMessage(result, t));
-      finishChequeBatch('stopped');
-      return;
-    }
-    // Print succeeded — now, and only now, offer the same tracking step the
-    // single-item flow uses (mark-printed confirm for DRAFT, reprint-reason for
-    // PRINTED). Note: for PRINTED cheques this asks the reprint reason AFTER the
-    // physical print (per this pack's print→result→tracking sequencing), unlike
-    // the single-item flow which asks first — the reprint's justification/logging
-    // requirement itself is unchanged either way; only the batch step ordering differs.
-    if (cheque.status === 'PRINTED') {
-      setReprintReason('');
-      setReprintNote('');
-      setShowReprintModal(true);
-    } else {
-      setShowPrintConfirm(true);
-    }
-  }
-
-  function advanceChequeBatch() {
-    const job = batchRef.current;
-    if (!job) return;
-    batchRef.current = { ...job, index: job.index + 1, succeeded: job.succeeded + 1 };
-    runChequeBatchStep();
-  }
-
-  function finishChequeBatch(reason: 'done' | 'stopped') {
-    const job = batchRef.current;
-    batchRef.current = null;
-    setBatchTotal(0);
-    setBatchCurrent(0);
-    if (job) {
-      setSuccess(reason === 'done'
-        ? t('msg.cheque.batch_done', { count: job.succeeded, total: job.items.length })
-        : t('msg.cheque.batch_stopped', { count: job.succeeded, total: job.items.length }));
-    }
-    loadData(page);
-  }
-
-  // Batch cheque printing now works through whichever provider is CURRENTLY
-  // selected — it never switches provider or touches print settings/calibration.
-  // Classic stays in-page (runChequeBatchStep). Template Real/A4 hand the queue to
-  // the existing ChequeTemplatePrintPage (one navigation per item, same as the
-  // single-item `handleTemplatePrint` path), which now carries tracking + a
-  // Next/Finish control gated on the real print result — see that page.
+  // Batch cheque printing hands the whole queue to the existing
+  // ChequeTemplatePrintPage in ONE navigation; that page browses the items
+  // in-page and carries tracking gated on the real print result — see it.
   async function handlePrintSelectedCheques() {
-    // Settings gate — see `printReady`. Never fall back to the initial 'classic'
-    // provider before the saved one has loaded.
+    // Settings gate — see `printReady`. Never print before the saved calibration
+    // has loaded.
     if (!assertPrintReady()) return;
     const items = cheques.filter((c) => selectedIds.has(c.id) && c.status !== 'CANCELLED');
     if (!items.length) { setFormError(t('error.cheque.batch_none_printable')); return; }
 
-    // بوابة الحساب البنكي على مستوى الدفعة كاملة، لكلا مزوّدَي الطباعة.
+    // بوابة الحساب البنكي على مستوى الدفعة كاملة.
     // الرفض صريح ولا تُسقَط العناصر غير القابلة للطباعة بصمت: إسقاطها كان
     // سيطبع البقية ويترك المستخدم يظن أن كل ما اختاره طُبع.
     const blocked = items.filter((c) => !c.printEnabled);
@@ -732,57 +503,38 @@ export default function Cheques() {
       return;
     }
 
-    if (printProvider === 'classic') {
-      clearSelection();
-      setFormError('');
-      batchRef.current = { items, index: 0, succeeded: 0 };
-      setBatchTotal(items.length);
-      setBatchCurrent(1);
-      runChequeBatchStep();
+    // «قالب شيك الخليج» — resolved ONCE for the whole batch, so batch geometry
+    // cannot drift item to item and is identical to printing any of those cheques
+    // singly. Only runtimeData varies. Every item must be Gulf Bank stock; the
+    // batch is refused outright rather than partially printed.
+    const wrongBank = items.filter((c) => !isGulfBankTarget(c));
+    if (wrongBank.length) {
+      setFormError(`${GULF_PROFILE_WRONG_BANK_MESSAGE} (${wrongBank.map((c) => c.chequeNumber).join('، ')})`);
       return;
     }
-
-    // ONE template resolution for the WHOLE batch — the explicitly flagged
-    // default, never an updatedAt-ordered guess. Resolved once here and shared by
-    // every item, so batch geometry cannot drift between items and is identical
-    // to printing any of those cheques singly. Only runtimeData varies per item.
-    //
-    // The template is fetched from the database at click time (Cheque Template
-    // Persistence Migration Pack v1) — the same re-read-at-click-time guarantee
-    // as before, now against the single source of truth rather than browser
-    // storage. `resolveDefaultPrintTemplate` stays the pure decision function.
-    const loaded = await loadDefaultTemplate();
-    if (!loaded.ok) { setFormError(loaded.message); return; }
-    const resolution = resolveDefaultPrintTemplate(loaded.get);
-    if (!resolution.ok) { setFormError(resolution.message); return; }
-    const tpl = resolution.template;
-    clearSelection();
-    setFormError('');
-    const paperMode: 'real-cheque' | 'a4' = printProvider === 'template-a4' ? 'a4' : 'real-cheque';
-    // Build every batch item's runtime data + tracking identity up front, reusing
-    // the exact same helpers the single-item path uses — no duplicated mapping logic.
-    // The whole list is handed to the page ONCE; it stays on this one navigation
-    // and browses items via an in-page index (Batch Preview Navigator) — no
-    // same-route navigate() calls between items.
-    const job = buildChequePrintJob({
+    const gulfJob = buildChequePrintJob({
       purpose: 'production',
-      template: resolution.ref,
-      surface: tpl.surface,
-      fields: tpl.fields,
-      paperMode,
+      template: { id: null, name: GULF_A4_TEMPLATE_NAME, source: 'default-template' },
+      surface: gulfProfile.surface,
+      fields: gulfProfile.fields,
+      paperMode: 'a4',
       items: items.map((c) => ({
         runtimeData: buildChequeRuntimeData(chequeDataForTemplate(c)),
         tracking: trackingInfoFor(c) as ChequeTrackingInfo,
       })),
     });
+    clearSelection();
+    setFormError('');
     navigate('/cheque-template/print', {
       state: {
-        surface: job.surface,
-        fields: job.fields,
-        paperMode: job.paperMode,
-        purpose: job.purpose,
-        templateName: job.template.name,
-        ctppBatchItems: job.items,
+        surface: gulfJob.surface,
+        fields: gulfJob.fields,
+        paperMode: gulfJob.paperMode,
+        placement: gulfProfilePlacement(gulfProfile),
+        showPreviewBackground: true,
+        purpose: gulfJob.purpose,
+        templateName: gulfJob.template.name,
+        ctppBatchItems: gulfJob.items,
       },
     });
   }
@@ -790,7 +542,7 @@ export default function Cheques() {
   // ── Print ─────────────────────────────────────────────────────────────────
 
   // ── Provider routing ────────────────────────────────────────────────────────
-  // The cheque data printed by a template provider — from an explicit cheque (batch),
+  // The cheque data printed — from an explicit cheque (batch),
   // the selected saved cheque (single-item), or the current form when composing a new
   // one (no id yet ⇒ untracked, exactly as before this pack).
   function chequeDataForTemplate(cheque?: Cheque): ChequeRecordInput {
@@ -815,7 +567,7 @@ export default function Cheques() {
         };
   }
 
-  /** Same tracking identity Classic uses (see chequePrintTracking.ts) — undefined
+  /** The tracking identity (see chequePrintTracking.ts) — undefined
    *  when there is no saved DB record yet (unsaved form draft), so the template
    *  print page attempts no tracking in that case, unchanged from before this pack. */
   function trackingInfoFor(cheque?: Cheque): ChequeTrackingInfo | undefined {
@@ -823,34 +575,61 @@ export default function Cheques() {
     return source ? { id: source.id, status: source.status, chequeNumber: source.chequeNumber, beneficiaryName: source.beneficiaryName } : undefined;
   }
 
-  // Route the print request to the EXISTING Official Cheque Template print page
-  // (Runtime Engine → ChequeRenderSurface). Real Cheque = 178×89mm; A4 = A4 sheet.
-  // Uses the user's default saved template (or the most recent one).
-  async function handleTemplatePrint(paperMode: 'real-cheque' | 'a4', cheque?: Cheque) {
-    // Same resolution as the batch path — the flagged default, re-read from
-    // storage at click time so no React state can go stale, and with no
-    // updatedAt-ordered fallback that could silently switch templates.
-    const loaded = await loadDefaultTemplate();
-    if (!loaded.ok) { setFormError(loaded.message); return; }
-    const resolution = resolveDefaultPrintTemplate(loaded.get);
-    if (!resolution.ok) { setFormError(resolution.message); return; }
-    const tpl = resolution.template;
+  // ── «قالب شيك الخليج» — Gulf Bank A4 profile ────────────────────────────────
+
+  /**
+   * Is the cheque at hand drawn on GULF BANK stock?
+   *
+   * Answered from the EXISTING Multi-Bank registry, not from a new table or a new
+   * field: the cheque's own bank account is looked up in the `accounts` list the
+   * page already loads, and its `bankCode` decides. Legacy cheques that were never
+   * linked to an account (`bankAccountId === null`) fall back to the stored bank
+   * name — the same fallback the rest of this page uses for them. No Bank and no
+   * BankAccount is created, and the account picker is not touched.
+   */
+  function isGulfBankTarget(cheque?: Cheque): boolean {
+    const target = cheque ?? printTarget;
+    const accountId = target ? target.bankAccountId : (form.bankAccountId ? Number(form.bankAccountId) : null);
+    const account = accountId != null ? accounts.find((a) => a.id === accountId) : null;
+    if (account) return account.bankCode === GULF_BANK_CODE;
+    const bankName = target?.bankName ?? selectedAccount?.bankNameAr ?? '';
+    return bankName === GULF_BANK_NAME_AR;
+  }
+
+  /**
+   * Print one cheque with the Gulf Bank A4 profile.
+   *
+   * Structurally identical to `handleTemplatePrint` — same job builder, same
+   * runtime-data builder, same tracking identity, same route, same page. The two
+   * differences are deliberate and are the whole point of the profile:
+   *   • the surface + fields come from the built-in measured profile rather than
+   *     from `resolveDefaultPrintTemplate` (so this print does not depend on which
+   *     designer template happens to be flagged default, and cannot be disturbed
+   *     by editing one);
+   *   • the A4 sheet is given the profile's own cheque-area placement, and the
+   *     print page is asked for the screen-only alignment preview.
+   */
+  function handleGulfA4Print(cheque?: Cheque) {
+    if (!isGulfBankTarget(cheque)) { setFormError(GULF_PROFILE_WRONG_BANK_MESSAGE); return; }
     const job = buildChequePrintJob({
       purpose: 'production',
-      template: resolution.ref,
-      surface: tpl.surface,
-      fields: tpl.fields,
-      paperMode,
+      template: { id: null, name: GULF_A4_TEMPLATE_NAME, source: 'default-template' },
+      surface: gulfProfile.surface,
+      fields: gulfProfile.fields,
+      paperMode: 'a4',
       items: [{
         runtimeData: buildChequeRuntimeData(chequeDataForTemplate(cheque)),
         tracking: trackingInfoFor(cheque),
       }],
     });
+    setFormError('');
     navigate('/cheque-template/print', {
       state: {
         surface: job.surface,
         fields: job.fields,
         paperMode: job.paperMode,
+        placement: gulfProfilePlacement(gulfProfile),
+        showPreviewBackground: true,
         purpose: job.purpose,
         templateName: job.template.name,
         runtimeData: job.items[0].runtimeData,
@@ -859,35 +638,12 @@ export default function Cheques() {
     });
   }
 
-  // Persist the chosen provider as the application default (backed up with the DB).
-  // Best-effort and silent — no modal, no confirmation message (per spec).
-  async function saveDefaultProvider(provider: PrintProvider) {
-    try {
-      await api.put('/settings', {
-        settings: [{ key: DEFAULT_PRINT_PROVIDER_SETTING, value: provider, group: 'cheques' }],
-      });
-    } catch {
-      /* best-effort persistence */
-    }
-  }
-
-  function handleProviderChange(value: PrintProvider) {
-    setPrintProvider(value);
-    if (makeDefault) saveDefaultProvider(value);
-  }
-
-  function handleMakeDefaultToggle(checked: boolean) {
-    setMakeDefault(checked);
-    if (checked) saveDefaultProvider(printProvider);
-  }
-
   async function handlePrint() {
     // Settings gate — never print with an unconfirmed provider/calibration.
     if (!assertPrintReady()) return;
     // Provider-selection layer — dispatch to the chosen existing print system.
-    if (printProvider === 'template-real') { handleTemplatePrint('real-cheque'); return; }
-    if (printProvider === 'template-a4') { handleTemplatePrint('a4'); return; }
-    // 'classic' — the existing ChequePrintOutput path, entirely unchanged below.
+    // مسودة لم تُحفظ بعد: تُحفظ أولًا ثم تُطبع — نفس تسلسل الإنشاء السابق تمامًا،
+    // فالطباعة لا تتم أبدًا على سجل غير موجود ولا تفوت تتبّع الطباعة.
     if (!printTarget) {
       const err = validateForm();
       if (err) { setFormError(err); return; }
@@ -909,11 +665,7 @@ export default function Cheques() {
         setEditId(saved.id);
         setPrintTarget(saved);
         await loadData(page);
-        // Only offer "mark as printed" once printing actually reached a trustworthy
-        // success point — never before (see printCurrentViewWithResult in utils/print.ts).
-        const result = await printCurrentViewWithResult(CLASSIC_PRINT_OPTIONS);
-        if (result.outcome === 'success') setShowPrintConfirm(true);
-        else setFormError(printOutcomeMessage(result, t));
+        handleGulfA4Print(saved);
       } catch (e) {
         setFormError(errorMessage(e));
       } finally {
@@ -921,63 +673,10 @@ export default function Cheques() {
       }
       return;
     }
-    // Reprinting an already-PRINTED cheque must be justified and logged. Collect
-    // a reason first; the actual print happens after the reprint is recorded.
-    // (Single-item ordering — unchanged; see runChequeBatchStep for the batch's
-    // print-first ordering, which differs deliberately.)
-    if (printTarget.status === 'PRINTED') {
-      setReprintReason('');
-      setReprintNote('');
-      setShowReprintModal(true);
-      return;
-    }
-    const result = await printCurrentViewWithResult(CLASSIC_PRINT_OPTIONS);
-    if (printTarget.status === 'DRAFT') {
-      if (result.outcome === 'success') setShowPrintConfirm(true);
-      else setFormError(printOutcomeMessage(result, t));
-    }
+    handleGulfA4Print();
   }
 
   // ── Reprint (logged) ───────────────────────────────────────────────────────
-
-  async function handleConfirmReprint() {
-    if (!printTarget || !reprintReason) return;
-    if (reprintBusy) return;
-    setReprintBusy(true);
-    const inBatch = !!batchRef.current;
-    try {
-      const updated = await reprintCheque(printTarget.id, reprintReason, reprintNote.trim() || null);
-      setShowReprintModal(false);
-      if (inBatch) {
-        // The physical print already happened in runChequeBatchStep, BEFORE this
-        // modal opened (batch's print→result→tracking order) — this call only
-        // records the justified reprint; printing a second time here would print
-        // the same cheque twice.
-        advanceChequeBatch();
-      } else {
-        // Single-item semantics unchanged: log the reprint reason first, then print.
-        const result = await printCurrentViewWithResult(CLASSIC_PRINT_OPTIONS);
-        if (result.outcome === 'success') setSuccess(t('msg.cheque.reprint_logged'));
-        else setFormError(printOutcomeMessage(result, t));
-        setPrintTarget(updated as unknown as Cheque);
-        await loadData(page);
-        if (viewing?.id === printTarget.id) loadPrintLogs(printTarget.id);
-      }
-    } catch (e) {
-      setFormError(errorMessage(e));
-      setShowReprintModal(false);
-      if (inBatch) finishChequeBatch('stopped');
-    } finally {
-      setReprintBusy(false);
-    }
-  }
-
-  /** Cancelling the reprint-reason dialog mid-batch stops the batch (never bypasses
-   *  the justification requirement, never silently skips to the next cheque). */
-  function cancelReprintModal() {
-    setShowReprintModal(false);
-    if (batchRef.current) finishChequeBatch('stopped');
-  }
 
   // ── Print history ──────────────────────────────────────────────────────────
 
@@ -1040,36 +739,6 @@ export default function Cheques() {
     navigate(`/forms/payment-voucher/${items[0].id}`, { state: { pvBatchItems: items } });
   }
 
-  async function handleMarkPrinted() {
-    if (!printTarget) { setFormError(t('error.cheque.save_first')); setShowPrintConfirm(false); return; }
-    if (busy) return; setBusy(true);
-    const inBatch = !!batchRef.current;
-    try {
-      const updated = await markChequePrinted(printTarget.id);
-      setShowPrintConfirm(false);
-      if (inBatch) {
-        advanceChequeBatch();
-      } else {
-        setSuccess(t('msg.cheque.printed'));
-        setPrintTarget(updated as unknown as Cheque);
-        await loadData(page);
-      }
-    } catch (e) {
-      setFormError(errorMessage(e));
-      setShowPrintConfirm(false);
-      if (inBatch) finishChequeBatch('stopped');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  /** Cancelling the mark-printed confirm mid-batch stops the batch — selection never
-   *  marks records as printed, and the batch never silently skips ahead. */
-  function cancelPrintConfirm() {
-    setShowPrintConfirm(false);
-    if (batchRef.current) finishChequeBatch('stopped');
-  }
-
   // ── Cancel ────────────────────────────────────────────────────────────────
 
   async function executeCancel(cheque: Cheque) {
@@ -1091,68 +760,16 @@ export default function Cheques() {
     }
   }
 
-  // ── Restore default template for current bank ─────────────────────────────
-
-  async function executeRestoreDefault() {
-    setShowRestoreConfirm(false);
-    if (restoringDefault) return;
-    setRestoringDefault(true);
-    try {
-      // Route through the versioning endpoint (same service as calibration
-      // saves/restores) so restoring defaults appends an immutable version and
-      // updates the active template inside that transaction — never a silent,
-      // unrecoverable overwrite. Previous versions are preserved.
-      await api.post('/cheques/template-versions', {
-        bankName: activeBankName,
-        template: DEFAULT_TEMPLATE,
-        note: 'استعادة القالب الافتراضي',
-      });
-      setTemplateOverrides((prev) => ({ ...prev, [activeBankName]: cloneDefaultTemplate() }));
-      setSuccess(t('msg.cheque.template_restored', { bank: bankLabel(activeBankName, t) }));
-    } catch (e) {
-      setFormError(errorMessage(e));
-    } finally {
-      setRestoringDefault(false);
-    }
-  }
-
-  // ── Preview data ──────────────────────────────────────────────────────────
-
-  const previewData: PreviewData = printTarget
-    ? { chequeNumber: printTarget.chequeNumber, chequeDate: printTarget.chequeDate, beneficiaryName: printTarget.beneficiaryName, amount: printTarget.amount, currency: printTarget.currency, description: printTarget.description, bankName: printTarget.bankName }
-    : { chequeNumber: form.chequeNumber, chequeDate: form.chequeDate, beneficiaryName: form.beneficiaryName, amount: form.amount, currency: form.currency, description: form.description || null, bankName: activeBankName };
-
-  // The bank calibration for the cheque ACTUALLY being printed. Reading this from
-  // the form's bank meant a Classic batch printed every cheque with whichever bank
-  // was last loaded into the form — data from cheque N, geometry from cheque 0.
-  // `previewData` follows `printTarget`, which the batch step sets per item, so
-  // single and batch now both resolve the calibration from the cheque in hand.
-  //
-  // `null` بدل السقوط على `DEFAULT_TEMPLATE` (إحداثيات بنك الخليج): بنك بلا قالب
-  // محفوظ لا يُطبع بقالب بنك آخر. الطبقة أدناه لا تُركَّب أصلًا في تلك الحالة،
-  // فلا حبر يخرج بهندسة لا تخص هذا الشيك.
-  const currentTemplate: ChequeTemplate | null = allTemplates[previewData.bankName] ?? null;
-
   const isPrintable =
     printEnabledForTarget &&
     ((!!printTarget && printTarget.status !== 'CANCELLED') ||
       (!printTarget && !!form.chequeNumber && !!form.beneficiaryName && !!form.amount && !!form.bankAccountId));
   const isPrintedCheque = !!printTarget && printTarget.status === 'PRINTED';
 
-  function handleCalibSaved(bank: string, template: ChequeTemplate) {
-    setTemplateOverrides((prev) => ({ ...prev, [bank]: template }));
+  /** يظهر القالب المُعايَر فورًا بلا إعادة تحميل للإعدادات. */
+  function handleGulfProfileSaved(profile: GulfA4Profile) {
+    setGulfProfileOverride(profile);
   }
-
-  const calibPreviewData = {
-    beneficiaryName: printTarget?.beneficiaryName ?? 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م',
-    chequeDate: (() => {
-      const src = printTarget?.chequeDate ?? new Date().toISOString();
-      const d = new Date(src);
-      return isNaN(d.getTime()) ? '18 / 06 / 2026' : `${String(d.getDate()).padStart(2, '0')} / ${String(d.getMonth() + 1).padStart(2, '0')} / ${d.getFullYear()}`;
-    })(),
-    tafqeetText: printTarget ? amountToWordsKWD(Number(printTarget.amount), 'ar') : 'خمسة آلاف دينار كويتي لا غير',
-    numericText: printTarget ? fmtChequeAmount(Number(printTarget.amount)) : '#5,000#',
-  };
 
   // ── KPIs (computed from loaded data — no backend change) ───────────────────
 
@@ -1251,59 +868,15 @@ export default function Cheques() {
 
   return (
     <div className="xpl-scope xpl-page">
-      {/* Calibration overlay — UNCHANGED */}
+      {/* Professional calibration studio — «قالب شيك الخليج» is the one template it calibrates. */}
       {showCalibrator && (
-        <ChequeStudioOverlay banks={bankNames} initialBank={activeBankName || bankNames[0] || ''} loadedTemplates={allTemplates} previewData={calibPreviewData} onSaved={handleCalibSaved} onClose={() => setShowCalibrator(false)} isSystemAdmin={isSystemAdmin} chequeRecord={printTarget} />
+        <ChequeStudioOverlay
+          onClose={() => setShowCalibrator(false)}
+          chequeRecord={printTarget}
+          gulfProfile={gulfProfile}
+          onGulfProfileSaved={handleGulfProfileSaved}
+        />
       )}
-
-      {/* Hidden print area + print CSS — print output UNCHANGED.
-          INK ISOLATION: webContents.print() prints the whole window, so any mounted
-          print layer competes for the page. While the calibrator is open its test
-          sheet must be the ONLY print surface — so the real-cheque layer is not
-          mounted at all. Unmounting beats CSS suppression: no !important tie to lose
-          on document order, and no z-index/stacking-context to fight. Outside the
-          calibrator this mounts and prints exactly as before. */}
-      {/* PRINT PROFILE GATE (Multi-Bank Cheques Foundation v1): الطبقة لا تُركَّب
-          إلا لحساب بنكي له قالب طباعة معتمد **و**قالب معايرة محفوظ لبنكه فعلًا.
-          الشرطان معًا يمنعان أي fallback صامت: بنك جديد لا يطبع بإحداثيات بنك
-          الخليج ولا بصورته ولا بمقاساته، وعدم التركيب أقوى من إخفاء بالـCSS. */}
-      {!showCalibrator && printEnabledForTarget && currentTemplate && (
-        <div className="cheque-print-only" style={{ display: 'none' }}>
-          <div style={{ transform: `translate(${CHEQUE_PAGE_OFFSET_X_MM}mm, ${CHEQUE_PAGE_OFFSET_Y_MM}mm)` }}>
-            <ChequePrintOutput data={previewData} template={currentTemplate} />
-          </div>
-        </div>
-      )}
-      {/* CLASSIC PHYSICAL GEOMETRY — Classic's stored field coordinates are
-          percentages of the PAGE WIDTH (see utils/chequeGeometry.ts), so the page
-          must be pinned or every field moves with the paper. The rule below is
-          generated from the SAME A4_LANDSCAPE_PAGE the Electron print options are
-          generated from, and now states `margin: 0` explicitly: it previously
-          declared only `size: A4 landscape`, leaving the driver to choose margins,
-          which shrank the page box by an unspecified, printer-dependent amount.
-          No stored Classic coordinate is changed by this pack — only the page the
-          percentages are measured against is made deterministic. */}
-      <style>{`
-        ${cssPageRule(CLASSIC_PAGE)}
-        @media print {
-          /* Collapse the in-flow app shell to zero height so only the fixed cheque
-             occupies the print layout. visibility:hidden alone kept #root at full
-             height, which paginated an extra blank page. #root is not a fixed-
-             positioning containing block, so overflow:hidden here does NOT clip the
-             position:fixed cheque below. */
-          body > * { visibility: hidden !important; height: 0 !important; overflow: hidden !important; }
-          .cheque-print-only {
-            display: block !important;
-            visibility: visible !important;
-            position: fixed;
-            inset: 0;
-            background: white;
-            z-index: 9999;
-          }
-          .cheque-print-only * { visibility: visible !important; }
-          .cheque-bg-img { display: none !important; }
-        }
-      `}</style>
 
       {/* Executive header — .chqx-header scopes the compact-density override in
           Cheques.css to this page only; ExecutiveHeader itself (shared across
@@ -1341,20 +914,6 @@ export default function Cheques() {
       {formError && <ErrorBanner>{formError} <button type="button" className="xpl-clear-link" onClick={() => setFormError('')}>{t('action.close')}</button></ErrorBanner>}
       {success && <div className="chqx-success"><span className="material-symbols-outlined">check_circle</span>{success}<button type="button" className="xpl-clear-link" onClick={() => setSuccess('')}>{t('action.close')}</button></div>}
 
-      {/* Batch print progress — shown only while a batch (started from the selection
-          toolbar below) is stepping through its queue. Cancelling here stops the
-          batch and leaves any remaining cheques unprinted, same as dismissing the
-          per-cheque confirm/reprint-reason modal mid-batch. */}
-      {batchTotal > 0 && (
-        <div className="chqx-batch-bar">
-          <span className="xpl-spin" aria-hidden="true" />
-          <span>{t('msg.cheque.batch_progress', { current: batchCurrent, total: batchTotal })}</span>
-          <Button variant="ghost" small icon="close" onClick={() => finishChequeBatch('stopped')} style={{ marginInlineStart: 'auto' }}>
-            {t('action.cheque.batch_cancel')}
-          </Button>
-        </div>
-      )}
-
       {/* Hero + KPIs
           ملاحظة نطاق: الـHero (printedTotal) إجمالي محسوب في قاعدة البيانات عبر كل
           صفحات الـPagination ضمن الفترة الحالية — من stats، وليس من الشيكات المحمّلة
@@ -1372,47 +931,22 @@ export default function Cheques() {
         </div>
       </div>
 
-      {/* Printing & actions toolbar — the decorative on-screen cheque preview was
-          removed to reclaim the workspace; the hidden print layer (.cheque-print-only)
-          and every handler (handlePrint / printProvider / calibration) are unchanged. */}
+      {/* Printing & actions toolbar. There is ONE approved cheque template, so the
+          former «طريقة الطباعة» selector was removed rather than left as a
+          single-option dropdown: Print, Calibrate and the preview all act on
+          «قالب شيك الخليج» directly. */}
       <SectionCard title={t('sec.printing')} icon="print" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
-        {/* إجراءات الطباعة والمعايرة في شريط أدوات واحد متماسك — لا تغيير على المعالِجات
-            (handlePrint / printProvider / printCurrentView / المعايرة). */}
         <div className="chqx-print-toolbar">
-          {canPrint && (
-            <div className="chqx-print-settings">
-              <label className="chqx-print-method">
-                <span className="chqx-print-method-label">طريقة الطباعة</span>
-                <select
-                  className="xpl-select"
-                  value={printProvider}
-                  onChange={(e) => handleProviderChange(e.target.value as PrintProvider)}
-                  aria-label="طريقة الطباعة"
-                >
-                  <option value="classic">النظام الكلاسيكي</option>
-                  <option value="template-real">قالب الشيك (178 × 89 مم)</option>
-                  <option value="template-a4">قالب A4</option>
-                </select>
-              </label>
-              {canCalibrate && (
-                <label className="chqx-default-provider" title="حفظ طريقة الطباعة المختارة كافتراضي دائم للنظام">
-                  <input
-                    type="checkbox"
-                    checked={makeDefault}
-                    onChange={(e) => handleMakeDefaultToggle(e.target.checked)}
-                  />
-                  <span>تعيين كافتراضي</span>
-                </label>
-              )}
-            </div>
-          )}
+          <span className="chqx-active-template" title="القالب المعتمد للطباعة">
+            <span className="material-symbols-outlined" aria-hidden="true">description</span>
+            {GULF_A4_TEMPLATE_NAME}
+          </span>
           {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
           {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
           {canCalibrate && (
             <div className="chqx-print-utility">
               <span className="chqx-toolbar-sep" aria-hidden="true" />
               <Button variant="ghost" small icon="tune" onClick={() => setShowCalibrator(true)}>{t('action.cheque.calibrate_print')}</Button>
-              <Button variant="ghost" small icon="restart_alt" busy={restoringDefault} onClick={() => setShowRestoreConfirm(true)}>{t('action.restore_default')}</Button>
             </div>
           )}
           {canCancel && printTarget && printTarget.status === 'DRAFT' && <Button variant="danger" icon="block" busy={busy} onClick={() => setCancelConfirmCheque(printTarget)}>{t('page.cheques.cancel_cheque')}</Button>}
@@ -1443,16 +977,15 @@ export default function Cheques() {
       </div>
 
       {/* Selection toolbar — shown once at least one row is checked. Batch actions
-          orchestrate the EXISTING single-print path sequentially (see handlePrintSelectedCheques /
+          reuse the EXISTING print path (see handlePrintSelectedCheques /
           handlePrintSelectedVouchers); the "single vs multiple" wording is cosmetic only. */}
-      {selectedIds.size > 0 && batchTotal === 0 && (
+      {selectedIds.size > 0 && (
         <div className="chqx-batch-bar">
           <span className="material-symbols-outlined" aria-hidden="true">checklist</span>
           <span>{t('msg.cheque.selected_count', { count: selectedIds.size })}</span>
           <div className="chqx-toolbar-sep" aria-hidden="true" />
-          {/* Batch cheque printing now works through whichever provider is currently
-              selected (Classic / Template Real 178×89 / Template A4) — it never
-              switches provider itself. See handlePrintSelectedCheques. */}
+          {/* Batch cheque printing uses «قالب شيك الخليج» like every other print
+              on this page. See handlePrintSelectedCheques. */}
           {canPrint && (
             <Button variant="primary" icon="print" onClick={handlePrintSelectedCheques}>
               {selectedIds.size === 1 ? t('page.cheques.print') : t('action.cheque.print_selected')}
@@ -1724,17 +1257,6 @@ export default function Cheques() {
         </Dialog>
       )}
 
-      {/* Mark-as-printed confirm */}
-      {showPrintConfirm && printTarget && (
-        <ConfirmModal
-          title={t('page.cheques.mark_printed')}
-          message={batchTotal > 0 ? `${t('msg.cheque.batch_progress', { current: batchCurrent, total: batchTotal })} — ${t('page.cheques.confirm_printed')}` : t('page.cheques.confirm_printed')}
-          confirmLabel={t('page.cheques.mark_printed')}
-          variant="warning"
-          onConfirm={canPrint ? handleMarkPrinted : cancelPrintConfirm}
-          onCancel={cancelPrintConfirm}
-        />
-      )}
       {forceDeleteId !== null && (
         <ForceDeleteChequeModal
           chequeId={forceDeleteId}
@@ -1743,45 +1265,8 @@ export default function Cheques() {
         />
       )}
 
-      {/* Reprint reason — required before re-printing an already-printed cheque */}
-      {showReprintModal && printTarget && (
-        <Dialog
-          icon="print"
-          title={t('page.cheques.reprint_title')}
-          subtitle={batchTotal > 0 ? `${t('msg.cheque.batch_progress', { current: batchCurrent, total: batchTotal })} · ${printTarget.chequeNumber} · ${printTarget.beneficiaryName}` : `${printTarget.chequeNumber} · ${printTarget.beneficiaryName}`}
-          size="sm"
-          onClose={cancelReprintModal}
-          footer={
-            <>
-              <Button variant="primary" icon="print" busy={reprintBusy} disabled={!reprintReason} onClick={handleConfirmReprint}>{t('action.cheque.record_reprint')}</Button>
-              <Button variant="ghost" onClick={cancelReprintModal}>{t('action.cancel')}</Button>
-            </>
-          }
-        >
-          <DialogSection title={t('sec.cheque.reprint_reason')} icon="help">
-            <p className="chqx-preview-hint" style={{ textAlign: 'start', margin: '0 0 8px' }}>
-              {t('msg.cheque.reprint_notice')}
-            </p>
-            <div className="xpl-field xpl-field--full">
-              <label>{t('field.reason')} <span className="req">*</span></label>
-              <select className="xpl-select" value={reprintReason} onChange={(e) => setReprintReason(e.target.value as ReprintReason)} aria-label={t('sec.cheque.reprint_reason')}>
-                <option value="">{t('opt.select_reason')}</option>
-                {REPRINT_REASONS.map((r) => <option key={r} value={r}>{t(REPRINT_REASON_KEYS[r])}</option>)}
-              </select>
-            </div>
-            <div className="xpl-field xpl-field--full">
-              <label>{t('field.note_optional')}</label>
-              <input className="xpl-input" value={reprintNote} onChange={(e) => setReprintNote(e.target.value)} placeholder={t('ph.additional_details')} maxLength={300} aria-label={t('a11y.cheque_reprint_note')} />
-            </div>
-          </DialogSection>
-        </Dialog>
-      )}
-
       {cancelConfirmCheque !== null && (
         <ConfirmModal title={t('page.cheques.cancel_cheque')} message={t('page.cheques.confirm_cancel')} variant="warning" onConfirm={() => executeCancel(cancelConfirmCheque)} onCancel={() => setCancelConfirmCheque(null)} />
-      )}
-      {showRestoreConfirm && (
-        <ConfirmModal message={t('confirm.cheque.restore_default', { bank: bankLabel(activeBankName, t) })} variant="warning" onConfirm={executeRestoreDefault} onCancel={() => setShowRestoreConfirm(false)} />
       )}
     </div>
   );

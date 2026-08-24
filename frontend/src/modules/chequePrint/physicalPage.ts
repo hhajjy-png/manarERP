@@ -86,10 +86,12 @@ function page(widthMm: number, heightMm: number): PhysicalPageSpec {
 }
 
 /**
- * The A4-landscape page shared by the Designer A4 paper mode and by Classic.
- * Classic's stored field coordinates are percentages of the PAGE WIDTH, so
- * pinning that width (and zeroing the margins the driver used to choose) is what
- * makes Classic deterministic — WITHOUT touching a single stored coordinate.
+ * The A4-landscape page every cheque print job uses.
+ *
+ * Pinning the width — and zeroing the margins the driver used to choose — is what
+ * makes cheque geometry deterministic: every field box is sized RELATIVE to this
+ * page, so leaving it to the print dialog changed the coordinate system itself
+ * between jobs.
  */
 export const A4_LANDSCAPE_PAGE: PhysicalPageSpec = page(A4_LANDSCAPE_MM.widthMm, A4_LANDSCAPE_MM.heightMm);
 
@@ -100,6 +102,22 @@ export const A4_LANDSCAPE_PAGE: PhysicalPageSpec = page(A4_LANDSCAPE_MM.widthMm,
  */
 export function realChequePage(surface: { widthCm: number; heightCm: number }): PhysicalPageSpec {
   return page(cmToMm(surface.widthCm), cmToMm(surface.heightCm));
+}
+
+/**
+ * Where a cheque area sits on a hosting A4 sheet, in TRUE millimetres.
+ *
+ * Stated in physical units, never in CSS direction terms: `xMm` is the distance
+ * from the sheet's LEFT edge, so "flush with the right edge" is expressed as
+ * `xMm = pageWidth − widthMm` and cannot be reinterpreted by an RTL context.
+ * The A4 sheet component converts this to percentages of the page so the whole
+ * sheet scales as one unit on screen and prints at true physical size.
+ */
+export interface ChequeA4Placement {
+  xMm: number;
+  yMm: number;
+  widthMm: number;
+  heightMm: number;
 }
 
 /** Paper surfaces a cheque can be printed on. Mirrors `ChequePaperMode`. */

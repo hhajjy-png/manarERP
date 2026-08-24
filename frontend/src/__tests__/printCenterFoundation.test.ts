@@ -149,19 +149,16 @@ describe('Print Center Foundation — scope discipline', () => {
     // the word "printing" in its own state and comments — what matters is the import.)
     expect(cheques).not.toMatch(/from\s+['"][^'"]*\/printing['"]/);
     expect(cheques).not.toContain('submitPrintJob');
-    // The cheque print engine's own anchors are exactly as they were.
-    expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_X_MM: number = 0;');
-    expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;');
-    // Classic's page is now pinned by the shared cheque print contract instead of
-    // the old bare `@page { size: A4 landscape; }` (which left the MARGINS — and so
-    // the page box every Classic field percentage is measured against — to the
-    // printer driver). Deterministic Geometry & Unified Pipeline Pack v1. Still
-    // owned by the cheque module, still nothing to do with the Print Center.
-    expect(cheques).toContain('cssPageRule(CLASSIC_PAGE)');
+    // The cheque print engine's own anchors. The Classic page constants they used
+    // to name were removed with the Classic template ("Keep Gulf Bank Template
+    // Only"); the surviving anchor is the same statement in current terms — the
+    // cheque page owns its printing through `modules/chequePrint`, and the Print
+    // Center is nowhere near it.
     expect(cheques).toContain("from '../modules/chequePrint'");
+    expect(cheques).toContain('gulfProfilePlacement');
 
-    const calibrator = readFileSync('src/components/ChequeCalibrator.tsx', 'utf8');
-    expect(calibrator).not.toContain('submitPrintJob');
+    const studio = readFileSync('src/components/chequeTemplateManager/ChequeTemplateManager.tsx', 'utf8');
+    expect(studio).not.toContain('submitPrintJob');
   });
 
   it('the legacy primitive still exists and is still used by unmigrated pages', () => {

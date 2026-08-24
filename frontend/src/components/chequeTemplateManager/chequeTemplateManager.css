@@ -262,3 +262,22 @@ html[data-theme="dark"] .ctm-badge--dirty   { background: var(--violet-light); c
 .ctm-datasource-hint .material-symbols-outlined {
   font-size: 16px;
 }
+
+/* ── Profile placement offsets (built-in print profiles only) ───────────────
+   The whole-cheque half of calibration, sitting in the studio toolbar next to
+   the document actions. Styled to match the studio's own compact controls; it
+   renders only while a built-in profile is the open document. */
+.ctm-offsets {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding-inline-start: 10px;
+  margin-inline-start: 4px;
+  border-inline-start: 1px solid var(--border, #e2e8f0);
+}
+.ctm-offsets label { display: flex; flex-direction: column; gap: 3px; font-size: 10.5px; color: var(--text-muted, #64748b); }
+.ctm-offsets input {
+  width: 74px; padding: 4px 6px; border-radius: 6px;
+  border: 1px solid var(--border, #e2e8f0); background: var(--surface, #fff);
+  color: var(--text, #0f172a); font-family: var(--app-font-mono); font-size: 12px; text-align: center;
+}

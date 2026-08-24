@@ -417,7 +417,9 @@ describe('الانحدار', () => {
 
   it('الشيكات وForms والطباعة القديمة بلا مساس', () => {
     const cheques = readFileSync('src/pages/Cheques.tsx', 'utf8');
-    expect(cheques).toContain('const CHEQUE_PAGE_OFFSET_Y_MM: number = 40;');
+    // Anchor updated: the Classic page constants went away with the Classic
+    // template. Cheque printing still owns itself via `modules/chequePrint`.
+    expect(cheques).toContain("from '../modules/chequePrint'");
     const form = readFileSync('src/forms/shared/FormLayout.tsx', 'utf8');
     expect(form).toContain('submitPrintJob(');
     expect(invoiceCode).toContain('@page { size: A4; margin: 8mm 10mm; }'); // هندسة الفاتورة
