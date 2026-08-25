@@ -17,15 +17,19 @@ import ForceDeleteChequeModal from '../components/ForceDeleteChequeModal';
 import ChequeStudioOverlay from '../components/ChequeStudioOverlay';
 import {
   buildChequePrintJob,
-  GULF_A4_TEMPLATE_NAME,
-  GULF_BANK_CODE,
   chequeProfilePrintability,
   PROFILE_NOT_CALIBRATED_MESSAGE,
-  gulfProfileFromSettings,
-  gulfProfilePlacement,
+  CALIBRATION_PROFILES,
+  CALIBRATION_PROFILE_LABELS,
+  DEFAULT_CALIBRATION_PROFILE,
+  DEFAULT_PROFILE_SETTING_KEY,
+  GULF_A4_CALIBRATION_SETTING_GROUP,
+  profileDocumentFromSettings,
+  readDefaultCalibrationProfile,
+  profilePlacementMm,
   resolveBankChequeProfile,
 } from '../modules/chequePrint';
-import type { BankChequeProfileDefinition, GulfA4Profile } from '../modules/chequePrint';
+import type { BankChequeProfileDefinition, CalibrationProfileId, GulfA4Profile } from '../modules/chequePrint';
 import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
@@ -189,8 +193,20 @@ export default function Cheques() {
   const [accountsState, setAccountsState] = useState<'loading' | 'ready' | 'error'>('loading');
   /** إعدادات الخادم الخام — منها تُقرأ معايرة «قالب شيك الخليج» المحفوظة. */
   const [rawSettings, setRawSettings] = useState<{ key: string; value: string }[]>([]);
-  /** «قالب شيك الخليج» بعد المعايرة في هذه الجلسة، ليظهر فورًا بلا إعادة تحميل. */
-  const [gulfProfileOverride, setGulfProfileOverride] = useState<GulfA4Profile | null>(null);
+  /** ما حُفظ من معايرات في هذه الجلسة — مفهرسة بـ«البنك:البروفايل» ليظهر فورًا. */
+  const [savedCalibrations, setSavedCalibrations] = useState<Record<string, GulfA4Profile>>({});
+  /**
+   * بروفايل المعايرة المختار (المكتب / البيت / أخرى).
+   *
+   * الاختيار يدوي دائمًا — لا ربط بطابعة ولا اكتشاف تلقائي — لكنه **يُحفظ**:
+   * الصفحة تبدأ بآخر بروفايل اختاره المستخدم، ولا تعود إلى «المكتب» من تلقائها.
+   * «المكتب» قيمة أول تشغيل فقط، إلى أن يُحفظ اختيار.
+   *
+   * هذه الحالة الواحدة تخدم الصفحة والاستوديو معًا (يُمرَّر إليه أدنى الملف)،
+   * فلا يمكن أن تعاين ببروفايل وتطبع بآخر.
+   */
+  const [printCalibrationProfile, setPrintCalibrationProfile] =
+    useState<CalibrationProfileId>(DEFAULT_CALIBRATION_PROFILE);
   const [busy, setBusy] = useState(false);
   const [cancelConfirmCheque, setCancelConfirmCheque] = useState<Cheque | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -246,7 +262,11 @@ export default function Cheques() {
 
   useEffect(() => {
     api.get('/settings').then((res) => {
-      setRawSettings(res.data?.data?.settings ?? []);
+      const settings = res.data?.data?.settings ?? [];
+      setRawSettings(settings);
+      // البروفايل الافتراضي المحفوظ — آخر ما اختاره المستخدم، أو «المكتب» في
+      // أول تشغيل وعند أي قيمة غير صالحة.
+      setPrintCalibrationProfile(readDefaultCalibrationProfile(settings));
       setPrintConfigState('ready');
     }).catch(() => {
       // Printing stays blocked with a visible error rather than falling back to
@@ -287,17 +307,43 @@ export default function Cheques() {
   }, [soleActiveAccountId]);
 
   /**
-   * «قالب شيك الخليج» بعد المعايرة — الوثيقة كاملة (السطح + الحقول + إزاحة
-   * الورقة) من صفّ الإعدادات نفسه الذي يحفظه استوديو المعايرة، مع أولوية لما
-   * حُفظ في هذه الجلسة حتى يُطبَّق فورًا على المعاينة والطباعة بلا إعادة تحميل.
+   * وثيقة معايرة قالب بنكٍ ما على بروفايل الطباعة المختار.
    *
-   * حين تتعذّر قراءة الإعدادات تبقى الهندسة الأساسية المقيسة — وهي
-   * النتيجة الآمنة: لا شيك يُطبع بمعايرة غير مؤكدة.
+   * الهوية «قالب البنك + بروفايل المعايرة»: تُقرأ من صفّ الإعدادات الخاص بهذا
+   * الزوج وحده، مع أولوية لما حُفظ في هذه الجلسة حتى يُطبَّق فورًا على المعاينة
+   * والطباعة بلا إعادة تحميل. حين لا يوجد صفّ محفوظ تبقى الهندسة الأساسية
+   * المقيسة للبنك نفسه — لا استعارة من بنك ولا من بروفايل آخر.
    */
-  const gulfProfile: GulfA4Profile = useMemo(
-    () => gulfProfileOverride ?? gulfProfileFromSettings(rawSettings),
-    [gulfProfileOverride, rawSettings],
-  );
+  function calibrationDocumentFor(
+    bankProfile: BankChequeProfileDefinition | null,
+    calibrationProfile: CalibrationProfileId,
+  ): GulfA4Profile | null {
+    if (!bankProfile) return null;
+    return savedCalibrations[`${bankProfile.bankCode}:${calibrationProfile}`]
+      ?? profileDocumentFromSettings(bankProfile, rawSettings, calibrationProfile);
+  }
+
+  /**
+   * اختيار بروفايل المعايرة — من الصفحة أو من الاستوديو، فالمصدر واحد.
+   *
+   * يُطبَّق فورًا على المعاينة والطباعة، ويُحفظ كالافتراضي الدائم في صفّ إعدادات
+   * واحد لا يحمل أي هندسة. تعذّر الحفظ لا يُلغي الاختيار في هذه الجلسة — يبقى
+   * ما اختاره المستخدم فاعلاً، ولا يُستبدل بصمت ببروفايل آخر.
+   */
+  function chooseCalibrationProfile(next: CalibrationProfileId) {
+    setPrintCalibrationProfile(next);
+    setRawSettings((prev) => [
+      ...prev.filter((s) => s.key !== DEFAULT_PROFILE_SETTING_KEY),
+      { key: DEFAULT_PROFILE_SETTING_KEY, value: next },
+    ]);
+    api.put('/settings', {
+      settings: [{
+        key: DEFAULT_PROFILE_SETTING_KEY,
+        value: next,
+        group: GULF_A4_CALIBRATION_SETTING_GROUP,
+      }],
+    }).catch(() => setFormError('تعذّر حفظ بروفايل الطباعة الافتراضي.'));
+  }
 
   /** الحساب المختار في النموذج (لشيك جديد أو أثناء التعديل). */
   const selectedAccount = useMemo(
@@ -509,10 +555,9 @@ export default function Cheques() {
       return;
     }
 
-    // «قالب شيك الخليج» — resolved ONCE for the whole batch, so batch geometry
-    // cannot drift item to item and is identical to printing any of those cheques
-    // singly. Only runtimeData varies. Every item must be Gulf Bank stock; the
-    // batch is refused outright rather than partially printed.
+    // القالب والمعايرة يُحسمان مرة واحدة للدفعة كلها، فلا تنزلق الهندسة من عنصر
+    // إلى آخر وتطابق تمامًا طباعة أي من هذه الشيكات منفردًا — لا يتغير إلا
+    // runtimeData. الدفعة تُرفض كاملة ولا تُطبع جزئيًا.
     const uncalibrated = items.filter((c) => !chequePrintability(c).ok);
     if (uncalibrated.length) {
       const first = chequePrintability(uncalibrated[0]);
@@ -520,11 +565,21 @@ export default function Cheques() {
       setFormError(`${reason} (${uncalibrated.map((c) => c.chequeNumber).join('، ')})`);
       return;
     }
+    const batchBankProfile = bankProfileForCheque(items[0])!;
+    // دفعة واحدة = قالب بنك واحد. خلط بنكين يعني طباعة أحدهما بهندسة الآخر،
+    // فالرفض هنا صريح بدل أن يُطبع شيك بمعايرة لا تخصّه.
+    const foreign = items.filter((c) => bankProfileForCheque(c)?.bankCode !== batchBankProfile.bankCode);
+    if (foreign.length) {
+      setFormError(`لا يمكن طباعة دفعة تجمع قوالب بنوك مختلفة (${foreign.map((c) => c.chequeNumber).join('، ')})`);
+      return;
+    }
+    const batchDocument = calibrationDocumentFor(batchBankProfile, printCalibrationProfile);
+    if (!batchDocument) { setFormError(PROFILE_NOT_CALIBRATED_MESSAGE); return; }
     const gulfJob = buildChequePrintJob({
       purpose: 'production',
-      template: { id: null, name: GULF_A4_TEMPLATE_NAME, source: 'default-template' },
-      surface: gulfProfile.surface,
-      fields: gulfProfile.fields,
+      template: { id: null, name: batchBankProfile.displayName, source: 'default-template' },
+      surface: batchDocument.surface,
+      fields: batchDocument.fields,
       paperMode: 'a4',
       items: items.map((c) => ({
         runtimeData: buildChequeRuntimeData(chequeDataForTemplate(c)),
@@ -538,7 +593,7 @@ export default function Cheques() {
         surface: gulfJob.surface,
         fields: gulfJob.fields,
         paperMode: gulfJob.paperMode,
-        placement: gulfProfilePlacement(gulfProfile),
+        placement: profilePlacementMm(batchBankProfile, batchDocument.calibration),
         showPreviewBackground: true,
         purpose: gulfJob.purpose,
         templateName: gulfJob.template.name,
@@ -628,11 +683,16 @@ export default function Cheques() {
     // على قالب بنك آخر مهما كان.
     const printable = chequePrintability(cheque);
     if (!printable.ok) { setFormError(printable.message); return; }
+    // القالب من بنك الشيك، والمعايرة من بروفايل الطباعة المختار — نفس الوثيقة
+    // التي تراها المعاينة.
+    const bankProfile = bankProfileForCheque(cheque)!;
+    const document = calibrationDocumentFor(bankProfile, printCalibrationProfile);
+    if (!document) { setFormError(PROFILE_NOT_CALIBRATED_MESSAGE); return; }
     const job = buildChequePrintJob({
       purpose: 'production',
-      template: { id: null, name: GULF_A4_TEMPLATE_NAME, source: 'default-template' },
-      surface: gulfProfile.surface,
-      fields: gulfProfile.fields,
+      template: { id: null, name: bankProfile.displayName, source: 'default-template' },
+      surface: document.surface,
+      fields: document.fields,
       paperMode: 'a4',
       items: [{
         runtimeData: buildChequeRuntimeData(chequeDataForTemplate(cheque)),
@@ -645,7 +705,7 @@ export default function Cheques() {
         surface: job.surface,
         fields: job.fields,
         paperMode: job.paperMode,
-        placement: gulfProfilePlacement(gulfProfile),
+        placement: profilePlacementMm(bankProfile, document.calibration),
         showPreviewBackground: true,
         purpose: job.purpose,
         templateName: job.template.name,
@@ -789,14 +849,17 @@ export default function Cheques() {
   const isPrintedCheque = !!printTarget && printTarget.status === 'PRINTED';
 
   /**
-   * حُفظت معايرة قالب من الاستوديو.
+   * حُفظت معايرة زوج «بنك + بروفايل» من الاستوديو.
    *
-   * الطباعة الإنتاجية اليوم لا تمر إلا بقالب الخليج (البقية `PROVISIONAL`
-   * ومحروسة)، فلا يُحدَّث مسار الطباعة إلا لقالبه. معايرة أي بنك آخر محفوظة في
-   * مفتاحها وتظهر داخل الاستوديو، ولا تلمس ما يُطبع.
+   * تُخزَّن بمفتاح الزوج نفسه، فتظهر فورًا في الطباعة حين يكون بروفايل الطباعة
+   * المختار هو نفسه — ولا تلمس أي زوج آخر.
    */
-  function handleProfileSaved(bankCode: string, profile: GulfA4Profile) {
-    if (bankCode === GULF_BANK_CODE) setGulfProfileOverride(profile);
+  function handleProfileSaved(
+    bankCode: string,
+    calibrationProfile: CalibrationProfileId,
+    profile: GulfA4Profile,
+  ) {
+    setSavedCalibrations((prev) => ({ ...prev, [`${bankCode}:${calibrationProfile}`]: profile }));
   }
 
   // ── KPIs (computed from loaded data — no backend change) ───────────────────
@@ -902,6 +965,8 @@ export default function Cheques() {
           onClose={() => setShowCalibrator(false)}
           chequeRecord={printTarget}
           settings={rawSettings}
+          calibrationProfile={printCalibrationProfile}
+          onCalibrationProfileChange={chooseCalibrationProfile}
           onProfileSaved={handleProfileSaved}
         />
       )}
@@ -975,6 +1040,21 @@ export default function Cheques() {
             {activeProfile?.displayName ?? 'لا يوجد قالب لهذا البنك'}
             {!activeProfilePrintable && <em className="chqx-active-template-state">غير معاير — يلزم شيك أصلي</em>}
           </span>
+          {canPrint && (
+            <label className="chqx-print-profile" title="معايرة أي طابعة تُستخدم — تُختار يدويًا">
+              <span className="chqx-print-profile-label">بروفايل الطباعة</span>
+              <select
+                className="xpl-select"
+                aria-label="بروفايل الطباعة"
+                value={printCalibrationProfile}
+                onChange={(e) => chooseCalibrationProfile(e.target.value as CalibrationProfileId)}
+              >
+                {CALIBRATION_PROFILES.map((id) => (
+                  <option key={id} value={id}>{CALIBRATION_PROFILE_LABELS[id]}</option>
+                ))}
+              </select>
+            </label>
+          )}
           {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
           {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
           {canCalibrate && (

@@ -51,6 +51,13 @@ import {
 import { localFieldsToDesignerFields, profilePrintability } from './chequeProfileDefinition';
 import { parseProfileDocument } from './gulfBankA4Profile';
 import type { GulfA4Profile } from './gulfBankA4Profile';
+import {
+  DEFAULT_CALIBRATION_PROFILE,
+  LEGACY_ADOPTING_CALIBRATION_PROFILE,
+  calibrationSettingKey,
+  legacyCalibrationSettingKey,
+} from './calibrationProfiles';
+import type { CalibrationProfileId } from './calibrationProfiles';
 import type {
   BankChequeProfileDefinition,
   ChequeLocalField,
@@ -301,22 +308,40 @@ export function profileFactoryDocument(profile: BankChequeProfileDefinition): Gu
 }
 
 /**
- * The profile's SAVED calibration document, merged over its factory document.
+ * The SAVED calibration document for one bank template ON ONE CALIBRATION
+ * PROFILE, merged over that template's factory document.
  *
- * Reads only that bank's own settings row (`profile.settingKey`), through the
- * same merge rules Gulf has always used, so one bank's stored calibration can
- * neither be read as nor written over another's.
+ * The identity is `bank template + calibration profile`: it reads only that
+ * pair's own settings row, so Gulf/office cannot be read as Gulf/home, and
+ * neither can reach KFH or NBK. A pair never saved before starts from its own
+ * bank's factory document — never from another profile's edits.
+ *
+ * COMPATIBILITY: a calibration saved before profiles existed lives under the
+ * template's un-suffixed key. It is inherited by `home` — the printer that
+ * calibration was actually made on — so the Gulf calibration already in
+ * production keeps printing exactly as it did. `office` starts from the
+ * template's own factory geometry until it is calibrated in its own right.
+ *
+ * Inheritance is strictly a FALLBACK: the pair's own row is looked up FIRST, so
+ * once `home` has been saved its own row wins and the legacy value is never
+ * consulted again. The legacy row is read, never written, never deleted.
  */
 export function profileDocumentFromSettings(
   profile: BankChequeProfileDefinition,
   settings: { key: string; value: string }[],
+  calibrationProfile: CalibrationProfileId = DEFAULT_CALIBRATION_PROFILE,
 ): GulfA4Profile | null {
   const factory = profileFactoryDocument(profile);
   if (!factory) return null;
-  const row = Array.isArray(settings)
-    ? settings.find((s) => s && s.key === profile.settingKey)
-    : undefined;
-  return parseProfileDocument(row?.value, factory);
+  const rows = Array.isArray(settings) ? settings : [];
+  const find = (key: string) => rows.find((s) => s && s.key === key)?.value;
+
+  const stored = find(calibrationSettingKey(profile, calibrationProfile))
+    ?? (calibrationProfile === LEGACY_ADOPTING_CALIBRATION_PROFILE
+      ? find(legacyCalibrationSettingKey(profile))
+      : undefined);
+
+  return parseProfileDocument(stored, factory);
 }
 
 /**

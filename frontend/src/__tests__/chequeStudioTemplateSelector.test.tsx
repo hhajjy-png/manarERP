@@ -34,6 +34,7 @@ import { api } from '../api/client';
 import ChequeStudioOverlay from '../components/ChequeStudioOverlay';
 import {
   BANK_CHEQUE_PROFILES,
+  DEFAULT_CALIBRATION_PROFILE,
   GULF_A4_CALIBRATION_SETTING_KEY,
   GULF_A4_TEMPLATE_NAME,
   GULF_BANK_CODE,
@@ -43,6 +44,7 @@ import {
   NBK_CALIBRATION_SETTING_KEY,
   PROFILE_STATUS_LABELS,
   bankChequeProfileByCode,
+  calibrationSettingKey,
   gulfFactoryProfile,
   isProfileCalibratable,
   isProfilePrintable,
@@ -141,7 +143,8 @@ describe('selecting the Gulf template', () => {
     fireEvent.click(screen.getByRole('button', { name: /^حفظ$/ }));
     await vi.waitFor(() => expect(api.put).toHaveBeenCalled());
     const body = vi.mocked(api.put).mock.calls[0][1] as { settings: { key: string }[] };
-    expect(body.settings[0].key).toBe(GULF_A4_CALIBRATION_SETTING_KEY);
+    expect(body.settings[0].key)
+      .toBe(calibrationSettingKey(bankChequeProfileByCode(GULF_BANK_CODE)!, DEFAULT_CALIBRATION_PROFILE));
   });
 });
 
@@ -219,8 +222,10 @@ describe('selecting a provisional template', () => {
       await vi.waitFor(() => expect(api.put).toHaveBeenCalled());
       const body = vi.mocked(api.put).mock.calls[0][1] as { settings: { key: string }[] };
       expect(body.settings).toHaveLength(1);
-      expect(body.settings[0].key).toBe(ownKey);
-      expect(body.settings[0].key).not.toBe(GULF_A4_CALIBRATION_SETTING_KEY);
+      expect(body.settings[0].key)
+        .toBe(calibrationSettingKey(bankChequeProfileByCode(bankCode)!, DEFAULT_CALIBRATION_PROFILE));
+      expect(body.settings[0].key).toContain(ownKey.replace(/\.v\d+$/, ''));
+      expect(body.settings[0].key).not.toContain('gulf-a4');
     });
 
     it(`${displayName}: reads only its OWN saved row`, () => {
@@ -290,11 +295,10 @@ describe('switching templates', () => {
       .map((c) => (c[1] as { settings: { key: string }[] }).settings.map((row) => row.key))
       .flat();
     // Three saves, three distinct keys, in the order the templates were opened.
-    expect(keys).toEqual([
-      GULF_A4_CALIBRATION_SETTING_KEY,
-      KFH_CALIBRATION_SETTING_KEY,
-      NBK_CALIBRATION_SETTING_KEY,
-    ]);
+    expect(keys).toEqual(
+      [GULF_BANK_CODE, KFH_BANK_CODE, NBK_BANK_CODE].map((code) =>
+        calibrationSettingKey(bankChequeProfileByCode(code)!, DEFAULT_CALIBRATION_PROFILE)),
+    );
     expect(new Set(keys).size).toBe(3);
     // And the host is told WHICH bank each save belonged to.
     expect(onSaved.mock.calls.map((c) => c[0])).toEqual([GULF_BANK_CODE, KFH_BANK_CODE, NBK_BANK_CODE]);

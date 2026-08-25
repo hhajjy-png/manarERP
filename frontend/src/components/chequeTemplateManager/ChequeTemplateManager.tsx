@@ -91,9 +91,11 @@ interface ChequeTemplateManagerProps {
    */
   previewBackgroundSrc?: string | null;
   /**
-   * The settings row this template's calibration is saved in. Every bank profile
-   * carries its own key (`BankChequeProfileDefinition.settingKey`), so switching
-   * templates in the studio can never write one bank's calibration over another's.
+   * The settings row THIS calibration is saved in — one row per
+   * `bank template + calibration profile` pair, composed by the host through
+   * `calibrationSettingKey`. Switching either the template or the profile in the
+   * studio hands down a different key, so one pair's calibration can never be
+   * written over another's. Defaults to the template's own un-suffixed key.
    */
   settingKey?: string;
   /** Persisted successfully, so the host can apply it to preview and printing at once. */

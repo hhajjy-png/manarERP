@@ -53,6 +53,19 @@ export {
 export type { GulfCalibration, GulfLocalField, GulfA4Profile } from './gulfBankA4Profile';
 
 export {
+  CALIBRATION_PROFILES,
+  CALIBRATION_PROFILE_LABELS,
+  DEFAULT_CALIBRATION_PROFILE,
+  DEFAULT_PROFILE_SETTING_KEY,
+  LEGACY_ADOPTING_CALIBRATION_PROFILE,
+  isCalibrationProfileId,
+  readDefaultCalibrationProfile,
+  calibrationSettingKey,
+  legacyCalibrationSettingKey,
+} from './calibrationProfiles';
+export type { CalibrationProfileId } from './calibrationProfiles';
+
+export {
   CHEQUE_PRINTABLE_BINDINGS,
   PROFILE_NOT_CALIBRATED_MESSAGE,
   PROFILE_PROVISIONAL_MESSAGE,

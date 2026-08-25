@@ -39,10 +39,10 @@
   margin-inline: 6px;
   background: var(--xpl-border);
 }
-/* Print-provider selector (طريقة الطباعة) next to the print button. */
-.chqx-print-method { display: inline-flex; align-items: center; gap: 6px; }
-.chqx-print-method-label { font-size: 13px; font-weight: 600; color: var(--xpl-muted); white-space: nowrap; }
-.chqx-print-method .xpl-select { min-width: 170px; }
+/* Calibration-profile selector (بروفايل الطباعة) next to the print button. */
+.chqx-print-profile { display: inline-flex; align-items: center; gap: 6px; }
+.chqx-print-profile-label { font-size: 13px; font-weight: 600; color: var(--xpl-muted); white-space: nowrap; }
+.chqx-print-profile .xpl-select { min-width: 120px; }
 /* "تعيين كافتراضي" toggle — persists the selected provider as the app default. */
 .chqx-default-provider {
   display: inline-flex;

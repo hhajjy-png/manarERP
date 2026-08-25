@@ -145,3 +145,8 @@ html[data-theme="dark"] .chq-studio-overlay { background: var(--bg); }
   font-weight: 700;
   white-space: nowrap;
 }
+
+/* البروفايل — منتقٍ أضيق من منتقي القالب: ثلاث قيم ثابتة لا غير. */
+.chq-studio-picker-select--narrow {
+  min-width: 120px;
+}
