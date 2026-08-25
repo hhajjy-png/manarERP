@@ -80,9 +80,9 @@ in a table cell.
 | **Package** | سجل قوالب شيكات متعدد البنوك: قالب لكل بنك، ومنتقٍ داخل استوديو المعايرة الاحترافي نفسه، وقالبان جديدان لبيت التمويل والوطني بإعداد افتراضي قابل للمعايرة فورًا |
 | **Release status** | **RELEASED** — **Multi-Bank Cheque Profiles = RELEASED** · **KFH/NBK provisional profiles = RELEASED** |
 | **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
-| **Pack commit** | `__FEATURE_SHA__` |
-| **Merge** | `__MERGE_SHA__` — `--no-ff` merge of `feature/multi-bank-cheque-profiles-readiness-v1` |
-| **Tags** | `stable-multi-bank-cheque-profiles-v1` → `__MERGE_SHA__` · `checkpoint-multi-bank-cheque-profiles-v1` → `ce40ad09` (production HEAD قبل الدمج مباشرةً) |
+| **Pack commit** | `972c5aca` |
+| **Merge** | `0a015f95` — `--no-ff` merge of `feature/multi-bank-cheque-profiles-readiness-v1` |
+| **Tags** | `stable-multi-bank-cheque-profiles-v1` → `0a015f95` · `checkpoint-multi-bank-cheque-profiles-v1` → `ce40ad09` (production HEAD قبل الدمج مباشرةً) |
 | **Schema / migration** | **لا شيء** — صفر ترحيل، صفر تغيير مخطط، صفر مفتاح صلاحية، صفر API، صفر جدول، وصفر تعديل على أي سجل تاريخي |
 | **السجل** | `GULF_BANK` **APPROVED** · `KFH` **PROVISIONAL** · `NBK` **PROVISIONAL** — الأكواد من سجل البنوك القائم، فلا Bank ولا BankAccount جديد ولا تغيير على منتقي الحساب |
 | **قالب الخليج** | **بلا تغيير** — الهندسة والموضع وجدول الحقول وDate Block والصورة ومفتاح المعايرة وحالة APPROVED كما صدرت. التعديل الوحيد في وحدته تفويضٌ لتحويل mm→نسبة إلى المحوّل المشترك، ومجموعاته تثبت تطابق المخرَج حرفيًا |
