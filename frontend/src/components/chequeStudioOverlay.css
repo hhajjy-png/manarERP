@@ -102,3 +102,46 @@ html[data-theme="dark"] .chq-studio-overlay { background: var(--bg); }
 .chq-studio-designer-intro .material-symbols-outlined {
   font-size: 18px;
 }
+
+/* ── Template selector ──────────────────────────────────────────────────────
+   Which registered bank template the studio is looking at. Presentation only:
+   what may be printed is decided by the profile guard, never by this control. */
+.chq-studio-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-inline-start: 12px;
+}
+
+.chq-studio-picker-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  white-space: nowrap;
+}
+
+.chq-studio-picker-select {
+  min-width: 260px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Says plainly that the open template cannot print yet. */
+.chq-studio-picker-state {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fef3c7;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #b45309;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}

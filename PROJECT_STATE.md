@@ -73,7 +73,36 @@ in a table cell.
 
 ---
 
-## Latest Release — Gulf Bank A4 Cheque Template + Professional Calibration + Date Block v1
+## Latest Release — Multi-Bank Cheque Profiles Readiness v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | سجل قوالب شيكات متعدد البنوك: قالب لكل بنك، ومنتقٍ داخل استوديو المعايرة الاحترافي نفسه، وقالبان جديدان لبيت التمويل والوطني بإعداد افتراضي قابل للمعايرة فورًا |
+| **Release status** | **RELEASED** — **Multi-Bank Cheque Profiles = RELEASED** · **KFH/NBK provisional profiles = RELEASED** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
+| **Pack commit** | `__FEATURE_SHA__` |
+| **Merge** | `__MERGE_SHA__` — `--no-ff` merge of `feature/multi-bank-cheque-profiles-readiness-v1` |
+| **Tags** | `stable-multi-bank-cheque-profiles-v1` → `__MERGE_SHA__` · `checkpoint-multi-bank-cheque-profiles-v1` → `ce40ad09` (production HEAD قبل الدمج مباشرةً) |
+| **Schema / migration** | **لا شيء** — صفر ترحيل، صفر تغيير مخطط، صفر مفتاح صلاحية، صفر API، صفر جدول، وصفر تعديل على أي سجل تاريخي |
+| **السجل** | `GULF_BANK` **APPROVED** · `KFH` **PROVISIONAL** · `NBK` **PROVISIONAL** — الأكواد من سجل البنوك القائم، فلا Bank ولا BankAccount جديد ولا تغيير على منتقي الحساب |
+| **قالب الخليج** | **بلا تغيير** — الهندسة والموضع وجدول الحقول وDate Block والصورة ومفتاح المعايرة وحالة APPROVED كما صدرت. التعديل الوحيد في وحدته تفويضٌ لتحويل mm→نسبة إلى المحوّل المشترك، ومجموعاته تثبت تطابق المخرَج حرفيًا |
+| **KFH / NBK — الأساس** | مبذور من قياسات الخليج (الشيك الوحيد المقيس) ثم مكتوب كبيانات مستقلة في `PROVISIONAL_BASE_*` لا تقرأ قالب الخليج: شيك `180 × 90` · موضع `117 / 60` · المستفيد `8/23.5/108/7` · كتلة التاريخ `135/23/28/7` بخانات `0/9/18` · التفقيط `10/33/105/16` · المبلغ `132/40/38.5/8.5` |
+| **الاستقلال بنيويًا** | كل قالب نسخة عميقة: لا مصفوفة حقول ولا حقل ولا هندسة ولا موضع مشترك بين الثلاثة. مثبَّت بتأكيدات هوية لكل زوج وباختبار تعديل في المكان لا يصل إلى غيره |
+| **الصورة** | `previewBackground = null` للقالبين — **لا صورة شيك الخليج لهما**. أي صورة مستقبلية تبقى Preview only وغائبة بنيويًا عن شجرة الطباعة |
+| **التاريخ** | كتلة واحدة بخانات داخلية لكل بنك — لا حقول `chequeDay`/`chequeMonth`/`chequeYear` منفصلة في أي قالب |
+| **لماذا PROVISIONAL لا APPROVED** | الأرقام أساس عملي لا قياس لشيك KFH أو NBK، ولم تُطبع ورقة للتحقق. الحارس يفحص الحالة **قبل** الهندسة فلا تتجاوزه هندسة كاملة |
+| **منع الطباعة الإنتاجية** | ثلاثة مواضع في صفحة الشيكات: تعطيل الزر، ورفض الطباعة المفردة، ورفض الدفعة كاملة بأرقام شيكاتها — برسالة «قالب هذا البنك إعداد افتراضي ولم يُطابَق بعد مع الشيك الأصلي…». **الطباعة التجريبية من الاستوديو تبقى متاحة** لأغراض المعايرة ولا تُسجَّل كطباعة شيك |
+| **استوديو واحد للثلاثة** | منتقي القالب يقرأ `BANK_CHEQUE_PROFILES` (الغلاف بلا قائمة خاصة)، وكل قالب معايِر يفتح الاستوديو الكامل: المصمّم والسحب/التحجيم/التدوير/الأسهم وخطوط المحاذاة وUndo-Redo ولوحة الخصائص وربط البيانات والمعاينة الحية والحفظ واستعادة الافتراضي والطباعة التجريبية وإزاحتَي الورقة |
+| **مفاتيح المعايرة** | `cheque.calibration.gulf-a4.v1` · `cheque.calibration.kfh-a4.v1` · `cheque.calibration.nbk-a4.v1` — كل قالب يقرأ صفّه ويكتب مفتاحه ويستعيد أساسه، ويُعاد تركيبه على `bankCode` فلا تسرّب تحرير |
+| **إعادة الاستخدام** | لا محرك طباعة ولا Renderer ولا استوديو معايرة ولا نظام تخزين جديد: `Bank Profile → Runtime Engine → ChequeRenderSurface/ChequeA4Sheet → Professional Calibration Studio → ChequeTemplatePrintPage → Print IPC` القائم |
+| **Validation** | frontend `tsc --noEmit` ✅ · Frontend **180** ملف اختبار ✅ · المجموعات المستهدفة (السجل + المنتقي + مجموعات الخليج الثلاث) **126** اختبارًا ✅ · `build:front` ✅ |
+| **اختبارات جديدة** | `multiBankChequeProfiles` (السجل والحالات والاستقلال البنيوي وحارس الطباعة) · `chequeStudioTemplateSelector` (المنتقي، فتح الاستوديو الكامل للثلاثة، توجيه الحفظ لكل مفتاح، عدم اختلاط المعايرات) |
+| **الإصدار** | لا تغيير في `package.json` — حزمة frontend، **بلا إعادة بناء مثبِّت** |
+| **متبقٍ** | عند وصول شيك كل بنك: تُعدَّل `chequeGeometry` و`placement` و`previewBackground` و`fields` و`status: 'APPROVED'` داخل مدخل ذلك البنك وحده، ثم الضبط من الاستوديو — بلا لمس المحرك |
+
+---
+
+## Previous Release — Gulf Bank A4 Cheque Template + Professional Calibration + Date Block v1
 
 | Field | Value |
 |-------|-------|

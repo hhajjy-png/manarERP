@@ -1,0 +1,156 @@
+/*
+ * Setup state for a registered bank cheque template awaiting its physical
+ * specimen. Presentation only — the printability guard lives in the code, not
+ * here, so nothing in this file can make an unmeasured template printable.
+ */
+
+.cpsp-root {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 980px;
+}
+
+.cpsp-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.cpsp-head-icon {
+  font-size: 26px !important;
+  color: var(--xpl-orange, #b45309);
+}
+
+.cpsp-title {
+  display: block;
+  font-size: 16px;
+  color: var(--xpl-text, #0f172a);
+}
+
+.cpsp-status {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--xpl-amber-light, #fef3c7);
+  color: var(--xpl-orange, #b45309);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.cpsp-lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--xpl-muted, #64748b);
+}
+
+.cpsp-body {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.cpsp-sheet-col {
+  flex: 1 1 320px;
+  min-width: 260px;
+}
+
+/* Neutral A4-proportioned outline. No cheque area, no photo, no field boxes. */
+.cpsp-sheet {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed var(--xpl-border, #cbd5e1);
+  border-radius: 8px;
+  background: var(--xpl-surface, #fff);
+}
+
+.cpsp-sheet-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--xpl-muted, #94a3b8);
+  font-family: var(--app-font-mono);
+}
+
+.cpsp-sheet-caption em {
+  font-style: normal;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.cpsp-req-col {
+  flex: 1 1 340px;
+  min-width: 280px;
+}
+
+.cpsp-req-title {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  color: var(--xpl-text, #0f172a);
+}
+
+.cpsp-req-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cpsp-req-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--xpl-text, #0f172a);
+}
+
+.cpsp-req-list .material-symbols-outlined {
+  font-size: 17px !important;
+  color: var(--xpl-muted, #94a3b8);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cpsp-req-list strong {
+  display: block;
+  font-weight: 700;
+}
+
+.cpsp-req-list em {
+  display: block;
+  font-style: normal;
+  font-size: 11.5px;
+  color: var(--xpl-muted, #64748b);
+  line-height: 1.7;
+}
+
+.cpsp-note {
+  margin: 14px 0 0;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--xpl-muted, #64748b);
+}
+
+.cpsp-note code {
+  font-family: var(--app-font-mono);
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--xpl-bg, #f1f5f9);
+}

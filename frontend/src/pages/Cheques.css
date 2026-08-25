@@ -225,3 +225,20 @@
   font-size: 16px;
   color: var(--xpl-primary, #2563eb);
 }
+
+/* قالب بنك مسجَّل لكن بلا شيك أصلي مقيس بعد — الشارة تقول ذلك صراحةً بدل أن
+   توحي بأن الطباعة جاهزة. الطباعة نفسها محروسة في الكود، لا بالتنسيق. */
+.chqx-active-template--pending {
+  background: var(--xpl-amber-light, #fef3c7);
+  border-color: var(--xpl-orange, #f59e0b);
+  color: var(--xpl-orange, #b45309);
+}
+.chqx-active-template--pending .material-symbols-outlined {
+  color: var(--xpl-orange, #b45309);
+}
+.chqx-active-template-state {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.85;
+}

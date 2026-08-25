@@ -62,6 +62,7 @@
  */
 import type { DesignerField, DesignerSurfaceSpec, DesignerTextAlign } from '../chequeTemplateDesigner';
 import { A4_LANDSCAPE_MM, MM_PER_CM, type ChequeA4Placement } from './physicalPage';
+import { localFieldsToDesignerFields } from './chequeProfileDefinition';
 
 /** The name this profile is registered and displayed under. */
 export const GULF_A4_TEMPLATE_NAME = 'قالب شيك الخليج';
@@ -310,37 +311,10 @@ export function gulfFieldFinalMm(
  * moving the cheque area (calibration) cannot disturb them.
  */
 export function gulfChequeFields(): DesignerField[] {
-  return GULF_LOCAL_FIELDS.map((f) => ({
-    id: f.id,
-    label: f.label,
-    // Deliberately empty: a bound field with no real runtime value must raise a
-    // blocking error, never fall back to sample text on a live cheque.
-    value: '',
-    x: (f.xMm / GULF_CHEQUE_WIDTH_MM) * 100,
-    y: (f.yMm / GULF_CHEQUE_HEIGHT_MM) * 100,
-    width: (f.widthMm / GULF_CHEQUE_WIDTH_MM) * 100,
-    height: (f.heightMm / GULF_CHEQUE_HEIGHT_MM) * 100,
-    rotation: 0,
-    fontSize: f.fontSizePx,
-    fontWeight: f.fontWeight,
-    textAlign: f.textAlign,
-    color: '#000000',
-    zIndex: f.zIndex,
-    binding: f.binding,
-    visible: true,
-    ...(f.multiline ? { multiline: true } : {}),
-    // Slot offsets are percentages of the FIELD's own box, so they scale and
-    // travel with it: moving the date block moves every cell by construction.
-    ...(f.slotsMm
-      ? {
-        slots: f.slotsMm.map((slot) => ({
-          key: slot.key,
-          xPercent: (slot.xMm / f.widthMm) * 100,
-          widthPercent: (slot.widthMm / f.widthMm) * 100,
-        })),
-      }
-      : {}),
-  }));
+  // The conversion itself is not Gulf-specific — it is the one every bank
+  // profile uses (see `localFieldsToDesignerFields`). Only the numbers below are
+  // Gulf's, and they are unchanged.
+  return localFieldsToDesignerFields(GULF_LOCAL_FIELDS, GULF_CHEQUE_WIDTH_MM, GULF_CHEQUE_HEIGHT_MM);
 }
 
 // ── The calibratable PROFILE DOCUMENT ────────────────────────────────────────
@@ -417,7 +391,21 @@ function isCalibratedField(value: unknown): value is DesignerField {
  *     geometry — rather than to a partial layout.
  */
 export function parseGulfProfile(raw: string | null | undefined): GulfA4Profile {
-  const factory = gulfFactoryProfile();
+  return parseProfileDocument(raw, gulfFactoryProfile());
+}
+
+/**
+ * Merge a stored calibration document over a FACTORY document.
+ *
+ * Extracted from `parseGulfProfile` unchanged so every bank profile reads its
+ * own stored row through the same rules — the factory it merges over is the only
+ * difference. Gulf calls it with `gulfFactoryProfile()`, which is exactly what
+ * it did inline before, so its behaviour is byte-identical.
+ */
+export function parseProfileDocument(
+  raw: string | null | undefined,
+  factory: GulfA4Profile,
+): GulfA4Profile {
   if (!raw) return factory;
   let parsed: unknown;
   try {
@@ -441,7 +429,7 @@ export function parseGulfProfile(raw: string | null | undefined): GulfA4Profile 
   });
 
   return {
-    id: GULF_A4_PROFILE_ID,
+    id: factory.id,
     name: factory.name,
     surface,
     fields,
@@ -455,7 +443,7 @@ export function parseGulfProfile(raw: string | null | undefined): GulfA4Profile 
 
 export function serializeGulfProfile(profile: GulfA4Profile): string {
   return JSON.stringify({
-    id: GULF_A4_PROFILE_ID,
+    id: profile.id,
     surface: profile.surface,
     fields: profile.fields,
     calibration: {
