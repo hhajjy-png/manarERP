@@ -73,7 +73,38 @@ in a table cell.
 
 ---
 
-## Latest Release — Multi-Bank Cheque Profiles Readiness v1
+## Latest Release — Simple Cheque Calibration Profiles + Persistent Default v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | بروفايلات معايرة ثابتة لكل قالب شيك — المكتب / البيت / أخرى — مع توافق المعايرة القديمة إلى `home` وحفظ آخر بروفايل مختار كافتراضي دائم |
+| **Release status** | **RELEASED** — **Simple Cheque Calibration Profiles = RELEASED** · **office / home / other profiles = RELEASED** · **Legacy Gulf calibration → home compatibility = RELEASED** · **Persistent default calibration profile = RELEASED** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
+| **Pack commit** | `9db0051f` |
+| **Merge** | `ac05c45c` — `--no-ff` merge of `feature/cheque-calibration-profiles-v1` |
+| **Tags** | `stable-cheque-calibration-profiles-v1` → `ac05c45c` · `checkpoint-cheque-calibration-profiles-v1` → `0211cc23` (production HEAD قبل الدمج مباشرةً) |
+| **Schema / migration** | **لا شيء** — صفر ترحيل، صفر تغيير مخطط، صفر جدول، صفر API جديد، صفر مفتاح صلاحية — تخزين عبر `settings` القائم و`PUT /settings` وحده |
+| **البروفايلات** | ثلاثة ثابتة فقط: `office` = المكتب · `home` = البيت · `other` = أخرى. **لا إنشاء ولا حذف ولا تسمية مخصصة ولا ربط بطابعة ولا اكتشاف تلقائي ولا سجل تاريخي** |
+| **الهوية** | `Bank Template + Calibration Profile` — تسعة صفوف مستقلة لثلاثة بنوك، كل زوج يقرأ صفّه ويكتب مفتاحه ويستعيد أساس بنكه |
+| **مفاتيح المعايرة** | `cheque.calibration.<bank>-a4.<profile>.v1` — مركّبة من مفتاح القالب نفسه بإدراج معرّف البروفايل قبل لاحقة الإصدار |
+| **بروفايل جديد** | يبدأ من **Factory Document الخاص ببنكه** — لا من تعديلات بروفايل آخر ولا من بنك آخر |
+| **Legacy → home** | المعايرة المحفوظة قبل البروفايلات على `cheque.calibration.gulf-a4.v1` يرثها **`home`** لا `office` — فـ`office` يبدأ من أساس الخليج حتى يُعايَر بنفسه، و`other` كذلك |
+| **أولوية Profile-specific** | مفتاح الزوج يُبحث أولاً دائماً؛ الوراثة fallback فقط. أي صفّ محفوظ لبروفايل يتغلّب على Legacy دائماً، وترتيب الصفوف لا يغيّر شيئاً |
+| **المفتاح القديم** | **يُقرأ ولا يُكتب ولا يُحذف** — أول حفظ على `home` يكتب مفتاح البروفايل ويبقى الصفّ القديم في مكانه؛ لا migration |
+| **الافتراضي الدائم** | `cheques.defaultCalibrationProfile` — صفّ واحد للتطبيق كله يحمل كلمة واحدة (`office`/`home`/`other`). آخر اختيار يبقى بعد إغلاق البرنامج وإعادة تشغيله حتى يغيّره المستخدم |
+| **office كـfallback** | قيمة أول تشغيل فقط — وأي قيمة مفقودة أو فارغة أو غير صالحة ترجع إليه بدل أن تكسر المنتقي |
+| **مصدر واحد** | صفحة الشيكات تملك الحالة، و`ChequeStudioOverlay` صار **controlled** يستقبل البروفايل ويبلّغ التغيير — فلا يمكن أن تختلف الصفحة والاستوديو |
+| **Preview = Print** | المعاينة والطباعة الفعلية تشتقّان من **نفس الوثيقة** عبر `calibrationDocumentFor(...)` — لا إعداد معاينة منفصل |
+| **لم يُمس** | أي Geometry أو إحداثيات حقول أو offsets أو Bank Profiles — `GULF_BANK` **APPROVED** · `KFH` **PROVISIONAL** · `NBK` **PROVISIONAL** كما هي، والطباعة الإنتاجية للقالبين ما زالت محجوبة تحت كل بروفايل |
+| **حارس الدفعة المختلطة** | دفعة تجمع قوالب بنوك مختلفة **تُرفض صراحةً** بأرقام شيكاتها بدل أن تُطبع كلها بهندسة أول عنصر |
+| **إعادة الاستخدام** | لا Print Engine ولا Calibration Engine ولا Runtime ولا Renderer ولا نظام تفضيلات جديد — ولا `localStorage` |
+| **Validation** | frontend `tsc --noEmit` ✅ · `build:front` ✅ · المجموعة الكاملة **224** ملفاً / **4141** اختباراً ✅ · sanity مستهدف **149** اختباراً ✅ |
+| **اختبارات جديدة** | `chequeCalibrationProfiles` (32) — الثلاثة فقط، استقلال الأزواج، Factory لكل بنك، Legacy→home، أولوية profile-specific · `chequeDefaultCalibrationProfile` (23) — fallback، حفظ، round-trip كامل، قيم فاسدة، تزامن الصفحة والاستوديو، عدم تغيّر الوثائق |
+| **الإصدار** | لا تغيير في `package.json` — حزمة frontend، **بلا إعادة بناء مثبّت**. `manar.exe` لم يُبنَ في هذه المهمة |
+
+---
+
+## Previous Release — Multi-Bank Cheque Profiles Readiness v1
 
 | Field | Value |
 |-------|-------|
