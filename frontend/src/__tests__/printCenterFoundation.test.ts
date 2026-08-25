@@ -155,7 +155,7 @@ describe('Print Center Foundation — scope discipline', () => {
     // cheque page owns its printing through `modules/chequePrint`, and the Print
     // Center is nowhere near it.
     expect(cheques).toContain("from '../modules/chequePrint'");
-    expect(cheques).toContain('gulfProfilePlacement');
+    expect(cheques).toContain('profilePlacementMm');
 
     const studio = readFileSync('src/components/chequeTemplateManager/ChequeTemplateManager.tsx', 'utf8');
     expect(studio).not.toContain('submitPrintJob');
