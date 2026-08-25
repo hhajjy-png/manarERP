@@ -73,7 +73,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Simple Cheque Calibration Profiles + Persistent Default v1
+## Latest Release — Production Release 2026.5.7 (Desktop Installer)
+
+| Field | Value |
+|-------|-------|
+| **Package** | مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج على `production` منذ مثبِّت 2026.5.6 — إصدار تغليف، بلا عمل ميزات جديد |
+| **Release status** | **RELEASED** — Desktop/Installer |
+| **Version** | `2026.5.6` → **`2026.5.7`** — `package.json` هو الملف الوحيد المتغيّر في commit الإصدار |
+| **Release date** | 2026-08-25 |
+| **Production source HEAD** | `f206103c` — النسخة مبنيّة من هذا الـHEAD وحده، بلا feature branch ولا stash ولا ملفات غير مُتتبَّعة |
+| **Release commit** | `f206103c` — `chore(release): Production Release 2026.5.7` |
+| **Tag** | `stable-production-release-2026.5.7` |
+| **الحزم المشمولة** | كل ما على `production` حتى هذا الـHEAD، ومنها الخمس المدموجة منذ مثبِّت 2026.5.6: **Multi-Bank Cheques Foundation v1** (`a684c66a`) · **Financial Accuracy & KPI Integrity v1** (`ac7cb93d`) · **Gulf Bank A4 Cheque Template + Professional Calibration + Date Block v1** (`2ea4aae8`) · **Multi-Bank Cheque Profiles Readiness v1** (`0a015f95`) · **Simple Cheque Calibration Profiles + Persistent Default v1** (`ac05c45c`) — بما فيها بروفايلات المكتب/البيت/أخرى وتوافق Legacy Gulf → home والبروفايل الافتراضي الدائم |
+| **Product Owner visual review** | **تمت واعتُمدت لكل حزمة في مرحلتها** قبل دمجها إلى `production`؛ هذا الإصدار تغليف لما اعتُمد سابقًا ولا يضيف عملًا يحتاج مراجعة بصرية جديدة |
+| **Artifact — Installer** | `release/AlManarERP-Setup-2026.5.7.exe` — **138,478,346 بايت (132.06 ميغابايت)** · SHA-256 `89d4a8c6d10ff705073da2213c8ce43d0538c28848900b695d8d47a463800914` · NSIS · Windows 10/11 x64 · صفر متطلبات تشغيل خارجية |
+| **Artifact — التطبيق** | `release/win-unpacked/Al Manar ERP.exe` — 180,192,256 بايت · FileVersion `2026.5.7` · ProductVersion `2026.5.7.0` · `win-unpacked` 3,384 ملفًا / 470,350,839 بايت · `app.asar` 688 مدخلًا |
+| **أول مثبِّت يشحن** | الترحيل السبعين `20260821120000_multi_bank_cheques_foundation_v1` وجدولَي `banks` و`bank_accounts` ومفتاحَي `banks.read`/`banks.manage` — **70 ترحيلًا** مشحونًا |
+| **عميل Prisma المُعبَّأ** | **87 نموذجًا**، مجموعة النماذج مطابقة حرفيًا لـ`backend/prisma/schema.prisma` — أكّدها حارس فشل-مغلق في `prepare-backend-deps.js` أثناء البناء |
+| **قاعدة البيانات الذهبية** | SHA-256 `8ab608cc9416f098d5d510d825b7dfa48cbc26b78d57f4a9220592c6b4b6dc24` · 4,059,136 بايت · مطابقة حرفيًا للبيان `seed-data/golden-manifest.json` · لم تُشحن أي بيانات حالة من جهاز البناء (Data Safety Pack v2 — F-04) |
+| **تدقيق نظافة الحزمة** | صفر `__livetest__`/`__probe__` · صفر `.ts`/`.d.ts` · صفر خرائط مصدر · صفر `.env`/`.bak` · صفر ملفات اختبار · قاعدة بيانات واحدة فقط |
+| **Sanity checks** | git integrity (`production == origin/production`، شجرة نظيفة، صفر commits غير مدفوعة) ✅ · `prisma migrate status` = 70 ترحيلًا مطبَّقًا بلا معلّق ✅ · backend/frontend/electron `tsc --noEmit` ✅ · `npm run dist` ✅ · صفر متطلبات تشغيل خارجية في `runtime-requirements.json` ✅ |
+| **Smoke test** | التطبيق المُعبَّأ يفتح · Electron main يبدأ بلا خطأ (5 عمليات) · الخدمة الخلفية تستمع على `127.0.0.1:48211` · `/api/health` يعيد `{"success":true,"status":"ok"}` · قاعدة البيانات تُفتح و«70 ترحيلًا مطبَّقًا، لا شيء معلَّق» · النافذة الرئيسية تُحمَّل بعنوانها العربي · `error.log` فارغ · رقم النسخة `2026.5.7` ظاهر في التطبيق قيد التشغيل |
+| **ملاحظة بيئة البناء** | على جهاز البناء يفشل بدء أي نسخة مُعبَّأة بخروج `9` خلال ~1.1 ثانية ما لم تُمرَّر `--disable-gpu`؛ **النسخة المثبَّتة 2026.5.6 السابقة تفشل بالطريقة نفسها**، فالسبب بيئي (تهيئة GPU) ولا علاقة له بهذا الإصدار. أُجري الـSmoke test بـ`--no-sandbox --disable-gpu` ونجح بالكامل |
+| **متطلب متابعة (لم يُنفَّذ في هذا الإصدار)** | `scripts/prepare-backend-deps.js` يُفضّل `backend/node_modules/.prisma` مصدرًا للعميل، لكنه يعيد كتابة `backend/node_modules` في نهاية كل تغليف — فيصير المصدر مخرَجَ التغليف السابق، بينما `prisma generate` يكتب إلى جذر الـworkspace المرفوع. جمّد ذلك المصدر على 85 نموذجًا وأوقف البناء (الحارس عمل كما صُمِّم). أُزيلت النسخة القديمة من `backend/node_modules` فسقط السكربت إلى مصدر الجذر الصحيح (87). **إصلاح السكربت نفسه مسجَّل كمتابعة مطلوبة ولم يُغيَّر داخل هذا الإصدار** — كما فعل إصدار 2026.5.2 مع العيب نفسه |
+
+---
+
+## Previous Release — Simple Cheque Calibration Profiles + Persistent Default v1
 
 | Field | Value |
 |-------|-------|
