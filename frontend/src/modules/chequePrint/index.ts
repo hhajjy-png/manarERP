@@ -52,6 +52,45 @@ export {
 } from './gulfBankA4Profile';
 export type { GulfCalibration, GulfLocalField, GulfA4Profile } from './gulfBankA4Profile';
 
+export {
+  CHEQUE_PRINTABLE_BINDINGS,
+  PROFILE_NOT_CALIBRATED_MESSAGE,
+  PROFILE_PROVISIONAL_MESSAGE,
+  PROFILE_STATUS_LABELS,
+  PROFILE_STATUS_HINTS,
+  localFieldsToDesignerFields,
+  profilePrintability,
+  isProfilePrintable,
+  isProfileCalibratable,
+} from './chequeProfileDefinition';
+export type {
+  ChequeLocalField,
+  BankChequeProfileStatus,
+  BankChequeProfileDefinition,
+  ChequePhysicalGeometry,
+  ChequePagePlacement,
+  ProfilePrintability,
+} from './chequeProfileDefinition';
+
+export {
+  BANK_CHEQUE_PROFILES,
+  KFH_BANK_CODE,
+  NBK_BANK_CODE,
+  KFH_CALIBRATION_SETTING_KEY,
+  NBK_CALIBRATION_SETTING_KEY,
+  PROVISIONAL_BASE_GEOMETRY,
+  PROVISIONAL_BASE_PLACEMENT,
+  SETUP_PLACEHOLDER_SURFACE_CM,
+  profileFactoryDocument,
+  profileDocumentFromSettings,
+  bankChequeProfileByCode,
+  resolveBankChequeProfile,
+  chequeProfilePrintability,
+  profileSurfaceCm,
+  profileDesignerFields,
+  profilePlacementMm,
+} from './bankChequeProfiles';
+
 export { buildChequePrintJob } from './chequePrintJob';
 export type {
   ChequePrintJob,

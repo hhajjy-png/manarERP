@@ -13,18 +13,22 @@ import {
   defaultBindingResolver,
   isSemanticKey,
 } from '../../modules/chequeTemplateRuntime';
-import chequeBg from '../../assets/cheakv1.png';
 import DataSourceControl from './DataSourceControl';
 import ChequePreview from './ChequePreview';
 import {
   buildChequePrintJob,
   GULF_A4_CALIBRATION_SETTING_GROUP,
-  GULF_A4_CALIBRATION_SETTING_KEY,
-  gulfFactoryProfile,
-  gulfProfilePlacement,
+  bankChequeProfileByCode,
+  GULF_BANK_CODE,
+  profileFactoryDocument,
+  profilePlacementMm,
   serializeGulfProfile,
 } from '../../modules/chequePrint';
-import type { GulfA4Profile, GulfCalibration } from '../../modules/chequePrint';
+import type {
+  BankChequeProfileDefinition,
+  GulfA4Profile,
+  GulfCalibration,
+} from '../../modules/chequePrint';
 import { api } from '../../api/client';
 import { buildChequeRuntimeData } from './chequeRuntimeData';
 import type { ChequeRecordInput } from './chequeRuntimeData';
@@ -70,8 +74,28 @@ function designerIsFieldBound(field: DesignerField): boolean {
 interface ChequeTemplateManagerProps {
   /** The current official cheque record. Null = design mode (mock preview, test print disabled). */
   chequeRecord?: ChequeRecordInput | null;
-  /** The calibrated profile currently in force, read from `/settings` by the host page. */
+  /** The calibrated document currently in force for this template. */
   gulfProfile: GulfA4Profile;
+  /**
+   * WHICH bank template is open. Everything per-bank is read from here — the A4
+   * placement, the preview photo, the calibration settings key and the factory
+   * document "restore default" returns to — so no bank's value can leak into
+   * another's studio session. Defaults to the Gulf profile, which is what the
+   * single-template studio used.
+   */
+  profile?: BankChequeProfileDefinition;
+  /**
+   * The bank's OWN preview cheque photo, or `null` when that bank's image has not
+   * been added yet. Never defaulted to another bank's image: a studio with no
+   * photo shows a bare surface, which is the honest state.
+   */
+  previewBackgroundSrc?: string | null;
+  /**
+   * The settings row this template's calibration is saved in. Every bank profile
+   * carries its own key (`BankChequeProfileDefinition.settingKey`), so switching
+   * templates in the studio can never write one bank's calibration over another's.
+   */
+  settingKey?: string;
   /** Persisted successfully, so the host can apply it to preview and printing at once. */
   onGulfProfileSaved?: (profile: GulfA4Profile) => void;
 }
@@ -105,8 +129,12 @@ function profileToCurrent(profile: GulfA4Profile): Current {
 export default function ChequeTemplateManager({
   chequeRecord,
   gulfProfile,
+  profile = bankChequeProfileByCode(GULF_BANK_CODE)!,
+  previewBackgroundSrc,
+  settingKey = profile.settingKey,
   onGulfProfileSaved,
 }: ChequeTemplateManagerProps) {
+  const backgroundSrc = (previewBackgroundSrc ?? profile.previewBackground) ?? undefined;
   const navigate = useNavigate();
   const [current, setCurrent] = useState<Current>(() => profileToCurrent(gulfProfile));
   const [dirty, setDirty] = useState(false);
@@ -120,12 +148,10 @@ export default function ChequeTemplateManager({
    * and the test-print navigation, so there is exactly one set of calibrated
    * coordinates — never a preview copy and a print copy.
    */
-  const placement = gulfProfilePlacement({
-    ...gulfFactoryProfile(),
-    surface: current.surface,
-    fields: current.fields,
-    calibration: current.calibration,
-  });
+  // THIS template's own base placement plus THIS template's own offsets. Never
+  // another bank's base — that is what keeps the sheets independent.
+  const placement = profilePlacementMm(profile, current.calibration)
+    ?? { xMm: 0, yMm: 0, widthMm: current.surface.widthCm * 10, heightMm: current.surface.heightCm * 10 };
 
   // Runtime data: real cheque values when a cheque is present, else mock.
   const runtimeData = useMemo(
@@ -219,8 +245,9 @@ export default function ChequeTemplateManager({
   async function handleSave() {
     if (saving) return;
     setSaving(true);
-    const profile: GulfA4Profile = {
-      ...gulfFactoryProfile(),
+    const document: GulfA4Profile = {
+      ...gulfProfile,
+      name: current.name,
       surface: current.surface,
       fields: current.fields,
       calibration: current.calibration,
@@ -228,8 +255,8 @@ export default function ChequeTemplateManager({
     try {
       await api.put('/settings', {
         settings: [{
-          key: GULF_A4_CALIBRATION_SETTING_KEY,
-          value: serializeGulfProfile(profile),
+          key: settingKey,
+          value: serializeGulfProfile(document),
           group: GULF_A4_CALIBRATION_SETTING_GROUP,
         }],
       });
@@ -240,14 +267,20 @@ export default function ChequeTemplateManager({
       setSaving(false);
     }
     setDirty(false);
-    onGulfProfileSaved?.(profile);
+    onGulfProfileSaved?.(document);
     flash('تم الحفظ.');
   }
 
-  /** Back to the measured factory geometry — unsaved until the user saves. */
+  /**
+   * Back to THIS template's own factory geometry — unsaved until the user saves.
+   * A provisional template restores to its own seeded baseline, never to the
+   * approved template's numbers.
+   */
   function handleRestoreFactory() {
+    const factory = profileFactoryDocument(profile);
+    if (!factory) return;
     touchedRef.current = true;
-    load(profileToCurrent(gulfFactoryProfile()));
+    load(profileToCurrent(factory));
     setDirty(true);
     flash('تمت استعادة الإحداثيات الأساسية (لم تُحفظ بعد).');
   }
@@ -315,7 +348,7 @@ export default function ChequeTemplateManager({
           <ChequeTemplateDesigner
             key={designerKey}
             surface={current.surface}
-            backgroundSrc={chequeBg}
+            backgroundSrc={backgroundSrc}
             initialFields={current.fields}
             onChange={handleDesignerChange}
             labels={AR_PANEL_LABELS}
@@ -328,7 +361,7 @@ export default function ChequeTemplateManager({
         <div className="ctm-preview-pane">
           {/* A4 is the profile's paper by definition — the cheque area is placed
               on the sheet at `placement`, exactly as the print job places it. */}
-          <ChequePreview model={previewModel} backgroundSrc={chequeBg} paperMode="a4" placement={placement} />
+          <ChequePreview model={previewModel} backgroundSrc={backgroundSrc} paperMode="a4" placement={placement} />
         </div>
       </div>
     </div>

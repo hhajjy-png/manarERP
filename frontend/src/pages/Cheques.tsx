@@ -19,11 +19,13 @@ import {
   buildChequePrintJob,
   GULF_A4_TEMPLATE_NAME,
   GULF_BANK_CODE,
-  GULF_BANK_NAME_AR,
+  chequeProfilePrintability,
+  PROFILE_NOT_CALIBRATED_MESSAGE,
   gulfProfileFromSettings,
   gulfProfilePlacement,
+  resolveBankChequeProfile,
 } from '../modules/chequePrint';
-import type { GulfA4Profile } from '../modules/chequePrint';
+import type { BankChequeProfileDefinition, GulfA4Profile } from '../modules/chequePrint';
 import { buildChequeRuntimeData } from '../components/chequeTemplateManager/chequeRuntimeData';
 import type { ChequeRecordInput } from '../components/chequeTemplateManager/chequeRuntimeData';
 import { fetchAllRows, downloadTableExcel } from '../utils/exportUtils';
@@ -114,9 +116,13 @@ type Tone = 'neutral' | 'green' | 'red' | 'orange' | 'blue' | 'indigo';
  * نفس Print IPC، ونفس استوديو المعايرة الاحترافي.
  */
 
-/** الرفض حين لا يكون الشيك على ورق بنك الخليج — القالب المعتمد مخصص له وحده. */
-const GULF_PROFILE_WRONG_BANK_MESSAGE =
-  `«${GULF_A4_TEMPLATE_NAME}» مخصص لشيكات بنك الخليج فقط. راجع الحساب البنكي لهذا الشيك.`;
+/**
+ * قالب كل بنك يُحسم من سجل البنوك، لا من اسم نصّي.
+ *
+ * «قالب شيك الخليج» هو القالب المعتمد الوحيد اليوم؛ قالبا بيت التمويل والوطني
+ * مسجّلان لكنهما بلا شيك أصلي مقيس بعد، فيُرفضان للطباعة برسالة صريحة بدل
+ * السقوط على هندسة الخليج — انظر `bankChequeProfiles`.
+ */
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -507,9 +513,11 @@ export default function Cheques() {
     // cannot drift item to item and is identical to printing any of those cheques
     // singly. Only runtimeData varies. Every item must be Gulf Bank stock; the
     // batch is refused outright rather than partially printed.
-    const wrongBank = items.filter((c) => !isGulfBankTarget(c));
-    if (wrongBank.length) {
-      setFormError(`${GULF_PROFILE_WRONG_BANK_MESSAGE} (${wrongBank.map((c) => c.chequeNumber).join('، ')})`);
+    const uncalibrated = items.filter((c) => !chequePrintability(c).ok);
+    if (uncalibrated.length) {
+      const first = chequePrintability(uncalibrated[0]);
+      const reason = first.ok ? PROFILE_NOT_CALIBRATED_MESSAGE : first.message;
+      setFormError(`${reason} (${uncalibrated.map((c) => c.chequeNumber).join('، ')})`);
       return;
     }
     const gulfJob = buildChequePrintJob({
@@ -587,13 +595,19 @@ export default function Cheques() {
    * name — the same fallback the rest of this page uses for them. No Bank and no
    * BankAccount is created, and the account picker is not touched.
    */
-  function isGulfBankTarget(cheque?: Cheque): boolean {
+  function bankProfileForCheque(cheque?: Cheque): BankChequeProfileDefinition | null {
     const target = cheque ?? printTarget;
     const accountId = target ? target.bankAccountId : (form.bankAccountId ? Number(form.bankAccountId) : null);
     const account = accountId != null ? accounts.find((a) => a.id === accountId) : null;
-    if (account) return account.bankCode === GULF_BANK_CODE;
-    const bankName = target?.bankName ?? selectedAccount?.bankNameAr ?? '';
-    return bankName === GULF_BANK_NAME_AR;
+    return resolveBankChequeProfile({
+      bankCode: account?.bankCode ?? null,
+      bankNameAr: target?.bankName ?? selectedAccount?.bankNameAr ?? null,
+    });
+  }
+
+  /** هل يملك هذا الشيك قالبًا معتمدًا فعلًا (أبعاد + موضع + الحقول الأربعة)؟ */
+  function chequePrintability(cheque?: Cheque) {
+    return chequeProfilePrintability(bankProfileForCheque(cheque));
   }
 
   /**
@@ -610,7 +624,10 @@ export default function Cheques() {
    *     print page is asked for the screen-only alignment preview.
    */
   function handleGulfA4Print(cheque?: Cheque) {
-    if (!isGulfBankTarget(cheque)) { setFormError(GULF_PROFILE_WRONG_BANK_MESSAGE); return; }
+    // بوابة القالب: لا طباعة إلا بقالب معتمد لبنك هذا الشيك تحديدًا، ولا سقوط
+    // على قالب بنك آخر مهما كان.
+    const printable = chequePrintability(cheque);
+    if (!printable.ok) { setFormError(printable.message); return; }
     const job = buildChequePrintJob({
       purpose: 'production',
       template: { id: null, name: GULF_A4_TEMPLATE_NAME, source: 'default-template' },
@@ -760,15 +777,26 @@ export default function Cheques() {
     }
   }
 
+  /** قالب البنك الذي سيطبع هذا الشيك فعلًا، وحالته — يقودان الشارة والبوابة معًا. */
+  const activeProfile = bankProfileForCheque();
+  const activeProfilePrintable = chequeProfilePrintability(activeProfile).ok;
+
   const isPrintable =
+    activeProfilePrintable &&
     printEnabledForTarget &&
     ((!!printTarget && printTarget.status !== 'CANCELLED') ||
       (!printTarget && !!form.chequeNumber && !!form.beneficiaryName && !!form.amount && !!form.bankAccountId));
   const isPrintedCheque = !!printTarget && printTarget.status === 'PRINTED';
 
-  /** يظهر القالب المُعايَر فورًا بلا إعادة تحميل للإعدادات. */
-  function handleGulfProfileSaved(profile: GulfA4Profile) {
-    setGulfProfileOverride(profile);
+  /**
+   * حُفظت معايرة قالب من الاستوديو.
+   *
+   * الطباعة الإنتاجية اليوم لا تمر إلا بقالب الخليج (البقية `PROVISIONAL`
+   * ومحروسة)، فلا يُحدَّث مسار الطباعة إلا لقالبه. معايرة أي بنك آخر محفوظة في
+   * مفتاحها وتظهر داخل الاستوديو، ولا تلمس ما يُطبع.
+   */
+  function handleProfileSaved(bankCode: string, profile: GulfA4Profile) {
+    if (bankCode === GULF_BANK_CODE) setGulfProfileOverride(profile);
   }
 
   // ── KPIs (computed from loaded data — no backend change) ───────────────────
@@ -873,8 +901,8 @@ export default function Cheques() {
         <ChequeStudioOverlay
           onClose={() => setShowCalibrator(false)}
           chequeRecord={printTarget}
-          gulfProfile={gulfProfile}
-          onGulfProfileSaved={handleGulfProfileSaved}
+          settings={rawSettings}
+          onProfileSaved={handleProfileSaved}
         />
       )}
 
@@ -931,15 +959,21 @@ export default function Cheques() {
         </div>
       </div>
 
-      {/* Printing & actions toolbar. There is ONE approved cheque template, so the
-          former «طريقة الطباعة» selector was removed rather than left as a
-          single-option dropdown: Print, Calibrate and the preview all act on
-          «قالب شيك الخليج» directly. */}
+      {/* Printing & actions toolbar. The template is not chosen — it is RESOLVED
+          from the cheque's own bank through the profile registry, so the chip
+          below names the profile that would actually print and says plainly when
+          that bank's cheque has not been measured yet. */}
       <SectionCard title={t('sec.printing')} icon="print" actions={printTarget ? chequeChip(printTarget.status, t) : undefined}>
         <div className="chqx-print-toolbar">
-          <span className="chqx-active-template" title="القالب المعتمد للطباعة">
-            <span className="material-symbols-outlined" aria-hidden="true">description</span>
-            {GULF_A4_TEMPLATE_NAME}
+          <span
+            className={`chqx-active-template${activeProfilePrintable ? '' : ' chqx-active-template--pending'}`}
+            title={activeProfilePrintable ? 'القالب المعتمد لطباعة هذا الشيك' : PROFILE_NOT_CALIBRATED_MESSAGE}
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">
+              {activeProfilePrintable ? 'description' : 'rule'}
+            </span>
+            {activeProfile?.displayName ?? 'لا يوجد قالب لهذا البنك'}
+            {!activeProfilePrintable && <em className="chqx-active-template-state">غير معاير — يلزم شيك أصلي</em>}
           </span>
           {canPrint && <Button variant="primary" icon="print" busy={saving} disabled={!isPrintable} onClick={handlePrint}>{t('page.cheques.print')}</Button>}
           {canPrint && isPrintedCheque && <Button variant="secondary" icon="receipt_long" busy={pvLoading} onClick={handlePrintPaymentVoucher}>{t('action.cheque.print_voucher')}</Button>}
