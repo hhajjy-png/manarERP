@@ -73,7 +73,31 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.7 (Desktop Installer)
+## Latest Release — Bank Salary Analytics — Western Digits Consistency v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | توحيد كل الأعداد الصحيحة في صفحة **تحليلات الرواتب البنكية** إلى أرقام لاتينية (`0-9`) عبر `formatInteger` المشتركة |
+| **Release status** | **RELEASED** — **Bank Salary Analytics Western Digits = RELEASED** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
+| **Release date** | 2026-08-27 |
+| **Fix commit** | `f6da081d` |
+| **Merge** | `efade9e7` — `--no-ff` merge of `fix/bank-salary-analytics-western-digits-v1` |
+| **Tags** | `stable-bank-salary-analytics-western-digits-v1` → `efade9e7` · `checkpoint-bank-salary-analytics-western-digits-v1` → `ca28d0b2` (production HEAD قبل الدمج مباشرةً) |
+| **السبب الجذري** | الصفحة كانت تُنسِّق أعدادها الصحيحة بـ`toLocaleString('ar-KW')` في **15 موضعًا**، وهذا الـlocale يُخرج أرقامًا هندية (١١/١٤/١٦/١٧)، بينما المبالغ والتواريخ تمر أصلًا عبر `lib/format` (locale `en-US`) — فاختلف شكل الرقم داخل الصف الواحد |
+| **الإصلاح** | استبدال كل الاستدعاءات بـ`formatInteger` من `frontend/src/lib/format/currency.ts` — نفس مُنسِّق المبالغ. **لا formatter مكرر، ولا CSS hack، ولا locale جديد** |
+| **المواضع** | جدول الملخص الشهري (عدد المعاملات/الموظفين) · جدول أعلى الموظفين (عدد المعاملات) · عدّاد صفوف جدول المعاملات · بطاقات KPI/Insights · شريط الملخص · تلميح الرسم البياني · إحصاءات درج الموظف |
+| **حراسة `—`** | `txData?.meta.total … ?? '—'` و`m.employeeCount?… ?? '—'` حُوِّلا إلى شرط صريح، فـ`formatInteger(undefined)` كان سيطبع `0` بدل `—` |
+| **لم يُمس** | العربية · RTL و`dir` · عناوين الأعمدة · القيم والمعادلات · **تنسيق KWD** (`fmt3`/`PrivateAmount`) · **التواريخ** (`formatDate`) · أي حساب أو رصيد |
+| **النطاق** | ملف مصدر واحد `frontend/src/pages/BankSalaryAnalytics.tsx` (32 سطرًا: 16+/16−) — **صفر ملف مشترك، صفر صفحة أخرى، صفر refactor عام**، صفر ترحيل، صفر تغيير مخطط، صفر API، صفر مفتاح صلاحية |
+| **اختبار جديد** | `bankSalaryAnalyticsWesternDigits.test.tsx` (4 اختبارات، 143 سطرًا) — يرسم الصفحة الحقيقية بـAPI مُموّه (11/14/16/17)، ويثبت ظهور الأرقام لاتينية، وخلوّ **كل** خلايا الجداول من النطاق `U+0660–U+0669`، وظهور `(17)`، وبقاء `dir="rtl"` والأسماء العربية |
+| **إثبات عدم كونه اختبارًا فارغًا** | بإرجاع ملف الصفحة عبر `git stash` سقطت **3 من 4** اختبارات، ثم نجحت الأربعة بعد الإصلاح |
+| **Sanity checks** | الاختبار المستهدف **4/4** ✅ · frontend `tsc --noEmit` ✅ · frontend `npm run build` ✅ (لم تُعَد أي مجموعة ضخمة ناجحة سابقًا) |
+| **الإصدار** | لا تغيير في `package.json` — حزمة frontend، **بلا إعادة بناء مثبّت**. `manar.exe` لم يُبنَ في هذه المهمة |
+
+---
+
+## Previous Release — Production Release 2026.5.7 (Desktop Installer)
 
 | Field | Value |
 |-------|-------|
