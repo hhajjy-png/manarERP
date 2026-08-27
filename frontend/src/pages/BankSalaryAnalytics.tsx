@@ -6,7 +6,7 @@ import { api } from '../api/client';
 import { useUI } from '../stores/uiStore';
 import { useToastStore } from '../stores/toastStore';
 import PrivateAmount from '../components/PrivateAmount';
-import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
+import { formatCurrency, formatInteger, formatNumber, formatPercent } from '../lib/format';
 import { formatDate } from '../lib/date';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
 import { downloadBlob } from '../utils/exportUtils';
@@ -570,7 +570,7 @@ export default function BankSalaryAnalytics() {
     },
     {
       label: t('bank.salary_analytics.kpi_total_transfers_label'),
-      value: analytics.totalPayments.toLocaleString('ar-KW'),
+      value: formatInteger(analytics.totalPayments),
       sub: t('bank.salary_analytics.unit_transfer'),
       icon: 'receipt_long',
       bg: 'rgba(139,92,246,0.12)',
@@ -578,7 +578,7 @@ export default function BankSalaryAnalytics() {
     },
     {
       label: t('bank.salary_analytics.kpi_listed_employees_label'),
-      value: analytics.uniqueEmployees.toLocaleString('ar-KW'),
+      value: formatInteger(analytics.uniqueEmployees),
       sub: t('bank.salary_analytics.unit_unique_employee'),
       icon: 'group',
       bg: 'rgba(16,185,129,0.12)',
@@ -588,7 +588,7 @@ export default function BankSalaryAnalytics() {
     },
     {
       label: t('bank.salary_analytics.kpi_tracked_months_label'),
-      value: analytics.months.length.toLocaleString('ar-KW'),
+      value: formatInteger(analytics.months.length),
       sub: t('bank.salary_analytics.unit_data_month'),
       icon: 'calendar_month',
       bg: 'rgba(99,102,241,0.12)',
@@ -620,7 +620,7 @@ export default function BankSalaryAnalytics() {
     },
     {
       label: t('bank.salary_analytics.kpi_increase_months_label'),
-      value: posMonths.toLocaleString('ar-KW'),
+      value: formatInteger(posMonths),
       sub: t('bank.salary_analytics.of_months_count', { count: analytics.months.length }),
       icon: 'show_chart',
       bg: posMonths > 0 ? 'rgba(22,163,74,0.12)' : 'rgba(239,68,68,0.08)',
@@ -671,7 +671,7 @@ export default function BankSalaryAnalytics() {
       icon: 'people',
       iconColor: '#6366F1',
       label: t('bank.salary_analytics.insight_avg_employees_monthly_label'),
-      value: Number.isFinite(avgEmpCount) ? Math.round(avgEmpCount).toLocaleString('ar-KW') : '—',
+      value: Number.isFinite(avgEmpCount) ? formatInteger(avgEmpCount) : '—',
       sub: t('bank.salary_analytics.unit_employee_per_month'),
     },
     {
@@ -715,7 +715,7 @@ export default function BankSalaryAnalytics() {
                 </span>
                 <span className="psa-header-tag gray">
                   <span className="material-symbols-outlined" style={{ fontSize: 13 }}>receipt_long</span>
-                  {t('bank.salary_analytics.op_count', { count: analytics.totalPayments.toLocaleString('ar-KW') })}
+                  {t('bank.salary_analytics.op_count', { count: formatInteger(analytics.totalPayments) })}
                 </span>
               </>
             )}
@@ -1023,12 +1023,12 @@ export default function BankSalaryAnalytics() {
         <div className="psa-summary-bar">
           <div className="psa-summary-stat">
             <span className="psa-summary-label">{t('bank.salary_analytics.operations')}</span>
-            <span className="psa-summary-value">{txData?.meta.total.toLocaleString('ar-KW') ?? '—'}</span>
+            <span className="psa-summary-value">{txData ? formatInteger(txData.meta.total) : '—'}</span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
             <span className="psa-summary-label">{t('search.group.employee')}</span>
-            <span className="psa-summary-value">{analytics.uniqueEmployees.toLocaleString('ar-KW')}</span>
+            <span className="psa-summary-value">{formatInteger(analytics.uniqueEmployees)}</span>
           </div>
           <div className="psa-summary-divider" />
           <div className="psa-summary-stat">
@@ -1143,7 +1143,7 @@ export default function BankSalaryAnalytics() {
                           return (
                             <div style={{ background: '#1a2535', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '10px 14px', direction: 'rtl' }}>
                               <p style={{ color: '#9CA3AF', fontSize: 11, marginBottom: 6, marginTop: 0 }}>{label}</p>
-                              <p style={{ color: '#10B981', fontSize: 13, fontWeight: 700, margin: 0 }}>{t('bank.salary_analytics.employee_count', { count: Number(payload[0].value).toLocaleString('ar-KW') })}</p>
+                              <p style={{ color: '#10B981', fontSize: 13, fontWeight: 700, margin: 0 }}>{t('bank.salary_analytics.employee_count', { count: formatInteger(payload[0].value) })}</p>
                             </div>
                           );
                         }}
@@ -1288,8 +1288,8 @@ export default function BankSalaryAnalytics() {
                         <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }}>
                           <PrivateAmount value={fmt3(m.totalAmount)} />
                         </td>
-                        <td style={{ textAlign: 'end' }}>{m.count.toLocaleString('ar-KW')}</td>
-                        <td style={{ textAlign: 'end', color: 'var(--text-muted)' }}>{m.employeeCount?.toLocaleString('ar-KW') ?? '—'}</td>
+                        <td style={{ textAlign: 'end' }}>{formatInteger(m.count)}</td>
+                        <td style={{ textAlign: 'end', color: 'var(--text-muted)' }}>{m.employeeCount != null ? formatInteger(m.employeeCount) : '—'}</td>
                         <td style={{ textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{m.avg != null ? fmt3(m.avg) : '—'}</td>
                         <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className="psa-var-pos">{m.highest != null ? fmt3(m.highest) : '—'}</td>
                         <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums' }} className="psa-var-neg">{m.lowest != null ? fmt3(m.lowest) : '—'}</td>
@@ -1343,7 +1343,7 @@ export default function BankSalaryAnalytics() {
                         <td style={{ textAlign: 'end', fontFamily: 'monospace', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
                           <PrivateAmount value={fmt3(e.totalAmount)} />
                         </td>
-                        <td style={{ textAlign: 'end' }}>{e.count.toLocaleString('ar-KW')}</td>
+                        <td style={{ textAlign: 'end' }}>{formatInteger(e.count)}</td>
                         <td style={{ textAlign: 'end', fontFamily: 'monospace', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>{fmt3(e.avgAmount)}</td>
                         <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmtDate(e.latestPaymentDate)}</td>
                       </tr>
@@ -1364,7 +1364,7 @@ export default function BankSalaryAnalytics() {
                   <h2 className="psa-table-title">
                     <span className="material-symbols-outlined" style={{ fontSize: 18, color: 'var(--accent)' }}>receipt_long</span>
                     {t('perm.module.transactions')}
-                    {txData && <span className="psa-table-count">({txData.meta.total.toLocaleString('ar-KW')})</span>}
+                    {txData && <span className="psa-table-count">({formatInteger(txData.meta.total)})</span>}
                   </h2>
                   <div className="psa-page-size-row">
                     <label>{t('bank.salary_analytics.rows_label')}</label>
@@ -1513,11 +1513,11 @@ export default function BankSalaryAnalytics() {
                       <div className="psa-emp-stat-grid">
                         <div className="psa-emp-stat">
                           <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.total_transfers')}</div>
-                          <div className="psa-emp-stat-val">{empDetail.stats.totalPayments.toLocaleString('ar-KW')}</div>
+                          <div className="psa-emp-stat-val">{formatInteger(empDetail.stats.totalPayments)}</div>
                         </div>
                         <div className="psa-emp-stat">
                           <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.months')}</div>
-                          <div className="psa-emp-stat-val">{empDetail.stats.distinctMonths.toLocaleString('ar-KW')}</div>
+                          <div className="psa-emp-stat-val">{formatInteger(empDetail.stats.distinctMonths)}</div>
                         </div>
                         <div className="psa-emp-stat">
                           <div className="psa-emp-stat-lbl">{t('bank.salary_analytics.total_kwd')}</div>
