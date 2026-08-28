@@ -34,7 +34,6 @@ type DocCategory =
   | 'EMPLOYEE_RESIDENCY'
   | 'EMPLOYEE_PASSPORT'
   | 'EMPLOYEE_DRIVING_LICENSE'
-  | 'EMPLOYEE_VEHICLE_LICENSE'
   | 'EQUIPMENT_REGISTRATION'
   | 'EQUIPMENT_INSURANCE'
   | 'CONTRACT_EXPIRY';
@@ -81,7 +80,6 @@ const CATEGORY_KEY: Record<string, string> = {
   EMPLOYEE_RESIDENCY:       'decx.cat.employee_residency',
   EMPLOYEE_PASSPORT:        'decx.cat.employee_passport',
   EMPLOYEE_DRIVING_LICENSE: 'decx.cat.employee_driving_license',
-  EMPLOYEE_VEHICLE_LICENSE: 'decx.cat.employee_vehicle_license',
   EQUIPMENT_REGISTRATION:   'decx.cat.equipment_registration',
   EQUIPMENT_INSURANCE:      'decx.cat.equipment_insurance',
   CONTRACT_EXPIRY:          'decx.cat.contract_expiry',
@@ -96,7 +94,6 @@ const CATEGORY_ICON: Record<string, string> = {
   EMPLOYEE_RESIDENCY:       'badge',
   EMPLOYEE_PASSPORT:        'travel_explore',
   EMPLOYEE_DRIVING_LICENSE: 'directions_car',
-  EMPLOYEE_VEHICLE_LICENSE: 'local_shipping',
   EQUIPMENT_REGISTRATION:   'agriculture',
   EQUIPMENT_INSURANCE:      'verified_user',
   CONTRACT_EXPIRY:          'description',

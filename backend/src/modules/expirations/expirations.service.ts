@@ -21,13 +21,20 @@ import { vehicleInsuranceService } from '@modules/vehicleInsurance/vehicleInsura
  * صار المصدر هو الوثيقة الحالية في `VehicleInsurancePolicy` عبر
  * `vehicleInsuranceService.listCurrentExpiries()` — نفس تعريف «الوثيقة الحالية» الذي
  * تعرضه شاشة التأمين، معرَّفًا هناك مرة واحدة.
+ *
+ * ── تصحيح 2026-08-28 (Remove Employee Vehicle License Expiry v1) ────────────
+ * `EMPLOYEE_VEHICLE_LICENSE` أُزيل من المركز نهائيًا. كان يُقرأ من
+ * `employee.vehicleLicenseExpiry`, أي انتهاء رخصة/دفتر مركبة مسجَّلًا على **الموظف**
+ * بينما مالك هذه المعلومة هو سجل المعدة/المركبة (`equipment.registrationExpiry`) —
+ * فكان النوعان يتابعان الوثيقة الواقعية نفسها من كيانين مختلفين، وهو مصدر ازدواج عدّ.
+ * `EQUIPMENT_REGISTRATION` صار المصدر الوحيد لمتابعة انتهاء رخصة/دفتر المركبة.
+ * الحقل باقٍ في قاعدة البيانات وفي عقد الـAPI موسومًا «مهجور» — بلا حذف وبلا ترحيل.
  */
 
 export type DocCategory =
   | 'EMPLOYEE_RESIDENCY'
   | 'EMPLOYEE_PASSPORT'
   | 'EMPLOYEE_DRIVING_LICENSE'
-  | 'EMPLOYEE_VEHICLE_LICENSE'
   | 'EQUIPMENT_REGISTRATION'
   | 'EQUIPMENT_INSURANCE'
   | 'CONTRACT_EXPIRY';
@@ -43,7 +50,6 @@ export const CANONICAL_SOURCE: Record<DocCategory, SourceModule> = {
   EMPLOYEE_RESIDENCY:       'employees',        // employee.residencyExpiry
   EMPLOYEE_PASSPORT:        'employees',        // employee.passportExpiry
   EMPLOYEE_DRIVING_LICENSE: 'employees',        // employee.licenseExpiry
-  EMPLOYEE_VEHICLE_LICENSE: 'employees',        // employee.vehicleLicenseExpiry
   EQUIPMENT_REGISTRATION:   'equipment',        // equipment.registrationExpiry
   EQUIPMENT_INSURANCE:      'vehicleInsurance', // vehicle_insurance_policies.endDate (الوثيقة الحالية)
   CONTRACT_EXPIRY:          'contracts',        // contract.endDate
@@ -132,8 +138,9 @@ export class ExpirationsService {
         where: { status: { not: 'TERMINATED' } },
         select: {
           id: true, code: true, fullName: true,
-          residencyExpiry: true, passportExpiry: true,
-          licenseExpiry: true, vehicleLicenseExpiry: true,
+          // `vehicleLicenseExpiry` **غير** مقروء عمدًا — انتهاء رخصة/دفتر المركبة
+          // مملوك لسجل المعدة، ويظهر عبر `EQUIPMENT_REGISTRATION` وحده.
+          residencyExpiry: true, passportExpiry: true, licenseExpiry: true,
         },
       }),
       // `insuranceExpiry` **غير** مقروء عمدًا — مصدر التأمين الرسمي هو وحدة تأمين المركبات.
@@ -152,8 +159,7 @@ export class ExpirationsService {
     for (const e of employees) {
       if (e.residencyExpiry)      records.push(buildRecord('EMPLOYEE_RESIDENCY',       e.id, e.fullName, e.code, e.residencyExpiry,      now));
       if (e.passportExpiry)       records.push(buildRecord('EMPLOYEE_PASSPORT',        e.id, e.fullName, e.code, e.passportExpiry,        now));
-      if (e.licenseExpiry)        records.push(buildRecord('EMPLOYEE_DRIVING_LICENSE', e.id, e.fullName, e.code, e.licenseExpiry,         now));
-      if (e.vehicleLicenseExpiry) records.push(buildRecord('EMPLOYEE_VEHICLE_LICENSE', e.id, e.fullName, e.code, e.vehicleLicenseExpiry,  now));
+      if (e.licenseExpiry)   records.push(buildRecord('EMPLOYEE_DRIVING_LICENSE', e.id, e.fullName, e.code, e.licenseExpiry,   now));
     }
     for (const eq of equipment) {
       if (eq.registrationExpiry) records.push(buildRecord('EQUIPMENT_REGISTRATION', eq.id, eq.name ?? eq.code, eq.code, eq.registrationExpiry, now));

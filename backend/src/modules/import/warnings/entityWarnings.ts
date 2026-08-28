@@ -66,6 +66,8 @@ export function employeeWarnings(n: Row, raw: Row, now: Date): ImportWarning[] {
   w.push(...expiryWarnings('passportExpiry', 'الجواز', p, now));
   w.push(...expiryWarnings('residencyExpiry', 'الإقامة', r, now));
   w.push(...expiryWarnings('licenseExpiry', 'رخصة القيادة', l, now));
+  // Deprecated — vehicle expiry is owned by Equipment/Vehicle registration — التحذير باقٍ لأن ملفات
+  // الاستيراد القديمة قد تحمل العمود؛ لا شاشة تعرض القيمة بعد الآن.
   w.push(...expiryWarnings('vehicleLicenseExpiry', 'رخصة المركبة', v, now));
 
   // ENUM_DEFAULTED — raw status provided but unknown (validator silently defaults to ACTIVE)

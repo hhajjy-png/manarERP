@@ -51,7 +51,6 @@ export const IMPORT_ENTITIES: ImportEntityConfig[] = [
       { key: 'residencyExpiry',      labelAr: 'تاريخ انتهاء الإقامة (YYYY-MM-DD)',        labelEn: 'Residency Expiry Date (YYYY-MM-DD)',                required: false },
       { key: 'licenseExpiry',        labelAr: 'تاريخ انتهاء رخصة القيادة (YYYY-MM-DD)',  labelEn: "Driver's License Expiry Date (YYYY-MM-DD)",         required: false },
       { key: 'vehiclePlate',         labelAr: 'رقم لوحة المركبة',                         labelEn: 'Vehicle Plate Number',                              required: false },
-      { key: 'vehicleLicenseExpiry', labelAr: 'تاريخ انتهاء رخصة المركبة (YYYY-MM-DD)', labelEn: 'Vehicle License Expiry Date (YYYY-MM-DD)',          required: false },
       { key: 'birthDate',            labelAr: 'تاريخ الميلاد (YYYY-MM-DD)',               labelEn: 'Date of Birth (YYYY-MM-DD)',                        required: false },
       { key: 'company',              labelAr: 'الشركة',                                   labelEn: 'Company',                                           required: false },
       { key: 'department',           labelAr: 'القسم',                                    labelEn: 'Department',                                        required: false },

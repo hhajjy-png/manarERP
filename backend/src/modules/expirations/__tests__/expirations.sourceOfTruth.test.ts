@@ -4,6 +4,10 @@
  *
  * كل شيء هنا مُموَّه (Prisma وخدمة التأمين) فلا تُلمَس قاعدة بيانات: الاختبار يثبت
  * **من أين** يقرأ المركز، لا ما تحويه قاعدة التطوير اليوم.
+ *
+ * حُدِّث في Remove Employee Vehicle License Expiry v1: الأنواع صارت ستة بعد إزالة
+ * `EMPLOYEE_VEHICLE_LICENSE`. القوالب أدناه تزرع `vehicleLicenseExpiry` عمدًا في صف
+ * الموظف كي يفشل الاختبار لو عاد المركز إلى قراءته.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -44,7 +48,9 @@ const iso = (offsetDays: number): string => storedDate(offsetDays).toISOString()
 const EMPLOYEE = {
   id: 7, code: 'E-007', fullName: 'محمد علي',
   residencyExpiry: null as Date | null, passportExpiry: null as Date | null,
-  licenseExpiry: null as Date | null, vehicleLicenseExpiry: null as Date | null,
+  licenseExpiry: null as Date | null,
+  // يبقى على الصف عمدًا رغم هجره: الاختبارات أدناه تثبت أن الخدمة **لا** تقرأه.
+  vehicleLicenseExpiry: null as Date | null,
 };
 const EQUIPMENT = { id: 3, code: 'EQ-003', name: 'قلاب', registrationExpiry: null as Date | null };
 const POLICY = (offsetDays: number) => ({
@@ -105,7 +111,7 @@ describe('خريطة المصادر الرسمية', () => {
     expect(row.expiryDate).toBe(iso(20));
   });
 
-  it('وثائق الموظف الأربع تأتي من سجل الموظف', async () => {
+  it('وثائق الموظف الثلاث تأتي من سجل الموظف — ورخصة المركبة ليست منها', async () => {
     seed({
       employees: [{
         ...EMPLOYEE,
@@ -115,7 +121,7 @@ describe('خريطة المصادر الرسمية', () => {
     });
     const rows = await svc.list({ urgency: 'all' });
     expect(rows.map((r) => r.category)).toEqual([
-      'EMPLOYEE_RESIDENCY', 'EMPLOYEE_PASSPORT', 'EMPLOYEE_DRIVING_LICENSE', 'EMPLOYEE_VEHICLE_LICENSE',
+      'EMPLOYEE_RESIDENCY', 'EMPLOYEE_PASSPORT', 'EMPLOYEE_DRIVING_LICENSE',
     ]);
     rows.forEach((r) => expect(r.sourceModule).toBe('employees'));
   });
@@ -135,6 +141,14 @@ describe('خريطة المصادر الرسمية', () => {
     const select = db.equipment.findMany.mock.calls[0][0].select;
     expect(select).not.toHaveProperty('insuranceExpiry');
     expect(select).toHaveProperty('registrationExpiry', true);
+  });
+
+  it('لا يطلب `vehicleLicenseExpiry` من جدول الموظفين إطلاقًا', async () => {
+    seed();
+    await svc.list({ urgency: 'all' });
+    const select = db.employee.findMany.mock.calls[0][0].select;
+    expect(select).not.toHaveProperty('vehicleLicenseExpiry');
+    expect(select).toMatchObject({ residencyExpiry: true, passportExpiry: true, licenseExpiry: true });
   });
 
   it('CONTRACT_EXPIRY يأتي من سجل العقد', async () => {
@@ -157,8 +171,8 @@ describe('خريطة المصادر الرسمية', () => {
       contracts: [CONTRACT(7)],
     });
     const rows = await svc.list({ urgency: 'all' });
-    expect(rows).toHaveLength(7);
-    expect(new Set(rows.map((r) => r.category)).size).toBe(7);
+    expect(rows).toHaveLength(6);
+    expect(new Set(rows.map((r) => r.category)).size).toBe(6);
     rows.forEach((r) => expect(r.sourceModule).toBe(CANONICAL_SOURCE[r.category]));
   });
 });
@@ -210,7 +224,7 @@ describe('daysRemaining — عقد واحد لكل الأنواع', () => {
         contracts: [CONTRACT(offset)],
       });
       const rows = await svc.list({ urgency: 'all' });
-      expect(rows).toHaveLength(7);
+      expect(rows).toHaveLength(6);
       rows.forEach((r) => {
         expect(r.daysRemaining).toBe(offset);
         expect(r.daysRemaining).toBe(daysUntil(storedDate(offset)));
@@ -224,6 +238,7 @@ describe('daysRemaining — عقد واحد لكل الأنواع', () => {
 
 describe('KPI والجدول', () => {
   // منتهية (-3) · 7 أيام (5) · 30 يومًا (25) · 60 يومًا (50) · 90 يومًا (80) · ساريتان (500، 900)
+  // `vehicleLicenseExpiry: 500` مزروع عمدًا ولا يُنتج صفًا — لو عاد النوع لصار الإجمالي 7.
   const fullSeed = () => seed({
     employees: [{
       ...EMPLOYEE,
@@ -241,7 +256,7 @@ describe('KPI والجدول', () => {
     fullSeed();
     const s = await svc.summary();
     expect(s.total).toBe(rows.length);
-    expect(s.total).toBe(7);
+    expect(s.total).toBe(6);
   });
 
   it('النطاقات الستة تجمع إلى total، و actionable = total − ok', async () => {
@@ -250,7 +265,7 @@ describe('KPI والجدول', () => {
     expect(s.expired + s.days7 + s.days30 + s.days60 + s.days90 + s.ok).toBe(s.total);
     expect(s.actionable).toBe(s.total - s.ok);
     expect(s).toMatchObject({
-      expired: 1, days7: 1, days30: 1, days60: 1, days90: 1, ok: 2, actionable: 5, total: 7,
+      expired: 1, days7: 1, days30: 1, days60: 1, days90: 1, ok: 1, actionable: 5, total: 6,
     });
   });
 

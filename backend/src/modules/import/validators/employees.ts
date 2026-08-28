@@ -63,6 +63,7 @@ export interface NormalizedEmployee {
   residencyExpiry?: Date;
   licenseExpiry?: Date;
   vehiclePlate?: string;
+  /** Deprecated — vehicle expiry is owned by Equipment/Vehicle registration — يُقبل من ملفات الاستيراد القديمة للتوافق، ولا يُعرض في أي شاشة. */
   vehicleLicenseExpiry?: Date;
   birthDate?: Date;
   company?: string;

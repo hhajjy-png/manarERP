@@ -139,7 +139,12 @@ model Employee {
   residencyExpiry      DateTime? // تاريخ انتهاء الإقامة
   licenseExpiry        DateTime? // تاريخ انتهاء رخصة القيادة
   vehiclePlate         String? // رقم لوحة المركبة
-  vehicleLicenseExpiry DateTime? // تاريخ انتهاء رخصة المركبة
+  /// Deprecated — vehicle expiry is owned by Equipment/Vehicle registration
+  /// (Remove Employee Vehicle License Expiry v1، 2026-08-28). المصدر الرسمي لانتهاء
+  /// رخصة/دفتر المركبة هو `equipment.registrationExpiry`. لم يعد لهذا الحقل أي مستهلك
+  /// في واجهة الموظفين ولا في مركز انتهاء الوثائق؛ يبقى العمود ببياناته بلا حذف وبلا
+  /// ترحيل حتى قرار مالك المنتج.
+  vehicleLicenseExpiry DateTime? // تاريخ انتهاء رخصة المركبة (مهجور)
   birthDate            DateTime? // تاريخ الميلاد
   company              String? // الشركة
   department           String? // القسم
