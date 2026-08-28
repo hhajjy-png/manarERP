@@ -73,7 +73,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Remove Employee Vehicle License Expiry v1
+## Latest Release — Employee ↔ Payroll Eligibility & Status Transition Integrity v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | توحيد **Payroll Eligibility** في مصدر مشترك واحد، ومصالحة حالة الموظف مع مسيّر الرواتب: `إجازة → نشط` يُكتشف فورًا ويظهر ضمن الناقصين، مع زرّ «إنشاء» داخل التحذير نفسه |
+| **Release status** | **RELEASED** — **Payroll Eligibility & Status Transition Integrity = RELEASED** · **`LEAVE → ACTIVE` reconciliation = RELEASED** · **ON_LEAVE manual generation exception = APPROVED** · **TERMINATED manual generation = BLOCKED** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
+| **Release date** | 2026-08-29 |
+| **Feature commit** | `722097f7` |
+| **Merge** | `24ea42ec` — `--no-ff` merge of `feature/payroll-eligibility-status-transition-integrity-v1` |
+| **Tags** | `stable-payroll-eligibility-status-transition-integrity-v1` → `24ea42ec` · `checkpoint-payroll-eligibility-status-transition-integrity-v1` → `71135b70` (production HEAD قبل الدمج مباشرةً) |
+| **السبب الجذري** | صفوف `payroll` **Snapshot مادي**: `buildSnapshots` يعاين `status = 'ACTIVE'` مرة واحدة عند الضغط على «إنشاء» ثم يجمّد النتيجة. من كان `ON_LEAVE` في تلك اللحظة لا يُنشأ له صف، وعودته إلى `ACTIVE` **لا تُنشئ شيئًا** — والشبكة تقرأ **صفوفًا لا استحقاقًا**، فيختفي الموظف بلا تفسير. لا علاقة للمشكلة بـcache ولا restart ولا فلترة في الواجهة |
+| **مصدر الاستحقاق الواحد** | `backend/src/modules/payroll/payroll.eligibility.ts` (جديد): `status = 'ACTIVE' AND (hireDate IS NULL OR hireDate <= نهاية الفترة)`. `hireDate = NULL` **لا يُقصي أحدًا** — غياب البيانات ليس دليل عدم استحقاق. تقرؤه **جهتان**: التوليد الجماعي (`buildSnapshots`) وكاشف النقص (`findPayrollEligibilityGap`)، فلا يمكن أن ينفصل ما يُنشَأ عمّا يُبلَّغ عنه (مُثبَّت باختبار يقارن الـpredicate حرفيًا) |
+| **مصفوفة الحالات** | `ACTIVE`: Bulk ✅ / Manual ✅ — `ON_LEAVE`: Bulk ❌ / **Manual ✅** استثناء مقصود ومعتمد من مالك المنتج (إجازة مدفوعة) — `TERMINATED`: Bulk ❌ / **Manual ❌** برسالة `لا يمكن إنشاء راتب لموظف منتهي الخدمة.` |
+| **لماذا حارس مسمّى لا القاعدة الجماعية** | حجب `TERMINATED` بإعادة تطبيق `payrollEligibilityWhere()` على المسار الفردي كان سيحجب `ON_LEAVE` أيضًا و**يُلغي استثناءه ضمنًا**. الحارس يسمّي الحالة الواحدة صراحةً، ويُرفع **قبل فتح المعاملة**: لا قراءة ولا كتابة ولا حذف — كل كشف تاريخي أو معتمد أو مدفوع يبقى حرفيًا كما هو |
+| **تحذيرات كاذبة أُزيلت** | الكشف صار يحترم `hireDate`، ويصمت عن أي فترة **لم تبدأ** دون أن يلمس قاعدة البيانات. قياس على قاعدة التطوير: 2026-01 من 1 → **0** · 2026-09 و2026-12 من 25 → **0** · 2025-01 من 25 → **11** (حقيقية، ما قبل اعتماد النظام) · **2026-08 يبقى 3 — الإشارة الحقيقية بلا ضجيج حولها** |
+| **الواجهة** | زر «إنشاء» انتقل إلى **داخل تحذير الناقصين** — العلاج مع التشخيص بدل جملة تطلب من المشغّل البحث عن زرّ آخر. النطاق مطابق للتحذير (نفس الفترة ونفس فلتر الموظف)، والمعتمد والمدفوع يُتخطّيان في الخلفية |
+| **حماية التاريخ المالي** | قفل **لكل موظف** لا للشهر: `APPROVED`/`PAID` لا تُقرأ ولا تُكتب ولا تُحذف سطورها · `upsert` على `@@unique([employeeId, month, year])` يمنع التكرار بنيويًا · **فتح الصفحة (GET) لا يُنشئ سجلًا ماليًا** — التوليد يبقى إجراء مشغّل صريح |
+| **تحقّق على قاعدة التطوير** | أُعيد إنتاج الحالة المُبلَّغ عنها حرفيًا (3 موظفين `ACTIVE` بلا صف في 2026-08 من أصل 25 صفًا كلها `APPROVED`)، ثم شُغِّل التوليد على **نسخة** من القاعدة: أُنشئت 3 مسودات، `skippedLocked = 22`، و**`PRE-EXISTING ROWS MUTATED: 0`**. صفر صفوف يتيمة وصفر تكرار `(employeeId + period)` |
+| **قاعدة البيانات** | **لا migration ولا schema change ولا backfill**. الأحدث يبقى `20260821120000_multi_bank_cheques_foundation_v1` |
+| **خارج النطاق — بلا مساس** | معادلات الرواتب · overtime · نهاية الخدمة (EOS) · القيود المحاسبية / GL · bank exports · الصلاحيات · الرواتب التاريخية المعتمدة |
+| **13 اختبارًا جديدًا** | موزّعة على **المجموعتين القائمتين** بلا suite موازية: `LEAVE→ACTIVE` يُكتشف فورًا بلا regeneration ولا restart · استبعاد المعيَّنين بعد الفترة · فترة لم تبدأ **لا تلمس القاعدة أصلًا** · التوليد والكشف يقرآن **نفس** الـpredicate · `ON_LEAVE` خارج الجماعي وداخل اليدوي · `TERMINATED` مرفوض بصفر `upsert`/`deleteMany`/`createMany` وبلا قراءة لجدول الرواتب · الرفض بحالة مسمّاة لا بالقاعدة الجماعية (`where === { id }`) · لا تكرار عند إعادة التشغيل · المعتمد لا يُعاد توليده |
+| **Sanity checks** | Payroll targeted **242/242** ✅ (14 ملفًا) · backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · `npm run build:back` ✅ · `npm run build:front` ✅ (لم تُعَد المجموعة الكاملة) |
+| **الإصدار** | لا تغيير في `package.json` — **بلا إعادة بناء مثبّت**. `manar.exe` لم يُبنَ في هذه المهمة |
+
+---
+
+## Previous Release — Remove Employee Vehicle License Expiry v1
 
 | Field | Value |
 |-------|-------|
