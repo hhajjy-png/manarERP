@@ -572,8 +572,12 @@ model Equipment {
   plateNumber        String? // رقم اللوحة
   chassisNumber      String? // رقم القاعدة (الشاصي)
   color              String? // اللون
-  registrationExpiry DateTime? // تاريخ انتهاء دفتر المركبة
-  insuranceExpiry    DateTime? // تاريخ انتهاء التأمين
+  registrationExpiry DateTime? // تاريخ انتهاء دفتر المركبة — المصدر الرسمي لهذه المعلومة
+  /// مهجور (Single Source of Truth Audit v1، 2026-08-28) — لا تقرأ منه ولا تكتب فيه.
+  /// المصدر الرسمي لانتهاء التأمين هو `VehicleInsurancePolicy.endDate` للوثيقة الحالية.
+  /// لا مسار كتابة إلى هذا الحقل في النظام (ليس في مخطط المعدات ولا نموذجها ولا المستورِد)،
+  /// وقد توقف «مركز انتهاء الوثائق» عن قراءته. العمود باقٍ بلا حذف حتى قرار مالك المنتج.
+  insuranceExpiry    DateTime?
   status             String    @default("WORKING") // WORKING (تعمل) | NOT_WORKING (لا تعمل)
   manufacturer       String?
   model              String?

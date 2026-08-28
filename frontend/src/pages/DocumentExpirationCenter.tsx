@@ -41,9 +41,13 @@ type DocCategory =
 
 type UrgencyBand = 'expired' | '7' | '30' | '60' | '90' | 'ok';
 
+/** الوحدة المالكة للتاريخ — يرسلها الخادم مشتقّة من خريطة المصادر الرسمية. */
+type SourceModule = 'employees' | 'equipment' | 'vehicleInsurance' | 'contracts';
+
 interface ExpirationRecord {
   id: string;
   category: DocCategory;
+  sourceModule: SourceModule;
   entityId: number;
   entityName: string;
   entityCode: string;
@@ -52,12 +56,18 @@ interface ExpirationRecord {
   urgency: UrgencyBand;
 }
 
+/**
+ * `total` = كل الوثائق المتابَعة = عدد صفوف الجدول بلا فلاتر (مجموع النطاقات الستة).
+ * `actionable` = ما يحتاج متابعة (`total − ok`).
+ */
 interface ExpirationSummary {
   expired: number;
   days7: number;
   days30: number;
   days60: number;
   days90: number;
+  ok: number;
+  actionable: number;
   total: number;
 }
 
@@ -91,6 +101,20 @@ const CATEGORY_ICON: Record<string, string> = {
   EQUIPMENT_INSURANCE:      'verified_user',
   CONTRACT_EXPIRY:          'description',
 };
+
+// المصدر الرسمي لكل صف — يُعرض في لوحة التفاصيل ليتمكن المستخدم من فتح الشاشة المالكة
+// والتحقق من التاريخ نفسه. التسميات هي أسماء الشاشات القائمة، بلا مفاتيح جديدة لها.
+const SOURCE_KEY: Record<string, string> = {
+  employees:        'nav.employees',
+  equipment:        'nav.equipment',
+  vehicleInsurance: 'nav.vehicle_insurance',
+  contracts:        'nav.contracts',
+};
+
+function sourceLabel(t: TFn, source: string): string {
+  const key = SOURCE_KEY[source];
+  return key ? t(key) : source;
+}
 
 const URGENCY_KEY: Record<string, string> = {
   expired: 'status.expired',
@@ -286,6 +310,10 @@ export default function DocumentExpirationCenter() {
               <span className="xpl-drawer-field-label">{t('decx.col.doc_type')}</span>
               <span className="xpl-drawer-field-value">{categoryLabel(t, selected.category)}</span>
             </div>
+            <div className="xpl-drawer-field">
+              <span className="xpl-drawer-field-label">{t('decx.col.source')}</span>
+              <span className="xpl-drawer-field-value">{sourceLabel(t, selected.sourceModule)}</span>
+            </div>
           </DrawerSection>
 
           <DrawerSection title={t('decx.section.validity')}>
@@ -373,6 +401,10 @@ export default function DocumentExpirationCenter() {
               onClick={() => setUrgency('60')} active={urgency === '60'} ariaLabel={t('decx.aria.view_within', { days: 60 })} />
             <MetricCard icon="event_available" tone="blue" label={urgencyLabel(t, '90')} value={summary.days90}
               onClick={() => setUrgency('90')} active={urgency === '90'} ariaLabel={t('decx.aria.view_within', { days: 90 })} />
+            {/* بطاقة «سارية» — بدونها لا تجمع البطاقات إلى `total`, فتبدو البطاقة الكبرى
+                غير متسقة مع الجدول رغم أنهما من المجموعة نفسها. */}
+            <MetricCard icon="verified" tone="green" label={urgencyLabel(t, 'ok')} value={summary.ok}
+              onClick={() => setUrgency('ok')} active={urgency === 'ok'} ariaLabel={t('decx.aria.view_ok')} />
           </div>
         </div>
       )}

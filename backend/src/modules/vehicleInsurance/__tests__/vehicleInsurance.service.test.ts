@@ -33,7 +33,8 @@ import { VehicleInsuranceService } from '../vehicleInsurance.service';
  *   • الجدول الرئيسي يعرض **أحدث** وثيقة لكل مركبة ولا يكرّر المركبة.
  *   • التجديد يُنشئ سجلًا جديدًا ولا يُصدر أي `update` على الوثيقة السابقة.
  *   • الخدمة لا تكتب في أي جدول خارج جدولَي الوحدة — ولا في `equipment` إطلاقًا،
- *     وتحديدًا لا في `equipment.insuranceExpiry` الذي يقرأه مركز انتهاء الوثائق.
+ *     وتحديدًا لا في `equipment.insuranceExpiry` المهجور (مركز انتهاء الوثائق صار يقرأ
+ *     `endDate` للوثيقة الحالية من هنا، لا ذلك الحقل).
  *   • تصحيح تاريخ واحد يُفحَص مقابل التاريخ المحفوظ لا مقابل نفسه.
  *   • لا وجود لأي دالة حذف في سطح الخدمة.
  */
@@ -177,7 +178,7 @@ describe('createPolicy — التجديد يُنشئ ولا يعدّل', () => {
     expect(p.vehicleInsurancePolicy.update).not.toHaveBeenCalled();
   });
 
-  it('لا يكتب في جدول المعدات إطلاقًا (insuranceExpiry يبقى ملك مركز انتهاء الوثائق)', async () => {
+  it('لا يكتب في جدول المعدات إطلاقًا (insuranceExpiry المهجور يبقى بلا كاتب)', async () => {
     p.vehicleInsurancePolicy.create.mockResolvedValue(policyRow());
 
     await service.createPolicy(
