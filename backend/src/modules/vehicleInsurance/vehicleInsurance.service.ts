@@ -30,8 +30,13 @@ import {
  *
  * ═══ حدود الوحدة ═══
  * تكتب حصرًا في `vehicle_insurance_policies` و`vehicle_accidents`. لا تنشئ قيدًا محاسبيًا
- * ولا مصروفًا ولا سجل صيانة، ولا تلمس `equipment.insuranceExpiry` الذي يقرأه «مركز انتهاء
- * الوثائق» — لا قراءةً ولا كتابةً — فسلوك ذلك المركز يبقى كما هو حرفيًا.
+ * ولا مصروفًا ولا سجل صيانة، ولا تلمس جدول المعدات — لا قراءةً ولا كتابةً — عدا قراءة
+ * بيانات تعريفية للعرض. الحقل القديم `equipment.insuranceExpiry` مهجور ولا تكتب فيه.
+ *
+ * ═══ المصدر الرسمي ═══
+ * `endDate` للوثيقة الحالية هنا هو **المصدر الرسمي الوحيد** لانتهاء تأمين المركبة، ويقرأه
+ * «مركز انتهاء الوثائق» عبر `listCurrentExpiries()` بدل الحقل القديم (Single Source of
+ * Truth Audit v1، 2026-08-28).
  *
  * ═══ لا حذف ═══
  * التجديد يُنشئ وثيقة جديدة ولا يعدّل القديمة، والحوادث سجل تاريخي دائم. لا تعرض هذه
@@ -45,6 +50,15 @@ export interface EquipmentBrief {
   code: string;
   name: string | null;
   plateNumber: string | null;
+}
+
+/** انتهاء تأمين المركبة الحالي — الشكل المصغّر الذي يستهلكه مركز انتهاء الوثائق. */
+export interface CurrentInsuranceExpiry {
+  equipmentId: number;
+  equipmentCode: string;
+  equipmentName: string | null;
+  /** `endDate` للوثيقة الحالية كما هو مخزَّن (منتصف ليل UTC). */
+  endDate: Date;
 }
 
 export interface PolicyRecord {
@@ -134,8 +148,7 @@ export class VehicleInsuranceService {
    * الذاكرة لا في SQL: لا نوافذ (window functions) متاحة عبر Prisma على SQLite هنا،
    * والمجموعة بحجم أسطول المعدات — عشرات الصفوف لا ملايين.
    */
-  async listCurrentPolicies(filters: PolicyFilters = { status: 'all' }): Promise<PolicyRecord[]> {
-    const now = new Date();
+  private async latestPolicyRows(): Promise<PolicyRow[]> {
     const all = await prisma.vehicleInsurancePolicy.findMany({
       orderBy: LATEST_FIRST,
       include: { equipment: { select: EQUIPMENT_BRIEF } },
@@ -145,8 +158,12 @@ export class VehicleInsuranceService {
     for (const p of all) {
       if (!latestByEquipment.has(p.equipmentId)) latestByEquipment.set(p.equipmentId, p);
     }
+    return [...latestByEquipment.values()];
+  }
 
-    let rows = [...latestByEquipment.values()].map((p) => toPolicyRecord(p, now));
+  async listCurrentPolicies(filters: PolicyFilters = { status: 'all' }): Promise<PolicyRecord[]> {
+    const now = new Date();
+    let rows = (await this.latestPolicyRows()).map((p) => toPolicyRecord(p, now));
 
     if (filters.insurer) {
       const insurer = filters.insurer.toLowerCase();
@@ -169,6 +186,23 @@ export class VehicleInsuranceService {
 
     // الأقرب انتهاءً أولًا — المنتهية والحرجة تتصدّر الشاشة بلا حاجة إلى فرز يدوي.
     return rows.sort((a, b) => a.daysRemaining - b.daysRemaining);
+  }
+
+  /**
+   * تاريخ انتهاء التأمين الحالي لكل مركبة — **المصدر الرسمي الوحيد** لهذه المعلومة.
+   *
+   * يستهلكه «مركز انتهاء الوثائق» بدل الحقل القديم `equipment.insuranceExpiry` (المهجور)،
+   * فيبقى تعريف «الوثيقة الحالية» — الأحدث بترتيب `LATEST_FIRST` — معرَّفًا مرة واحدة هنا
+   * ولا يتباعد بين شاشة التأمين ومركز الوثائق. التاريخ يعود كـ `Date` كما هو مخزَّن، بلا
+   * أي حساب أيام: العدّ يخصّ المستهلك ويجري بالعقد المشترك `daysUntil`.
+   */
+  async listCurrentExpiries(): Promise<CurrentInsuranceExpiry[]> {
+    return (await this.latestPolicyRows()).map((p) => ({
+      equipmentId: p.equipmentId,
+      equipmentCode: p.equipment?.code ?? String(p.equipmentId),
+      equipmentName: p.equipment?.name ?? null,
+      endDate: p.endDate,
+    }));
   }
 
   /** سجل التأمين الكامل — كل وثائق مركبة واحدة، أو كل الوثائق عند غياب المعرّف. */

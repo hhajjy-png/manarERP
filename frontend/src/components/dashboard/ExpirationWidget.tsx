@@ -4,12 +4,16 @@ import { api } from '../../api/client';
 import { useT } from '../../lib/i18n';
 
 interface Summary {
-  expired: number;
-  days7:   number;
-  days30:  number;
-  days60:  number;
-  days90:  number;
-  total:   number;
+  expired:    number;
+  days7:      number;
+  days30:     number;
+  days60:     number;
+  days90:     number;
+  ok:         number;
+  /** ما يحتاج متابعة = `total − ok`. هو المعنى الذي كان يحمله `total` سابقًا. */
+  actionable: number;
+  /** كل الوثائق المتابَعة — يطابق عدد صفوف مركز انتهاء الوثائق بلا فلاتر. */
+  total:      number;
 }
 
 export default function ExpirationWidget() {
@@ -24,7 +28,9 @@ export default function ExpirationWidget() {
   }, []);
 
   if (!data) return null;
-  if (data.total === 0) return null; // hide widget when nothing is urgent
+  // الإخفاء عند غياب ما يستدعي إجراءً. صار يقرأ `actionable` بعد أن وُسّع `total` ليطابق
+  // عدد صفوف مركز انتهاء الوثائق (الوثائق السارية صارت ضمنه)، وإلا لما اختفت الودجة أبدًا.
+  if (data.actionable === 0) return null;
 
   const items = [
     { label: t('decx.filter.expired'),    count: data.expired, color: 'var(--db-red)' },
