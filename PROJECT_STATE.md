@@ -73,7 +73,33 @@ in a table cell.
 
 ---
 
-## Latest Release — Expiration Center — Single Source of Truth & Data Integrity v1
+## Latest Release — Remove Employee Vehicle License Expiry v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | إيقاف استخدام `employee.vehicleLicenseExpiry` من **واجهة الموظفين**، وإزالة النوع `EMPLOYEE_VEHICLE_LICENSE` بالكامل من **مركز انتهاء الوثائق** |
+| **Release status** | **RELEASED** — **Remove Employee Vehicle License Expiry = RELEASED** · **`EMPLOYEE_VEHICLE_LICENSE` removed from Expiration Center** · **DB field retained as deprecated compatibility field** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
+| **Release date** | 2026-08-28 |
+| **Feature commit** | `3fa1cf61` |
+| **Merge** | `e1c5e051` — `--no-ff` merge of `feature/remove-employee-vehicle-license-expiry-v1` |
+| **Tags** | `stable-remove-employee-vehicle-license-expiry-v1` → `e1c5e051` · `checkpoint-remove-employee-vehicle-license-expiry-v1` → `b19ad39f` (production HEAD قبل الدمج مباشرةً) |
+| **السبب** | انتهاء رخصة/دفتر المركبة كان مسجَّلًا على **الموظف** بينما مالك المعلومة سجل المعدة (`equipment.registrationExpiry`) — كيانان يتابعان الوثيقة الواقعية نفسها، وهو مصدر ازدواج عدّ في المركز |
+| **حُذف من الواجهة** | عمود جدول الموظفين (ومعه `exportValue` للتصدير) · حقل نموذج الإضافة/التعديل · لوحة التفاصيل (تُبنى من `cfg.columns`/`cfg.fields` في `ResourcePage` فاختفى تلقائيًا) · عمود قالب الاستيراد · 6 مفاتيح i18n يتيمة (ar+en). **`vehiclePlate` بقي** — بيانات موظف، خارج النطاق |
+| **حُذف من المركز** | اتحاد `DocCategory` · مفتاح `CANONICAL_SOURCE` (صارت **6** مفاتيح) · `vehicleLicenseExpiry` من `select` جدول الموظفين · سطر بناء الصف · التسمية والأيقونة وخيار الفلتر |
+| **المصدر الوحيد** | `EQUIPMENT_REGISTRATION` هو التصنيف الوحيد الذي `sourceModule === 'equipment'` — معدة وموظف ينتهيان في اليوم نفسه يُنتجان **صفًا واحدًا لا صفّين** (مُثبَّت باختبار) |
+| **باقٍ deprecated** | `employee.vehicleLicenseExpiry` **ببياناته كاملة (23 موظفًا يحملون قيمة)**، موسوم في **ستة مواضع** بـ«Deprecated — vehicle expiry is owned by Equipment/Vehicle registration»: مخطط Prisma · مخطط Zod للإنشاء/التعديل · قائمة الفرز البيضاء · مطبِّع الاستيراد · تحذير الاستيراد · باني تنبيهات الموظفين. عقد الـAPI سليم فلا ينكسر مستهلك قديم، ولا مستهلك فعلي من الواجهة ولا من المركز |
+| **قاعدة البيانات** | **لا migration ولا backfill ولا حذف بيانات** — تغيير `schema.prisma` تعليقات `///` فقط. الأحدث يبقى `20260821120000_multi_bank_cheques_foundation_v1` |
+| **أثر على المركز** | 23 صفًا خرجت (منتهية −1 · 30 يومًا −1 · 90 يومًا −1 · سارية −20). بعد الإزالة: **الإجمالي 114** · منتهية 1 · ≤7 أيام 1 · ≤30 يومًا 3 · ≤60 يومًا 4 · ≤90 يومًا 2 · سارية 103 · `actionable` 11. التوزيع: إقامة 32 · جواز 30 · رخصة قيادة 27 · تسجيل معدة 25 |
+| **تحذير تشغيلي** | قيم الـ23 موظفًا **لم تعد تظهر في أي شاشة**؛ محفوظة في القاعدة حتى قرار مالك المنتج بحذفها أو نقلها |
+| **اختباران جديدان** | `employeeVehicleLicenseRemoved.test.ts` خلفيًا (16 اختبارًا) وأماميًا (9 اختبارات) — غياب البند من إعداد الجدول والنموذج وقالب الاستيراد ومفاتيح الترجمة · المركز لا يقرأ الحقل ولا يطلبه من قاعدة البيانات · لا ازدواج بين المعدة والموظف · الإنشاء/التعديل لا يعتمدان عليه بينما يظل مقبولًا للتوافق · العمود ما يزال في المخطط بلا migration يُسقطه. `expirations.sourceOfTruth` حُدِّث من 7 أنواع إلى 6 |
+| **إثبات عدم كونها اختبارات فارغة** | بإعادة النوع مؤقتًا إلى الخدمة سقط **13 اختبارًا خلفيًا**، وبإعادة الحقل إلى النموذج سقط **اختباران أماميان**؛ أُعيد التعديلان فورًا وعادت الحزمة خضراء |
+| **Sanity checks** | backend targeted **177/177** ✅ (expirations + employees + import) · frontend targeted **9/9** ✅ · backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend `npm run build` ✅ (لم تُعَد أي مجموعة ضخمة ناجحة سابقًا) |
+| **الإصدار** | لا تغيير في `package.json` — **بلا إعادة بناء مثبّت**. `manar.exe` لم يُبنَ في هذه المهمة |
+
+---
+
+## Previous Release — Expiration Center — Single Source of Truth & Data Integrity v1
 
 | Field | Value |
 |-------|-------|
