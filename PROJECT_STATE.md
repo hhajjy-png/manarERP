@@ -73,7 +73,36 @@ in a table cell.
 
 ---
 
-## Latest Release — Bank Salary Analytics — Western Digits Consistency v1
+## Latest Release — Expiration Center — Single Source of Truth & Data Integrity v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | **مركز انتهاء الوثائق** صار طبقة **قراءة/تجميع فقط** — كل نوع وثيقة يُقرأ من مصدره الرسمي الوحيد، وتعديل التاريخ في وحدته ينعكس فورًا بلا مزامنة ولا إدخال ثانٍ |
+| **Release status** | **RELEASED** — **Expiration Center Single Source of Truth = RELEASED** |
+| **Product Owner visual review** | **completed and approved** — المراجعة البصرية اليدوية تمت واعتُمدت قبل الدمج؛ لا ملاحظات بصرية مانعة |
+| **Release date** | 2026-08-28 |
+| **Fix commit** | `f919b65c` |
+| **Merge** | `d64b1902` — `--no-ff` merge of `feature/expiration-center-single-source-v1` |
+| **Tags** | `stable-expiration-center-single-source-v1` → `d64b1902` · `checkpoint-expiration-center-single-source-v1` → `c5e76ff1` (production HEAD قبل الدمج مباشرةً) |
+| **السبب الجذري** | `EQUIPMENT_INSURANCE` كان يُقرأ من `equipment.insuranceExpiry` — نسخة ثانية **لا يكتب فيها أحد في النظام كله**: ليست في `createEquipmentSchema` ولا في نموذج المعدات ولا في مستورِد المعدات، ووحدة تأمين المركبات لا تلمسها بنص تصميمها. المستهلك الوحيد كان سطر القراءة في المركز — فتجديد وثيقة تأمين لم يكن ينعكس إطلاقًا، ويبقى المركز على قيمة مجمّدة |
+| **الإصلاح** | `EQUIPMENT_INSURANCE` يُبنى من `endDate` للوثيقة الحالية في `vehicle_insurance_policies` عبر `vehicleInsuranceService.listCurrentExpiries()`، و`insuranceExpiry` أُزيل من `select` جدول المعدات فلم يعد يُقرأ من أي مكان. تعريف «الوثيقة الحالية» (`endDate desc → startDate desc → id desc`) استُخرج إلى `latestPolicyRows()` الخاصة تستدعيها `listCurrentPolicies` و`listCurrentExpiries` معًا — **مصدر واحد للقاعدة** |
+| **خريطة المصادر** | `CANONICAL_SOURCE` مركزية: RESIDENCY/PASSPORT/DRIVING_LICENSE/VEHICLE_LICENSE → `employees` · REGISTRATION → `equipment` · INSURANCE → `vehicleInsurance` · CONTRACT → `contracts`. كل صف يحمل `sourceModule` مشتقًا منها آليًا، ويُعرض كـ**«المصدر الرسمي»** في لوحة التفاصيل ليتمكن المستخدم من فتح الشاشة المالكة والمقارنة يدويًا |
+| **تصحيح KPI** | `summary.total` كان يعدّ الصفوف **غير السارية** وحدها (18) بينما يعرض الجدول تحت «الكل» **كل** الصفوف (137) — بطاقة وجدول بتعريفين مختلفين للمجموعة نفسها. صار `total` مجموع النطاقات الستة = عدد صفوف الجدول بلا فلاتر، وأُفرد `actionable` للمعنى القديم، وأُضيفت بطاقة «سارية» ليكتمل الجمع |
+| **منع انحدار** | ودجة لوحة المعلومات `ExpirationWidget` كانت تُخفي نفسها بـ`total === 0`؛ بعد توسيع `total` صار شرطها `actionable === 0` وإلا لما اختفت أبدًا |
+| **لم يُمس** | الأنواع الستة الأخرى (كانت تقرأ من مصادرها الرسمية أصلًا) · workflows الموظفين/المعدات/التأمين/العقود · الصلاحيات · سجلات التدقيق · عتبات الإنذار (7/30/60/90) · عقد `daysRemaining` المشترك |
+| **النطاق** | طبقة قراءة خالصة — **صفر** جدول جديد، cache، sync engine، background job، نقطة نهاية، مفتاح صلاحية. حمولتا `/expirations` و`/expirations/summary` اكتسبتا حقولًا فقط (`sourceModule`، `ok`، `actionable`) |
+| **`equipment.insuranceExpiry`** | **باقٍ في قاعدة البيانات موسومًا «مهجور»** — لا حذف ولا `migration`. تغيير `schema.prisma` **تعليقات `///` فقط، بلا SQL**. الحقل الآن بلا قارئ وبلا كاتب في النظام كله |
+| **البيانات** | **لا backfill ولا تعديل بيانات**. قاعدة التطوير: صفر قيمة قديمة في `insuranceExpiry` وصفر وثيقة تأمين ⇒ **صفر تعارض**. بصمة `manar.db` قبل التحقق وبعده متطابقة |
+| **اختبار جديد** | `expirations.sourceOfTruth.test.ts` (15 اختبارًا، 290 سطرًا، Prisma وخدمة التأمين مموّهتان بالكامل) — مصدر كل نوع · انعكاس تعديل المصدر بلا كتابة ثانية · فحص `select` فعليًا لإثبات غياب `insuranceExpiry` · حسم التعارض لصالح المصدر الرسمي · غياب التاريخ لا يولّد تاريخًا مصطنعًا · عقد `daysRemaining` (أمس ‎-1 · اليوم 0 · غدًا +1) على الأنواع السبعة · تطابق كل بطاقة مع صفوف الجدول تحت فلترها |
+| **Sanity checks** | الاختبارات المستهدفة **54/54** ✅ (`expirations.sourceOfTruth` · `expirations.service` · `vehicleInsurance.service` · `vehicleInsurance.status`) · backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · frontend `npm run build` ✅ · data sanity على قاعدة التطوير: `rows=137` = `total=137` = مجموع النطاقات · `actionable=18` = الصفوف غير السارية · 0 مخالفة `sourceModule` · 0 مخالفة `daysRemaining` |
+| **Baseline failures** | 5 فشل في `chequeDesignerTemplates.integration.contract.test.ts` — أُثبتت **PRE-EXISTING BASELINE FAILURE — NOT A REGRESSION** بتشغيلها في worktree نظيف من `origin/production`: نفس العدد ونفس الأسماء ونفس الأسباب (4× ENOENT لملف `chequeDesignerStore.ts` غير الموجود في Git + 1× AssertionError). لم تُلمس تلك الوحدة |
+| **متروك لقرار مالك المنتج** | (1) حذف عمود `equipment.insuranceExpiry` نهائيًا — يحتاج `migration` وموافقة صريحة · (2) هل «رخصة المركبة» على الموظف و«دفتر المركبة» على المعدة وثيقة واقعية واحدة مسجلة مرتين؟ · (3) فلتر العقود `status IN (ACTIVE, RENEWING)` يُخفي العقود بحالات أخرى |
+| **حدود التحقق** | قاعدة التطوير فيها **صفر وثيقة تأمين وصفر عقد**، فمساران (`EQUIPMENT_INSURANCE` و`CONTRACT_EXPIRY`) لم يُنفَّذا على بيانات حقيقية — إثباتهما يقوم على الاختبارات المموّهة والبنية. كذلك `listCurrentExpiries()` مغطّاة **بحكم مشاركتها** `latestPolicyRows()` مع `listCurrentPolicies` المختبَرة مباشرةً، لا باختبار يستدعيها هي |
+| **الإصدار** | لا تغيير في `package.json` — **بلا إعادة بناء مثبّت**. `manar.exe` لم يُبنَ في هذه المهمة |
+
+---
+
+## Previous Release — Bank Salary Analytics — Western Digits Consistency v1
 
 | Field | Value |
 |-------|-------|

@@ -33,9 +33,9 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `efade9e7` (merge of `fix/bank-salary-analytics-western-digits-v1` — **Bank Salary Analytics — Western Digits Consistency v1**, fix commit `f6da081d`). Presentation-only: all 15 `toLocaleString('ar-KW')` integer call sites on the Bank Salary Analytics page now use the shared `formatInteger` (`en-US`), so every count in its tables, cards, summary bar, chart tooltip and employee drawer renders in Western digits `0-9` like the amounts and dates beside them; `—` is preserved for null/undefined instead of collapsing to `0`. Arabic UI, RTL, KWD formatting and dates untouched; one source file plus one new test file, no other page changed. Previous: `ac05c45c` (merge of `feature/cheque-calibration-profiles-v1` — **Simple Cheque Calibration Profiles + Persistent Default v1**, feature commit `9db0051f`) |
-| **Current Documentation Commit** | see `docs:` commit on top of `efade9e7` (previous: `0a015f95`) |
-| **Current Stable Tag** | `stable-bank-salary-analytics-western-digits-v1` → `efade9e7` · checkpoint `checkpoint-bank-salary-analytics-western-digits-v1` → `ca28d0b2` (production HEAD immediately before the merge). Previous: `stable-cheque-calibration-profiles-v1` → `ac05c45c` · checkpoint `checkpoint-cheque-calibration-profiles-v1` → `0211cc23` |
+| **Current Merge Commit** | `d64b1902` (merge of `feature/expiration-center-single-source-v1` — **Expiration Center — Single Source of Truth & Data Integrity v1**, fix commit `f919b65c`). The Document Expiration Center is now a pure read/aggregation layer: every document type is read from its single canonical owner, so editing a date in that module is reflected immediately with no sync and no second entry. `EQUIPMENT_INSURANCE` now reads `endDate` of the current policy in `vehicle_insurance_policies` via `vehicleInsuranceService.listCurrentExpiries()` instead of the legacy `equipment.insuranceExpiry` — a second copy no code in the system ever wrote, so renewing a policy never reached the centre. `summary.total`, the KPI cards and the table are now derived from the same dataset with the same definition (`total` = all six bands = table rows with no filter; `actionable` = `total - ok`, which is what the dashboard widget hides on). Each row carries a `sourceModule` shown as «المصدر الرسمي» in the detail drawer. `equipment.insuranceExpiry` is left in place marked deprecated — no deletion, no migration (schema change is `///` comments only). No new table, cache, sync engine, background job, endpoint or permission key. Previous: `efade9e7` (merge of `fix/bank-salary-analytics-western-digits-v1` — **Bank Salary Analytics — Western Digits Consistency v1**, fix commit `f6da081d`) |
+| **Current Documentation Commit** | see `docs:` commit on top of `d64b1902` (previous: `c5e76ff1`) |
+| **Current Stable Tag** | `stable-expiration-center-single-source-v1` → `d64b1902` · checkpoint `checkpoint-expiration-center-single-source-v1` → `c5e76ff1` (production HEAD immediately before the merge). Previous: `stable-bank-salary-analytics-western-digits-v1` → `efade9e7` · checkpoint `checkpoint-bank-salary-analytics-western-digits-v1` → `ca28d0b2` |
 | **Current Release Date** | 2026-08-25 (Production Release 2026.5.7 — Desktop installer) |
 | **Application Version** | **`2026.5.7`** — **Production Release 2026.5.7**, a new self-contained Windows installer built from `production` HEAD `f206103c`, bundling everything merged since the 2026.5.6 installer: Multi-Bank Cheques Foundation v1, Financial Accuracy & KPI Integrity v1, Gulf Bank A4 Cheque Template + Professional Calibration + Date Block v1, Multi-Bank Cheque Profiles Readiness v1, and Simple Cheque Calibration Profiles + Persistent Default v1. It is the FIRST installer to ship the 70th migration `20260821120000_multi_bank_cheques_foundation_v1`, the `banks`/`bank_accounts` tables and the `banks.read`/`banks.manage` permission keys — 70 migrations, 87 Prisma models with the model set verified identical to the schema by the fail-closed build guard. Installer `AlManarERP-Setup-2026.5.7.exe` (132.06 MiB, 138,478,346 bytes, SHA-256 `89d4a8c6d10ff705073da2213c8ce43d0538c28848900b695d8d47a463800914`, Windows 10/11 x64, zero external runtime prerequisites); `win-unpacked` 3,384 files / 470,350,839 bytes; `app.asar` 688 entries. Golden Database SHA-256 `8ab608cc9416f098d5d510d825b7dfa48cbc26b78d57f4a9220592c6b4b6dc24` (4,059,136 bytes) verified byte-identical to `seed-data/golden-manifest.json`, with no build-machine state data shipped. Packaging audit: zero `__livetest__`/`__probe__` files, zero `.ts`/`.d.ts`, zero source maps, zero `.env`/`.bak`, zero test files, exactly one `.db`. Smoke-tested: Electron main starts, backend listens on 127.0.0.1:48211, `/api/health` returns ok, the database opens with 70 migrations applied and nothing pending, the main window loads, and the error log is empty. Product Owner visual review was completed and approved for each bundled pack at its own merge; this release packages already-approved work. Previous: `2026.5.6` — unchanged by Simple Cheque Calibration Profiles + Persistent Default v1, by Multi-Bank Cheque Profiles Readiness v1, by Gulf Bank A4 Cheque Template v1, by Financial Accuracy & KPI Integrity v1 and by Multi-Bank Cheques Foundation v1** (both backend/frontend packs, no installer rebuild), so the shipped installer predates both and the 70th migration. Installer figures below describe the 2026.5.6 build: new installer build. `package.json` `productName: "Al Manar ERP"`. Installer artifact `AlManarERP-Setup-2026.5.6.exe` (132.02 MiB, 138,436,813 bytes, SHA-256 `2b44d5a677f7f29a78d15f6eac373204d56cc928d967fd5f8285e8388bb6e44e`, Windows 10/11 x64, zero external runtime prerequisites); `win-unpacked` 3,376 files / 470,059,994 bytes. Golden Database SHA-256 `03fb8e5e18cef47e04a19c7d80e06359779aefd6c402d9d821ffd5249690f880` (3,870,720 bytes, `integrity_check = ok`, 0 foreign-key violations, 86 tables, 69 applied migrations) verified byte-identical in four places (source · `win-unpacked` · inside `Setup.exe` · `seed-data/golden-manifest.json`). The packaged Prisma client carries all **85** models, model set identical to `backend/prisma/schema.prisma` — confirmed both by the new fail-closed build guard and by extracting the client from inside `Setup.exe`. Packaging audit over 4,107 `Setup.exe` entries and 686 `app.asar` entries: zero source maps, tests, `.ts`/`.d.ts`, `.env`, `.bak`, journals, secrets, non-Windows engines — and, for the first time, **zero `__livetest__`/`__probe__` dev files**, which the 2026.5.5 installer verifiably shipped |
 | **Total Stable Releases** | 447 (window 2026-06-07 → 2026-08-21) — `git tag -l "stable-*"` count |
@@ -415,6 +415,34 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Expiration Center — Single Source of Truth & Data Integrity v1**
+  (2026-08-28, `stable-expiration-center-single-source-v1`) —
+  the Document Expiration Center became a pure read/aggregation layer. Audit found exactly one
+  duplicated source, and it was broken: `EQUIPMENT_INSURANCE` read `equipment.insuranceExpiry`,
+  a second copy absent from `createEquipmentSchema`, from the equipment form and from the
+  equipment importer, and explicitly untouched by the Vehicle Insurance module — its only
+  consumer in the whole system was that one read line, so renewing a policy left the centre
+  frozen forever. It now reads `endDate` of the current policy from `vehicle_insurance_policies`
+  via `vehicleInsuranceService.listCurrentExpiries()`; the "current policy" rule
+  (`endDate desc → startDate desc → id desc`) was extracted into a private `latestPolicyRows()`
+  shared with `listCurrentPolicies`, so the insurance screen and the centre cannot drift apart.
+  The other six types already read from their canonical owners and were left alone. A central
+  `CANONICAL_SOURCE` map now drives a `sourceModule` on every row, surfaced as «المصدر الرسمي»
+  in the detail drawer so a user can open the owning screen and compare by hand. KPI fix:
+  `summary.total` counted only non-valid rows (18) while the table under "all" showed every row
+  (137) — one dataset, two definitions; `total` is now the sum of all six bands and `actionable`
+  carries the old meaning that `ExpirationWidget` hides on. `equipment.insuranceExpiry` stays in
+  the database marked deprecated — no deletion, no migration, no backfill (dev DB had zero legacy
+  values and zero policies, hence zero conflicts). New `expirations.sourceOfTruth.test.ts`
+  (15 fully-mocked tests) pins each type's source, live reflection without a second write, the
+  absence of `insuranceExpiry` from the query, conflict resolution in favour of the canonical
+  source, no invented date for null expiry, the shared `daysRemaining` contract across all seven
+  types, and card/table agreement. 54/54 targeted tests, both typechecks and the frontend build
+  passed; the 5 `chequeDesignerTemplates.integration.contract.test.ts` failures were proven
+  PRE-EXISTING on a clean `origin/production` worktree and left untouched. Open Product Owner
+  decisions: dropping the deprecated column, whether employee «رخصة المركبة» and equipment
+  «دفتر المركبة» are the same real-world document recorded twice, and the contract status filter.
 
 - **Bank Salary Analytics — Western Digits Consistency v1**
   (2026-08-27, `stable-bank-salary-analytics-western-digits-v1`) —
