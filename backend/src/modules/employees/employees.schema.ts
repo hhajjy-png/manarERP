@@ -15,7 +15,10 @@ export const createEmployeeSchema = z.object({
     residencyExpiry: dateOnlySchema.optional(), // انتهاء الإقامة
     licenseExpiry: dateOnlySchema.optional(), // انتهاء رخصة القيادة
     vehiclePlate: z.string().optional(), // رقم لوحة المركبة
-    vehicleLicenseExpiry: dateOnlySchema.optional(), // انتهاء رخصة المركبة
+    // Deprecated — vehicle expiry is owned by Equipment/Vehicle registration —
+    // يبقى في عقد الـAPI للتوافق مع أي مستهلك قديم (الاستيراد، سكربتات النقل). نموذج
+    // الموظفين لم يعد يرسله، ومركز انتهاء الوثائق لم يعد يقرأه.
+    vehicleLicenseExpiry: dateOnlySchema.optional(), // مهجور — انتهاء رخصة المركبة
     birthDate: dateOnlySchema.optional(), // تاريخ الميلاد
     company: z.string().optional(), // الشركة
     department: z.string().optional(),

@@ -41,6 +41,7 @@ export function buildDocumentAlerts(
   push('الإقامة', docs.residencyExpiry);
   push('جواز السفر', docs.passportExpiry);
   push('رخصة القيادة', docs.licenseExpiry);
+  // Deprecated — vehicle expiry is owned by Equipment/Vehicle registration.
   // vehicleLicenseExpiry intentionally omitted — vehicle registration expiry is the
   // equipment module's responsibility (equipment.registrationExpiry / دفتر المركبة).
 

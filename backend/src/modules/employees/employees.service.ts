@@ -60,6 +60,8 @@ const SORTABLE: SortWhitelist = {
   residencyExpiry: { field: 'residencyExpiry', nullable: true },
   passportExpiry: { field: 'passportExpiry', nullable: true },
   licenseExpiry: { field: 'licenseExpiry', nullable: true },
+  // Deprecated — vehicle expiry is owned by Equipment/Vehicle registration — عمود الجدول أُزيل من الواجهة،
+  // ويبقى المفتاح هنا كي لا ينكسر أي استدعاء قديم لـ `?sortBy=vehicleLicenseExpiry`.
   vehicleLicenseExpiry: { field: 'vehicleLicenseExpiry', nullable: true },
 };
 const DEFAULT_ORDER = [{ id: 'desc' as const }];

@@ -424,7 +424,9 @@ export const MODULES: Record<string, ModuleConfig> = {
       { key: 'passportExpiry', label: 'col.passport_expiry', sortable: true, width: '120px', render: (r) => <ExpiryCell value={r.passportExpiry} />, exportValue: (r) => dateText(r.passportExpiry) },
       { key: 'licenseExpiry', label: 'col.license_expiry', sortable: true, width: '120px', render: (r) => <ExpiryCell value={r.licenseExpiry} />, exportValue: (r) => dateText(r.licenseExpiry) },
       { key: 'vehiclePlate', label: 'col.vehicle_plate', width: '100px', render: (r) => <span style={{ fontFamily: 'monospace' }}>{r.vehiclePlate ?? '—'}</span> },
-      { key: 'vehicleLicenseExpiry', label: 'col.vehicle_license_expiry', sortable: true, width: '132px', render: (r) => <ExpiryCell value={r.vehicleLicenseExpiry} />, exportValue: (r) => dateText(r.vehicleLicenseExpiry) },
+      // انتهاء رخصة/دفتر المركبة لا يُعرض هنا: مالكه سجل المعدة/المركبة
+      // (`equipment.registrationExpiry`) لا سجل الموظف — Remove Employee Vehicle
+      // License Expiry v1. رقم اللوحة أعلاه بيانات الموظف فبقي.
       { key: 'salary', label: 'col.salary', money: true, sortable: true, width: '128px', render: (r) => <MoneyCell value={r.salary} /> },
       { key: 'hireDate', label: 'col.hire_date', sortable: true, width: '120px', render: (r) => dateText(r.hireDate), exportValue: (r) => dateText(r.hireDate) },
       { key: 'status', label: 'col.status', sortable: true, width: '124px', render: (r) => employeeStatus(r.status), exportValue: (r) => EMPLOYEE_STATUS_MAP[r.status]?.[0] ?? r.status ?? '' },
@@ -450,7 +452,8 @@ export const MODULES: Record<string, ModuleConfig> = {
       { name: 'residencyExpiry', label: 'field.residency_expiry', type: 'date', section: 'documents' },
       { name: 'licenseExpiry', label: 'field.license_expiry', type: 'date', section: 'documents' },
       { name: 'vehiclePlate', label: 'field.vehicle_plate', section: 'documents' },
-      { name: 'vehicleLicenseExpiry', label: 'field.vehicle_license_expiry', type: 'date', section: 'documents' },
+      // لا حقل «تاريخ انتهاء رخصة المركبة» في النموذج: المصدر الرسمي لانتهاء
+      // رخصة/دفتر المركبة هو سجل المعدة/المركبة، فلا يُدخل من شاشة الموظفين.
       { name: 'address', label: 'field.address', section: 'contact' },
     ],
   },
