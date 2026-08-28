@@ -39,6 +39,7 @@ import {
   computeRegularHours,
   PayrollLineDraft,
 } from './payroll.calc';
+import { payrollEligibilityWhere } from './payroll.eligibility';
 import {
   buildUnifiedMonthRows,
   findPayrollEligibilityGap,
@@ -210,12 +211,50 @@ export class PayrollService {
 
   private async buildSnapshots(input: PayrollPeriodInput): Promise<PayrollSnapshot[]> {
     const { start, end, days } = monthRange(input.month, input.year);
+    // ── Who this run targets ────────────────────────────────────────────────────
+    //
+    // BULK (no employeeId): THE shared eligibility rule (payroll.eligibility) — the very
+    // same predicate the gap detector reads. What generation creates and what detection
+    // reports missing can never drift apart. Do not inline a copy of the rule here.
+    //
+    // SINGLE EMPLOYEE (employeeId given): a deliberate operator override that targets
+    // exactly that person WITHOUT consulting the eligibility rule.
+    //
+    //   ON_LEAVE — APPROVED BY THE PRODUCT OWNER (Employee ↔ Payroll Eligibility &
+    //   Status Transition Integrity v1). An on-leave employee stays excluded from bulk
+    //   generation, yet may still have a payslip issued one-by-one: paid annual leave,
+    //   and any case where the operator decides to disburse. This is intended
+    //   behaviour, not a defect — do not "fix" it back to a status check.
+    //
+    //   TERMINATED — BLOCKED BY THE PRODUCT OWNER (same package). Ending service ends
+    //   the right to a NEW payslip, so the override stops here: see the explicit guard
+    //   below. It is deliberately a single named status, NOT `payrollEligibilityWhere`,
+    //   because applying the bulk rule to this path would also block ON_LEAVE and
+    //   silently revoke the exception granted right above it.
+    //
+    // The override is explicit, audited, and scoped to one named employee. It is never a
+    // silent bulk inclusion, and it must not be widened to any other selector.
     const employeeWhere: Prisma.EmployeeWhereInput = input.employeeId
       ? { id: input.employeeId }
-      : { status: 'ACTIVE' };
+      : payrollEligibilityWhere(input.month, input.year);
 
     const employees = await prisma.employee.findMany({ where: employeeWhere, orderBy: { code: 'asc' } });
     if (input.employeeId && employees.length === 0) throw AppError.notFound('الموظف غير موجود');
+
+    // TERMINATED closes the manual override — a Product Owner ruling, narrow on purpose.
+    //
+    // Scope: the SINGLE-EMPLOYEE path only (`input.employeeId`), and one status only.
+    // ON_LEAVE is untouched and still generatable here; the bulk rule is untouched too.
+    //
+    // This refuses to CREATE, and creating is all it can refuse: the throw happens while
+    // still building snapshots, before the transaction opens, so no row is read, written,
+    // recalculated or deleted. Every existing payslip of a terminated employee —
+    // historical, APPROVED, PAID — stays exactly as it is, and keeps rendering in the
+    // grid and in reports. Ending service ends the right to a NEW payslip, nothing else.
+    if (input.employeeId && employees[0].status === 'TERMINATED') {
+      throw AppError.badRequest('لا يمكن إنشاء راتب لموظف منتهي الخدمة.');
+    }
+
     if (employees.length === 0) return [];
 
     const employeeIds = employees.map((e) => e.id);

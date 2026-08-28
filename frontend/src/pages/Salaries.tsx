@@ -482,7 +482,18 @@ export default function Salaries() {
                   ))}
                 </div>
               ) : null}
-              {canGenerate && <div style={{ marginTop: 8, paddingInlineStart: 30, fontSize: '.86em', opacity: .85 }}>{t('msg.payroll.missing_active_hint')}</div>}
+              {canGenerate && (
+                /* The remedy lives WITH the finding. Previously this warning only told the
+                   operator to go find the header button — so a returning employee stayed
+                   invisible until someone acted on prose. This runs the very same
+                   incremental generation (identical scope: current period + current
+                   employee filter): missing employees get a DRAFT payslip, and APPROVED
+                   or PAID payslips are skipped untouched by the backend, never rewritten. */
+                <div style={{ marginTop: 8, paddingInlineStart: 30, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                  <Button variant="primary" icon="bolt" busy={busy} onClick={generatePayroll}>{t('page.salaries.generate')}</Button>
+                  <span style={{ fontSize: '.86em', opacity: .85 }}>{t('msg.payroll.missing_active_hint')}</span>
+                </div>
+              )}
             </div>
           )}
 

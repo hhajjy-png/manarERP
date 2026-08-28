@@ -21,6 +21,7 @@ import { prisma } from '../../config/database';
 import { AppError } from '../../core/errors/AppError';
 import { formatSourceMonth } from '../salaries/salaries.dateHelpers';
 import { round3 } from './payroll.calc';
+import { hasPeriodStarted, payrollEligibilityWhere } from './payroll.eligibility';
 
 export type PayrollSource = 'COMPUTED' | 'IMPORTED_TRANSFER';
 
@@ -323,7 +324,19 @@ export async function findPayrollEligibilityGap(
   year: number,
   filters: { employeeId?: number } = {},
 ): Promise<PayrollEligibilityGap> {
-  const employeeWhere: Prisma.EmployeeWhereInput = { status: 'ACTIVE' };
+  // A period that has not begun yet cannot be missing payroll — everyone is
+  // trivially absent from it. Reporting that would turn this warning into a
+  // permanent banner and bury the single case it exists to catch. Generation is
+  // untouched: an operator may still generate a period ahead of time.
+  if (!hasPeriodStarted(month, year)) {
+    return { eligibleCount: 0, representedCount: 0, missingPayrollCount: 0, missingPayrollEmployees: [] };
+  }
+
+  // THE shared eligibility rule — the very same predicate `buildSnapshots` uses to
+  // decide who gets a row. Detection and materialization read one definition, so
+  // this can never report someone generation would refuse to create, nor stay
+  // silent about someone it would.
+  const employeeWhere: Prisma.EmployeeWhereInput = payrollEligibilityWhere(month, year);
   if (filters.employeeId != null) employeeWhere.id = filters.employeeId;
 
   const [eligible, computedRows, importedRows] = await Promise.all([

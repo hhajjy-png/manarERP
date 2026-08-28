@@ -22,6 +22,12 @@ vi.mock('../../../config/database', () => ({
 
 import { prisma } from '../../../config/database';
 import { findPayrollEligibilityGap } from '../payrollMonth.readModel';
+import { payrollEligibilityWhere } from '../payroll.eligibility';
+
+// The gap detector must query employees with THE shared eligibility predicate —
+// not a private copy of it. Asserting against the exported rule is what makes
+// "detection and generation can never drift apart" a test, not a comment.
+const ELIGIBILITY_WHERE_JUL_2026 = payrollEligibilityWhere(7, 2026);
 
 const payrollFindMany = prisma.payroll.findMany as unknown as ReturnType<typeof vi.fn>;
 const salaryPaymentFindMany = prisma.salaryPayment.findMany as unknown as ReturnType<typeof vi.fn>;
@@ -87,7 +93,7 @@ describe('findPayrollEligibilityGap — who the period does not represent', () =
     const gap = await findPayrollEligibilityGap(7, 2026);
 
     expect(gap.missingPayrollCount).toBe(0);
-    expect(employeeFindMany.mock.calls[0][0].where).toEqual({ status: 'ACTIVE' });
+    expect(employeeFindMany.mock.calls[0][0].where).toEqual(ELIGIBILITY_WHERE_JUL_2026);
   });
 
   it('E. treats an imported bank transfer as representation — no duplicate gap for settled history', async () => {
@@ -115,7 +121,7 @@ describe('findPayrollEligibilityGap — who the period does not represent', () =
 
     const gap = await findPayrollEligibilityGap(7, 2026, { employeeId: 11 });
 
-    expect(employeeFindMany.mock.calls[0][0].where).toEqual({ status: 'ACTIVE', id: 11 });
+    expect(employeeFindMany.mock.calls[0][0].where).toEqual({ ...ELIGIBILITY_WHERE_JUL_2026, id: 11 });
     expect(gap.missingPayrollCount).toBe(1);
   });
 
@@ -141,5 +147,59 @@ describe('findPayrollEligibilityGap — who the period does not represent', () =
 
     expect(gap.missingPayrollCount).toBe(1);
     expect(gap.missingPayrollEmployees[0].employeeId).toBe(77);
+  });
+
+  it('K. LEAVE → ACTIVE mid-period is reported the moment the status is saved — no regeneration, no restart', async () => {
+    // The reported scenario. The employee was ON_LEAVE when the month was generated, so
+    // the frozen snapshot has no row for them. Nothing was re-run, no cache was cleared,
+    // no application restart happened: detection re-reads LIVE employee status on every
+    // call, so the very next request already names them.
+    const RETURNED = { id: 78, code: '26', fullName: 'عبدالرؤوف شيخ' };
+    employeeFindMany.mockResolvedValue([...ACTIVE_EMPLOYEES, RETURNED]);
+    payrollFindMany.mockResolvedValue([{ employeeId: 10 }, { employeeId: 11 }]);
+
+    const gap = await findPayrollEligibilityGap(7, 2026);
+
+    expect(gap.missingPayrollCount).toBe(1);
+    expect(gap.missingPayrollEmployees).toEqual([
+      { employeeId: 78, employeeCode: '26', employeeName: 'عبدالرؤوف شيخ' },
+    ]);
+  });
+
+  it('L. excludes employees hired AFTER the period ended — a month cannot miss someone who was not employed', async () => {
+    // Pinned at the query level: the predicate itself carries the hire-date boundary,
+    // so an employee hired in August is never reported missing from a January period.
+    await findPayrollEligibilityGap(1, 2026);
+
+    const where = employeeFindMany.mock.calls[0][0].where;
+    expect(where.OR).toEqual([
+      { hireDate: null },
+      { hireDate: { lte: new Date(2026, 1, 0, 23, 59, 59, 999) } },
+    ]);
+  });
+
+  it('M. reports nothing for a period that has not started yet — and touches the database not at all', async () => {
+    const future = new Date();
+    future.setFullYear(future.getFullYear() + 1);
+
+    const gap = await findPayrollEligibilityGap(future.getMonth() + 1, future.getFullYear());
+
+    expect(gap).toEqual({
+      eligibleCount: 0, representedCount: 0, missingPayrollCount: 0, missingPayrollEmployees: [],
+    });
+    expect(employeeFindMany).not.toHaveBeenCalled();
+    expect(payrollFindMany).not.toHaveBeenCalled();
+  });
+  it('O. the ON_LEAVE manual exception does not leak into detection — still-on-leave is never "missing"', async () => {
+    // Product Owner ruling: an ON_LEAVE employee may be PAID one-by-one, but is not
+    // OWED a payslip by the period. Detection must keep asking the bulk rule only —
+    // otherwise every employee on leave would be reported as a gap for every month.
+    employeeFindMany.mockResolvedValue(ACTIVE_EMPLOYEES); // the rule returns ACTIVE only
+    payrollFindMany.mockResolvedValue([{ employeeId: 10 }, { employeeId: 11 }]);
+
+    const gap = await findPayrollEligibilityGap(7, 2026);
+
+    expect(employeeFindMany.mock.calls[0][0].where.status).toBe('ACTIVE');
+    expect(gap.missingPayrollCount).toBe(0);
   });
 });
