@@ -73,7 +73,34 @@ in a table cell.
 
 ---
 
-## Latest Release — Employee ↔ Payroll Eligibility & Status Transition Integrity v1
+## Latest Release — Production Release 2026.5.8 (Desktop Installer)
+
+| Field | Value |
+|-------|-------|
+| **Package** | مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج على `production` منذ مثبِّت 2026.5.7 — إصدار تغليف، بلا عمل ميزات جديد |
+| **Release status** | **RELEASED** — Desktop/Installer |
+| **Version** | `2026.5.7` → **`2026.5.8`** — `package.json` هو الملف الوحيد المتغيّر في commit الإصدار |
+| **Release date** | 2026-08-31 |
+| **Production source HEAD** | `ef1674e4` — النسخة مبنيّة من هذا الـHEAD وحده، بلا feature branch ولا cherry-pick ولا stash ولا ملفات غير مُتتبَّعة (`git status` نظيفة، `git stash list` فارغة، `production == origin/production` قبل البناء) |
+| **Release commit** | `38414d42` — `chore(release): Production Release 2026.5.8` |
+| **Tag** | `stable-production-release-2026.5.8` |
+| **الحزم المشمولة** | كل ما على `production` حتى `ef1674e4`، ومنها الأربع المدموجة منذ مثبِّت 2026.5.7: **Bank Salary Analytics — Western Digits Consistency v1** (`f6da081d`، merge `efade9e7`) · **Expiration Center — Single Source of Truth & Data Integrity v1** (`f919b65c`، merge `d64b1902`) · **Remove Employee Vehicle License Expiry v1** (`3fa1cf61`، merge `e1c5e051`) · **Employee ↔ Payroll Eligibility & Status Transition Integrity v1** (`722097f7`، merge `24ea42ec`) |
+| **Product Owner visual review** | **تمت واعتُمدت لكل حزمة في مرحلتها** قبل دمجها إلى `production`؛ هذا الإصدار تغليف لما اعتُمد سابقًا ولا يضيف عملًا يحتاج مراجعة بصرية جديدة |
+| **Artifact — Installer** | `release/AlManarERP-Setup-2026.5.8.exe` — **138,492,514 بايت (132.07 ميغابايت)** · SHA-256 `ddeea3c66f7849c9f0a32543add0b17a8beadeed2360be6bba449d59f15b3a10` · NSIS · Windows 10/11 x64 · صفر متطلبات تشغيل خارجية |
+| **Artifact — التطبيق** | `release/win-unpacked/Al Manar ERP.exe` — 180,192,256 بايت · FileVersion `2026.5.8` · ProductVersion `2026.5.8.0` · `win-unpacked` 3,384 ملفًا / 470,406,179 بايت · `app.asar` 688 مدخلًا · محتوى المثبِّت 3,384 ملفًا / 732 مجلدًا / 470,406,179 بايت غير مضغوطة |
+| **الترحيلات** | **70 ترحيلًا** مشحونًا ومطبَّقًا — بلا ترحيل جديد في هذا الإصدار (كما في 2026.5.7)، ولا تغيير مخطط، ولا مفتاح صلاحية جديد، ولا اعتمادية جديدة |
+| **عميل Prisma المُعبَّأ** | **87 نموذجًا**، مجموعة النماذج مطابقة حرفيًا لـ`backend/prisma/schema.prisma` — أكّدها حارس فشل-مغلق في `prepare-backend-deps.js` أثناء البناء، وأُعيد التحقق منها باستخراج العميل من داخل `Setup.exe` (87) |
+| **قاعدة البيانات الذهبية** | SHA-256 `dda5d4503ee05b286bbb80ed80cfba292e2f5bc8ab31b72f442a330505edb215` · 4,075,520 بايت · مُتحقَّق منها **متطابقة بايتًا ببايت في أربعة مواضع**: المصدر `backend/data/manar.db` · `win-unpacked` · داخل `Setup.exe` · بيان `seed-data/golden-manifest.json` — بلا أي ملف journal جانبي، ولم تُشحن أي بيانات حالة من جهاز البناء (Data Safety Pack v2 — F-04) |
+| **تدقيق نظافة الحزمة** | صفر `__livetest__`/`__probe__` · صفر `.ts`/`.d.ts` · صفر خرائط مصدر · صفر `.env` أو `.bak` حقيقية · صفر ملفات اختبار خاصة بالمشروع · قاعدة بيانات واحدة فقط (`resources/backend/data/manar.db`). مطابقتان اسميّتان فُحصتا وثبت أنهما ملفّا مكتبتين خارجيتين مشروعان لا علاقة لهما بالمشروع: `@dabh/diagnostics/adapters/process.env.js` و`buffer-equal-constant-time/test.js` |
+| **Sanity checks** | git integrity (`production == origin/production`، شجرة نظيفة، `git stash list` فارغة، صفر ملفات غير مُتتبَّعة) ✅ · `prisma migrate status` = 70 ترحيلًا مطبَّقًا بلا معلّق ✅ · `npm run db:generate` ثم تطابق العميل المُولَّد مع المخطط (87/87) ✅ · backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · `npm run dist` ✅ · صفر متطلبات تشغيل خارجية في `runtime-requirements.json` ✅. نُظِّفت مخرجات البناء المُولَّدة (`backend/dist`، `frontend/dist`، `electron-dist`، `release/win-unpacked`، `build/seed-data`) قبل البناء؛ لم يُمسّ أي مصدر مُتتبَّع |
+| **Smoke test — الخدمة الخلفية (نجح)** | شُغِّلت الخدمة الخلفية **من مخرجات الحزمة نفسها** (`resources/backend/dist/server.js` عبر ثنائي Electron المشحون بوضع `ELECTRON_RUN_AS_NODE`) على نسخة طازجة من القاعدة الذهبية المشحونة: الخدمة تستمع على `127.0.0.1:48211` ✅ · `/api/health` يعيد `{"success":true,"status":"ok"}` ✅ · القاعدة تُفتح و`prisma migrate status` عليها = «70 ترحيلًا، المخطط محدَّث» ✅ · مسار استعلام Prisma حيّ فعليًا: `POST /api/auth/login` ببيانات خاطئة يعيد رفضًا عربيًا صحيحًا من القاعدة ✅ · `error.log` فارغ ✅ · ثنائي Electron المشحون سليم (`31.0.0` / Node `20.14.0`) ✅ |
+| **Smoke test — الواجهة الرسومية (لم يكتمل — مانع بيئي)** | **تعذّر تشغيل واجهة أي نسخة مُعبَّأة على جهاز البناء.** يخرج التطبيق فورًا وبصمت (بلا نافذة، بلا سطر في `error.log`، بلا مخرجات على stdout/stderr) رغم أنه يصل إلى مرحلة قفل التشغيل ويحرّره نظيفًا. فشلت كل محاولات الالتفاف: تشغيل عادي، `--disable-gpu`، `--no-sandbox --disable-gpu`، و`--disable-gpu --disable-software-rasterizer --in-process-gpu`. **الفحص الفارق حاسم: النسخة المثبَّتة سابقًا 2026.5.6 — التي أُجري لها Smoke test ناجح كامل عند إصدارها — تفشل الآن بالسلوك نفسه بالضبط على الجهاز نفسه.** إذن السبب بيئي على جهاز البناء ولا يدلّ على عيب في 2026.5.8. **لم يُتحقَّق بصريًا من: ظهور النافذة الرئيسية، ولا ظهور رقم النسخة داخل التطبيق قيد التشغيل** — ويجب إجراء هذا التحقق على جهاز مستخدم نهائي قبل التوزيع الفعلي |
+| **ملاحظة بيئة البناء (تدهور عن 2026.5.7)** | في إصدار 2026.5.7 كان `--disable-gpu` كافيًا لإتمام الـSmoke test الرسومي؛ الآن لم يعد أي وسم يُجدي. التدهور بيئي بحت على جهاز البناء (يطال نسخة 2026.5.6 المثبَّتة أيضًا)، **ولم يُضَف أي flag دائم إلى التطبيق** — ذلك يحتاج قرارًا منفصلًا |
+| **متطلب متابعة (لم يُنفَّذ في هذا الإصدار — كما في 2026.5.7)** | `scripts/prepare-backend-deps.js` يُفضّل `backend/node_modules/.prisma` مصدرًا للعميل، لكنه يعيد كتابة `backend/node_modules` في نهاية كل تغليف — فيصير مصدرُ البناء التالي مخرَجَ التغليف السابق. عولج هذا الإصدار وقائيًا بتشغيل `npm run db:generate` قبل التغليف والتحقق من 87/87 في المصدرين، ومرّ الحارس بلا تدخّل. **إصلاح السكربت نفسه ما زال متابعة مطلوبة ولم يُغيَّر داخل هذا الإصدار** |
+
+---
+
+## Previous Release — Employee ↔ Payroll Eligibility & Status Transition Integrity v1
 
 | Field | Value |
 |-------|-------|
