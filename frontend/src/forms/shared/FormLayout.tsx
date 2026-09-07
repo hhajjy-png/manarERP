@@ -191,6 +191,18 @@ interface FormLayoutProps {
    * rule beneath it, the margins and every other form are untouched.
    */
   titleFontSize?: number;
+  /**
+   * Opt-in: render the sheet as **content only** — no title block (form number,
+   * title, rule) and no footer block (approval, QR, its top rule). Off by default,
+   * so every existing form is byte-identical.
+   *
+   * Exists for printing on the company's PRE-PRINTED letterhead stationery, where
+   * the physical paper already carries the header and footer and drawing them again
+   * duplicates them. Purely a matter of which blocks `FormPage` renders — it does not
+   * touch `@page`, the profile margins, the print path or the preview. The content
+   * band itself comes from the profile the form selects.
+   */
+  contentOnly?: boolean;
 }
 
 /**
@@ -295,6 +307,7 @@ export default function FormLayout({
   useLogoHeader = false,
   logoTintColor,
   contentTopOffset,
+  contentOnly = false,
   titleFontSize = 22,
 }: FormLayoutProps) {
   const navigate = useNavigate();
@@ -768,6 +781,7 @@ ${logoHeaderIsOverlay ? `
           )
         }
         qrData={qrData}
+        contentOnly={contentOnly}
       >
         {children}
       </FormPage>

@@ -104,6 +104,33 @@ export const PRINT_PROFILES: Record<string, PrintProfile> = {
     page: { size: 'A4', orientation: 'portrait' },
     margins: { top: '12mm', right: '15mm', bottom: '12mm', left: '15mm' },
   },
+  /**
+   * Payment Voucher on the company's PRE-PRINTED letterhead paper.
+   *
+   * A separate, document-specific profile — NOT a change to any existing one.
+   * `payment-voucher` (the standard sheet) is untouched, and so is every general
+   * profile; `selectable: false` keeps this out of every other form's toggle,
+   * exactly like `payment-voucher`/`receipt-voucher`.
+   *
+   * `blankHeader: true` (with no `logoHeader`) hides the on-screen company header —
+   * the physical sheet already carries it, which is the whole point.
+   *
+   * Margins are the Product Owner's stated content band for the printed stationery:
+   * the form starts 45mm from the sheet's top edge (clear of the printed letterhead)
+   * and stops 20mm above the bottom edge (clear of the printed footer). The page box
+   * itself enforces this — the browser cannot paint outside it — so no element can
+   * drift into either band. Left/right stay at the voucher's existing 15mm.
+   */
+  'payment-voucher-letterhead': {
+    id: 'payment-voucher-letterhead',
+    labelAr: 'سند صرف — ورق الشركة الرسمي',
+    labelEn: 'Payment Voucher — Company Letterhead',
+    selectable: false,
+    blankHeader: true,
+    logoHeader: false,
+    page: { size: 'A4', orientation: 'portrait' },
+    margins: { top: '45mm', right: '15mm', bottom: '20mm', left: '15mm' },
+  },
   // Future profiles are added here only. No API or component changes required.
   // 'letterhead-en': { ... },
   // 'invoice-template-a': { ... },
