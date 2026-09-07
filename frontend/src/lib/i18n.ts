@@ -4507,6 +4507,11 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.paymentVoucher.sheet.letterhead': 'ورق الشركة',
     'page.paymentVoucher.sheet.standard_title': 'النموذج الكامل بترويسة الشركة وتذييلها — للطباعة على ورق أبيض عادي',
     'page.paymentVoucher.sheet.letterhead_title': 'محتوى السند فقط بلا ترويسة ولا تذييل — للطباعة على ورق الشركة الرسمي المطبوع مسبقًا (يبدأ عند 45mm من الأعلى ويترك 20mm من الأسفل)',
+    'page.receipt.sheet': 'الورقة',
+    'page.receipt.sheet.standard': 'عادي',
+    'page.receipt.sheet.letterhead': 'ورق الشركة',
+    'page.receipt.sheet.standard_title': 'النموذج الكامل بترويسة الشركة وتذييلها — للطباعة على ورق أبيض عادي',
+    'page.receipt.sheet.letterhead_title': 'محتوى السند فقط بلا ترويسة ولا تذييل — للطباعة على ورق الشركة الرسمي المطبوع مسبقًا (يبدأ عند 50mm من الأعلى ويترك 20mm من الأسفل)',
     'page.blankA4.title': 'ورقة A4 فارغة',
     // محرك المستندات — مساحة العمل (P2). العنوان يُحلّ من هنا حصرًا عبر t(titleKey).
     //
@@ -10105,6 +10110,11 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.paymentVoucher.sheet.letterhead': 'Letterhead',
     'page.paymentVoucher.sheet.standard_title': 'Full form with the company header and footer — for printing on plain white paper',
     'page.paymentVoucher.sheet.letterhead_title': 'Voucher content only, no header or footer — for the company’s pre-printed letterhead (starts 45mm from the top, leaves 20mm at the bottom)',
+    'page.receipt.sheet': 'Sheet',
+    'page.receipt.sheet.standard': 'Standard',
+    'page.receipt.sheet.letterhead': 'Letterhead',
+    'page.receipt.sheet.standard_title': 'Full form with the company header and footer — for printing on plain white paper',
+    'page.receipt.sheet.letterhead_title': 'Voucher content only, no header or footer — for the company’s pre-printed letterhead (starts 50mm from the top, leaves 20mm at the bottom)',
     'page.blankA4.title': 'Blank A4 Sheet',
     // Letter Engine — workspace (P2). Product name is "Form Editor" as of the
     // Form Editor UX Simplification Pack v1; the KEY is deliberately unchanged.

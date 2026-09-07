@@ -20,6 +20,7 @@ import ApprovalSection from '../forms/shared/ApprovalSection';
 import FormQRCode from '../forms/shared/FormQRCode';
 import LanguageToggle from '../forms/shared/LanguageToggle';
 import ReceiptVoucherTemplate, { PaymentMethod } from '../forms/ReceiptVoucherTemplate';
+import { PRINT_PROFILES } from '../forms/shared/printProfiles';
 import { useCompanyBranding } from '../print-templates/hooks/useCompanyBranding';
 import { useBrandingSelection } from '../print-templates/hooks/useBrandingSelection';
 import BrandingAssetPicker from '../print-templates/components/BrandingAssetPicker';
@@ -29,6 +30,31 @@ import { getBrandingLayoutForDocument } from '../print-templates/utils/brandingL
 import type { PrintBrandingLayoutSettings } from '../print-templates/engine/types';
 import officialLogoHead from '../assets/logohead.png';
 import { DOC_FONT_STACK } from '../styles/fontRegistry';
+
+/**
+ * أيّ ورقة يُطبع عليها السند — نفس النمط المعتمد في سند الصرف
+ * (Payment Voucher Print Fix & Letterhead Template v1).
+ *
+ * `standard`  — الورقة القائمة **بلا أي تغيير**: ترويسة الشعار، وكتلة رقم السند،
+ *               والتذييل (اعتماد + QR)، وقاعدة `@page { size: A4; margin: 12mm 15mm }`
+ *               كما هي حرفًا بحرف.
+ * `letterhead`— ورق الشركة **المطبوع مسبقًا**: بلا ترويسة النموذج وبلا تذييله، ومحتوى
+ *               السند وحده داخل نطاق `receipt-voucher-letterhead`.
+ *
+ * الافتراضي `standard` — فتح الصفحة يعطي المستند القائم كما كان تمامًا.
+ */
+type SheetMode = 'standard' | 'letterhead';
+
+/**
+ * قاعدة `@page` لكل ورقة.
+ *
+ * الورقة العادية تحتفظ بالسلسلة النصية القائمة **حرفيًا** (`12mm 15mm`) بدل اشتقاقها،
+ * فيستحيل أن يزيحها هذا التعديل ولو بمقدار جزء من المليمتر. ورق الشركة وحده يقرأ
+ * هوامشه من ملف التعريف الجديد.
+ */
+const LETTERHEAD_MARGINS = PRINT_PROFILES['receipt-voucher-letterhead'].margins;
+const LETTERHEAD_PAGE_MARGIN =
+  `${LETTERHEAD_MARGINS.top} ${LETTERHEAD_MARGINS.right} ${LETTERHEAD_MARGINS.bottom} ${LETTERHEAD_MARGINS.left}`;
 
 interface FormState {
   partyName: string;
@@ -78,6 +104,8 @@ export default function ReceiptVoucher() {
   const [printing, setPrinting] = useState(false);
   const [formError, setFormError] = useState('');
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [sheet, setSheet] = useState<SheetMode>('standard');
+  const isLetterhead = sheet === 'letterhead';
 
   // العقدة المطبوعة — نفس ما يستهلكه مُركِّب المستند (composePreview) ومسار الطباعة.
   const previewRef = useRef<HTMLDivElement>(null);
@@ -93,11 +121,16 @@ export default function ReceiptVoucher() {
     if (!node) throw new Error(t('dlg.receipt.compose_failed'));
     return composeFromNode({
       node,
-      pageSpec: RECEIPT_VOUCHER_PAGE_SPEC,
+      // نفس هندسة `@page` المطبوعة فعلًا في كل وضع، فلا تنحرف المعاينة ولا PDF عن
+      // الورق. الوضع العادي يمرّر الثابت المشترك **كما هو** (بلا نسخ ولا تعديل)،
+      // وورق الشركة ينسخه مع هوامش ملف تعريفه وحدها — الثابت المشترك لم يُمَسّ.
+      pageSpec: isLetterhead
+        ? { ...RECEIPT_VOUCHER_PAGE_SPEC, margins: { ...LETTERHEAD_MARGINS } }
+        : RECEIPT_VOUCHER_PAGE_SPEC,
       title: `${t('voucher.receipt.title')} ${rcvNumber || '---'}`,
       lang,
     });
-  }, [rcvNumber, lang, t]);
+  }, [rcvNumber, lang, t, isLetterhead]);
 
   /**
    * المعاينة الدقيقة (True Chromium WYSIWYG) — **إضافية بحتة**.
@@ -234,7 +267,9 @@ export default function ReceiptVoucher() {
       <style>{`
         @media print {
           html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
-          @page { size: A4; margin: 12mm 15mm; }
+          ${isLetterhead
+            ? `@page { size: A4; margin: ${LETTERHEAD_PAGE_MARGIN}; }`
+            : '@page { size: A4; margin: 12mm 15mm; }'}
           .rcv-no-print { display: none !important; }
           .rcv-preview {
             width: 100% !important;
@@ -255,6 +290,32 @@ export default function ReceiptVoucher() {
             <p>{t('page.receipt.subtitle')}</p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div
+              style={{ display: 'flex', gap: 0, alignItems: 'center', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}
+              role="group"
+              aria-label={t('page.receipt.sheet')}
+            >
+              {(['standard', 'letterhead'] as SheetMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={sheet === m ? 'true' : 'false'}
+                  title={t(m === 'standard' ? 'page.receipt.sheet.standard_title' : 'page.receipt.sheet.letterhead_title')}
+                  onClick={() => setSheet(m)}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: 12,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: sheet === m ? 'var(--primary)' : 'transparent',
+                    color: sheet === m ? '#fff' : 'var(--text-muted)',
+                    fontWeight: sheet === m ? 700 : 400,
+                  }}
+                >
+                  {t(m === 'standard' ? 'page.receipt.sheet.standard' : 'page.receipt.sheet.letterhead')}
+                </button>
+              ))}
+            </div>
             <LanguageToggle lang={lang} onChange={setLang} />
             <button
               type="button"
@@ -418,25 +479,33 @@ export default function ReceiptVoucher() {
             FormHeader — kept fully in-flow (`overlay` is NOT set), so this
             does not adopt ready-paper's page-level architecture or its
             print-only compensation; PrintProfile is untouched. */}
-        <FormHeader isLetterhead={false} lang={lang} logoSrc={officialLogoHead} cropTransparentPadding />
+        {/* ترويسة النموذج (الشعار + اسم الشركة) وكتلة رقم السند المرجعية وخطّها —
+            تُسقطان معًا على ورق الشركة: الورقة الفعلية تحمل الترويسة مطبوعة، ورقم
+            السند يظهر أصلًا داخل السند نفسه (صفّ «رقم السند / No.» في القالب)،
+            فرسمه هنا ثانيةً تكرار. الوضع العادي يُصيّرهما كما كانا حرفيًا. */}
+        {!isLetterhead && (
+          <>
+            <FormHeader isLetterhead={false} lang={lang} logoSrc={officialLogoHead} cropTransparentPadding />
 
-        {/* Form number reference */}
-        <div style={{ textAlign: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, direction: 'ltr' }}>
-            {rcvNumber || '---'}
-          </div>
-          <div
-            style={{
-              width: 60,
-              height: 3,
-              background: '#1d4e6f',
-              margin: '0 auto',
-              borderRadius: 2,
-              WebkitPrintColorAdjust: 'exact',
-              printColorAdjust: 'exact',
-            }}
-          />
-        </div>
+            {/* Form number reference */}
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, direction: 'ltr' }}>
+                {rcvNumber || '---'}
+              </div>
+              <div
+                style={{
+                  width: 60,
+                  height: 3,
+                  background: '#1d4e6f',
+                  margin: '0 auto',
+                  borderRadius: 2,
+                  WebkitPrintColorAdjust: 'exact',
+                  printColorAdjust: 'exact',
+                }}
+              />
+            </div>
+          </>
+        )}
 
         <ReceiptVoucherTemplate
           voucherNumber={rcvNumber || '---'}
@@ -449,7 +518,11 @@ export default function ReceiptVoucher() {
           lang={lang}
         />
 
-        {/* Footer: ApprovalSection + QR */}
+        {/* تذييل الورقة (كتلة الاعتماد + رمز QR + خطّه العلوي) — يُسقط كاملًا على ورق
+            الشركة، فالورقة الفعلية تحمل تذييلها مطبوعًا. توقيع **المُستلِم** لا يتأثر:
+            هو جزء من محتوى السند نفسه داخل `ReceiptVoucherTemplate`، ويبقى مطبوعًا في
+            الوضعين. */}
+        {!isLetterhead && (
         <div
           style={{
             marginTop: 14,
@@ -488,6 +561,7 @@ export default function ReceiptVoucher() {
             />
           </div>
         </div>
+        )}
       </div>
 
       {/* لوحة الخصائص المشتركة — ثابتة و`no-print`، خارج الجذر المطبوع. */}
