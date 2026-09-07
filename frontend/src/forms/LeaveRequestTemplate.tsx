@@ -46,6 +46,12 @@ interface Leave {
 
 interface PrintFields {
   expectedReturnDate?: string;
+  /**
+   * تاريخ تقديم الطلب كما اختاره المستخدم ('YYYY-MM-DD'). كان هذا السطر يُطبع دائمًا
+   * بتاريخ اليوم، فإعادة طباعة طلب قديم كانت تُظهر تاريخًا خاطئًا. الفراغ يعني «لا
+   * قيمة مختارة» ⇒ يسقط السطر إلى تاريخ اليوم كما كان حرفيًا.
+   */
+  requestDate?: string;
   leaveType?: '' | 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY';
   startDate?: string;
   endDate?: string;
@@ -158,7 +164,8 @@ export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang 
         </div>
 
         <div style={{ marginBottom: 8, fontSize: 13, color: '#374151', direction: 'ltr' }}>
-          <strong>Request Date:</strong> {issueDateStrEn()}
+          <strong>Request Date:</strong>{' '}
+          {printFields?.requestDate?.trim() ? fmtDateEn(printFields.requestDate) : issueDateStrEn()}
         </div>
 
         {/* Manager approval is provided by the shared ApprovalSection footer — not repeated here. */}
@@ -268,7 +275,8 @@ export default function LeaveRequestTemplate({ employee: emp, latestLeave, lang 
       </div>
 
       <div style={{ marginBottom: 8, fontSize: 13, color: '#374151' }}>
-        <strong>تاريخ تقديم الطلب:</strong> {issueDateStr()}
+        <strong>تاريخ تقديم الطلب:</strong>{' '}
+        {printFields?.requestDate?.trim() ? fmtDate(printFields.requestDate) : issueDateStr()}
       </div>
 
       {/* اعتماد المدير المباشر يظهر في قسم الاعتماد المشترك بالتذييل (ApprovalSection) — لا يُكرَّر هنا. */}

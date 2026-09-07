@@ -19,6 +19,8 @@
  * وقت البناء بدل أن يمرّ صامتًا.
  */
 
+import { todayDateOnly } from '../../lib/date';
+
 /** قيم نوع الإجازة — مطابقة لـ `leaveSchema` في الخادم حرفًا بحرف. */
 export const LEAVE_TYPE_VALUES = ['ANNUAL', 'SICK', 'UNPAID', 'EMERGENCY'] as const;
 
@@ -51,16 +53,40 @@ export interface LeaveRequestFields {
   reason: string;
   /** 'YYYY-MM-DD' — تاريخ العودة المتوقَّع، اختياري. */
   expectedReturnDate: string;
+  /**
+   * 'YYYY-MM-DD' — تاريخ **تقديم** الطلب، حقل يملكه المستخدم.
+   *
+   * كان النموذج المطبوع يكتبه دائمًا بتاريخ اليوم، فطباعة طلب قديم كانت تُظهر
+   * تاريخًا لم يُقدَّم فيه الطلب. صار مُدخَلًا يُحفظ مع السجل: تاريخ اليوم قيمة
+   * **ابتدائية لطلب جديد فقط** (`newLeaveRequestFields`)، ولا يُفرض على سجل محفوظ.
+   * لا علاقة له بتاريخي بداية الإجازة ونهايتها ولا بأي احتساب.
+   */
+  requestDate: string;
 }
 
-/** الحالة الابتدائية لحوار الإضافة — النوع الافتراضي هو الأشيع عمليًا. */
+/**
+ * الحالة الابتدائية **الخالية** — بلا تاريخ تقديم. تُستعمل حين لا يُقصد افتراض شيء
+ * (مسح الحقول مثلًا). لطلب جديد استعمل `newLeaveRequestFields()`.
+ */
 export const EMPTY_LEAVE_REQUEST_FIELDS: LeaveRequestFields = {
   type: 'ANNUAL',
   startDate: '',
   endDate: '',
   reason: '',
   expectedReturnDate: '',
+  requestDate: '',
 };
+
+/**
+ * الحالة الابتدائية لطلب **جديد**: كالخالية، لكن تاريخ التقديم يبدأ بتاريخ اليوم.
+ *
+ * دالة لا ثابت، لأن «اليوم» يتغيّر بينما الثابت يُقيَّم مرة واحدة عند تحميل الوحدة —
+ * جلسة مفتوحة عبر منتصف الليل كانت ستفتح حوارًا بتاريخ الأمس. `now` اختياري
+ * لاختبارات حتمية.
+ */
+export function newLeaveRequestFields(now?: Date): LeaveRequestFields {
+  return { ...EMPTY_LEAVE_REQUEST_FIELDS, requestDate: todayDateOnly(now) };
+}
 
 /**
  * حمولة اختصار «طباعة نموذج الإجازة» — سجل إجازة محفوظ كما قرأه الخادم، مُهيَّأ

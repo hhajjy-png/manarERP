@@ -51,6 +51,8 @@ interface Leave {
 
 interface PrintFields {
   expectedReturnDate?: string;
+  /** تاريخ تقديم الطلب المختار ('YYYY-MM-DD') — الفراغ يسقط إلى تاريخ اليوم كما كان. */
+  requestDate?: string;
   leaveType?: '' | 'ANNUAL' | 'SICK' | 'UNPAID' | 'EMERGENCY';
   startDate?: string;
   endDate?: string;
@@ -178,7 +180,7 @@ export default function LeaveRequestEnHiTemplate({
         <strong>
           <LabelEnHi en={L('f.requestDate').en} hi={L('f.requestDate').hi} />:
         </strong>{' '}
-        {issueDateStrEn()}
+        {printFields?.requestDate?.trim() ? fmtDateEn(printFields.requestDate) : issueDateStrEn()}
       </div>
 
       {/* اعتماد المدير المباشر يظهر في قسم الاعتماد المشترك بالتذييل
