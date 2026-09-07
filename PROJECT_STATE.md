@@ -73,7 +73,40 @@ in a table cell.
 
 ---
 
-## Latest Release — Payment Voucher Print Fix & Letterhead Template v1
+## Latest Release — Receipt Voucher Company Letterhead Template v1
+
+| Field | Value |
+|-------|-------|
+| **Feature** | Receipt Voucher — Company Letterhead Template v1 |
+| **Release status** | **RELEASED** |
+| **Release date** | 2026-09-07 |
+| **Feature branch** | `feature/receipt-voucher-letterhead-template-v1` |
+| **Feature commit** | `6b37930c` — *feat(forms): add company-letterhead template for receipt voucher* |
+| **Production merge commit** | `695f63b7` — `--no-ff`، والدان: `82afbed4` + `6b37930c`. الحزمة دخلت كاملةً: فرق الـmerge عن الـfeature commit = **صفر ملف** |
+| **Checkpoint tag** | `checkpoint-receipt-voucher-letterhead-template-v1` → `82afbed4` (production HEAD الفعلي وقت الوسم، مقروءًا من `git rev-parse` لا من قيمة محفوظة) |
+| **Stable tag** | `stable-receipt-voucher-letterhead-template-v1` → merge `695f63b7` (annotated؛ ليس على commit الوثائق) |
+| **Product Owner visual review** | **COMPLETED AND APPROVED** — روجع القالبان بصريًا واعتُمدا قبل الإصدار |
+| **الإضافة** | قالب طباعة جديد ومستقل في «النماذج الإدارية ← سند القبض»، للطباعة على ورق الشركة الرسمي المطبوع مسبقًا. مبدّل «عادي \| ورق الشركة» في شريط الأدوات، **والافتراضي يبقى «عادي»** فيفتح المستند القائم حرفيًا كما كان — **إضافة لا استبدال** |
+| **ما يُسقطه قالب ورق الشركة** | أثاث الورقة وحده: ترويسة النموذج (الشعار واسم الشركة)، وكتلة رقم السند المرجعية وخطّها، والتذييل كاملًا (كتلة الاعتماد + رمز QR + خطّه العلوي) |
+| **ما يبقى** | محتوى السند كاملًا: عنوان **«سند قبض / RECEIPT VOUCHER»**، وكل الحقول والمبالغ وطريقة الدفع والبيان، وتوقيع **المُستلِم** — فذاك جزء من السند نفسه داخل `ReceiptVoucherTemplate` لا من تذييل الورقة |
+| **الأبعاد المعتمدة** | يفرضها صندوق الصفحة نفسه: `@page { size: A4; margin: 50mm 15mm 20mm 15mm; }` — **Top 50mm · Bottom 20mm · Left/Right 15mm**. الجانبيان هما قيمة سند القبض القائمة نفسها (قاعدته الحالية `@page { size: A4; margin: 12mm 15mm }`) — **فُحصت ولم تُفترض** |
+| **منطقة المحتوى** | **180mm × 227mm** (297−50−20 · 210−15−15) |
+| **إثبات الأبعاد بالقياس** | `@page` المحقون مقروءًا من الصفحة الحيّة = `margin: 50mm 15mm 20mm 15mm` ✅ · حشو الجذر المطبوع عند الطباعة `0px` ⇒ لا إزاحة إضافية ✅ · **أول عنصر مطبوع عند 0mm من مبدأ صندوق الصفحة** ⇒ المحتوى يبدأ عند 50mm بالضبط، بلا spacer ولا blank div ولا هامش وهمي ✅ · ارتفاع المحتوى **156.63mm** ⇒ يترك **70.37mm** فوق حدّ الـ20mm السفلي ✅ · داخل الورقة: `صور = 0` (لا شعار ولا QR) و`كتلة اعتماد = غائبة`، بينما `عنوان السند = موجود` و`توقيع المُستلِم = موجود` ✅ |
+| **ترقيم Chromium الحيّ** | الحالات الأربع **صفحة A4 واحدة**: عادي عربي (240.92mm / 273mm متاحة) ✅ · عادي إنجليزي (240.92mm) ✅ · ورق الشركة عربي (156.63mm / 227mm) ✅ · ورق الشركة إنجليزي (156.63mm) ✅. لم يُصغَّر أي خط أو محتوى |
+| **ملف التعريف** | `receipt-voucher-letterhead` — مدخل **جديد فقط** (`selectable: false`، `blankHeader: true`، `logoHeader: false`) في نقطة التوسعة التي يعلنها `printProfiles.ts` نفسه. **صفر سطر محذوف أو معدَّل** في الملف (أُثبت بـ`git diff`) ⇒ لا ملف تعريف قائم تغيّر. يحرسه اختبار انحدار يثبّت هوامش الستة جميعًا وقائمة القابل للاختيار |
+| **حماية سند الصرف** | **محصَّن بنيويًا لا بالوعد**: `ReceiptVoucher` صفحة مستقلة لا تُصيّر `FormPage`/`FormLayout` أصلًا (جذرها `.rcv-preview` وقاعدة `@page` سطرية عندها)، فلم يُلمس `FormPage.tsx` ولا `FormLayout.tsx` ولا `contentOnly` ولا أي ملف من ملفات سند الصرف. `payment-voucher-letterhead` كما هو: **45mm أعلى / 20mm أسفل / 15mm جانبيًا** — مثبَّت باختبار، مع اختبار ثانٍ يثبت أن `contentOnly` ما تزال مطفأة افتراضيًا |
+| **إعادة استخدام النمط لا نسخه** | اتُّبع معمار *Payment Voucher Print Fix & Letterhead Template v1* (ملف تعريف مستقل يقود `@page` + مبدّل ورقة + إسقاط أثاث الورقة) **بلا مسار طباعة موازٍ**: نفس `printCurrentView` ونفس الجذر المطبوع ونفس مسار PDF. `contentOnly` لم تُستعمل ولم تُعدَّل — غير قابلة للتمرير إلى صفحة لا تُصيّر `FormPage`. و`RECEIPT_VOUCHER_PAGE_SPEC` المشترك لم يُمَسّ: وضع ورق الشركة يمرّر نسخة محلية بهوامشه فتتطابق المعاينة الدقيقة و PDF مع الورق، والوضع العادي يمرّر الثابت كما هو |
+| **حماية القالب العادي** | قاعدة `@page` للوضع العادي بقيت السلسلة النصية القائمة **حرفيًا** (`12mm 15mm`) بدل اشتقاقها، فيستحيل أن يزيحها هذا التعديل ولو بجزء من المليمتر. التصميم والترويسة والتذييل والخطوط والإحداثيات وترتيب الحقول والألوان والحدود والهوامش والمسافات: بلا تغيير |
+| **لا Backend ولا migration** | صفر ملفات تحت `backend/`، صفر prisma، صفر migrations، ولا تغيير قاعدة بيانات. إجمالي الترحيلات يبقى **71**. منطق سند القبض المالي وبياناته لم يُمسّا · ولا Universal Print Preview ولا Print Engine ولا PDF IPC ولا CSS ولا أي نموذج إداري آخر |
+| **الملفات** | 4 ملفات (+407 / −23): `pages/ReceiptVoucher.tsx` (المبدّل + `@page` لكل وضع + إسقاط الترويسة/التذييل + مزامنة مواصفة المعاينة) · `forms/shared/printProfiles.ts` (مدخل جديد فقط) · `lib/i18n.ts` (5 مفاتيح `page.receipt.sheet.*` ar/en) · `__tests__/receiptVoucherLetterheadSheetV1.test.tsx` (جديد) |
+| **التحقق** | `receiptVoucherLetterheadSheetV1` **21/21** ✅ · انحدار سند الصرف والطباعة (7 ملفات) **114/114** ✅ · frontend `tsc --noEmit` ✅ · `npm run build` (الواجهة) ✅ |
+| **Sanity checks عند الإصدار** | `git status` نظيفة ✅ · `git stash list` فارغة ✅ · صفر ملفات غير مُتتبَّعة ✅ · صفر ملفات مؤقتة أو غير مرتبطة في الحزمة ✅ · `printProfiles.ts` إضافة خالصة ✅ · حارسا القيم 36/36 و`tsc` نظيف قبل الـcommit ✅ · `production == origin/production` ✅ |
+| **أدوات القياس** | مقياس الطباعة (سكربت Electron يحمّل التطبيق الحيّ ويستدعي `printToPDF`) عاش في مجلد العمل المؤقت خارج المستودع وحُذف بعد الاستعمال — **لا أثر له في الحزمة** |
+| **لم يُنفَّذ (بقرار صريح)** | لم يُبنَ `manar.exe` ولا مثبِّت سطح المكتب. الإصدار المشحون يبقى **2026.5.8**. لم تُعَد الـfull test suite بعد الاعتماد، ولم يُلمس أي إخفاق سابق غير مرتبط |
+
+---
+
+## Previous Release — Payment Voucher Print Fix & Letterhead Template v1
 
 | Field | Value |
 |-------|-------|
