@@ -73,7 +73,36 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.8 (Desktop Installer)
+## Latest Release — Leave Request Editable Request Date v1
+
+| Field | Value |
+|-------|-------|
+| **Feature** | Leave Request Editable Request Date v1 |
+| **Release status** | **RELEASED** |
+| **Release date** | 2026-09-07 |
+| **Feature branch** | `feature/leave-request-editable-request-date-v1` |
+| **Feature commit** | `8090ed9d` — *feat(leave): make the leave-request submission date user-editable and persisted* |
+| **Production merge commit** | `9a01a724` — *Merge feature/leave-request-editable-request-date-v1* (`--no-ff`، والدان: `e757bcee` + `8090ed9d`) |
+| **Checkpoint tag** | `checkpoint-leave-request-editable-request-date-v1` → `e757bcee` (production HEAD قبل الدمج مباشرة) |
+| **Stable tag** | `stable-leave-request-editable-request-date-v1` → merge `9a01a724` (annotated؛ ليس على commit الوثائق) |
+| **Product Owner visual review** | **COMPLETED AND APPROVED** — روجِعت النسخة المطبوعة بصريًا واعتُمدت قبل الإصدار |
+| **العلّة** | «تاريخ تقديم الطلب» في نموذج طلب الإجازة المطبوع كان يُكتب بتاريخ **يوم الطباعة** دائمًا (`issueDateStr()` / `issueDateStrEn()`) ولا يُخزَّن إطلاقًا. فإعادة طباعة طلب قديم كانت تُظهر تاريخًا لم يُقدَّم فيه الطلب أصلًا، ولا سبيل لتصحيحه: الحقل لم يكن قابلًا للتحرير ولا موجودًا في المخطط |
+| **الحل** | حقل يملكه المستخدم ويُحفظ مع سجل الإجازة — على نفس نمط `expectedReturnDate` القائم سلفًا (عمود اختياري + مكوّن `DateInput` المعتمد)، بلا نظام تاريخ جديد. طلب جديد يبدأ بتاريخ اليوم (افتراض لا فرض، عبر `newLeaveRequestFields()` — دالة لا ثابت كي لا تعلق جلسة مفتوحة عبر منتصف الليل على تاريخ الأمس)؛ الطلب المحفوظ يعرض `requestDate` المخزَّن عند إعادة فتحه (سواء عبر اختصار «طباعة نموذج الإجازة» أو عبر `latestLeave` من الخادم، بحارس `requestDateManuallyEdited` يجعل تعديل المستخدم يفوز على التبنّي التلقائي)؛ والطباعة تستعمل التاريخ المختار |
+| **التوافق مع السجلّات القديمة** | `requestDate = NULL` ⇒ المستند يسقط إلى تاريخ اليوم — **السلوك السابق حرفيًا**. لا سجل قديم تغيّر ولا احتاج ترحيل بيانات |
+| **الترحيل** | `20260907120000_add_leave_request_date` — **إضافي بحت**: سطر `ALTER TABLE "leaves" ADD COLUMN "requestDate" DATETIME;` واحد. صفر `DROP`/`DELETE`/`UPDATE`. في SQLite عملية بيانات-وصفية خالصة: لا إعادة بناء جدول، لا نسخ بيانات، لا تغيير فهرس أو قيد؛ كل صفّ قائم يبقى NULL. التراجع = إسقاط هذا العمود وحده. **إجمالي الترحيلات: 70 → 71** |
+| **المخطط** | `Leave.requestDate DateTime?` — حقل واحد. لا نموذج Prisma جديد، ولا مفتاح صلاحية جديد، ولا اعتمادية جديدة، ولا قناة IPC جديدة |
+| **نظام الطباعة — بلا أي تغيير بصري** | التغيير الوحيد داخل القوالب هو **قيمة** سطر تاريخ التقديم: `<strong>…:</strong> {issueDateStr()}` صارت نفس الوسم ونفس المسافة الواحدة مع قيمة مختارة تسقط إلى تاريخ اليوم عند الفراغ. **صفر ملفات CSS/تخطيط/محرك طباعة في الحزمة** — أُثبت آليًا بفحص قائمة الملفات المعدَّلة ضد `\.css$`، `FormLayout`، `formStyles`، `printProfiles`، `/printing/`، `fontRegistry`، `pdf.ipc`، `html.service`. لا مقاسات ولا هوامش ولا خطوط ولا أحجام ولا إحداثيات ولا مواضع حقول. حقل الإدخال الجديد يعيش في لوحة التحرير الشاشية (`no-print`) وحدها، بنفس هيئة الحقل الذي يليه (`field` + `maxWidth: 280`) وبلا إعادة تخطيط أي حقل قائم |
+| **خارج النطاق عمدًا** | `startDate` و`endDate` و`days` وكل احتساب للإجازات — بلا تغيير. `days` يبقى مشتقًّا في الخادم عبر `diffDays`، و`status` مفروضًا `PENDING`. `requestDate` لا يُقيَّد بتاريخي الإجازة (الطلب قد يُقدَّم قبلها أو بعدها) ولا يدخل محرّك المستحقات: يُقرأ في `select` العرض وحده، وقراءتا الاحتساب تنتقيان التاريخين فقط — مثبَّت باختبار |
+| **الملفات** | 16 ملفًا (+495 / −17): الخادم — `schema.prisma`، الترحيل، `employees.schema.ts`، `entitlements.service.ts`. الواجهة — `leaveRequestFields.ts`، `AddLeaveDialog.tsx`، `LeaveRequest.tsx`، `LeaveRequestTemplate.tsx`، `LeaveRequestEnHiTemplate.tsx`، `entitlementsShared.tsx`، `EmployeeEntitlementsCenter.tsx`، `i18n.ts` (مفتاح `page.leaveReq.field.request_date` ar/en). اختبارات — `leaveRequestDate.test.ts` (جديد)، `leaveRequestEditableDateV1.test.tsx` (جديد)، وتحديث `entitlements.service.test.ts` و`employeeEntitlementsLeaveManagementV1.test.tsx`. `requestLeave` لم يُعدَّل: يمرّر `...input` فيُحفظ الحقل تلقائيًا |
+| **التحقق** | backend `leaveRequestDate` 7/7 ✅ · frontend `leaveRequestEditableDateV1` 11/11 ✅ · `entitlements.service` 57/57 ✅ · `employeeEntitlementsLeaveManagementV1` 33/33 ✅ · backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · `npm run build:back` ✅ · `npm run build:front` ✅ |
+| **اختبار حيّ (خادم فعلي، لا محاكاة)** | على `127.0.0.1:48211` بقاعدة التطوير بعد تطبيق الترحيل: `POST /api/employees/leaves` بـ `requestDate: 2026-05-02` حُفظ حرفيًا و`createdAt` = 2026-09-07 ⇒ لا استبدال بتاريخ اليوم، و`days: 5` و`status: PENDING` بقيا مشتقَّين ✅ · `GET /api/forms/leave-request/84` أعاد `requestDate: 2026-05-02T00:00:00.000Z` ✅ · نموذج قراءة المستحقات (مصدر اختصار الطباعة) يحمل الحقل ✅ · الصفحة والقالب الحقيقيان مغذَّيان بحمولة الخادم الحيّة أنتجا سطر المستند `تاريخ تقديم الطلب: 02/05/2026` وتاريخ اليوم `07/09/2026` لا يظهر في المستند إطلاقًا ✅. **حدّ التحقق:** البند الأخير على مستوى نصّ المستند لا بالعين — التطابق البصري غطّته مراجعة Product Owner |
+| **نظافة الإصدار** | آثار الاختبار أُزيلت قبل الـcommit: الملفان المؤقّتان `__tmpLivePayloadCheck.test.tsx` و`__livepayload.json` حُذفا، وسجل الإجازة التجريبي (id=1، الموظف 84) حُذف بعد مطابقة كل حقوله بحارس يتوقف عند أي اختلاف — عاد الجدول إلى **0 سجل** كما كان. تطبيق التطوير أُغلق قبل عمليات Git |
+| **Sanity checks** | `git status` نظيفة ✅ · `git stash list` فارغة ✅ · صفر ملفات غير مُتتبَّعة ✅ · `prisma migrate status` = 71 ترحيلًا مطبَّقًا بلا معلّق ✅ · صفر ملفات طباعة/تنسيق في الحزمة ✅ · الترحيل إضافي بحت (صفر DROP/DELETE/UPDATE) ✅ · `production == origin/production` ✅ |
+| **لم يُنفَّذ في هذه المهمة (بقرار صريح)** | لم يُبنَ `manar.exe` ولا Production Desktop Installer. الإصدار المشحون يبقى **2026.5.8** (يحمل 70 ترحيلًا)؛ هذه الحزمة تعيش على `production` وستدخل في مثبِّت لاحق. لم تُعَد الـfull test suites — الإخفاقات المعروفة فيها سابقة لهذه الحزمة وغير مرتبطة بها (`chequeTemplateManager` غير موجودة في المستودع، و`entitlementsBankExport` تفشل على الشجرة النظيفة أيضًا) ولم تُلمَس |
+
+---
+
+## Previous Release — Production Release 2026.5.8 (Desktop Installer)
 
 | Field | Value |
 |-------|-------|
