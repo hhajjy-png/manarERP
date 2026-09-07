@@ -73,7 +73,37 @@ in a table cell.
 
 ---
 
-## Latest Release — Leave Request Editable Request Date v1
+## Latest Release — Payment Voucher Print Fix & Letterhead Template v1
+
+| Field | Value |
+|-------|-------|
+| **Feature** | Payment Voucher — Print Fix + Letterhead Template v1 |
+| **Release status** | **RELEASED** |
+| **Release date** | 2026-09-07 |
+| **Feature branch** | `feature/payment-voucher-print-fix-and-letterhead-template-v1` |
+| **Feature commit** | `55931008` — *fix(forms): payment voucher prints on one A4 page + add company-letterhead sheet* |
+| **Production merge commit** | `342723c3` — `--no-ff`، والدان: `9e8f4d66` + `55931008` |
+| **Checkpoint tag** | `checkpoint-payment-voucher-print-fix-and-letterhead-template-v1` → `9e8f4d66` |
+| **Stable tag** | `stable-payment-voucher-print-fix-and-letterhead-template-v1` → merge `342723c3` (annotated؛ ليس على commit الوثائق) |
+| **Product Owner visual review** | **COMPLETED AND APPROVED** — روجع القالبان بصريًا واعتُمدا قبل الإصدار |
+| **العلّة (١) — الصفحتان** | سند الصرف الإنجليزي كان يطبع على صفحتين. **السبب قيس فعليًا لا تخمينًا**: حُمّل التطبيق الحيّ في نافذة Chromium غير مرئية، ورُقّمت الصفحات بـ`printToPDF` على A4 بهوامش ملف التعريف، وقيست الكتل تحت وسيط الطباعة بعرض عمود الطباعة الحقيقي (180mm). سببان معًا: (أ) النموذج بلا أي هامش أمان — العربية 278.91mm مقابل 280mm متاحة، تنجو بـ**1.09mm** فقط؛ (ب) صف «طريقة الدفع» يلتفّ سطرًا إضافيًا بالإنجليزية — **16.40mm ← 21.43mm (+5.03mm)** لأن `Cash/Cheque/Bank Transfer/Bank:/Cheque No.:` أطول من مقابلاتها العربية داخل خلية بعرض 66% مع `flexWrap: 'wrap'`. كل صفٍّ آخر متطابق بالمليمتر. المحصّلة **283.94mm ⇒ فيضان 3.94mm ⇒ صفحة ثانية** |
+| **الحل (١)** | `contentTopOffset` في `AdminPaymentVoucher` من `2cm` إلى `1cm` — **مسافة بيضاء علوية لا محتوى**. لا خط ولا حجم ولا هامش جانبي ولا ترتيب حقل ولا لون تغيّر، ولم يُصغَّر أي محتوى. بعده: عربي **268.91mm** (هامش 11.09mm) · إنجليزي **273.93mm** (هامش 6.07mm) |
+| **الإضافة (٢) — قالب ورق الشركة** | مبدّل جديد في شريط أدوات السند: «عادي \| ورق الشركة». **الافتراضي يبقى العادي**، فيفتح المستند القائم حرفيًا كما كان — القالب الجديد **إضافة لا استبدال**. قالب ورق الشركة: بلا ترويسة، بلا تذييل (اعتماد + QR + خطّه)، محتوى السند وحده |
+| **نطاق المحتوى على A4** | يفرضه صندوق الصفحة نفسه: `@page { size: A4; margin: 45mm 15mm 20mm 15mm; }`. بداية المحتوى **45mm** من أعلى الورقة، والحد السفلي يترك **20mm**، والهامشان الجانبيان **15mm** كما هما في السند القائم. المتصفح لا يستطيع الرسم خارج هذا الصندوق، فلا عنصر يدخل منطقة الترويسة أو التذييل المطبوعتين على الورق |
+| **إثبات النطاق بالقياس** | `@page` المحقون مقروءًا من الصفحة الحيّة = `margin: 45mm 15mm 20mm 15mm` ✅ · النطاق الناتج **180 × 232mm** (297−45−20) ✅ · حشو `.form-page` عند الطباعة `0px` ⇒ لا إزاحة إضافية ✅ · أول عنصر مطبوع (صندوق عنوان السند) عند **0mm** من مبدأ صندوق الصفحة ⇒ المحتوى يبدأ عند 45mm بالضبط ✅ · الارتفاع 148.43mm عربي / 153.46mm إنجليزي ⇒ ينتهي ~84mm فوق حدّ الـ20mm ✅ · الترويسة `display:none` عبر `blankHeader` والتذييل غير مُصيَّر أصلًا ✅ |
+| **ترقيم Chromium الحيّ** | التركيبات الأربع **صفحة واحدة**: عادي عربي ✅ · عادي إنجليزي ✅ · ورق الشركة عربي ✅ · ورق الشركة إنجليزي ✅ |
+| **لا Print Profile قائم تغيّر** | `payment-voucher-letterhead` **مدخل جديد** (`selectable: false`) في نقطة التوسعة التي يعلنها `printProfiles.ts` نفسه — **صفر سطر محذوف أو معدَّل** في الملف (أُثبت بـ`git diff`). يحرسه اختبار انحدار يثبّت هوامش الخمسة جميعًا (`plain-a4`، `letterhead`، `ready-paper`، `payment-voucher`، `receipt-voucher`) وقائمة القابل للاختيار |
+| **لا محرك طباعة ولا Universal Print Preview** | صفر ملفات CSS/SCSS، ولا `utils/print`، ولا مجلد `printing/`، ولا `FormHeader`. `contentOnly` في `FormPage`/`FormLayout` **مطفأة افتراضيًا** ⇒ كل نموذج قائم يُصيَّر حرفيًا كما كان، ولا نموذج إداري آخر تغيّر |
+| **لا migration ولا مخطط** | صفر ملفات في `backend/` وصفر ملفات prisma/migrations. بيانات سند الصرف ومنطقه المالي لم يُمسّا — الحزمة عرض وطباعة بحت. إجمالي الترحيلات يبقى **71** |
+| **الملفات** | 6 ملفات (+337 / −6): `pages/AdminPaymentVoucher.tsx` (الإصلاح + المبدّل) · `forms/shared/printProfiles.ts` (مدخل جديد فقط) · `forms/shared/FormPage.tsx` (`contentOnly`) · `forms/shared/FormLayout.tsx` (تمرير `contentOnly` فقط) · `lib/i18n.ts` (5 مفاتيح ar/en) · `__tests__/paymentVoucherLetterheadSheetV1.test.tsx` (جديد) |
+| **التحقق** | `paymentVoucherLetterheadSheetV1` **15/15** ✅ · اختبارات السندات والطباعة القائمة (5 ملفات) **83/83** ✅ · الحزمة الأمامية **4178/4180** ✅ · frontend `tsc --noEmit` ✅ |
+| **Sanity checks** | `git status` نظيفة ✅ · `git stash list` فارغة ✅ · صفر ملفات غير مُتتبَّعة ✅ · صفر ملفات prisma/backend/CSS/محرك طباعة في الحزمة ✅ · `printProfiles.ts` إضافة خالصة ✅ · `production == origin/production` ✅ |
+| **أدوات القياس** | مقياس الطباعة (سكربت Electron يحمّل التطبيق الحيّ ويستدعي `printToPDF`) عاش في مجلد العمل المؤقت خارج المستودع وحُذف بعد الاستعمال — **لا أثر له في الحزمة** |
+| **لم يُنفَّذ في هذه المهمة (بقرار صريح)** | لم يُبنَ `manar.exe` ولا مثبِّت سطح المكتب. الإصدار المشحون يبقى **2026.5.8**. لم تُعَد الـfull test suite بعد الاعتماد؛ الإخفاقان المعروفان (`entitlementsBankExport`) سابقان لهذه الحزمة وغير مرتبطين بها ولم يُلمسا |
+
+---
+
+## Previous Release — Leave Request Editable Request Date v1
 
 | Field | Value |
 |-------|-------|
