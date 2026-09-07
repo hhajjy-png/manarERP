@@ -131,6 +131,35 @@ export const PRINT_PROFILES: Record<string, PrintProfile> = {
     page: { size: 'A4', orientation: 'portrait' },
     margins: { top: '45mm', right: '15mm', bottom: '20mm', left: '15mm' },
   },
+  /**
+   * Receipt Voucher on the company's PRE-PRINTED letterhead paper.
+   *
+   * The sibling of `payment-voucher-letterhead`, and like it a separate entry —
+   * NOT a change to any existing profile. `receipt-voucher` (the standard sheet)
+   * is untouched, and `selectable: false` keeps this out of every other form's
+   * toggle.
+   *
+   * `blankHeader: true` (with no `logoHeader`) marks it as a pre-printed sheet:
+   * the physical paper already carries the letterhead, so the form must not draw
+   * one.
+   *
+   * Margins are the Product Owner's stated content band for the receipt voucher's
+   * stationery: content starts 50mm from the sheet's top edge (the receipt sheet
+   * reserves 5mm more than the payment voucher's 45mm) and stops 20mm above the
+   * bottom edge. Left/right stay at the Receipt Voucher's existing 15mm — the same
+   * value its current `@page { size: A4; margin: 12mm 15mm }` rule already uses, so
+   * the horizontal geometry does not move between the two sheets.
+   */
+  'receipt-voucher-letterhead': {
+    id: 'receipt-voucher-letterhead',
+    labelAr: 'سند قبض — ورق الشركة الرسمي',
+    labelEn: 'Receipt Voucher — Company Letterhead',
+    selectable: false,
+    blankHeader: true,
+    logoHeader: false,
+    page: { size: 'A4', orientation: 'portrait' },
+    margins: { top: '50mm', right: '15mm', bottom: '20mm', left: '15mm' },
+  },
   // Future profiles are added here only. No API or component changes required.
   // 'letterhead-en': { ... },
   // 'invoice-template-a': { ... },
