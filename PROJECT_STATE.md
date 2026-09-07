@@ -73,7 +73,38 @@ in a table cell.
 
 ---
 
-## Latest Release — Receipt Voucher Company Letterhead Template v1
+## Latest Release — Production Release 2026.5.9 (Desktop Installer)
+
+| Field | Value |
+|-------|-------|
+| **Package** | مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج على `production` منذ مثبِّت 2026.5.8 — **إصدار تغليف، بلا عمل ميزات جديد** |
+| **Release status** | **RELEASED** — Desktop/Installer |
+| **Version** | `2026.5.8` → **`2026.5.9`** — `package.json` هو الملف الوحيد المتغيّر في commit الإصدار (سطر واحد) |
+| **Release date** | 2026-09-07 |
+| **Production source HEAD** | `9c72e717` — بُنيت من هذا الـHEAD وحده. قبل البناء: شجرة نظيفة، `git stash list` فارغة، صفر ملفات غير مُتتبَّعة، و`production == origin/production` |
+| **Release commit** | `ab9480d9` — `chore(release): Production Release 2026.5.9` |
+| **Docs / final HEAD** | commit الوثائق فوق `ab9480d9` |
+| **Tag** | `stable-production-release-2026.5.9` → `ab9480d9` (على commit الإصدار، لا على commit الوثائق) |
+| **الحزم المشمولة (٣)** | **Leave Request Editable Request Date v1** (`8090ed9d`، merge `9a01a724`) · **Payment Voucher Print Fix & Letterhead Template v1** (`55931008`، merge `342723c3`) · **Receipt Voucher Company Letterhead Template v1** (`6b37930c`، merge `695f63b7`). استُخرجت بالمقارنة الفعلية `stable-production-release-2026.5.8..production` — لا قائمة مفترضة |
+| **Product Owner visual review** | **تمت واعتُمدت لكل حزمة في مرحلتها** قبل دمجها إلى `production`؛ هذا الإصدار تغليف لما اعتُمد سابقًا |
+| **الترحيلات** | **70 → 71** — ترحيل واحد مضاف: `20260907120000_add_leave_request_date` (إضافي بحت). العدد الفعلي مقروء من المصدر ومن الحزمة ومن نسخة القاعدة المشحونة: **71** في الثلاثة |
+| **عميل Prisma المُعبَّأ** | **87 نموذجًا**، مجموعة النماذج مطابقة لـ`backend/prisma/schema.prisma`، و`Leave.requestDate` حاضر في العميل المُولَّد وفي المُعبَّأ. `npm run db:generate` نُفِّذ قبل التغليف وأنتج **صفر تغييرات في المصدر المُتتبَّع** |
+| **Artifact — Installer** | `release/AlManarERP-Setup-2026.5.9.exe` — **138,517,894 بايت (132.10 ميغابايت)** · SHA-256 `30743922f57559ab37127bbe443336225c0f80b37207e6ba84219787ff65069e` · NSIS · Windows 10/11 x64 · صفر متطلبات تشغيل خارجية |
+| **Artifact — التطبيق** | `release/win-unpacked/Al Manar ERP.exe` — 180,192,256 بايت · FileVersion **2026.5.9** · ProductVersion **2026.5.9.0** · `win-unpacked` **3,404 ملفًا / 470,519,253 بايت** · `app.asar` **688 مدخلًا** |
+| **قاعدة البيانات الذهبية** | SHA-256 `b3c38fe70b5c27eede3e7dc92df37362f802fceca0e4fbcabcd0930f0f1d1e52` · **4,145,152 بايت** · مُتحقَّق أنها **متطابقة بايتًا ببايت** بين المصدر و`win-unpacked` وبيان `seed-data/golden-manifest.json` · قاعدة واحدة فقط داخل الحزمة (`resources/backend/data/manar.db`) · بلا أي ملف journal جانبي |
+| **Golden DB Cleanup Audit** | القاعدة تغيّرت مشروعًا منذ 2026.5.8 (`dda5d450…`، 4,075,520 بايت): طُبّق الترحيل الـ71، وسُجّلت معاملات عمل حقيقية جديدة. قبل أي تنظيف أُخذت نسخة كاملة: `backend/data/backups/pre-cleanup-2026.5.9-20260907T160411Z.db` · 4,145,152 بايت · SHA-256 `d5c0fc08d7bca6ae50c763fbc50b36ac1a2c67bcca8db9aa0af469e5e584da39`. **حُذف صفّ واحد فقط**: `audit_logs #4078` (`CREATE`/`employees`/entity=1/`{"leave":"SICK","days":5}`/04:14:43.926Z) — سجل تدقيق لإجازة اختبارية أنشأها التحقق الآلي ثم حُذفت (جدول `leaves` = 0)، والحذف تمّ داخل transaction بحارس فشل-مغلق يطابق البصمة حرفًا بحرف. `PRAGMA integrity_check` = **ok**. **صفر معاملات عمل حُذفت**: 3 × `PAYMENT invoices` (43/44/8) و`CREATE bankStatementImport` (40، بـ22 حركة) و`CREATE employees` (LEAVE_ALLOWANCE) و`UPDATE employees` (59) وكل سجلات الطباعة البشرية — كلها سليمة ومُتحقَّق منها بعد الحذف. **أُبقيت 6 سجلات `LOGIN` ملتبسة عمدًا** لتعذّر إثبات مصدرها (كلها `127.0.0.1` و`user=null` بلا user-agent) — القاعدة: ما لا يُثبَت لا يُحذف |
+| **تدقيق نظافة الحزمة (فشل-مغلق)** | صفر `__livetest__` · صفر `__probe__` · صفر `.bak` · صفر خرائط مصدر · صفر `.ts`/`.d.ts` · صفر `.env` · صفر ملفات journal · صفر آثار قياس/مؤقتة · قاعدة بيانات واحدة فقط. وفحص شامل داخل القاعدة نفسها: صفر `__livetest__`/`__probe__` في أي عمود نصّي |
+| **Sanity checks** | backend `tsc --noEmit` ✅ · frontend `tsc --noEmit` ✅ · electron `tsc --noEmit` ✅ · `npm run dist` ✅ (exit 0) · صفر متطلبات تشغيل خارجية · نُظِّفت مخرجات البناء المُولَّدة قبل البناء ولم يُمسّ أي مصدر مُتتبَّع |
+| **تحقق المحتوى المُعبَّأ** | استُخرج `app.asar` (438 ملف JS) وفُحص نصًّا: `requestDate` ✅ · `page.leaveReq.field.request_date` ✅ · `payment-voucher-letterhead` + `45mm` + `page.paymentVoucher.sheet` ✅ · `receipt-voucher-letterhead` + `50mm` + `page.receipt.sheet` ✅ · `contentOnly` ✅. والترحيل الجديد حاضر في `resources/backend/prisma/migrations` |
+| **Smoke test — الخدمة الخلفية (نجح)** | شُغِّلت **من مخرجات الحزمة نفسها** (`resources/backend/dist/server.js` عبر ثنائي Electron المشحون بوضع `ELECTRON_RUN_AS_NODE`) على **نسخة معزولة** من القاعدة المشحونة (لم تُستعمل قاعدة الإنتاج الحقيقية): تستمع على `127.0.0.1:48211` ✅ · `/api/health` = `{"success":true,"status":"ok"}` ✅ · `prisma migrate status` على النسخة = 71 ترحيلًا والمخطط محدَّث ✅ · عمود `leaves.requestDate` موجود ✅ · مسار Prisma حيّ: رفض دخول خاطئ برسالة عربية من القاعدة، ودخول صحيح ثم قراءة موظفين حقيقيين ✅ · `error.log` المشحون فارغ (0 بايت) ✅ |
+| **Smoke test — الواجهة الرسومية (نجح)** | **النسخة المعبّأة تعمل رسوميًا على جهاز البناء**: 5 عمليات حيّة، نافذة رئيسية بمقبض صالح وعنوان، الخدمة الخلفية تبدأ داخلها وتستمع، `/api/health` ناجح، ومسار قاعدة البيانات ينتقل صحيحًا إلى `userData` (بيئة التشغيل: إنتاج). ثنائي Electron سليم: `31.0.0` / Node `20.14.0` / Chromium `126.0.6478.36` |
+| **تصحيح قيد بيئي سابق** | «تعذّر تشغيل الواجهة على جهاز البناء» المسجَّل في 2026.5.8 **لم يكن عيبًا في الجهاز**: سببه أن متغيّر البيئة `ELECTRON_RUN_AS_NODE=1` كان مضبوطًا في صدفة التشغيل، فيجعل ثنائي Electron يعمل كـNode فيخرج صامتًا ويرفض أعلام Chromium بـ«bad option». بإلغاء المتغيّر (`env -u ELECTRON_RUN_AS_NODE`) تفتح النافذة فورًا. **لم يُضَف أي flag دائم ولم يُغيَّر أي إعداد Electron** |
+| **قاعدة عزل الاختبارات (جديدة، دائمة)** | أي اختبار أو قياس يحتاج تشغيل التطبيق فعليًا — Chromium/`printToPDF`، live-test، probe — **ممنوع أن يستعمل `backend/data/manar.db` مباشرةً**، لأنها القاعدة التي تدخل مثبِّت الإنتاج. يجب تشغيله على قاعدة معزولة مؤقتة أو نسخة قابلة للإتلاف من القاعدة الذهبية. هذا الإصدار طبّق القاعدة فعليًا في smoke test الخدمة المعبّأة |
+| **لم يُنفَّذ** | لا ميزة جديدة، ولا refactor، ولا تغيير تصميم، ولا تعديل على أبعاد سند الصرف (45/20) أو سند القبض (50/20)، ولا ترحيل جديد، ولا ترقية اعتماديات، ولا تغيير Electron/Print Engine/Universal Print Preview/PDF IPC |
+
+---
+
+## Previous Release — Receipt Voucher Company Letterhead Template v1
 
 | Field | Value |
 |-------|-------|
