@@ -41,6 +41,16 @@ export interface FormPageProps {
   qrData: QRData;
   /** أنماط سطرية إضافية على الورقة — للحالات التي تُمثّل فيها الورقة الصفحة كاملة. */
   pageStyle?: CSSProperties;
+  /**
+   * ورقة **محتوى فقط**: تُسقط كتلة (رقم النموذج + العنوان + الخط) وكتلة التذييل
+   * (الاعتماد + رمز QR + خطّه العلوي)، فلا يبقى في الورقة إلا محتوى النموذج نفسه.
+   *
+   * مطفأة افتراضيًا ⇒ كل نموذج قائم يُصيَّر حرفيًا كما كان. وُجدت للطباعة على ورق
+   * الشركة **المطبوع مسبقًا**: الورقة الفعلية تحمل الترويسة والتذييل، فرسمهما ثانيةً
+   * يزدوج معهما. لا تمسّ الهوامش ولا `@page` ولا مسار الطباعة — هذه ملك المستدعي
+   * وملف التعريف.
+   */
+  contentOnly?: boolean;
 }
 
 export default function FormPage({
@@ -59,6 +69,7 @@ export default function FormPage({
   footerStart,
   qrData,
   pageStyle,
+  contentOnly = false,
 }: FormPageProps) {
   return (
     <div
@@ -91,7 +102,8 @@ export default function FormPage({
 
       {header}
 
-      {/* Form number + title */}
+      {/* Form number + title — تُسقط كاملةً في ورقة «محتوى فقط». */}
+      {!contentOnly && (
       <div style={{ textAlign: 'center', marginBottom: 14 }}>
         <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 8, direction: 'ltr' }}>
           {/* The text node stays present (just invisible) so the line box's height —
@@ -124,11 +136,14 @@ export default function FormPage({
           />
         )}
       </div>
+      )}
 
       {/* Form-specific content */}
       {children}
 
-      {/* Bottom row: Approval (right/start in RTL) | QR (left/end in RTL) */}
+      {/* Bottom row: Approval (right/start in RTL) | QR (left/end in RTL) —
+          تُسقط كاملةً في ورقة «محتوى فقط» (ورق الشركة يحمل تذييله المطبوع). */}
+      {!contentOnly && (
       <div
         className="form-page-footer"
         style={{
@@ -147,6 +162,7 @@ export default function FormPage({
           <FormQRCode data={qrData} size={80} />
         </div>
       </div>
+      )}
     </div>
   );
 }

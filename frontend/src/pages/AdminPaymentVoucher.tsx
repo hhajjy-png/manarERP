@@ -11,6 +11,19 @@ import PaymentVoucherTemplate, { type PaymentVoucherMethod } from '../forms/Paym
 
 const FORM_KEY = 'payment-voucher';
 
+/**
+ * أيّ ورقة يُطبع عليها السند.
+ *
+ * `standard`  — الورقة القائمة بلا أي تغيير: ترويسة الشركة (`useLogoHeader`)،
+ *               كتلة العنوان، والتذييل برمز QR، على ملف تعريف `payment-voucher`.
+ * `letterhead`— ورق الشركة **المطبوع مسبقًا**: بلا ترويسة وبلا تذييل، ومحتوى السند
+ *               وحده داخل نطاق `payment-voucher-letterhead` (‏45mm من الأعلى، ‏20mm
+ *               من الأسفل، ونفس الهامشين الجانبيين 15mm).
+ *
+ * الافتراضي `standard` — فتح الصفحة يعطي المستند القائم حرفيًا كما كان.
+ */
+type SheetMode = 'standard' | 'letterhead';
+
 interface FormState {
   voucherNumber: string;
   beneficiaryName: string;
@@ -66,6 +79,8 @@ const labelStyle: CSSProperties = {
 export default function AdminPaymentVoucher() {
   const { t } = useT();
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
+  const [sheet, setSheet] = useState<SheetMode>('standard');
+  const isLetterhead = sheet === 'letterhead';
   const [form, setForm] = useState<FormState>(makeInitial);
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -99,13 +114,55 @@ export default function AdminPaymentVoucher() {
         ready={false}
         formNumber={form.voucherNumber}
         title=""
-        profile="payment-voucher"
+        /* ورق الشركة يستعمل ملف تعريفه المستقل (‏45/15/20/15) — الملف القائم
+           `payment-voucher` لم يُمَسّ، ويبقى هو ملف الورقة العادية. */
+        profile={isLetterhead ? 'payment-voucher-letterhead' : 'payment-voucher'}
         hideApprovalSection
-        compactTopMargin
-        useLogoHeader
-        contentTopOffset="2cm"
+        /* الخصائص الثلاث التالية تخصّ الورقة العادية وحدها: ملف الشركة يخفي
+           الترويسة بنفسه (`blankHeader`) ويضع بداية المحتوى بهامش صفحته. */
+        compactTopMargin={!isLetterhead}
+        useLogoHeader={!isLetterhead}
+        /**
+         * الورقة العادية: فاصل علوي فوق كتلة المحتوى.
+         *
+         * كان `2cm`، وقياسٌ فعليّ عبر Chromium أثبت أن ارتفاع المستند حينها
+         * 283.94mm بالإنجليزية مقابل 280mm متاحة ⇒ فيضان 3.94mm وصفحة ثانية
+         * (العربية كانت تنجو بـ1.09mm فقط). خُفّض إلى `1cm` — مسافة بيضاء لا
+         * محتوى: لا خط ولا حجم ولا ترتيب حقل تغيّر.
+         *
+         * ورق الشركة: بلا فاصل إطلاقًا — هامش الصفحة (45mm) هو ما يحدّد البداية،
+         * وأي فاصل هنا كان سيزيحها عن الرقم المطلوب.
+         */
+        contentTopOffset={isLetterhead ? undefined : '1cm'}
+        contentOnly={isLetterhead}
         toolbarExtra={
           <>
+            <div
+              style={{ display: 'flex', gap: 0, alignItems: 'center', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}
+              role="group"
+              aria-label={t('page.paymentVoucher.sheet')}
+            >
+              {(['standard', 'letterhead'] as SheetMode[]).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={sheet === m ? 'true' : 'false'}
+                  title={t(m === 'standard' ? 'page.paymentVoucher.sheet.standard_title' : 'page.paymentVoucher.sheet.letterhead_title')}
+                  onClick={() => setSheet(m)}
+                  style={{
+                    padding: '4px 12px',
+                    fontSize: 12,
+                    border: 'none',
+                    cursor: 'pointer',
+                    background: sheet === m ? 'var(--primary)' : 'transparent',
+                    color: sheet === m ? '#fff' : 'var(--text-muted)',
+                    fontWeight: sheet === m ? 700 : 400,
+                  }}
+                >
+                  {t(m === 'standard' ? 'page.paymentVoucher.sheet.standard' : 'page.paymentVoucher.sheet.letterhead')}
+                </button>
+              ))}
+            </div>
             <LanguageToggle lang={lang} onChange={setLang} />
             {accurate.button}
           </>
