@@ -44,6 +44,11 @@ vi.mock('react-router-dom', () => ({
 import EmployeeEntitlementsCenter from '../pages/EmployeeEntitlementsCenter';
 import AddLeaveDialog from '../components/employee/AddLeaveDialog';
 import type { EntitlementsResponse, LeaveRow } from '../components/employee/entitlementsShared';
+// Leave Request — Editable Request Date v1: الحوار يبدأ بتاريخ اليوم في «تاريخ تقديم
+// الطلب»، فيرافق كل جسم مُرسَل. تُقرأ القيمة من نفس مصدر الواجهة لا تُكتب حرفيًا،
+// كي لا ينكسر الاختبار غدًا. إثبات أن الافتراض هو اليوم فعلًا يقع في
+// `leaveRequestEditableDateV1.test.tsx` بساعة نظام مثبَّتة.
+import { todayDateOnly } from '../lib/date';
 
 // ── تجهيزة نموذج القراءة ──────────────────────────────────────────────────────
 
@@ -157,6 +162,7 @@ describe('AddLeaveDialog — الجسم المُرسَل', () => {
 
     await waitFor(() => expect(api.post).toHaveBeenCalledWith('/employees/leaves', {
       employeeId: 7, type: 'SICK', startDate: '2026-03-01', endDate: '2026-03-05',
+      requestDate: todayDateOnly(),
     }));
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
   });
@@ -172,7 +178,7 @@ describe('AddLeaveDialog — الجسم المُرسَل', () => {
     const body = api.post.mock.calls[0][1] as Record<string, unknown>;
     expect(body).not.toHaveProperty('days');
     expect(body).not.toHaveProperty('status');
-    expect(Object.keys(body).sort()).toEqual(['employeeId', 'endDate', 'startDate', 'type']);
+    expect(Object.keys(body).sort()).toEqual(['employeeId', 'endDate', 'requestDate', 'startDate', 'type']);
   });
 
   it('يعرض أنواع الإجازة الأربعة الموجودة في leaveSchema، بلا نوع مُخترَع', () => {
@@ -389,6 +395,9 @@ describe('اختصار طباعة نموذج الإجازة — جانب الإ�
     expect(options.state.leavePrefill).toEqual({
       id: 2, type: 'SICK', startDate: '2026-05-10', endDate: '2026-05-14', days: 5,
       reason: 'رحلة عائلية', expectedReturnDate: '2026-05-15',
+      // سجل أُنشئ قبل هذه الحزمة ⇒ لا تاريخ تقديم محفوظ؛ يسافر فارغًا فيسقط
+      // النموذج إلى تاريخ اليوم كما كان يفعل دائمًا.
+      requestDate: '',
     });
   });
 
@@ -443,8 +452,8 @@ describe('AddLeaveDialog — كل حقول نموذج الإجازة القاب�
     for (const label of ['col.sal.employee', 'col.code', 'lbl.payslip.department', 'field.job_title']) {
       expect(screen.queryByLabelText(label)).toBeNull();
     }
-    // مجموع حقول الإدخال = حقول الطلب وحدها: ثلاثة تواريخ + السبب + قائمة النوع.
-    expect(screen.getAllByRole('textbox')).toHaveLength(4);
+    // مجموع حقول الإدخال = حقول الطلب وحدها: أربعة تواريخ + السبب + قائمة النوع.
+    expect(screen.getAllByRole('textbox')).toHaveLength(5);
     expect(screen.getAllByRole('combobox')).toHaveLength(1);
   });
 
@@ -465,6 +474,7 @@ describe('AddLeaveDialog — كل حقول نموذج الإجازة القاب�
       endDate: '2026-06-04',
       reason: 'ظرف عائلي',
       expectedReturnDate: '2026-06-05',
+      requestDate: todayDateOnly(),
     }));
   });
 
@@ -477,7 +487,8 @@ describe('AddLeaveDialog — كل حقول نموذج الإجازة القاب�
 
     await waitFor(() => expect(api.post).toHaveBeenCalled());
     const body = api.post.mock.calls[0][1] as Record<string, unknown>;
-    expect(Object.keys(body).sort()).toEqual(['employeeId', 'endDate', 'startDate', 'type']);
+    // `requestDate` ليس منهما: له افتراض (اليوم) فلا يُحذف — بخلاف السبب وتاريخ العودة.
+    expect(Object.keys(body).sort()).toEqual(['employeeId', 'endDate', 'requestDate', 'startDate', 'type']);
   });
 
   it('ترفض تاريخ عودة يسبق نهاية الإجازة', () => {

@@ -643,7 +643,7 @@ describe('recordPayment — module boundary is respected', () => {
    تثبت أنهما لا يمسّان محرّك الاستحقاقات: نفس المُدخَلات القانونية (النوع، التاريخان،
    الحالة) تُنتج نفس الأرقام سواء حمل السجل هذين الحقلين أم لا.
    ════════════════════════════════════════════════════════════════════════════ */
-describe('بيانات طلب الإجازة (السبب / تاريخ العودة) لا تغيّر أي احتساب', () => {
+describe('بيانات طلب الإجازة (السبب / تاريخ العودة / تاريخ التقديم) لا تغيّر أي احتساب', () => {
   /** إجازة سنوية معتمدة من خمسة أيام — المُدخَل الوحيد الذي يقرؤه المحرّك. */
   const APPROVED_ANNUAL = { startDate: new Date('2025-03-01T00:00:00Z'), endDate: new Date('2025-03-05T00:00:00Z') };
 
@@ -657,7 +657,15 @@ describe('بيانات طلب الإجازة (السبب / تاريخ العود
   it('نفس الأرقام بالضبط مع الحقلين وبدونهما', async () => {
     const withoutRequestData = await computeWith([{ ...APPROVED_ANNUAL }]);
     const withRequestData = await computeWith([
-      { ...APPROVED_ANNUAL, reason: 'ظرف عائلي', expectedReturnDate: new Date('2025-03-06T00:00:00Z') },
+      {
+        ...APPROVED_ANNUAL,
+        reason: 'ظرف عائلي',
+        expectedReturnDate: new Date('2025-03-06T00:00:00Z'),
+        // Leave Request — Editable Request Date v1: تاريخ تقديم الطلب بيانات مستند
+        // أيضًا. اختير هنا تاريخ **يسبق** بداية الإجازة عمدًا: لو تسرّب إلى المحرّك
+        // لحرّك حدود الفترة، فتكشفه المساواة أدناه.
+        requestDate: new Date('2025-02-20T00:00:00Z'),
+      },
     ]);
 
     expect(withRequestData.result).toEqual(withoutRequestData.result);
@@ -676,6 +684,9 @@ describe('بيانات طلب الإجازة (السبب / تاريخ العود
     const displaySelect = p.leave.findMany.mock.calls[2][0].select;
     expect(displaySelect).toHaveProperty('reason', true);
     expect(displaySelect).toHaveProperty('expectedReturnDate', true);
+    expect(displaySelect).toHaveProperty('requestDate', true);
+    // ولا يتسرّب أيٌّ منها إلى قراءتي الاحتساب أعلاه — أُثبت بالمساواة التامة هناك.
+    expect(p.leave.findMany.mock.calls[0][0].select).not.toHaveProperty('requestDate');
   });
 });
 

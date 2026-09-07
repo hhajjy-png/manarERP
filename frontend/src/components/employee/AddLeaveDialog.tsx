@@ -4,9 +4,9 @@ import { useT } from '../../lib/i18n';
 import DateInput from '../DateInput';
 import { Dialog, DialogSection, Button, ErrorBanner } from '../explorer/ExplorerKit';
 import {
-  EMPTY_LEAVE_REQUEST_FIELDS,
   LEAVE_TYPE_FORM_LABEL,
   LEAVE_TYPE_VALUES,
+  newLeaveRequestFields,
   type LeaveRequestFields,
 } from './leaveRequestFields';
 
@@ -22,7 +22,8 @@ interface Props {
  *
  * ═══ لماذا كل الحقول هنا ═══
  * الحقول الخمسة أدناه هي حصرًا ما كان المستخدم يعبّئه يدويًا في صفحة
- * `LeaveRequest` عند كل طباعة: النوع، التاريخان، السبب، تاريخ العودة المتوقَّع.
+ * `LeaveRequest` عند كل طباعة: النوع، التاريخان، السبب، تاريخ العودة المتوقَّع، وتاريخ
+ * تقديم الطلب.
  * كانت تُكتب في الصفحة وتضيع بانتهائها، فإعادة طباعة الطلب نفسه لاحقًا كانت تعني
  * إعادة تذكّره وكتابته من جديد. تُدخَل الآن مرة واحدة وتُحفظ مع سجل الإجازة، فتعود
  * معبّأة عند الطباعة. الألفاظ والخيارات وسلوك التاريخ مأخوذة من نفس مصدر تلك الصفحة
@@ -37,7 +38,9 @@ interface Props {
 export default function AddLeaveDialog({ employeeId, onClose, onSaved }: Props) {
   const { t } = useT();
 
-  const [fields, setFields] = useState<LeaveRequestFields>({ ...EMPTY_LEAVE_REQUEST_FIELDS });
+  // تاريخ اليوم قيمة ابتدائية لطلب **جديد** وحده — يُقيَّم عند فتح الحوار، ويبقى
+  // بعدها ملكًا للمستخدم: أي تغيير يكتبه هو ما يُحفظ.
+  const [fields, setFields] = useState<LeaveRequestFields>(() => newLeaveRequestFields());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,6 +68,7 @@ export default function AddLeaveDialog({ employeeId, onClose, onSaved }: Props) 
         endDate: fields.endDate,
         ...(fields.reason.trim() ? { reason: fields.reason.trim() } : {}),
         ...(fields.expectedReturnDate ? { expectedReturnDate: fields.expectedReturnDate } : {}),
+        ...(fields.requestDate ? { requestDate: fields.requestDate } : {}),
       });
       onSaved();
     } catch (e) {
@@ -105,6 +109,15 @@ export default function AddLeaveDialog({ employeeId, onClose, onSaved }: Props) 
               <option key={v} value={v}>{t(LEAVE_TYPE_FORM_LABEL[v])}</option>
             ))}
           </select>
+        </div>
+
+        <div className="xpl-field">
+          <label>{t('page.leaveReq.field.request_date')}</label>
+          <DateInput
+            value={fields.requestDate}
+            onChange={(v) => set('requestDate', v)}
+            ariaLabel={t('page.leaveReq.field.request_date')}
+          />
         </div>
 
         <div className="xpl-field">

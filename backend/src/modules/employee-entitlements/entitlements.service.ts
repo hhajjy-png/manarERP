@@ -330,13 +330,13 @@ class EntitlementsService {
       prisma.leave.findMany({
         where: { employeeId },
         orderBy: { startDate: 'desc' },
-        // `reason` و`expectedReturnDate` بيانات **طلب** الإجازة المطبوع — تُقرأ هنا كي
+        // `reason` و`expectedReturnDate` و`requestDate` بيانات **طلب** الإجازة المطبوع — تُقرأ هنا كي
         // يتمكّن اختصار «طباعة نموذج الإجازة» من إعادة طباعة الطلب نفسه بقيمه
         // المحفوظة. لا يدخل أيٌّ منهما أي احتساب: محرّك الاستحقاقات يقرأ النوع
         // والتواريخ والحالة وحدها (انظر `computeLeaveExclusionBreakdown` أعلاه).
         select: {
           id: true, type: true, startDate: true, endDate: true, days: true, status: true,
-          reason: true, expectedReturnDate: true,
+          reason: true, expectedReturnDate: true, requestDate: true,
         },
       }),
       // التصفية النهائية تُقرأ ضمن نفس نموذج القراءة الموحَّد — لا نقطة قراءة ثانية للواجهة.

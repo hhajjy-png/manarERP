@@ -274,6 +274,7 @@ export default function EmployeeEntitlementsCenter() {
       days: l.days,
       reason: l.reason ?? '',
       expectedReturnDate: toDateOnly(l.expectedReturnDate),
+      requestDate: toDateOnly(l.requestDate),
     };
     navigate(`/forms/leave-request/${employeeId}`, { state: { leavePrefill: prefill } });
   };

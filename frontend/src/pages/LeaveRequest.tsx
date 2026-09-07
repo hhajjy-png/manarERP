@@ -19,6 +19,7 @@ import { FormDocVariant, DEFAULT_FORM_DOC_VARIANT, toLayoutLang } from '../forms
 import PrintProfileToggle from '../forms/shared/PrintProfileToggle';
 import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../styles/fontRegistry';
 import { toDateOnly, type LeavePrintPrefill } from '../components/employee/leaveRequestFields';
+import { todayDateOnly } from '../lib/date';
 
 const FORM_KEY = 'leave-request';
 
@@ -29,6 +30,12 @@ const INITIAL_PRINT_FIELDS = {
   endDate: '',
   days: '',
   reason: '',
+  /**
+   * تاريخ تقديم الطلب — فارغ هنا عمدًا. القيمة الابتدائية تُحقن عند تركيب الصفحة
+   * (تاريخ اليوم لطلب جديد، أو التاريخ المحفوظ إن كان الطلب موجودًا)، لأن ثابت
+   * الوحدة يُقيَّم مرة واحدة عند التحميل فلا يصلح لحمل «اليوم».
+   */
+  requestDate: '',
 };
 
 function calcDays(start: string, end: string): number {
@@ -90,6 +97,9 @@ export default function LeaveRequest() {
           expectedReturnDate: toDateOnly(leavePrefill.expectedReturnDate),
         }
       : {}),
+    // تاريخ التقديم: المحفوظ مع السجل المختار إن وُجد، وإلا تاريخ اليوم كقيمة
+    // ابتدائية لطلب جديد. في الحالتين يبقى الحقل قابلًا للتحرير أدناه.
+    requestDate: toDateOnly(leavePrefill?.requestDate) || todayDateOnly(),
   });
 
   useEffect(() => {
@@ -114,6 +124,23 @@ export default function LeaveRequest() {
       .catch(() => {});
   }, [data, formNumber, employeeId, profile]);
 
+  /**
+   * الحقل مُدار يدويًا منذ أول تعديل — يمنع أي تعبئة تلقائية لاحقة من الدهس فوق
+   * ما كتبه المستخدم.
+   */
+  const requestDateManuallyEdited = useRef(false);
+  /**
+   * فتح النموذج بلا اختصار يعرض آخر إجازة محفوظة (`data.latestLeave`) — وهي طلب
+   * **موجود**، فتاريخ تقديمه المحفوظ هو ما يجب أن يظهر لا تاريخ اليوم. يُتبنّى مرة
+   * واحدة عند وصول بيانات الخادم، وفقط ما لم يكن المستخدم قد عدّل الحقل.
+   * السجلّات القديمة (`requestDate = null`) تُبقي تاريخ اليوم — السلوك السابق حرفيًا.
+   */
+  useEffect(() => {
+    if (!data || leavePrefill || requestDateManuallyEdited.current) return;
+    const saved = toDateOnly(data.latestLeave?.requestDate);
+    if (saved) setPrintFields(p => ({ ...p, requestDate: saved }));
+  }, [data, leavePrefill]);
+
   useEffect(() => {
     const { startDate, endDate } = printFields;
     if (!startDate || !endDate) {
@@ -131,7 +158,14 @@ export default function LeaveRequest() {
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   function resetPrintFields() { setShowClearConfirm(true); }
-  function executeClear() { setShowClearConfirm(false); daysManuallyEdited.current = false; setPrintFields({ ...INITIAL_PRINT_FIELDS }); }
+  function executeClear() {
+    setShowClearConfirm(false);
+    daysManuallyEdited.current = false;
+    requestDateManuallyEdited.current = false;
+    // مسح الحقول يعيد تاريخ التقديم إلى افتراض «طلب جديد» (اليوم) لا إلى الفراغ —
+    // النموذج لا يُطبع بسطر تاريخ خالٍ.
+    setPrintFields({ ...INITIAL_PRINT_FIELDS, requestDate: todayDateOnly() });
+  }
 
   const addPrintLog = usePrintLogStore((s) => s.addEntry);
   useEffect(() => {
@@ -227,7 +261,12 @@ export default function LeaveRequest() {
               className="btn secondary"
               style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
               title={t('page.warning.load_draft_title')}
-              onClick={() => setPrintFields(draftEntry.state as typeof printFields)}
+              onClick={() => {
+              // مسودّة محفوظة قبل هذه الحزمة لا تحمل `requestDate` — بلا هذا السقوط
+              // يصير الحقل غير مُتحكَّم به. أي مسودّة أحدث تُحمَّل بقيمتها كما هي.
+              const loaded = draftEntry.state as typeof printFields;
+              setPrintFields({ ...loaded, requestDate: loaded.requestDate || todayDateOnly() });
+            }}
             >
               ↩
             </button>
@@ -315,6 +354,21 @@ export default function LeaveRequest() {
             </div>
           </div>
         )}
+
+        {/* حقل جديد في لوحة التحرير الشاشية (`no-print`) وحدها — نفس هيئة الحقل الذي
+            يليه حرفيًا (`field` + `maxWidth: 280`)، بلا أي مساس بتخطيط أو تنسيق أي
+            حقل قائم، وبلا أثر على المستند المطبوع. */}
+        <div className="field" style={{ maxWidth: 280 }}>
+          <label>{t('page.leaveReq.field.request_date')}</label>
+          <DateInput
+            title={t('page.leaveReq.field.request_date')}
+            value={printFields.requestDate}
+            onChange={(v) => {
+              requestDateManuallyEdited.current = true;
+              setPrintFields(p => ({ ...p, requestDate: v }));
+            }}
+          />
+        </div>
 
         <div className="field" style={{ maxWidth: 280 }}>
           <label>{t('page.leaveReq.field.expected_return')}</label>

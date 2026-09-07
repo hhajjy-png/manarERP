@@ -4501,6 +4501,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.leaveReq.days_hint': 'يُحسب تلقائيًا من التاريخين، ويمكن تعديله يدويًا',
     'page.leaveReq.field.reason': 'السبب',
     'page.leaveReq.field.expected_return': 'تاريخ العودة المتوقع',
+    'page.leaveReq.field.request_date': 'تاريخ تقديم الطلب',
     'page.blankA4.title': 'ورقة A4 فارغة',
     // محرك المستندات — مساحة العمل (P2). العنوان يُحلّ من هنا حصرًا عبر t(titleKey).
     //
@@ -10093,6 +10094,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'page.leaveReq.days_hint': 'Auto-calculated from the dates — can be edited manually',
     'page.leaveReq.field.reason': 'Reason',
     'page.leaveReq.field.expected_return': 'Expected Return Date',
+    'page.leaveReq.field.request_date': 'Request Date',
     'page.blankA4.title': 'Blank A4 Sheet',
     // Letter Engine — workspace (P2). Product name is "Form Editor" as of the
     // Form Editor UX Simplification Pack v1; the KEY is deliberately unchanged.

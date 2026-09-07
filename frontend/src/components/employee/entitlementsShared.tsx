@@ -70,6 +70,7 @@ export interface LeaveRow {
   /** بيانات **طلب** الإجازة المطبوع — تُقرأ لإعادة الطباعة، ولا تدخل أي احتساب. */
   reason?: string | null;
   expectedReturnDate?: string | null;
+  requestDate?: string | null;
 }
 
 /**
