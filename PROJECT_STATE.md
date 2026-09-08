@@ -73,7 +73,40 @@ in a table cell.
 
 ---
 
-## Latest Release — Production Release 2026.5.9 (Desktop Installer)
+## Latest Release — Complete User Manual v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | **دليل استخدام شامل ومصوَّر لنظام manarERP** — **Documentation Release فقط**: لا كود، لا مخطَّط، لا هجرة، لا بناء مكتبي |
+| **Release status** | **RELEASED** — Documentation |
+| **Release date** | 2026-09-08 |
+| **Documented desktop version** | **`2026.5.9`** — الإصدار المكتبي **لم يتغيّر بهذه الحزمة**؛ الدليل يوثّقه ولا يصدره |
+| **Feature/docs branch** | `docs/complete-user-manual-v1` |
+| **Documentation commit** | `267679dc` — `docs: add complete illustrated user manual v1` (96 ملفًا، كلها تحت `docs/user-manual/`) |
+| **Merge commit** | `57e2c8a1` — merge `--no-ff` إلى `production`. الأبوان: `00ef23c8` (production السابق) و`267679dc` |
+| **Checkpoint tag** | `checkpoint-complete-user-manual-v1` → `00ef23c8` (production HEAD مباشرةً قبل الدمج) |
+| **Stable tag** | `stable-complete-user-manual-v1` → **`57e2c8a1`** — على **merge commit** نفسه، لا على commit الوثائق اللاحق |
+| **Product Owner visual review** | **COMPLETED AND APPROVED** ✅ — المراجعة البصرية النهائية تمّت واعتُمدت قبل الإصدار |
+| **Artifact — PDF (version-controlled)** | `docs/user-manual/build/AlManarERP-User-Manual-2026.5.9-AR.pdf` — **14,537,933 بايت (13.86 ميغابايت)** · SHA-256 `1ad57ee9d0f7fc526498881b955059caf426a761fc9bd1f764eba8c414fa7de0` · A4 عمودي · RTL · خط Cairo مضمَّن. بصمة الـblob المخزَّن في Git مُتحقَّقة ومطابقة للبصمة المعتمدة |
+| **Delivery copy (غير مُودع)** | `release/docs/AlManarERP-User-Manual-Latest-AR.pdf` — نسخة تسليم محلية فقط. `release/` مُدرج بالكامل في `.gitignore`، فلم تُضَف بـ`git add -f` ولم يُعدَّل `.gitignore` |
+| **الحجم والبنية** | **128 صفحة** (غلاف غير مرقَّم + 127 صفحة محتوى) · **31 فصلًا** في ٦ أبواب · **75 شكلًا** |
+| **التغطية** | **77/77** مسارًا في `App.tsx` مصنَّفة · **36/36** عنصرًا في الشريط الجانبي · **52** صفحة user-facing موثّقة · **4** مستبعدة عمدًا بأسباب موثّقة (`/xbrl-readiness` أداة داخلية لا تدّعي توافقًا رسميًا · `/statements` إعادة توجيه · `/verify/:uuid` صفحة QR عامة · إعادتا التوجيه البنكية) · **صفر** صفحة غير مصنَّفة |
+| **الفئات المستهدفة** | المدير · المحاسب · المستخدم الإداري |
+| **الوحدات المغطّاة** | Employees · Payroll · Leave Requests (بما فيها **Editable Leave Request Date**) · Employee Entitlements · Payment Voucher (Normal + Company Letterhead) · Receipt Voucher (Normal + Company Letterhead) · Cheques · Cheque Calibration · Banks · Bank Accounts · Bank Statement Import · Bank Salary Analytics · Accounting / Payments / Invoices · Equipment · Insurance · Expiration Center · Administrative Forms · Reports · Printing · Backup / Sync · Permissions / Roles · Manager workflows · Accountant workflows · Quick Reference · Troubleshooting · Best Practices · Glossary |
+| **المصدر القابل للتحديث** | `docs/user-manual/parts/*.html` (٨ أجزاء) + `assets/manual.css` + `build-manual.cjs`. البناء: تجميع ← فصل الغلاف ← تصيير ← ربط الفهرس من نصّ PDF نفسه عبر علامات لاتينية غير مرئية ← دمج ← نشر. الفهرس يفشل البناء عمدًا لو تعذّر تحديد موضع أي فصل |
+| **الخطوط** | Cairo مُعاد استخدامه من `docs/invoice-templates/source/fonts/` داخل المستودع — **صفر ملفات خطوط جديدة** |
+| **QA — آلي** | لا صفحات فارغة · لا صفحات شبه فارغة · لا تجاوز أفقي أو رأسي لأي عنصر نصّي · مقاس A4 ثابت على كل الصفحات · 31/31 فصلًا محدَّد الموضع في الفهرس · 106,531 محرفًا · 76 صورة مدمجة |
+| **QA — بصري** | فُحصت الصفحات 1 · 2 · 3 · 5 · 11 · 26 · 49 · 71 · 96 · 121 · 128 بتصييرها إلى صور: الغلاف والفهرس وبدايات فصول وصفحات كثيفة الصور وأخرى كثيفة الجداول والصفحة الأخيرة. العربية متّصلة والاتجاه RTL سليم، والأرقام اللاتينية معزولة صحيحة الاتجاه، ورؤوس الجداول تتكرّر، والصور لا تنفصل عن تعليقاتها |
+| **QA — الصور** | 75 شكلًا بعرض 1700 بكسل (≈ 248 نقطة/بوصة على A4) · PNG بلا فقد · صفر أدوات مطوّر · صفر نوافذ طرفية · صفر كلمات مرور أو رموز · صفر مسارات داخلية · صفر بيانات شخصية حقيقية |
+| **سلامة البيانات — Golden DB** | **`backend/data/manar.db` لم تُمسّ إطلاقًا**: SHA-256 `2fa6f514dae39d9f750d1d8fece9b78b9b910040876f5ccb0317a1a6968f0808` **متطابقة قبل العمل وبعده**، وزمن التعديل لم يتغيّر، وبلا أي ملف `-wal`/`-shm` متخلّف. هذا تطبيق مباشر للقاعدة الدائمة المسجَّلة مع 2026.5.9: **لا تشغيل حيّ على قاعدة الإنتاج** |
+| **سلامة البيانات — النسخة المعزولة** | كل التشغيل والتقاط اللقطات تمّ على نسخة معزولة **خارج المستودع**، بخدمة خلفية مستقلة وسرّ توقيع مستقل ومجلد نسخ مستقل. النسخة **مجهَّلة بالكامل**: 33 موظفًا · 17 عميلًا · 3 مستخدمين · 58 شيكًا، إضافة إلى **6,532 خلية نصّية** على ثلاث مراحل عبر 9 جداول (أوصاف كشوف البنك، السجلات المصوَّرة، سجل التدقيق). فحص تحقّق آلي أكّد **صفر بقايا أسماء أصلية** في أي عمود نصّي. النسخة غير المجهَّلة المؤقتة حُذفت بعد الانتهاء |
+| **تأكيدات عدم التغيير** | صفر تغيير في `backend/` · صفر تغيير في سلوك `frontend/` · صفر تغيير في الصلاحيات أو منطق الأعمال أو التكاملات · صفر تغيير في Prisma · صفر هجرات جديدة (تبقى 71) · صفر تغيير في `.gitignore` · لم يُبنَ مثبِّت ولم يُشغَّل `npm run dist` · `package.json` لم يُمسّ و**الإصدار يبقى `2026.5.9`** · `release/AlManarERP-Setup-2026.5.9.exe` لم يُحذف ولم يُعدَّل. تحقُّق مباشر: `git diff --name-only 00ef23c8 57e2c8a1` = 96 ملفًا، **كلها تحت `docs/user-manual/`** |
+| **Findings (سُجّلت ولم تُصلَح)** | ٦ ملاحظات جودة في `docs/user-manual/FINDINGS.md`: تصنيفات مصروفات تحمل أسماء أشخاص مضمَّنة في الكود · `audit.export` صلاحية بلا زرّ في الواجهة · `PUT /roles/:id/permissions` بلا واجهة استدعاء · زرّ «تشغيل التكامل» يعيد دائمًا «لم يتم تفعيله بعد» · الضغط على اسم المستخدم يسجّل الخروج بلا تأكيد · مفتاح i18n لا يطابق المسمّى المعروض لمحرر النماذج. **لم يُصلَح أي منها ضمن هذه الحزمة عمدًا** |
+| **دَين صيانة مرصود (خارج نطاق هذه الحزمة)** | `PROJECT_STATE.md` بلغ **184 مدخل `## Previous Release`** و**1.51 ميغابايت / 7,929 سطرًا** — أي أنه تجاوز بفارق كبير عتبة سياسة التدوير المعلنة في هذا الملف نفسه (~15 مدخلًا). التدوير عملية إعادة هيكلة كبيرة ومستقلة، ولم تُنفَّذ ضمن إصدار توثيقي؛ **تُرصد هنا للتنفيذ في تمريرة صيانة مخصّصة** |
+
+---
+
+## Previous Release — Production Release 2026.5.9 (Desktop Installer)
 
 | Field | Value |
 |-------|-------|
