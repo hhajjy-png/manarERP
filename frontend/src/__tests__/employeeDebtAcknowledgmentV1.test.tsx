@@ -54,9 +54,6 @@ const EMPLOYEE = {
   address: 'الفروانية — قطعة 3 — شارع 12',
 };
 
-let apiPut: ReturnType<typeof vi.spyOn>;
-let apiPatch: ReturnType<typeof vi.fn>;
-
 beforeEach(() => {
   (window as unknown as { manar: unknown }).manar = {
     printSubmit: vi.fn(async () => ({ status: 'printed' as const })),
@@ -69,9 +66,10 @@ beforeEach(() => {
     return { data: { data: null } };
   }) as never);
   vi.spyOn(api, 'post').mockImplementation((async () => ({ data: { data: {} } })) as never);
-  apiPut = vi.spyOn(api, 'put').mockImplementation((async () => ({ data: { data: {} } })) as never);
-  apiPatch = vi.fn(async () => ({ data: { data: {} } }));
-  (api as unknown as { patch: unknown }).patch = apiPatch;
+  // كل مسارات الكتابة مُراقَبة — الادّعاء أن النموذج لا يمسّ سجل الموظف يُثبت بعدم
+  // استدعائها، فلا بدّ أن تكون جواسيس لا دوالّ حقيقية.
+  vi.spyOn(api, 'put').mockImplementation((async () => ({ data: { data: {} } })) as never);
+  vi.spyOn(api, 'patch').mockImplementation((async () => ({ data: { data: {} } })) as never);
 });
 
 afterEach(() => {
@@ -192,8 +190,8 @@ describe('3 · تعديل يدوي لا يمسّ سجل الموظف', () => {
     const jobTitle = screen.getByLabelText(translate('page.debtAck.f.debtor_job_title', 'ar'));
     fireEvent.change(jobTitle, { target: { value: 'مسمّى مُعدَّل لهذا المستند فقط' } });
 
-    expect(apiPut).not.toHaveBeenCalled();
-    expect(apiPatch).not.toHaveBeenCalled();
+    expect(api.put).not.toHaveBeenCalled();
+    expect(api.patch).not.toHaveBeenCalled();
     const posts = (api.post as unknown as { mock: { calls: unknown[][] } }).mock.calls;
     for (const [url] of posts) expect(String(url)).not.toMatch(/^\/employees/);
     expect(printedRoot().textContent).toContain('مسمّى مُعدَّل لهذا المستند فقط');
