@@ -89,7 +89,31 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
-## Latest Release — PROJECT_STATE Documentation Rotation & Maintenance v1
+## Latest Release — Completed Features Documentation Compaction & Archive v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | فصل «ما يفعله النظام اليوم» عن «كيف نُفِّذ تاريخيًا» داخل قسم Completed Features — **Documentation Maintenance Release**: لا كود، لا مخطَّط، لا هجرة، لا بناء |
+| **Release status** | **RELEASED** — Documentation Maintenance |
+| **Release date** | 2026-09-08 |
+| **Desktop version** | **`2026.5.9`** — لم يتغيّر بهذه الحزمة |
+| **Branch / commit** | `docs/completed-features-compaction-v1` · `d2f2096f` |
+| **Merge commit** | `2bdc3d8b` — merge `--no-ff`، أبواه `4702f90a` و`d2f2096f` |
+| **Checkpoint tag** | `checkpoint-completed-features-compaction-v1` → `4702f90a` |
+| **Stable tag** | `stable-completed-features-compaction-v1` → **`2bdc3d8b`** (على merge commit) |
+| **Product Owner review** | **تمّت واعتُمدت** |
+| **النتيجة** | القسم: 315,536 → **16,027 بايت** (−94.9٪) · **56 صفًا** في **11 مجموعة مجالات** · `PROJECT_STATE.md` إجمالًا: 590,449 → **290,940 بايت** (−50.7٪) |
+| **الأرشيف** | [`docs/history/completed-features/`](docs/history/completed-features/README.md) — **126 مدخلًا منقولة حرفيًا** في 4 ملفات حسب المجال (339,645 بايت) + فهرس + [`COMPACTION_MANIFEST_V1.md`](docs/history/completed-features/COMPACTION_MANIFEST_V1.md) |
+| **التصنيف** | بحسب الصلة الحالية لا العمر: A=9 · B=7 · C=29 · D=22 · E=31 · F=28 = **126**. لا فئة تُحذف؛ التصنيف يحدّد حضورها في المرجع النشط فقط |
+| **الثابت** | `original_entries = archived_entries` → **`126 = 126`** ✅ — والمرجع النشط مؤشّرات لا نسخ، فلا يُجمع إليه |
+| **حفظ المحتوى** | تطابق تامّ لمجموعة بصمات SHA-256 مقابل المصدر المقروء من Git: صفر مفقود · صفر دخيل/معدَّل · صفر تكرار · صفر مدخل في ملفين · صفر مبتور · صفر صفّ تاريخي بقي في القسم النشط |
+| **المستبدَلة** | **31** مدخلًا تحمل مؤشّر «استُبدل بـ» في فهارس الأرشيف — **دون تعديل أي نصّ تاريخي**. المرجع النشط يعلن أنه الحاكم عند التعارض |
+| **تحقّق السلوك الحالي** | كل عبارة في المرجع النشط فُحصت مقابل المستودع لا نُقلت عن النصّ القديم. **تصحيح معتمد: Data Import = 9 كيانات** (النصّ القديم قال 7) — والصفّ الأصلي محفوظ حرفيًا في الأرشيف |
+| **تأكيدات عدم التغيير** | تدوير `## Previous Release` لم يُمسّ (1 Latest + 16 Previous + 4 ملفات أرشيف) · `PROJECT_MASTER_STATUS.md` لم يُمسّ · صفر تغيير في `backend/` · `frontend/` · `electron/` · `scripts/` · Prisma · هجرات · `package.json` · `.gitignore` · Golden DB · installer · `docs/user-manual/` · لا بناء ولا `npm run dist` |
+
+---
+
+## Previous Release — PROJECT_STATE Documentation Rotation & Maintenance v1
 
 | Field | Value |
 |-------|-------|
