@@ -26,6 +26,24 @@ rotated-out release entries, moved verbatim, one dated batch file per rotation e
 
 ---
 
+## Two archives live here
+
+| Archive | What it holds | Index |
+|---|---|---|
+| **Release log** (`PROJECT_STATE_ARCHIVE_*.md`, this directory) | Rotated `## Previous Release` entries — *what shipped, when* | the table below |
+| **Completed features** (`completed-features/`) | Rotated `## Completed Features` entries — *what a capability does* | [`completed-features/README.md`](completed-features/README.md) |
+
+The two are complementary: a release-log entry describes a **release**, a completed-feature entry describes a
+**capability**. 28 features appear in both, from different angles.
+
+> **Completed Features Compaction & Archive v1 (2026-09-08):** `PROJECT_STATE.md`'s `## Completed Features`
+> section (315,536 bytes, 126 entries) was replaced by a current-only
+> `## Completed Features — Active Reference` (16,027 bytes), and its 126 detailed entries were moved verbatim
+> into [`completed-features/`](completed-features/README.md) across 4 domain files. Accounting and
+> verification: [`completed-features/COMPACTION_MANIFEST_V1.md`](completed-features/COMPACTION_MANIFEST_V1.md).
+
+---
+
 ## Index
 
 | Archive file | Date range covered (newest → oldest) | Entries | Rotated on | Notes |
