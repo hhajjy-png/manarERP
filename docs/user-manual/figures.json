@@ -1,0 +1,602 @@
+[
+ {
+  "fig": 1,
+  "src": "01-login",
+  "file": "fig-01.png",
+  "w": 3200,
+  "h": 2000,
+  "kb": 35
+ },
+ {
+  "fig": 2,
+  "src": "02-dashboard",
+  "file": "fig-02.png",
+  "w": 3200,
+  "h": 2000,
+  "kb": 90
+ },
+ {
+  "fig": 3,
+  "src": "x-dashboard-financial",
+  "file": "fig-03.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 62
+ },
+ {
+  "fig": 4,
+  "src": "x-sidebar-collapsed",
+  "file": "fig-04.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 74
+ },
+ {
+  "fig": 5,
+  "src": "x-global-search",
+  "file": "fig-05.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 107
+ },
+ {
+  "fig": 6,
+  "src": "p-users",
+  "file": "fig-06.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 70
+ },
+ {
+  "fig": 7,
+  "src": "x-users-roles",
+  "file": "fig-07.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 90
+ },
+ {
+  "fig": 8,
+  "src": "x-users-permissions",
+  "file": "fig-08.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 80
+ },
+ {
+  "fig": 9,
+  "src": "p-employees",
+  "file": "fig-09.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 115
+ },
+ {
+  "fig": 10,
+  "src": "x-employees-add-dialog",
+  "file": "fig-10.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 94
+ },
+ {
+  "fig": 11,
+  "src": "x-employees-drawer",
+  "file": "fig-11.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 96
+ },
+ {
+  "fig": 12,
+  "src": "p-salaries",
+  "file": "fig-12.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 114
+ },
+ {
+  "fig": 13,
+  "src": "x-payroll-gap",
+  "file": "fig-13.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 105
+ },
+ {
+  "fig": 14,
+  "src": "x-salaries-row-detail",
+  "file": "fig-14.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 95
+ },
+ {
+  "fig": 15,
+  "src": "x-payslip",
+  "file": "fig-15.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 29
+ },
+ {
+  "fig": 16,
+  "src": "x-salaries-bankexport",
+  "file": "fig-16.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 68
+ },
+ {
+  "fig": 17,
+  "src": "x-salaries-entitlements",
+  "file": "fig-17.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 103
+ },
+ {
+  "fig": 18,
+  "src": "x-salaries-imported",
+  "file": "fig-18.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 123
+ },
+ {
+  "fig": 19,
+  "src": "p-employee-compensation",
+  "file": "fig-19.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 163
+ },
+ {
+  "fig": 20,
+  "src": "x-ecmp-year-file",
+  "file": "fig-20.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 126
+ },
+ {
+  "fig": 21,
+  "src": "x-ecmp-month",
+  "file": "fig-21.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 109
+ },
+ {
+  "fig": 22,
+  "src": "x-ecmp-debts",
+  "file": "fig-22.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 76
+ },
+ {
+  "fig": 23,
+  "src": "p-forms",
+  "file": "fig-23.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 108
+ },
+ {
+  "fig": 24,
+  "src": "f-leave-request",
+  "file": "fig-24.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 54
+ },
+ {
+  "fig": 25,
+  "src": "x-print-workspace",
+  "file": "fig-25.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 54
+ },
+ {
+  "fig": 26,
+  "src": "x-pv-normal",
+  "file": "fig-26.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 89
+ },
+ {
+  "fig": 27,
+  "src": "x-pv-letterhead",
+  "file": "fig-27.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 69
+ },
+ {
+  "fig": 28,
+  "src": "x-receipt-normal",
+  "file": "fig-28.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 69
+ },
+ {
+  "fig": 29,
+  "src": "x-receipt-letterhead",
+  "file": "fig-29.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 49
+ },
+ {
+  "fig": 30,
+  "src": "f-salary-certificate",
+  "file": "fig-30.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 100
+ },
+ {
+  "fig": 31,
+  "src": "f-quotation",
+  "file": "fig-31.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 69
+ },
+ {
+  "fig": 32,
+  "src": "f-letter-workspace",
+  "file": "fig-32.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 32
+ },
+ {
+  "fig": 33,
+  "src": "x-letter-composer",
+  "file": "fig-33.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 32
+ },
+ {
+  "fig": 34,
+  "src": "p-invoices",
+  "file": "fig-34.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 148
+ },
+ {
+  "fig": 35,
+  "src": "x-invoice-drawer",
+  "file": "fig-35.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 138
+ },
+ {
+  "fig": 36,
+  "src": "p-expenses",
+  "file": "fig-36.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 123
+ },
+ {
+  "fig": 37,
+  "src": "p-cheques",
+  "file": "fig-37.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 117
+ },
+ {
+  "fig": 38,
+  "src": "x-cheque-new-dialog",
+  "file": "fig-38.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 96
+ },
+ {
+  "fig": 39,
+  "src": "x-cheque-drawer",
+  "file": "fig-39.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 98
+ },
+ {
+  "fig": 40,
+  "src": "x-cheque-calibration",
+  "file": "fig-40.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 120
+ },
+ {
+  "fig": 41,
+  "src": "p-banks",
+  "file": "fig-41.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 82
+ },
+ {
+  "fig": 42,
+  "src": "p-bank-accounts",
+  "file": "fig-42.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 64
+ },
+ {
+  "fig": 43,
+  "src": "p-bank-reconciliation",
+  "file": "fig-43.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 107
+ },
+ {
+  "fig": 44,
+  "src": "p-bank-analytics",
+  "file": "fig-44.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 120
+ },
+ {
+  "fig": 45,
+  "src": "p-import",
+  "file": "fig-45.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 96
+ },
+ {
+  "fig": 46,
+  "src": "x-import-employees",
+  "file": "fig-46.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 98
+ },
+ {
+  "fig": 47,
+  "src": "p-equipment",
+  "file": "fig-47.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 117
+ },
+ {
+  "fig": 48,
+  "src": "p-maintenance",
+  "file": "fig-48.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 87
+ },
+ {
+  "fig": 49,
+  "src": "p-vehicle-insurance",
+  "file": "fig-49.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 91
+ },
+ {
+  "fig": 50,
+  "src": "p-expirations",
+  "file": "fig-50.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 109
+ },
+ {
+  "fig": 51,
+  "src": "x-expiration-drawer",
+  "file": "fig-51.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 80
+ },
+ {
+  "fig": 52,
+  "src": "p-contracts",
+  "file": "fig-52.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 59
+ },
+ {
+  "fig": 53,
+  "src": "p-customers",
+  "file": "fig-53.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 79
+ },
+ {
+  "fig": 54,
+  "src": "p-prices",
+  "file": "fig-54.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 103
+ },
+ {
+  "fig": 55,
+  "src": "p-work-analysis",
+  "file": "fig-55.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 93
+ },
+ {
+  "fig": 56,
+  "src": "p-suppliers",
+  "file": "fig-56.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 53
+ },
+ {
+  "fig": 57,
+  "src": "p-attendance",
+  "file": "fig-57.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 81
+ },
+ {
+  "fig": 58,
+  "src": "p-inventory",
+  "file": "fig-58.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 73
+ },
+ {
+  "fig": 59,
+  "src": "p-accounting",
+  "file": "fig-59.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 96
+ },
+ {
+  "fig": 60,
+  "src": "p-financial-center",
+  "file": "fig-60.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 61
+ },
+ {
+  "fig": 61,
+  "src": "x-fc-aging",
+  "file": "fig-61.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 96
+ },
+ {
+  "fig": 62,
+  "src": "x-fc-trial",
+  "file": "fig-62.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 99
+ },
+ {
+  "fig": 63,
+  "src": "x-fc-journal",
+  "file": "fig-63.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 142
+ },
+ {
+  "fig": 64,
+  "src": "p-reports",
+  "file": "fig-64.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 133
+ },
+ {
+  "fig": 65,
+  "src": "x-reports-run",
+  "file": "fig-65.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 126
+ },
+ {
+  "fig": 66,
+  "src": "p-executive",
+  "file": "fig-66.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 99
+ },
+ {
+  "fig": 67,
+  "src": "p-financial-ops",
+  "file": "fig-67.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 43
+ },
+ {
+  "fig": 68,
+  "src": "p-financial-analysis",
+  "file": "fig-68.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 108
+ },
+ {
+  "fig": 69,
+  "src": "p-collection-analysis",
+  "file": "fig-69.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 120
+ },
+ {
+  "fig": 70,
+  "src": "p-backup",
+  "file": "fig-70.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 91
+ },
+ {
+  "fig": 71,
+  "src": "x-backup-cloudsync",
+  "file": "fig-71.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 41
+ },
+ {
+  "fig": 72,
+  "src": "p-settings",
+  "file": "fig-72.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 108
+ },
+ {
+  "fig": 73,
+  "src": "p-integrations",
+  "file": "fig-73.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 131
+ },
+ {
+  "fig": 74,
+  "src": "p-ai-assistant",
+  "file": "fig-74.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 137
+ },
+ {
+  "fig": 75,
+  "src": "p-audit",
+  "file": "fig-75.png",
+  "w": 3120,
+  "h": 1960,
+  "kb": 99
+ }
+]
