@@ -27,12 +27,14 @@ const FORM_LABELS: Record<string, string> = {
   'resignation': 'استقالة',
   quotation: 'عرض سعر',
   'purchase-request': 'طلب شراء',
+  'employee-debt-acknowledgment': 'إقرار دين موظف',
 };
 
 const PROFILE_LABELS: Record<string, string> = {
   'plain-a4': 'A4 عادي',
   'letterhead': 'ورق الشركة الرسمي',
   'ready-paper': 'ورق جاهز',
+  'employee-debt-acknowledgment-letterhead': 'إقرار دين موظف — ورق الشركة الرسمي',
 };
 
 export { FORM_LABELS, PROFILE_LABELS };
@@ -57,12 +59,14 @@ const FORM_LABEL_KEYS: Record<string, string> = {
   'resignation': 'printlog.form.resignation',
   quotation: 'printlog.form.quotation',
   'purchase-request': 'printlog.form.purchase_request',
+  'employee-debt-acknowledgment': 'printlog.form.employee_debt_acknowledgment',
 };
 
 const PROFILE_LABEL_KEYS: Record<string, string> = {
   'plain-a4': 'printlog.profile.plain_a4',
   'letterhead': 'printlog.profile.letterhead',
   'ready-paper': 'printlog.profile.ready_paper',
+  'employee-debt-acknowledgment-letterhead': 'printlog.profile.employee_debt_acknowledgment_letterhead',
 };
 
 /** Lang-aware form label. Falls back to the Arabic literal, then the raw code. */

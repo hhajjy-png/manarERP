@@ -43,6 +43,7 @@ const ALL_FORM_LAYOUT_CONSUMERS = [
   'AdminPaymentVoucher',
   'PaymentVoucher',
   'Quotation',
+  'EmployeeDebtAcknowledgment',
 ] as const;
 
 const sourceOf = (name: string) => readFileSync(`src/pages/${name}.tsx`, 'utf8');

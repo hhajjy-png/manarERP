@@ -83,3 +83,9 @@ skills-lock.json
 # bundled into the installer via electron-builder.yml's extraResources. A release
 # artifact, never application source. See electron/resources/README.md.
 electron/resources/gdrive-oauth-client.json
+
+# Print-geometry harness output (Employee Debt Acknowledgment v1 and any later use of
+# `scripts/verify-debt-acknowledgment`): regenerated on demand from committed sources,
+# and heavy (PDF + PNG per language). The scripts and their tests are committed; their
+# output is not.
+artifacts/

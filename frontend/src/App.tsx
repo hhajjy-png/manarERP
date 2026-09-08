@@ -44,6 +44,7 @@ const ReturnToWork = lazy(() => import('./pages/ReturnToWork'));
 const SalaryAdvance = lazy(() => import('./pages/SalaryAdvance'));
 const Resignation = lazy(() => import('./pages/Resignation'));
 const EmployeeWarning = lazy(() => import('./pages/EmployeeWarning'));
+const EmployeeDebtAcknowledgment = lazy(() => import('./pages/EmployeeDebtAcknowledgment'));
 const PerformanceEvaluation = lazy(() => import('./pages/PerformanceEvaluation'));
 const EmploymentContract = lazy(() => import('./pages/EmploymentContract'));
 const BankReconciliation = lazy(() => import('./pages/BankReconciliation'));
@@ -124,6 +125,7 @@ export default function App() {
           <Route path="/forms/salary-advance/:employeeId" element={<ProtectedRoute><SalaryAdvance /></ProtectedRoute>} />
           <Route path="/forms/resignation/:employeeId" element={<ProtectedRoute><Resignation /></ProtectedRoute>} />
           <Route path="/forms/employee-warning/:employeeId" element={<ProtectedRoute><EmployeeWarning /></ProtectedRoute>} />
+          <Route path="/forms/employee-debt-acknowledgment/:employeeId" element={<ProtectedRoute><EmployeeDebtAcknowledgment /></ProtectedRoute>} />
           <Route path="/forms/performance-evaluation/:employeeId" element={<ProtectedRoute><PerformanceEvaluation /></ProtectedRoute>} />
           <Route path="/forms/employment-contract" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />
           <Route path="/forms/employment-contract/:employeeId" element={<ProtectedRoute><EmploymentContract /></ProtectedRoute>} />

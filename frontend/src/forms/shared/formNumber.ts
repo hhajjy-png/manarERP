@@ -11,6 +11,7 @@ const PREFIXES: Record<string, string> = {
   quotation: 'QTN',
   'purchase-request': 'PR',
   'payment-voucher': 'PV',
+  'employee-debt-acknowledgment': 'EDA',
 };
 
 export function generateFormNumber(formType: string): string {

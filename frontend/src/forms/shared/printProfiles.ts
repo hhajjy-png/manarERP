@@ -160,6 +160,37 @@ export const PRINT_PROFILES: Record<string, PrintProfile> = {
     page: { size: 'A4', orientation: 'portrait' },
     margins: { top: '50mm', right: '15mm', bottom: '20mm', left: '15mm' },
   },
+  /**
+   * إقرار دين موظف على ورق الشركة **المطبوع مسبقًا**.
+   *
+   * ملف مستقل تمامًا — لا تعديل على أي ملف قائم. `letterhead` بهوامشه الحالية
+   * (40/10/20/10) لم يُمَسّ، وكل نموذج يستعمله يبقى كما هو حرفًا بحرف؛ وكما هو الحال
+   * مع `payment-voucher-letterhead` و`receipt-voucher-letterhead`، فإن
+   * `selectable: false` تُبقي هذا الملف خارج مبدّل ملفات الطباعة في كل نموذج آخر.
+   *
+   * `blankHeader: true` (وبلا `logoHeader`) تعني: الورقة الفيزيائية تحمل ترويسة
+   * الشركة وتذييلها، فلا يرسم النموذج ترويسة ولا شعارًا.
+   *
+   * الهندسة — مطلب مالك المنتج لهذا المستند تحديدًا:
+   *   · أعلى 40mm فارغة لترويسة الورق المطبوعة.
+   *   · أسفل 20mm فارغة لتذييل الورق المطبوع.
+   * ولأن هذه القيم تصبح هامش `@page`، يفرضها المتصفح على **كل** صفحة من صفحات
+   * المستند الأربع، لا على الأولى وحدها.
+   *
+   * أما 16.5mm يمينًا ويسارًا فهي هامش ملفات Word المصدرية نفسها
+   * (`w:pgMar right/left = 935 twips`) — منقولة كما هي لأقرب مطابقة ممكنة للأصل،
+   * وهي أضيق من 10mm المستعملة في `letterhead` فلا تقترب من حواف الورق.
+   */
+  'employee-debt-acknowledgment-letterhead': {
+    id: 'employee-debt-acknowledgment-letterhead',
+    labelAr: 'إقرار دين موظف — ورق الشركة الرسمي',
+    labelEn: 'Employee Debt Acknowledgment — Company Letterhead',
+    selectable: false,
+    blankHeader: true,
+    logoHeader: false,
+    page: { size: 'A4', orientation: 'portrait' },
+    margins: { top: '40mm', right: '16.5mm', bottom: '20mm', left: '16.5mm' },
+  },
   // Future profiles are added here only. No API or component changes required.
   // 'letterhead-en': { ... },
   // 'invoice-template-a': { ... },

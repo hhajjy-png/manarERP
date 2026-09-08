@@ -40,6 +40,7 @@ const PAGE_FILE_BY_ROUTE: Record<string, string> = {
   'receipt-voucher': 'ReceiptVoucher.tsx',
   'payment-voucher': 'AdminPaymentVoucher.tsx',
   'blank-a4-print': 'BlankA4Print.tsx',
+  'employee-debt-acknowledgment': 'EmployeeDebtAcknowledgment.tsx',
   // محرك الخطابات — مساحة العمل (لا FormLayout: قائمة لا نموذج طباعة)، لكنها تحلّ
   // عنوانها من نفس titleKey المسجَّل، فيسري عليها الفحص الحرفي كما يسري على غيرها.
   'official-letter': 'LetterWorkspace.tsx',
