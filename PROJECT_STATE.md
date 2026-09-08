@@ -89,6 +89,31 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
+## In Progress — Employee Debt Acknowledgment Administrative Form v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | نموذج إداري جديد «إقرار دين موظف» بثلاثة قوالب رسمية مستقلة (العربية / English / हिन्दी)، شاشة إدخال واحدة، وهندسة طباعة مخصّصة لورق الشركة المطبوع مسبقًا |
+| **Release status** | **`IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`** — لا دمج، لا وسم إصدار، لا رفع نسخة، لا مثبِّت |
+| **Branch / commit** | `feature/employee-debt-acknowledgment-form-v1` · `4842aaf9` |
+| **Base production HEAD** | `a3c5b18e` |
+| **Checkpoint tag** | `checkpoint/pre-employee-debt-acknowledgment-v1` → `a3c5b18e` |
+| **Desktop version** | `2026.5.9` — **لم يتغيّر** |
+| **Schema / migrations** | **لا شيء** — نموذج + معاينة + طباعة كنمط النماذج الإدارية؛ المسوّدات على `usePrintDraftStore` القائم |
+| **Permission** | `forms.read` + `forms.print` القائمتان — **لا مفتاح صلاحية جديد** |
+| **Print profile** | `employee-debt-acknowledgment-letterhead` — جديد، `selectable: false`، هوامش 40mm/16.5mm/20mm/16.5mm. **لم يُمَسّ أي ملف طباعة قائم** ولا قائمة القابلة للاختيار |
+| **Print engine** | إعادة استخدام كاملة: `FormLayout`/`FormPage`، مركز الطباعة، «المعاينة الدقيقة» (`composeStyledFromNode` → `printToPDF`). لا محرّك طباعة/PDF/Word جديد، ولا اعتماد على Office |
+| **النصّ** | ثلاث حزم منقولة **حرفيًا** من ملفات Word في `docs/` (مُلتزَمة الآن)؛ لا ترجمة وقت التشغيل ولا اشتقاق لغة من أخرى. يحرسه اختبار يعيد بناء كل فقرة ويطابقها داخل DOCX الأصلي |
+| **الهندسة — مقيسة** | `printToPDF` بنفس خيارات الإنتاج ثم قياس حبر كل صفحة: **pass للغات الثلاث** — A4 (209.89×297.01mm)، أقل حزام علوي **40.32mm**، أقل حزام سفلي **23.30mm**، بلا قصّ ولا حبر خارج الصفحة ولا ترويسة/تذييل/QR |
+| **عدد الصفحات** | **5 لكل لغة** — ملفات DOCX تحمل 3 فواصل صريحة (4 أقسام)، لكن القسم الأول لا يسع صفحة A4 واحدة بمقاسات خطوط الأصل (≈1.6 صفحة)، فينكسر تلقائيًا في Word وفي المتصفح. **لم يُضف فاصل ولم يُصغَّر خط ولم يُقصَّر نصّ** — القرار لمالك المنتج (Finding F-1) |
+| **Tests** | **+64** (30 أمانة نصّ مقابل DOCX · 29 واجهة/هندسة/عدم انحدار · 5 خادم) — كلها ناجحة |
+| **Validation** | `tsc --noEmit` أمامي وخلفي نظيف · `build:back` و`build:front` ناجحان · الحزمة الكاملة: أمامي 4263/4266، خلفي 3668/3673، Electron 502/502 |
+| **إخفاقات قائمة قبل الحزمة** | 3 أمامية (`employeeCompensationBatchPrint` ×1، `entitlementsBankExport` ×2) و5 خلفية (`chequeDesignerTemplates`) — **مُثبَت أنها تفشل بنفس الصورة على `a3c5b18e` قبل هذه الحزمة**، فليست انحدارًا منها |
+| **Golden DB** | **لم تُلمَس** — لا مسار في هذه الحزمة يفتح قاعدة بيانات؛ المقياس يعمل بـ Electron وحده على HTML مُولَّد ببيانات مُصطنعة |
+| **التقرير الكامل** | [`docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`](docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md) — خريطة الحقول الكاملة، أدلّة القياس، و8 Findings |
+
+---
+
 ## Latest Release — Completed Features Documentation Compaction & Archive v1
 
 | Field | Value |
@@ -640,7 +665,8 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 | Feature | Current behaviour |
 |---|---|
-| **Administrative forms** | 15 print-ready forms behind one shared employee picker; 9 HR + 6 operations. Each employee-based card exposes a print-mode selector. |
+| **Administrative forms** | 16 print-ready forms behind one shared employee picker; 10 HR + 6 operations. Each employee-based card exposes a print-mode selector — except the Employee Debt Acknowledgment, whose letterhead geometry is fixed by its own non-selectable profile. |
+| **Employee debt acknowledgment** | Three independent official templates (Arabic RTL / English / Hindi, both LTR) for one legal text, filled from a single data-entry screen and printed on the pre-printed company sheet (40 mm top / 20 mm bottom band, measured). Amount-in-words is per template and always hand-editable. **Status: implemented, awaiting Product Owner visual review — not merged.** |
 | **Payment voucher** | Two distinct pages: a **standalone** one typed by hand (number editable, no side effects, no accounting entry) and a **cheque-bound** one whose fields are read-only and whose number is issued by the server. |
 | **Receipt voucher** | Four required fields with real validation. **The voucher number is allocated and burned the moment Print is pressed — even if the print dialog is cancelled.** Carries a single `المُستلِم / Receiver` signature line that is part of the voucher body. |
 | **Company-letterhead sheets** | Payment and receipt vouchers each have a second, non-selectable print profile that drops header/footer furniture and starts the content below the pre-printed letterhead band (45 mm and 50 mm respectively). Selected via the «عادي / ورق الشركة» switch; standard sheet remains the default. |

@@ -2753,6 +2753,21 @@ Chromium PDF, and backend HTML reports.
 
 ## Current Pending Work
 
+- **Employee Debt Acknowledgment Administrative Form v1 — `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`.**
+  Branch `feature/employee-debt-acknowledgment-form-v1`, commit `4842aaf9`, off production `a3c5b18e`.
+  Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
+  three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
+  declare), one shared data-entry screen, and its own non-selectable print profile
+  (`employee-debt-acknowledgment-letterhead`, 40 mm top / 20 mm bottom for the pre-printed company sheet).
+  Reuses the existing print engine end to end — no new print/PDF/Word path, no Office dependency. No schema
+  change, no migration, no new permission key. The three source `.docx` files are now committed under `docs/`
+  as the design source; the application never reads them at runtime. Geometry is **measured**, not asserted:
+  `scripts/verify-debt-acknowledgment` renders the same template and runs the production `printToPDF` call,
+  then measures per-page ink — pass for all three languages. **Open decision for the Product Owner: the
+  document prints as 5 pages per language, because the source DOCX's own first section does not fit one A4
+  at the original font sizes (~1.6 pages); no page break was invented, no font shrunk, no text shortened.**
+  Full report, field map and 8 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`.
+
 - **`scripts/prepare-backend-deps.js` ships whatever Prisma client the repo root happens to hold** — it
   overlays `node_modules/.prisma` (repo root) into the packaged backend, but `prisma generate` resolves to
   `backend/node_modules/.prisma` as soon as that directory exists, which it does after any `npm run dist`.
