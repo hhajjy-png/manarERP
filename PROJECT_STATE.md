@@ -89,7 +89,31 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
-## Latest Release — Complete User Manual v1
+## Latest Release — PROJECT_STATE Documentation Rotation & Maintenance v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | تدوير سجل إصدارات هذا الملف إلى أرشيف مُتتبَّع في Git، ومزامنة بيانات الحالة الحالية — **Documentation Maintenance Release**: لا كود، لا مخطَّط، لا هجرة، لا بناء |
+| **Release status** | **RELEASED** — Documentation Maintenance |
+| **Release date** | 2026-09-08 |
+| **Desktop version** | **`2026.5.9`** — لم يتغيّر بهذه الحزمة |
+| **Branch** | `docs/project-state-rotation-v1` |
+| **Commits** | `7e9536a2` (التدوير) · `27f54b6f` (مزامنة الحالة الحالية) |
+| **Merge commit** | `448aa78e` — merge `--no-ff`، أبواه `f37c9c7f` و`27f54b6f` |
+| **Checkpoint tag** | `checkpoint-project-state-rotation-v1` → `f37c9c7f` |
+| **Stable tag** | `stable-project-state-rotation-v1` → **`448aa78e`** (على merge commit) |
+| **Product Owner review** | **تمّت واعتُمدت** |
+| **النتيجة** | `PROJECT_STATE.md`: 1,520,435 → **586,890 بايت** (−61.4٪) · 7,963 → **1,545 سطرًا** (−80.6٪) · `## Previous Release`: 185 → **15 نشطة + 170 مؤرشفة** |
+| **الثابت التاريخي** | `185 = 15 + 170` ✅ · إجمالي أقسام السجل `188 = 16 نشطة + 172 مؤرشفة` ✅ |
+| **الأرشيف** | [`docs/history/`](docs/history/README.md) — 4 ملفات · 172 قسمًا · ~939,135 بايت · فهرس في `README.md` · الحصر الكامل في [`ROTATION_MANIFEST_V1.md`](docs/history/ROTATION_MANIFEST_V1.md) |
+| **حفظ المحتوى** | نقل حرفي بلا إعادة صياغة: بصمة SHA-256 لكل قسم قبل وبعد ⇒ صفر مفقود · صفر دخيل · صفر تكرار · صفر بتر · code fences متوازنة · روابط الأرشيف صالحة. الفرق على هذا الملف كان **صفر إضافات / 6,433 حذفًا** — إزالة خالصة |
+| **مزامنة الحالة الحالية** | صُحِّحت في هذا الملف: Production HEAD (`95f67a9c` → `f37c9c7f`) · Latest/Previous stable tag · Application version (`2026.5.5` → **`2026.5.9`**) · Total stable releases (443 → **462**) · Remote sync · Latest validation. القيمة القديمة لـProduction HEAD **لم تُحذف** — نُزِّلت حرفيًا إلى صفّ «before that». وفي `PROJECT_MASTER_STATUS.md` مزامنة الحدّ الأدنى (**+14/−9 سطرًا**) بلا إعادة تصميم و**بلا نسخ أي إصدار مؤرشف إليه** (صفر `## Previous Release` فيه) |
+| **مؤجَّل عمدًا** | **`## Completed Features` لم يُمسّ** (315,536 بايت — 54٪ من الملف المتبقي). أُثبت ميكانيكيًا: hunks التعديل عند السطرين 61 و74 فقط، والقسم يبدأ عند السطر 546. مؤجَّل إلى حزمة مستقلة: **Completed Features Documentation Compaction & Archive v1** |
+| **تأكيدات عدم التغيير** | 9 ملفات فقط (`PROJECT_STATE.md` · `AI_CONTEXT.md` · `PROJECT_MASTER_STATUS.md` · `docs/history/**`). صفر تغيير في `backend/` · `frontend/` · `electron/` · `scripts/` · Prisma · هجرات · `package.json` · `.gitignore` · Golden DB · installer · `docs/user-manual/` (بصمة PDF الدليل مُتحقَّقة بعد الدمج وما زالت `1ad57ee9…`). لا بناء ولا `npm run dist` |
+
+---
+
+## Previous Release — Complete User Manual v1
 
 | Field | Value |
 |-------|-------|
