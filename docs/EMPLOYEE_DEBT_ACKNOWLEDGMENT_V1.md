@@ -6,7 +6,7 @@
 | الحقل | القيمة |
 |---|---|
 | **الفرع** | `feature/employee-debt-acknowledgment-form-v1` |
-| **الالتزامات** | `4842aaf9` (التنفيذ) · `bdb1689e` (التوثيق) · `975402e4` (نوع في اختبار) · `REFINEMENT_COMMIT` (**التحسينات الوظيفية**) |
+| **الالتزامات** | `4842aaf9` (التنفيذ) · `bdb1689e` (التوثيق) · `975402e4` (نوع في اختبار) · `07efbf52` (**التحسينات الوظيفية**) |
 | **قاعدة الانطلاق (production HEAD)** | `a3c5b18e` — *Completed Features Documentation Compaction & Archive v1* |
 | **وسم نقطة الرجوع** | `checkpoint/pre-employee-debt-acknowledgment-v1` → `a3c5b18e` |
 | **إصدار سطح المكتب** | `2026.5.9` — **لم يتغيّر** |
