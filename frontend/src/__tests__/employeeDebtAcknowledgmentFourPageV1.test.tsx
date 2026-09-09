@@ -175,6 +175,113 @@ describe('1 · ترتيب أعمدة ملحق السداد', () => {
   });
 });
 
+// ══ 1-ب · اتجاه **كل** جداول القالب العربي ═══════════════════════════════════
+//
+// القاعدة ومصدرها: لا جدول من الجداول السبعة في أيٍّ من ملفات DOCX الثلاثة يحمل
+// `w:bidiVisual`، فكلّها تُصفّ من اليسار — الخلية الأولى في الشبكة هي اليسرى بصريًا
+// مهما كان اتجاه المستند. ولذلك كتب مؤلّف الملف العربي شبكاته **معكوسة** مقابل
+// الإنجليزي والهندي. وجذر مستندنا العربي `rtl`، وفيه تُرسم الخلية الأولى في DOM في
+// أقصى اليمين — فترتيب DOM المطلوب في العربية هو **عكس** ترتيب الشبكة، وفي
+// الإنجليزية والهندية **مطابقٌ** لها.
+//
+// ما يلي يفحص **ترتيب DOM** (jsdom بلا تخطيط، فلا إحداثيات فيه). والترتيب **البصري**
+// بالبكسل يقيسه مقياسُ الهندسة في Chromium ويُفحص في القسم 5 أدناه.
+describe('1-ب · جداول القالب العربي كلها', () => {
+  const roleRow = (table: HTMLElement, attr: string, rowIndex: number) =>
+    Array.from(Array.from(table.querySelectorAll('tr'))[rowIndex].children).map((td) =>
+      td.getAttribute(attr),
+    );
+
+  const dataTables = () =>
+    Array.from(docRoot().querySelectorAll('.eda-tbl')).filter(
+      (t) => t.querySelector('[data-eda-cell]') !== null,
+    ) as HTMLElement[];
+
+  it('كل جداول البيانات الأربعة (الدائن · المدين · توقيعا الملحق ×2) تبدأ بخلية التسمية', async () => {
+    await renderForm();
+    const tables = dataTables();
+    expect(tables.length).toBe(4);
+    for (const table of tables) {
+      for (let r = 0; r < table.querySelectorAll('tr').length; r += 1) {
+        expect(roleRow(table, 'data-eda-cell', r)).toEqual(['label', 'value']);
+      }
+    }
+  });
+
+  it('جدول التوقيعات: «المدين» أولًا في DOM ⇒ يمينًا، و«الدائن» يسارًا كما في Word', async () => {
+    await renderForm();
+    const table = docRoot().querySelector('.eda-sig-block') as HTMLElement;
+    expect(roleRow(table, 'data-eda-sigcol', 0)).toEqual(['debtor', 'creditor']);
+    expect((table.querySelectorAll('tr')[0].children[0].textContent ?? '').trim()).toBe('المدين/الموظف');
+  });
+
+  it('وكل صفوف جدول التوقيعات تتبع ترويسته — فلا اسمٌ تحت عمود الطرف الآخر', async () => {
+    await renderForm();
+    const table = docRoot().querySelector('.eda-sig-block') as HTMLElement;
+    const rows = table.querySelectorAll('tr').length;
+    for (let r = 0; r < rows; r += 1) expect(roleRow(table, 'data-eda-sigcol', r)).toEqual(['debtor', 'creditor']);
+  });
+
+  it('بيانات الموظف تحت عمود المدين، وبيانات الشركة تحت عمود الدائن', async () => {
+    await renderForm();
+    const table = docRoot().querySelector('.eda-sig-block') as HTMLElement;
+    const nameRow = table.querySelectorAll('tr')[1];
+    expect(nameRow.children[0].textContent).toContain(EMPLOYEE.fullName);
+    expect(nameRow.children[1].textContent).not.toContain(EMPLOYEE.fullName);
+  });
+
+  it('جدول الشهود عمود واحد — فلا ترتيب فيه يُفسد', async () => {
+    await renderForm();
+    const blocks = Array.from(docRoot().querySelectorAll('.eda-sig-block'));
+    const witnesses = blocks[1] as HTMLElement;
+    for (const tr of Array.from(witnesses.querySelectorAll('tr'))) expect(tr.children.length).toBe(1);
+  });
+
+  it('ملحق السداد: «رقم القسط» أول عمود في DOM و«الملاحظات» آخره — في النسختين', async () => {
+    await renderForm();
+    const annexes = Array.from(docRoot().querySelectorAll('.eda-tbl--annex')) as HTMLElement[];
+    expect(annexes.length).toBe(2);
+    for (const annex of annexes) {
+      expect(roleRow(annex, 'data-eda-col', 0)).toEqual(['no', 'dueDate', 'amount', 'balance', 'notes']);
+    }
+  });
+
+  it('وكل صفوف الملحق تتبع ترويسته — فلا قيمة مولَّدة تنزلق إلى عمود جارها', async () => {
+    await renderForm();
+    const annex = docRoot().querySelector('.eda-tbl--annex') as HTMLElement;
+    const rows = annex.querySelectorAll('tr').length;
+    for (let r = 0; r < rows; r += 1) {
+      expect(roleRow(annex, 'data-eda-col', r)).toEqual(['no', 'dueDate', 'amount', 'balance', 'notes']);
+    }
+  });
+
+  it('الإنجليزية والهندية لم تتأثّرا: ترتيب DOM فيهما هو نفسه ترتيب شبكة ملفَيهما', async () => {
+    await renderForm();
+    for (const aria of ['English', 'Hindi'] as const) {
+      switchTo(aria);
+      const sig = docRoot().querySelector('.eda-sig-block') as HTMLElement;
+      expect(roleRow(sig, 'data-eda-sigcol', 0)).toEqual(['creditor', 'debtor']);
+      const annex = docRoot().querySelector('.eda-tbl--annex') as HTMLElement;
+      expect(roleRow(annex, 'data-eda-col', 0)).toEqual(['no', 'dueDate', 'amount', 'balance', 'notes']);
+      const table = dataTables()[0];
+      expect(roleRow(table, 'data-eda-cell', 0)).toEqual(['label', 'value']);
+    }
+  });
+
+  it('ولا حيلة بصرية في أي جدول: لا اتجاه مقلوب ولا transform ولا scale', () => {
+    expect(TEMPLATE_CSS_TEXT).not.toMatch(/transform\s*:/);
+    expect(TEMPLATE_CSS_TEXT).not.toMatch(/scaleX|rotateY|zoom\s*:/);
+    // `direction` يظهر في القواعد مرة واحدة فقط، وعلى `.eda-val--ltr` — وهي **عزل
+    // اتجاهي لقيمة سطرية** (رقم أو تاريخ أو IBAN داخل فقرة عربية) لا اتجاه جدول:
+    // بدونه يعيد محرّك bidi ترتيب `15/06/2026` أو `KW81…`. لا جدول يحمل اتجاهًا،
+    // فكلّها ترث اتجاه جذر المستند، وترتيبها ترتيب خلايا حقيقي.
+    const directionRules = TEMPLATE_CSS_TEXT.split('\n').filter((line) => /direction\s*:/.test(line));
+    expect(directionRules).toHaveLength(1);
+    expect(directionRules[0]).toContain('.eda-val--ltr');
+    expect(TEMPLATE_CSS_TEXT).not.toMatch(/eda-tbl[^{]*\{[^}]*direction/);
+  });
+});
+
 // ══ 2 · التعليمات: خارج المستند وباقية كاملة ═════════════════════════════════
 describe('2 · التعليمات على الشاشة وحدها', () => {
   it('نصّ التعليمات باقٍ كاملًا في حزم المحتوى الثلاث — لم يُحذف ولم يُختصر', () => {
@@ -372,7 +479,13 @@ describe('5 · القياس الفعلي', () => {
       lang: string;
       pageCount: number;
       pages: Array<{ index: number; topClearMm: number; bottomClearMm: number; visibleInkSha: string }>;
-      structure: { sectionCount: number; annexCopies: string[]; lastSectionAnnexCopy: string; instructionsNodes: number };
+      structure: {
+        sectionCount: number;
+        annexCopies: string[];
+        lastSectionAnnexCopy: string;
+        instructionsNodes: number;
+        tables: Array<{ index: number; kind: string; headVisualOrder: string[]; bodyVisualOrder: string[] }>;
+      };
       page2: { minFontPt: number; clause: { fontPt: number; lineHeightRatio: number } };
       problems: string[];
     }>;
@@ -413,6 +526,56 @@ describe('5 · القياس الفعلي', () => {
 
   it('لا عقدة تعليمات واحدة في المستند المُخرَج', () => {
     for (const doc of report.documents) expect(doc.structure.instructionsNodes).toBe(0);
+  });
+
+  /**
+   * الترتيب **البصري** لأعمدة كل جدول، مقيسًا بالبكسل في Chromium.
+   *
+   * jsdom بلا محرّك تخطيط، فلا يعرف أين تقع الخلية على الورق — يعرف ترتيبها في DOM
+   * وحده. هذه الأرقام تأتي من الشجرة المُصيَّرة فعلًا: تُرتَّب خلايا كل صفّ بإحداثي
+   * حافتها اليسرى، فما يُفحص هو ما يراه القارئ.
+   */
+  const VISUAL = {
+    ar: {
+      data: ['value', 'label'],
+      signature: ['creditor', 'debtor'],
+      annex: ['notes', 'balance', 'amount', 'dueDate', 'no'],
+    },
+    ltr: {
+      data: ['label', 'value'],
+      signature: ['creditor', 'debtor'],
+      annex: ['no', 'dueDate', 'amount', 'balance', 'notes'],
+    },
+  };
+
+  it('كل جدول عربي يقع بصريًا كما يعرضه ملف Word — والإنجليزي والهندي كما هما', () => {
+    for (const doc of report.documents) {
+      const want = doc.lang === 'ar' ? VISUAL.ar : VISUAL.ltr;
+      const measured = doc.structure.tables.filter((t) => t.kind !== 'plain');
+      expect(measured.length).toBe(7);
+      for (const table of measured) {
+        expect(table.headVisualOrder).toEqual(want[table.kind as keyof typeof want]);
+        // الجسم يتبع الترويسة: لا قيمة مولَّدة تحت ترويسة غير ترويستها.
+        expect(table.bodyVisualOrder).toEqual(table.headVisualOrder);
+      }
+    }
+  });
+
+  it('الجداول كلها حاضرة: أربعة بيانات وواحد توقيعات وملحقان', () => {
+    for (const doc of report.documents) {
+      const kinds = doc.structure.tables.map((t) => t.kind);
+      expect(kinds.filter((k) => k === 'data').length).toBe(4);
+      expect(kinds.filter((k) => k === 'signature').length).toBe(1);
+      expect(kinds.filter((k) => k === 'annex').length).toBe(2);
+    }
+  });
+
+  it('نسختا الملحق ما زالتا متطابقتَي الترتيب البصري', () => {
+    for (const doc of report.documents) {
+      const annexes = doc.structure.tables.filter((t) => t.kind === 'annex');
+      expect(annexes[1].headVisualOrder).toEqual(annexes[0].headVisualOrder);
+      expect(annexes[1].bodyVisualOrder).toEqual(annexes[0].bodyVisualOrder);
+    }
   });
 
   it('الصفحة 2: أصغر خط مرسوم ≥ 9pt، والعربية والهندية بخطّهما الأصلي 10.5pt', () => {

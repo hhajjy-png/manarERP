@@ -541,7 +541,12 @@ describe('6 · جدول السداد في المستند', () => {
 describe('7 · مساحة التوقيع مضاعفة', () => {
   // صفحة الملحق تُطبع مرتين بقرار مالك المنتج، فسطرا توقيعها يظهران في كل نسخة —
   // وأسماء المناطق تحمل رقم النسخة كي يقيس مقياسُ الهندسة كلًّا منها على حدة.
-  const EXPECTED_AREAS = [
+  //
+  // وعمودا التوقيع يتبادلان موضعهما في العربية: ترتيب DOM هناك معكوس ليخرج الشكل
+  // مطابقًا لملف Word (الدائن يسارًا)، فيسبق «المدين» في الشجرة. الاسم يُشتقّ من
+  // **الدور** لا من الموضع، فلا يحمل توقيعُ أحدهما اسمَ الآخر — وهذا ما يثبته هذا
+  // الاختبار: نفس المجموعة في اللغات الثلاث، بترتيبٍ يتبع اتجاه القالب.
+  const AREAS_LTR = [
     'creditor-signature',
     'debtor-signature',
     'witness-1',
@@ -552,6 +557,8 @@ describe('7 · مساحة التوقيع مضاعفة', () => {
     'annex2-signature-1',
     'annex2-signature-2',
   ];
+  const AREAS_RTL = ['debtor-signature', 'creditor-signature', ...AREAS_LTR.slice(2)];
+  const EXPECTED_AREAS = AREAS_LTR;
 
   it.each(['Arabic', 'English', 'Hindi'] as const)('%s: كل خانات التوقيع موجودة ومعلَّمة', async (aria) => {
     await renderForm();
@@ -560,7 +567,7 @@ describe('7 · مساحة التوقيع مضاعفة', () => {
     const areas = Array.from(document.querySelectorAll('[data-eda-sig]')).map((el) =>
       el.getAttribute('data-eda-sig'),
     );
-    expect(areas).toEqual(EXPECTED_AREAS);
+    expect(areas).toEqual(aria === 'Arabic' ? AREAS_RTL : AREAS_LTR);
   });
 
   it('كل خانة تحمل تسميتها ومساحة كتابة واحدة مخفيّة (المضاعف = 2)', async () => {

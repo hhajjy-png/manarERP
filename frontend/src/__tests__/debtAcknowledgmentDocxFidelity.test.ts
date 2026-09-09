@@ -210,10 +210,33 @@ describe('إقرار دين موظف — لا اختلاق ولا توحيد ق�
     expect(DEBT_ACK_CONTENT_HI.dir).toBe('ltr');
   });
 
-  it('ترتيب عمودَي الجداول يتبع ملف كل لغة لا افتراضًا', () => {
-    expect(DEBT_ACK_CONTENT_AR.labelColumnFirst).toBe(false);
+  /**
+   * ترتيب خلايا الجداول: **ترتيب DOM لا ترتيب شبكة XML** — والقيمة واحدة في اللغات
+   * الثلاث لسببين متعاكسين يعطيان الصورة نفسها.
+   *
+   * كانت `labelColumnFirst` في العربية `false` نقلًا حرفيًا عن ترتيب الشبكة
+   * (`6900,2460`: القيمة أولًا ثم التسمية). وكان ذلك خطأً في القراءة: **لا جدول من
+   * الجداول السبعة في أيٍّ من الملفات الثلاثة يحمل `w:bidiVisual`**، فكلّها تُصفّ من
+   * اليسار — أي أن الخلية الأولى في الشبكة هي اليسرى بصريًا مهما كان اتجاه المستند.
+   * ولذلك كتب مؤلّف الملف العربي شبكته **معكوسة** مقابل الإنجليزية والهندية
+   * (`6900,2460` مقابل `2460,6900`) ليخرج الشكل العربي صحيحًا: التسمية الضيّقة يمينًا.
+   *
+   * وجذر مستندنا العربي `dir="rtl"`، وفيه تُرسم الخلية الأولى في DOM في أقصى اليمين.
+   * فالترتيب الذي يُخرج صورة Word هو **عكس** ترتيب الشبكة: التسمية أولًا في DOM.
+   *
+   * قِيس على الشجرة المُصيَّرة: التسمية انتقلت من الحافة اليسرى (x=140) إلى اليمنى
+   * (x=633)، والقيمة إلى اليسار — مطابقةً لملف Word.
+   */
+  it('التسمية أول خلية في DOM في اللغات الثلاث — فتقع يمينًا في العربية ويسارًا في غيرها', () => {
+    expect(DEBT_ACK_CONTENT_AR.labelColumnFirst).toBe(true);
     expect(DEBT_ACK_CONTENT_EN.labelColumnFirst).toBe(true);
     expect(DEBT_ACK_CONTENT_HI.labelColumnFirst).toBe(true);
+  });
+
+  it('عمودا التوقيع: الدائن أولُ الشبكة في الملفات الثلاثة، فترتيب DOM معكوس في العربية وحدها', () => {
+    expect(DEBT_ACK_CONTENT_AR.signatureColumnRoles).toEqual(['debtor', 'creditor']);
+    expect(DEBT_ACK_CONTENT_EN.signatureColumnRoles).toEqual(['creditor', 'debtor']);
+    expect(DEBT_ACK_CONTENT_HI.signatureColumnRoles).toEqual(['creditor', 'debtor']);
   });
 
   /**

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T13:29:41.890Z",
+  "generatedAt": "2026-09-09T15:45:03.282Z",
   "profileId": "employee-debt-acknowledgment-letterhead",
   "margins": {
     "top": "40mm",
@@ -40,7 +40,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 2292,
-          "visibleInkSha": "c542a9ec57fbc438",
+          "visibleInkSha": "590e73ebebea105e",
           "readable": true
         },
         {
@@ -52,7 +52,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 2218,
-          "visibleInkSha": "65760dc5db873bdc",
+          "visibleInkSha": "abcb09a052e38f5a",
           "readable": true
         },
         {
@@ -64,7 +64,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 1627,
-          "visibleInkSha": "6517175782edce93",
+          "visibleInkSha": "46b9e6bd48ad4028",
           "readable": true
         },
         {
@@ -76,13 +76,13 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 1627,
-          "visibleInkSha": "6517175782edce93",
+          "visibleInkSha": "46b9e6bd48ad4028",
           "readable": true
         }
       ],
       "signatures": [
         {
-          "area": "creditor-signature",
+          "area": "debtor-signature",
           "labelHeightPx": 14.554,
           "padTopPx": 8,
           "padBottomPx": 24,
@@ -99,7 +99,7 @@
           "ratio": 2
         },
         {
-          "area": "debtor-signature",
+          "area": "creditor-signature",
           "labelHeightPx": 14.554,
           "padTopPx": 8,
           "padBottomPx": 24,
@@ -236,6 +236,122 @@
         }
       ],
       "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          }
+        ],
         "sectionCount": 4,
         "sections": [
           {
@@ -273,7 +389,7 @@
       "page2": {
         "heightPx": 1122.515,
         "minFontPt": 9.5,
-        "minFontSample": "الدائن/الممثل القانوني",
+        "minFontSample": "المدين/الموظف",
         "clause": {
           "selector": ".eda-clause",
           "fontPt": 10.5,
@@ -437,9 +553,9 @@
         "arabicSamples": [
           "فظومةفلسلاتسنيرقتيوك",
           "ةليننوقلعضاخدئافلابرقابثلإرحم)لمعلبحاص(ن",
-          "دلانايبلاًرطلامزلتسمةفصلأوشلرطللاصاشنلإة",
-          "لدلانملةكشرأشنملمسمسلااجتللجسلدحوملمقرلي",
-          "دملمقرلاعريدمينوناقللثمملمسهتفصينوناقللث"
+          "دلانايبلاًأشنملمسمسلارطلامزلتسمةفصلأوشلر",
+          "للاصاشنلإةيلدلانملةكشردحوملمقرليندملمقرل",
+          "جتللجسلهتفصينوناقللثمملاعريدمينوناقللثمم"
         ]
       },
       "problems": []
@@ -655,6 +771,122 @@
         }
       ],
       "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          }
+        ],
         "sectionCount": 4,
         "sections": [
           {
@@ -939,6 +1171,122 @@
         }
       ],
       "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          }
+        ],
         "sectionCount": 4,
         "sections": [
           {

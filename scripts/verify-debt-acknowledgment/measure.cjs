@@ -159,7 +159,39 @@ const STRUCTURE_SCRIPT = `
       };
     };
 
+    // ═══ الترتيب **البصري** لأعمدة كل جدول ═══
+    // تُرتَّب الخلايا بإحداثي حافتها اليسرى لا بترتيبها في DOM، فما يُقاس هو ما
+    // يراه القارئ على الورق. والأدوار مأخوذة من سمات بنيوية لا تُطبع، فيُعرف كل
+    // عمود بما هو لا بمكانه.
+    const visualOrder = (row, attr) =>
+      Array.from(row.children)
+        .map((td) => ({ role: td.getAttribute(attr), left: td.getBoundingClientRect().left }))
+        .sort((a, b) => a.left - b.left)
+        .map((c) => c.role);
+
+    const tables = Array.from(document.querySelectorAll('.eda-tbl')).map((t, i) => {
+      const rows = Array.from(t.querySelectorAll('tr'));
+      const head = rows[0];
+      const body = rows[1];
+      const kind = t.classList.contains('eda-tbl--annex')
+        ? 'annex'
+        : head && head.querySelector('[data-eda-sigcol]')
+          ? 'signature'
+          : head && head.querySelector('[data-eda-cell]')
+            ? 'data'
+            : 'plain';
+      const attr = kind === 'annex' ? 'data-eda-col' : kind === 'signature' ? 'data-eda-sigcol' : 'data-eda-cell';
+      return {
+        index: i + 1,
+        kind: kind,
+        columns: head ? head.children.length : 0,
+        headVisualOrder: head ? visualOrder(head, attr) : [],
+        bodyVisualOrder: body ? visualOrder(body, attr) : [],
+      };
+    });
+
     return {
+      tables: tables,
       sectionCount: sections.length,
       sections: sections.map((el, i) => ({
         index: i + 1,
@@ -314,6 +346,49 @@ app.whenReady().then(async () => {
         `annex copies differ: page ${a.index} ${a.visibleInkSha} vs page ${b.index} ${b.visibleInkSha}`,
       );
 
+    // ── الترتيب البصري لكل جدول، يسارًا إلى يمينًا ───────────────────────────
+    //
+    // القاعدة واحدة ومصدرها ملفات DOCX نفسها: لا جدول فيها يحمل `w:bidiVisual`،
+    // فكلّها تُصفّ من اليسار، ومؤلّف الملف العربي كتب شبكته معكوسة ليخرج الشكل
+    // العربي صحيحًا. فالصورة المطلوبة على الورق:
+    //
+    //   جدول بيانات   rtl: القيمة يسارًا والتسمية يمينًا   ltr: العكس
+    //   جدول توقيعات  rtl: الدائن يسارًا والمدين يمينًا    ltr: العكس
+    //   ملحق السداد   rtl: ملاحظات ⇐ ... ⇐ رقم القسط      ltr: العكس
+    //
+    // ويُقاس ذلك من الحافة اليسرى الفعلية لكل خلية بعد التصيير، لا من ترتيب DOM.
+    const rtl = doc.lang === 'ar';
+    const expected = {
+      data: rtl ? ['value', 'label'] : ['label', 'value'],
+      // نفسه في اللغات الثلاث بلا شرط: الدائن أوّلُ شبكة الجدول في الملفات الثلاثة
+      // (`4680,4680`)، فيقع يسارًا في كلٍّ منها. وهو سبب عكس ترتيب DOM في العربية.
+      signature: ['creditor', 'debtor'],
+      annex: rtl
+        ? ['notes', 'balance', 'amount', 'dueDate', 'no']
+        : ['no', 'dueDate', 'amount', 'balance', 'notes'],
+    };
+    for (const table of structure.tables) {
+      if (table.kind === 'plain') continue;
+      const want = expected[table.kind];
+      if (table.headVisualOrder.join(',') !== want.join(','))
+        problems.push(
+          `table ${table.index} (${table.kind}): visual column order [${table.headVisualOrder.join(',')}] != [${want.join(',')}]`,
+        );
+      // وجسم الجدول يتبع ترويسته حرفًا بحرف — فلا تنزلق قيمة إلى عمود جاره.
+      if (table.bodyVisualOrder.length && table.bodyVisualOrder.join(',') !== table.headVisualOrder.join(','))
+        problems.push(
+          `table ${table.index} (${table.kind}): body order [${table.bodyVisualOrder.join(',')}] != head order [${table.headVisualOrder.join(',')}]`,
+        );
+    }
+    // كل الجداول المتوقَّعة حاضرة: بيانات الدائن والمدين + توقيعات + ملحقان + توقيعا ملحق.
+    const kinds = structure.tables.map((t) => t.kind);
+    if (kinds.filter((k) => k === 'annex').length !== 2)
+      problems.push(`annex tables ${kinds.filter((k) => k === 'annex').length} != 2`);
+    if (kinds.filter((k) => k === 'signature').length !== 1)
+      problems.push(`signature tables ${kinds.filter((k) => k === 'signature').length} != 1`);
+    if (kinds.filter((k) => k === 'data').length !== 4)
+      problems.push(`data tables ${kinds.filter((k) => k === 'data').length} != 4`);
+
     // ── التعليمات: نصّها كاملٌ في حزمة المحتوى، وصفرُ أثرٍ له في المستند المطبوع ──
     if (structure.instructionsNodes !== 0)
       problems.push(`instructions rendered inside the printed document (${structure.instructionsNodes} nodes)`);
@@ -392,6 +467,7 @@ app.whenReady().then(async () => {
       })),
       signatures,
       structure: {
+        tables: structure.tables,
         sectionCount: structure.sectionCount,
         sections: structure.sections,
         annexCopies: structure.annexCopies,

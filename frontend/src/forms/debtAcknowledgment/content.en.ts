@@ -189,6 +189,9 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   signaturesNote:
     'The undersigned confirm that this signature page forms an integral part of the Employee Loan Receipt and Acknowledgment of Debt and that it was signed after the acknowledgment was read, understood and its material particulars completed.',
   signatureHeader: ['Creditor / Legal representative', 'Debtor / Employee'],
+  // ترتيب DOM هنا **مطابق** لترتيب شبكة XML: المستند `ltr`، فالخلية الأولى
+  // تُرسم يسارًا كما يرسمها Word. لا انعكاس في هذه اللغة.
+  signatureColumnRoles: ['creditor', 'debtor'],
   signatureRowIndex: 1,
   signatureRows: [
     [

@@ -257,13 +257,17 @@ function DataTable({
       <tbody>
         {rows.map((row, ri) => {
           const labelTd = (
-            <td key="l" style={{ ...labelCell, width: labelWidth }}>
+            <td key="l" data-eda-cell="label" style={{ ...labelCell, width: labelWidth }}>
               {row.label}
             </td>
           );
           const body = renderSegs(row.segs, data, content.lang);
           const valueTd = (
-            <td key="v" style={row.signature ? { ...valueCell, ...signaturePadding(DATA_CELL_PAD_PT) } : valueCell}>
+            <td
+              key="v"
+              data-eda-cell="value"
+              style={row.signature ? { ...valueCell, ...signaturePadding(DATA_CELL_PAD_PT) } : valueCell}
+            >
               {row.signature ? (
                 <SignatureArea area={`${areaPrefix ?? 'row'}-${ri + 1}`}>{body}</SignatureArea>
               ) : (
@@ -337,15 +341,22 @@ const PAGE_1_S4_CLAUSES: Record<DebtAckLang, number> = { ar: 4, en: 3, hi: 4 };
 function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: DebtAckData; copy: 1 | 2 }) {
   const c = content;
   const annexNumbers = Array.from({ length: c.annexRowCount }, (_unused, i) => String(i + 1));
+  // دور كل عمود بترتيب DOM — عمود الرقم في طرفه، وبقية الأعمدة بأدوارها. يُوسَم به
+  // كل خلية (ترويسةً وجسمًا) ليقيس مقياسُ الهندسة **الترتيب البصري** لا ترتيب DOM،
+  // ويثبت أن كل قيمة مولَّدة تحت ترويستها.
+  const annexHeaderRoles: string[] = c.annexNumberFirst
+    ? ['no', ...c.annexCellRoles]
+    : [...c.annexCellRoles, 'no'];
   return (
     <section className="eda-page eda-page--annex" data-eda-annex-copy={copy}>
       <p className="eda-annex-title">{c.annexTitle}</p>
       <table className="eda-tbl eda-tbl--annex">
         <tbody>
           <tr>
-            {c.annexColumns.map((h) => (
+            {c.annexColumns.map((h, hi) => (
               <td
                 key={h}
+                data-eda-col={annexHeaderRoles[hi]}
                 style={{
                   ...cell,
                   background: FILL_ANNEX_HEAD,
@@ -365,12 +376,17 @@ function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: Deb
             // فارغًا بنقاط الأصل حرفيًا («وتُشطب الصفوف غير المستخدمة» كما يقول الملحق).
             const row = data.schedule[rowIndex];
             const numberCell = (
-              <td key="n" style={{ ...cell, fontSize: '8.5pt' }} className="eda-val--ltr">
+              <td key="n" data-eda-col="no" style={{ ...cell, fontSize: '8.5pt' }} className="eda-val--ltr">
                 {n}
               </td>
             );
             const others = c.annexRowCells.map((blank, i) => (
-              <td key={`c${i}`} style={{ ...cell, fontSize: '8.5pt' }} className={row ? 'eda-val--ltr' : undefined}>
+              <td
+                key={`c${i}`}
+                data-eda-col={c.annexCellRoles[i]}
+                style={{ ...cell, fontSize: '8.5pt' }}
+                className={row ? 'eda-val--ltr' : undefined}
+              >
                 {row ? annexCellText(c, row, i) : blank}
               </td>
             ));
@@ -431,8 +447,12 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         <table className="eda-tbl eda-sig-block">
           <tbody>
             <tr>
-              {c.signatureHeader.map((h) => (
-                <td key={h} style={{ ...labelCell, width: '50%', color: '#0f172a' }}>
+              {c.signatureHeader.map((h, hi) => (
+                <td
+                  key={h}
+                  data-eda-sigcol={c.signatureColumnRoles[hi]}
+                  style={{ ...labelCell, width: '50%', color: '#0f172a' }}
+                >
                   {h}
                 </td>
               ))}
@@ -443,10 +463,14 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
                 <tr key={`sig${ri}`}>
                   {row.map((cellSegs, ci) => {
                     const body = renderSegs(cellSegs, data, c.lang);
-                    const area = ci === 0 ? 'creditor-signature' : 'debtor-signature';
+                    // اسم منطقة التوقيع من **الدور** لا من الموضع: ترتيب العمودين
+                    // معكوس في العربية، فربطُه بالفهرس كان يسمّي توقيع المدين
+                    // باسم الدائن ويقيس الخانة الخطأ.
+                    const area = `${c.signatureColumnRoles[ci]}-signature`;
                     return (
                       <td
                         key={`c${ci}`}
+                        data-eda-sigcol={c.signatureColumnRoles[ci]}
                         style={{
                           ...valueCell,
                           ...(isSignatureRow

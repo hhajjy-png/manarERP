@@ -2756,7 +2756,8 @@ Chromium PDF, and backend HTML reports.
 - **Employee Debt Acknowledgment Administrative Form v1 — `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`.**
   Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
   (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
-  refinement), `58594cf3` (signature space) and `e57b0e92` (four-page layout, double annex, RTL annex).
+  refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
+  and `TABLES_COMMIT` (RTL order for every Arabic table).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2796,6 +2797,20 @@ Chromium PDF, and backend HTML reports.
   never used the bottom-band exemption the Product Owner granted it — its tightest measured bottom band
   is 23.70mm — so the approved geometry holds on all four pages and **the shared print engine was not
   touched at all in this round**.
+  **Every Arabic table now matches Word (finding F-14 closed).** None of the seven tables in any of the
+  three DOCX files carries `w:bidiVisual`, so Word lays them all out left-to-right — which is why the
+  Arabic file's author wrote its grids **mirrored** (`6900,2460` against `2460,6900`) to get the right
+  Arabic shape. Our RTL root paints the first DOM cell at the right, so the Arabic DOM order has to be
+  the **reverse** of the grid order. All eight rendered tables were corrected: creditor details, debtor
+  details, the signature table, the witness table (single column), both annex copies and both annex
+  signature tables. Measured in pixels: the label cell moved from x=140 to x=633, and «المدين» from
+  x=140 to x=473. No `transform`, no `scale`, no flipped table direction, no reversed text —
+  `direction` appears exactly once in the whole document, on `.eda-val--ltr`, isolating a number or date
+  inside an Arabic paragraph. Every generated value is bound to its column by an explicit role
+  (`annexCellRoles`, and the new `signatureColumnRoles`) rather than by position, so the signature area
+  name is now derived from the role instead of the cell index. English and Hindi are provably
+  untouched: the visible-ink signature of all four of their pages is identical before and after. The
+  four-page invariant, the geometry, the identical annex copies and the 2.00 signature ratio all hold.
   Full report, field map and 16 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
   report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
 
