@@ -668,6 +668,87 @@ describe('1-هـ · القيم الافتراضية والآيبان الثاب�
   });
 });
 
+// ══ 1-و · الأقساط دنانير صحيحة، والبند 4 يطابق الملحق ═══════════════════════
+describe('1-و · الأقساط الصحيحة في المستند', () => {
+  const balanceField = () => screen.getByLabelText(translate('page.debtAck.f.balance_figures', 'ar'));
+
+  /** قيم عمود «المبلغ المسدد» في صفحة ملحق واحدة، للصفوف المملوءة وحدها. */
+  const annexAmounts = (section: HTMLElement) =>
+    Array.from(section.querySelectorAll('.eda-tbl--annex tr'))
+      .slice(1)
+      .map((tr) => (tr.querySelector('[data-eda-col=amount]')?.textContent ?? '').trim())
+      .filter((v) => !v.startsWith('.'));
+
+  it('500 على 12 قسطاً ⇒ 42.000 × 11 ثم 38.000، والرصيد ينتهي 0.000', async () => {
+    await renderForm();
+    await fillLoan(12, '500.000');
+    const [annex] = annexSections();
+    const amounts = annexAmounts(annex);
+    expect(amounts).toHaveLength(12);
+    expect(amounts.slice(0, 11)).toEqual(Array.from({ length: 11 }, () => '42.000 د.ك'));
+    expect(amounts[11]).toBe('38.000 د.ك');
+    const lastRow = Array.from(annex.querySelectorAll('.eda-tbl--annex tr'))[12];
+    expect(lastRow.querySelector('[data-eda-col=balance]')?.textContent).toContain('0.000');
+  });
+
+  it('1000 على 12 قسطاً ⇒ 83.000 × 11 ثم 87.000', async () => {
+    await renderForm();
+    await fillLoan(12);
+    const amounts = annexAmounts(annexSections()[0]);
+    expect(amounts.slice(0, 11)).toEqual(Array.from({ length: 11 }, () => '83.000 د.ك'));
+    expect(amounts[11]).toBe('87.000 د.ك');
+  });
+
+  /**
+   * البند 4 والملحق يقرأان **الجدول نفسه**: قيمة القسط العادي في البند هي قيمة الصفّ
+   * الأول في الملحق، وقيمة القسط الأخير فيه هي قيمة الصفّ الأخير. فلا يمكن أن يعلن
+   * المستند رقمًا ويطبع تحته آخر.
+   */
+  it('البند 4 يطابق الملحق حسابياً: العادي 42.000 والأخير 38.000', async () => {
+    await renderForm();
+    await fillLoan(12, '500.000');
+    const clause = Array.from(docRoot().querySelectorAll('.eda-clause')).find((el) =>
+      (el.textContent ?? '').startsWith(DEBT_ACK_CONTENT.ar.clauses4to7[0].lead),
+    ) as HTMLElement;
+    const text = clause.textContent ?? '';
+    expect(text).toContain('42.000');
+    expect(text).toContain('38.000');
+    expect(text).toContain('12');
+    // ولا يقول «قيمة كل قسط» على إطلاقها بينما الأخير مختلف.
+    expect(text).toContain('عدا الأخير');
+    expect(text).toContain('المبلغ المتبقي');
+  });
+
+  it('والقوالب الثلاثة تعرض الحساب نفسه', async () => {
+    await renderForm();
+    await fillLoan(12, '500.000');
+    for (const aria of ['Arabic', 'English', 'Hindi'] as const) {
+      switchTo(aria);
+      const text = printedText();
+      expect(text).toContain('42.000');
+      expect(text).toContain('38.000');
+    }
+  });
+
+  it('ويسري على الرصيد المعدَّل يدوياً: 750 على 12 ⇒ 63.000 × 11 ثم 57.000', async () => {
+    await renderForm();
+    await fillLoan(12);
+    fireEvent.change(balanceField(), { target: { value: '750.000' } });
+    await waitFor(() => expect(printedText()).toContain('63.000'));
+    const amounts = annexAmounts(annexSections()[0]);
+    // 750 ÷ 12 = 62.5 ⇒ أقرب دينار 63، و63 × 11 = 693، فالأخير 57.
+    expect(amounts.slice(0, 11)).toEqual(Array.from({ length: 11 }, () => '63.000 د.ك'));
+    expect(amounts[11]).toBe('57.000 د.ك');
+  });
+
+  it('والقيم نفسها في نسختَي الملحق', async () => {
+    await renderForm();
+    await fillLoan(12, '500.000');
+    const [first, second] = annexSections();
+    expect(annexAmounts(second)).toEqual(annexAmounts(first));
+  });
+});
+
 // ══ 2 · التعليمات: خارج المستند وباقية كاملة ═════════════════════════════════
 describe('2 · التعليمات على الشاشة وحدها', () => {
   it('نصّ التعليمات باقٍ كاملًا في حزم المحتوى الثلاث — لم يُحذف ولم يُختصر', () => {
@@ -1030,9 +1111,11 @@ describe('5 · القياس الفعلي', () => {
         expect(doc.page2.clause.fontPt).toBe(10.5);
         expect(doc.page2.clause.lineHeightRatio).toBeCloseTo(1.29, 2);
       } else {
-        // الإنجليزية وحدها احتاجت المستويين 2 و3 — وبأقل قدر: 10.5 ⇒ 10pt.
-        expect(doc.page2.clause.fontPt).toBe(10);
-        expect(doc.page2.clause.lineHeightRatio).toBeCloseTo(1.2, 2);
+        // الإنجليزية وحدها احتاجت المستويين 2 و3. وزيد التضييق بعد أن كبر البند 4
+        // (صار يعلن أن القسط العادي دينار صحيح وأن الأخير هو المتبقّي): 10.5 ⇒ 9.5pt
+        // وتباعد 1.15 — أقلّ قدرٍ أعاد الصفحات إلى 4 · 6 · 8، مقيسًا لا مقدَّرًا.
+        expect(doc.page2.clause.fontPt).toBe(9.5);
+        expect(doc.page2.clause.lineHeightRatio).toBeCloseTo(1.15, 2);
       }
     }
   });

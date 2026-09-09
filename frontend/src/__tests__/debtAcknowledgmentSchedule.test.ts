@@ -31,9 +31,9 @@ describe('قيم الأقساط', () => {
     expect(calculateInstallmentAmounts(1000, 5)).toEqual([200, 200, 200, 200, 200]);
   });
 
-  it('1000 ÷ 3 ⇒ 333.333 · 333.333 · 333.334، والمجموع 1000.000 بالضبط', () => {
+  it('1000 ÷ 3 ⇒ 333 · 333 · 334، والمجموع 1000.000 بالضبط', () => {
     const amounts = calculateInstallmentAmounts(1000, 3);
-    expect(amounts).toEqual([333.333, 333.333, 333.334]);
+    expect(amounts).toEqual([333, 333, 334]);
     expect(amounts.reduce((a, b) => a + b, 0)).toBeCloseTo(1000, 9);
   });
 
@@ -145,7 +145,7 @@ describe('جدول السداد الكامل', () => {
 
   it('الرصيد ينتهي عند صفر حتى مع فارق تقريب', () => {
     const rows = buildInstallmentSchedule({ debtAmount: 1000, count: 3, firstDate: '2026-10-15' });
-    expect(rows.map((r) => r.amount)).toEqual([333.333, 333.333, 333.334]);
+    expect(rows.map((r) => r.amount)).toEqual([333, 333, 334]);
     expect(rows[2].remainingBalance).toBe(0);
   });
 
@@ -313,9 +313,9 @@ describe('أعداد الأقساط فوق الاثني عشر', () => {
   it('ثلاثة عشر قسطاً على ألف دينار: القيم المتوقَّعة بالضبط', () => {
     const rows = buildInstallmentSchedule({ debtAmount: 1000, count: 13, firstDate: FIRST });
     expect(rows).toHaveLength(13);
-    expect(rows[0].amount).toBe(76.923);
-    expect(rows[11].amount).toBe(76.923);
-    expect(rows[12].amount).toBe(76.924);
+    expect(rows[0].amount).toBe(77);
+    expect(rows[11].amount).toBe(77);
+    expect(rows[12].amount).toBe(76);
     expect(rows[12].dueDate).toBe('2027-10-15');
     expect(rows[12].remainingBalance).toBe(0);
     expect(scheduleTotal(rows)).toBe(1000);
@@ -367,5 +367,114 @@ describe('تقسيم جدول السداد على صفحات الملحق', () =
     const pages = paginateInstallmentSchedule(rows, ROWS);
     expect(pages[0][0]).toBe(rows[0]);
     expect(pages[1][0]).toBe(rows[12]);
+  });
+});
+
+// ══ الأقساط دنانير صحيحة والفارق في الأخير ═══════════════════════════════════
+//
+// قسطٌ شهريّ بكسور الفلس («41.667 د.ك») لا يُدفع ولا يُحوَّل ولا يُقيَّد في دفتر. فقرار
+// مالك المنتج: القسط العادي **دينار صحيح**، والقسط الأخير وحده يستوعب ما تبقّى.
+describe('أقساط بدنانير صحيحة', () => {
+  const amountsOf = (total: number, count: number) => calculateInstallmentAmounts(total, count);
+  const regularOf = (a: number[]) => [...new Set(a.slice(0, -1))];
+  const lastOf = (a: number[]) => a[a.length - 1];
+
+  it('مثال مالك المنتج: 500 ÷ 12 ⇒ 42 × 11 ثم 38', () => {
+    const a = amountsOf(500, 12);
+    expect(a).toEqual([...Array.from({ length: 11 }, () => 42), 38]);
+    expect(sumMoney(a)).toBe(500);
+  });
+
+  it('ومثاله الثاني: 1000 ÷ 12 ⇒ 83 × 11 ثم 87', () => {
+    const a = amountsOf(1000, 12);
+    expect(a).toEqual([...Array.from({ length: 11 }, () => 83), 87]);
+    expect(sumMoney(a)).toBe(1000);
+  });
+
+  it('مبلغ يقبل القسمة بلا باقٍ ⇒ الأقساط كلها متساوية', () => {
+    expect(amountsOf(1200, 12)).toEqual(Array.from({ length: 12 }, () => 100));
+    expect(amountsOf(1000, 25)).toEqual(Array.from({ length: 25 }, () => 40));
+  });
+
+  it('قسط واحد ⇒ الرصيد كلّه، بفلوسه إن كانت له فلوس', () => {
+    expect(amountsOf(1000, 1)).toEqual([1000]);
+    expect(amountsOf(500.75, 1)).toEqual([500.75]);
+  });
+
+  it('13 و25 قسطاً: العادي دينار صحيح والأخير يحمل الفارق', () => {
+    expect(amountsOf(1000, 13)).toEqual([...Array.from({ length: 12 }, () => 77), 76]);
+    expect(amountsOf(500, 25)).toEqual([...Array.from({ length: 24 }, () => 20), 20]);
+  });
+
+  it('وفلوس الرصيد كلها تنزل على القسط الأخير', () => {
+    const a = amountsOf(500.5, 12);
+    expect(regularOf(a)).toEqual([42]);
+    expect(lastOf(a)).toBe(38.5);
+    expect(sumMoney(a)).toBe(500.5);
+  });
+
+  it.each([
+    [500, 12],
+    [1000, 12],
+    [1200, 12],
+    [1000, 13],
+    [1000, 25],
+    [1000, 36],
+    [750, 3],
+    [7777, 24],
+  ])('%i ÷ %i: العادي عدد صحيح، والمجموع مطابق، ولا قسط صفر أو سالب', (total, count) => {
+    const a = amountsOf(total, count);
+    expect(a).toHaveLength(count);
+    for (const value of a.slice(0, -1)) expect(Number.isInteger(value)).toBe(true);
+    expect(regularOf(a)).toHaveLength(1);
+    expect(sumMoney(a)).toBe(total);
+    expect(Math.min(...a)).toBeGreaterThan(0);
+  });
+
+  it('والجدول المُصيَّر يعكس القيم نفسها وينتهي رصيده عند صفر', () => {
+    const rows = buildInstallmentSchedule({ debtAmount: 500, count: 12, firstDate: '2026-10-15' });
+    expect(rows.map((r) => r.amount)).toEqual([...Array.from({ length: 11 }, () => 42), 38]);
+    expect(rows[11].remainingBalance).toBe(0);
+    expect(rows.every((r) => r.remainingBalance >= 0)).toBe(true);
+    expect(scheduleTotal(rows)).toBe(500);
+  });
+});
+
+// ══ حواف التقريب ═════════════════════════════════════════════════════════════
+describe('حواف التقريب في الأقساط الصحيحة', () => {
+  it('حين يبتلع التقريبُ الأخير: ينزل العادي إلى الدينار الأدنى', () => {
+    // 22 ÷ 12 = 1.833 ⇒ أقرب دينار 2، و2 × 11 = 22 فلا يبقى للأخير شيء.
+    // فينزل إلى 1، ويبقى للأخير 11 — دنانير صحيحة، ومجموع مطابق، وأخيرٌ موجب.
+    const a = calculateInstallmentAmounts(22, 12);
+    expect(a).toEqual([...Array.from({ length: 11 }, () => 1), 11]);
+    expect(sumMoney(a)).toBe(22);
+    expect(Math.min(...a)).toBeGreaterThan(0);
+  });
+
+  it('ورصيدٌ أصغر من عدد الأقساط: الدينار الصحيح مستحيل حسابيًا فيُقسَّم بثلاث خانات', () => {
+    // لا وجود لاثني عشر قسطًا صحيحًا موجبًا مجموعها عشرة. الحساب يمنعه لا التنفيذ،
+    // فيُحفَظ الأهمّ: المجموع مطابق بالضبط، ولا قسط صفر ولا سالب.
+    for (const [total, count] of [
+      [10, 12],
+      [11, 12],
+      [7, 12],
+      [0.5, 12],
+    ] as Array<[number, number]>) {
+      const a = calculateInstallmentAmounts(total, count);
+      expect(a).toHaveLength(count);
+      expect(sumMoney(a)).toBe(total);
+      expect(Math.min(...a)).toBeGreaterThan(0);
+    }
+  });
+
+  it('ولا حالة تُخرج قسطًا صفرًا أو سالبًا أو مجموعًا يتجاوز الرصيد', () => {
+    for (let total = 1; total <= 60; total += 1) {
+      for (const count of [2, 3, 5, 12, 13, 24, 25, 36]) {
+        const a = calculateInstallmentAmounts(total, count);
+        expect(a).toHaveLength(count);
+        expect(sumMoney(a)).toBe(total);
+        expect(Math.min(...a)).toBeGreaterThan(0);
+      }
+    }
   });
 });

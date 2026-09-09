@@ -328,7 +328,7 @@ function ClauseList({
  * (`scripts/verify-debt-acknowledgment`)، لا مقدَّرة: كلٌّ منها أكبر عدد يسع الصفحة
  * الأولى في تلك اللغة دون أن يفيض. تغيير نصّ أي بند يستوجب إعادة القياس.
  */
-const PAGE_1_S4_CLAUSES: Record<DebtAckLang, number> = { ar: 4, en: 3, hi: 4 };
+const PAGE_1_S4_CLAUSES: Record<DebtAckLang, number> = { ar: 4, en: 2, hi: 4 };
 
 /**
  * ملحق (أ) — جدول السداد: **صفحة واحدة** منه.
@@ -649,10 +649,20 @@ const TEMPLATE_CSS = `
 
 /* المستويان 2 و3 — **الإنجليزية وحدها**، بالقياس لا بالتعميم.
    نصّ ملف Word الإنجليزي أطول من العربي والهندي، وهو اللغة الوحيدة التي لا يكفيها
-   المستوى 1 (قِيست: خمس صفحات عنده). والعربية والهندية تبلغان الأربع صفحات بالمستوى
-   الأول وحده وبفائض 46mm و42mm — فتخفيضُ خطّهما لن يشتري صفحة، وسيخالف «أكبر خط
-   ممكن» بلا مقابل. لذلك يبقى خطّهما 10.5pt وتباعدهما 1.29 كما خرج من ملف Word. */
-.eda-root[lang=en] .eda-page--compact .eda-clause { line-height: 1.20; font-size: 10pt; }
+   المستوى 1. والعربية والهندية تبلغان صفحاتهما بالمستوى الأول وحده وبفائض 46mm و42mm
+   — فتخفيضُ خطّهما لن يشتري صفحة، وسيخالف «أكبر خط ممكن» بلا مقابل. لذلك يبقى خطّهما
+   10.5pt وتباعدهما 1.29 كما خرج من ملف Word.
+
+   وزيد التضييق في الإنجليزية بعد أن كبر البند 4: صار يعلن أن القسط العادي دينار
+   صحيح وأن الأخير هو المتبقّي، فطال سطرًا. والصفحة الأولى الإنجليزية لم يكن فيها إلا
+   4.36mm فائضًا، فانتقل إليها بندٌ أقلّ (en: 2 أعلاه) وانتقل عبؤه إلى الصفحة 2 —
+   وهي الصفحة الوحيدة التي أذن مالك المنتج بضغطها. المقادير أدناه **مقيسة**: أقلّ
+   قدرٍ أعاد الصفحات إلى 4 · 6 · 8. */
+.eda-root[lang=en] .eda-page--compact .eda-clause { line-height: 1.15; font-size: 9.5pt; margin-bottom: 1pt; }
+.eda-root[lang=en] .eda-page--compact .eda-h1 { margin: 3pt 0 1pt; }
+.eda-root[lang=en] .eda-page--compact .eda-note { margin-bottom: 1pt; }
+.eda-root[lang=en] .eda-page--compact .eda-subhead { margin: 2pt 0 1pt; }
+.eda-root[lang=en] .eda-page--compact .eda-tbl { margin-bottom: 1pt; }
 .eda-root[lang=en] .eda-page--compact .eda-tbl td { line-height: 1.08; }
 
 @media screen {

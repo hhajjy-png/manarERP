@@ -2758,7 +2758,8 @@ Chromium PDF, and backend HTML reports.
   (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
   refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
   `35e31961` (RTL order for every Arabic table), `9e2f0b2e` (instalments beyond one annex page) and
-  `61d6d5f1` (balance column name, balance-at-signing, document defaults, fixed IBAN).
+  `61d6d5f1` (balance column name, balance-at-signing, document defaults, fixed IBAN) and
+  `WHOLE_COMMIT` (whole-dinar instalments).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2792,7 +2793,7 @@ Chromium PDF, and backend HTML reports.
   three content packs and are shown in a `Modal` rendered **outside `FormLayout`** — hence outside
   `.form-page`, so it reaches neither paper, PDF nor preview even while open, and it follows the template
   language rather than the UI language. Compaction is confined to page 2 and kept to the least that
-  works: vertical whitespace for all three languages, and line-height plus a 10.5 ⇒ 10pt clause font for
+  works: vertical whitespace for all three languages, and line-height plus a reduced clause font for
   **English only**, the one language nothing less sufficed for. Signature areas were not touched (their
   padding is inline, which no compaction rule can reach) and still measure 2.00 across 27 cases. Page 2
   never used the bottom-band exemption the Product Owner granted it — its tightest measured bottom band
@@ -2838,7 +2839,22 @@ Chromium PDF, and backend HTML reports.
   only into empty fields, never overwriting a manual edit and never touching employee master data. The
   company IBAN is a single constant forced alongside the commercial registration, so no employee, no
   language and no stale draft can change it, and it is shown read-only.
-  Full report, field map and 19 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
+  **Instalments are whole dinars.** A monthly instalment carrying fractions of a fils cannot be paid,
+  transferred or booked, so the regular instalment is now `round(balance / count)` to the nearest dinar
+  and the final instalment absorbs the whole difference: 500/12 gives 42.000 x 11 then 38.000; 1000/12
+  gives 83.000 x 11 then 87.000; any fils in the balance land on the last instalment. The invariants
+  hold - the sum equals the balance exactly, the final balance is 0.000, and no instalment is zero or
+  negative - tested across every balance from 1 to 60 dinars against eight instalment counts. Two
+  rounding edges are handled: when rounding to the NEAREST dinar would swallow the last instalment the
+  regular one drops to the FLOOR dinar, and when the balance is smaller than the instalment count whole
+  dinars are arithmetically impossible, so it falls back to the three-decimal split. Clause 4 gained two
+  insertions in each language so it no longer claims every instalment is equal; the fidelity suite
+  REVERSES those insertions and matches the result against the Word file, so any other change to the
+  clause fails. The longer English clause 4 pushed English page one over (it had 4.36mm of slack), so one
+  clause moved to page 2 and English page-2 compaction deepened to 9.5pt / 1.15 - the least that restored
+  the counts; Arabic and Hindi are untouched, and English page 2 now clears 34.02mm rather than 23.70mm.
+  Page counts stay 4 / 6 / 8 for 5 / 13 / 25 instalments in all three languages.
+  Full report, field map and 20 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
   report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
 
 - **`scripts/prepare-backend-deps.js` ships whatever Prisma client the repo root happens to hold** — it

@@ -119,11 +119,54 @@ describe.each(['ar', 'en', 'hi'] as const)('حزمة محتوى إقرار دي�
     }
   });
 
+  /**
+   * **الإدراجان المقصودان على البند 4** — والفرق الوحيد المسموح به عن نصّ DOCX فيه.
+   *
+   * صار القسط العادي دينارًا صحيحًا والقسط الأخير يحمل الفارق، فعبارة «قيمة كل قسط»
+   * صارت تصف واقعًا غير قائم حين يختلف الأخير — وهو الغالب. فأُدرجت كلمتان تصحّحان
+   * الوصف: تقييد «كل قسط» بما عدا الأخير، وتسمية الأخير بأنه المبلغ المتبقّي.
+   *
+   * ولا يُكتفى باستثناء البند من الفحص: تُعكس الإدراجات أولًا ثم يُطابَق الناتج
+   * **حرفيًا** بملف Word. فلو تغيّرت في البند كلمةٌ أخرى — أو تغيّر أحد الإدراجين عمّا
+   * هو مسجَّل هنا — سقط الاختبار. الاستثناء مغلق على ما وُصف، لا على البند كلّه.
+   */
+  const CLAUSE_4_INSERTIONS: Record<string, Array<[string, string]>> = {
+    ar: [
+      ['قيمة كل قسط (', 'قيمة كل قسط منها عدا الأخير ('],
+      ['ويستحق القسط الأخير البالغ (', 'ويستحق القسط الأخير وهو المبلغ المتبقي البالغ ('],
+    ],
+    en: [
+      [') each. The first instalment', ') each except the last. The first instalment'],
+      ['and the final instalment of KWD (', 'and the final, balancing instalment of KWD ('],
+    ],
+    hi: [
+      ['; प्रत्येक किस्त KWD (', '; अंतिम को छोड़कर प्रत्येक किस्त KWD ('],
+      ['तारीख को, और KWD (', 'तारीख को, और शेष राशि के रूप में KWD ('],
+    ],
+  };
+
+  /** يعيد نصّ البند إلى صورته في ملف Word بعكس الإدراجات المسجَّلة. */
+  const withoutInsertions = (source: string) =>
+    CLAUSE_4_INSERTIONS[lang].reduce((text, [was, now]) => text.replace(now, was), source);
+
+  it('البند 4: الفرق عن ملف Word هو الإدراجان المسجَّلان وحدهما', () => {
+    const clause4 = pack.clauses4to7[0];
+    const source = clauseToSource(clause4);
+    for (const [was, now] of CLAUSE_4_INSERTIONS[lang]) {
+      expect(source).toContain(now);
+      expect(source).not.toContain(was);
+    }
+    // وبعكسهما يعود النصّ إلى أصله في ملف Word حرفًا بحرف.
+    expectVerbatim(paragraphs, withoutInsertions(source), `${lang}: البند 4 قبل الإدراجين`);
+  });
+
   it('البنود الأربعة عشر منقولة حرفيًا بنصّها وفراغاتها ومربّعات اختيارها', () => {
     const clauses = [...pack.clauses1to3, ...pack.clauses4to7, ...pack.clauses8to14];
     expect(clauses).toHaveLength(14);
     clauses.forEach((clause, i) => {
-      expectVerbatim(paragraphs, clauseToSource(clause), `${lang}: البند ${i + 1}`);
+      // البند 4 وحده يُقاس بعد عكس إدراجيه — مفحوصٌ في الاختبار أعلاه.
+      const source = clauseToSource(clause);
+      expectVerbatim(paragraphs, clause === pack.clauses4to7[0] ? withoutInsertions(source) : source, `${lang}: البند ${i + 1}`);
     });
   });
 

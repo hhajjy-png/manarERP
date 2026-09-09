@@ -99,16 +99,22 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   clauses4to7: [
     {
       lead: '4. Instalments:',
+      // ═══ إدراجان اثنان على البند 4، لا أكثر ═══
+      // القسط العادي صار دينارًا صحيحًا والأخير يحمل الفارق، فعبارة «قيمة كل قسط»
+      // صارت غير صحيحة حين يختلف الأخير. أُدرجت كلمتان تصحّحان الوصف: تقييد «كل
+      // قسط» بما عدا الأخير، وتسمية الأخير بأنه المبلغ المتبقّي. ولم يُمسّ سواهما:
+      // لا بند آخر، ولا ترتيب، ولا حقل. ويحرس اختبار أمانة النصّ أن الفرق عن ملف
+      // Word هو **هذان الإدراجان وحدهما** بعكسهما ثم مطابقة الأصل حرفيًا.
       segs: [
         ' I shall repay the debt in (',
         { f: 'installmentsCount', p: d(8) },
         ') instalments of KWD (',
         { f: 'installmentAmount', p: d(16) },
-        ') each. The first instalment is due on ',
+        ') each except the last. The first instalment is due on ',
         { d: 'firstInstallmentDate' },
         '; each subsequent instalment is due on day (',
         { f: 'monthlyDueDay', p: d(8) },
-        ') of each month; and the final instalment of KWD (',
+        ') of each month; and the final, balancing instalment of KWD (',
         { f: 'finalInstallmentAmount', p: d(16) },
         ') is due on ',
         { d: 'finalInstallmentDate' },
