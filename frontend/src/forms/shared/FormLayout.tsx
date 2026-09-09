@@ -167,6 +167,25 @@ interface FormLayoutProps {
   printIntercept?: (ctx: { proceed: () => void; node: HTMLElement | null }) => void;
 
   /**
+   * Optional gate for the toolbar's **Save PDF** button — the exact sibling of
+   * `printIntercept`, with the same contract and the same limits. **Additive and
+   * opt-in**: absent (every form but the Employee Debt Acknowledgment today) the
+   * button calls `doExportPdf` directly, exactly as before.
+   *
+   * It receives the page's own export path as `proceed` and decides *when* to run it.
+   * It cannot change *what* exporting does: `doExportPdf` — the composer, the page
+   * spec, the strip selectors, the Electron bridge — is untouched, and remains the
+   * only executor of an export.
+   *
+   * Exists because a form can have a precondition that makes an export WRONG rather
+   * than merely ugly: the debt acknowledgment must never emit an English or Hindi
+   * document that still carries Arabic values, since the worker signing it cannot
+   * read them. Printing was already gateable; exporting was not, and a blocked print
+   * with an unblocked "Save PDF" beside it is not a gate at all.
+   */
+  exportIntercept?: (ctx: { proceed: () => void; node: HTMLElement | null }) => void;
+
+  /**
    * **إضافي بحت.** يَنشر للنموذج مرجعَي: العقدة المطبوعة (`.form-page`) ودالة الطباعة
    * القديمة (`doPrint`) — كما هما، بلا تغليف. أُضيف ليتمكّن زر «المعاينة الدقيقة» من
    * إعادة استخدام **نفس** مصدر المستند و**نفس** مسار الطباعة، دون لمس `doPrint` ولا
@@ -292,6 +311,7 @@ export default function FormLayout({
   formType,
   toolbarExtra,
   printIntercept,
+  exportIntercept,
   onPrintApiReady,
   lang = 'ar',
   letterheadCompactFooter = false,
@@ -601,7 +621,16 @@ export default function FormLayout({
       >
         🖨️ {lang === 'en' ? 'Print' : 'طباعة'}
       </button>
-      <button type="button" className="btn secondary" onClick={doExportPdf}>
+      {/* السلوك الافتراضي بلا `exportIntercept`: نفس النقرة، نفس `doExportPdf`، بلا وسيط. */}
+      <button
+        type="button"
+        className="btn secondary"
+        onClick={
+          exportIntercept
+            ? () => exportIntercept({ proceed: doExportPdf, node: formPageRef.current })
+            : doExportPdf
+        }
+      >
         📄 {lang === 'en' ? 'Save PDF' : 'حفظ PDF'}
       </button>
       <span className="pw-toolbar-divider" />

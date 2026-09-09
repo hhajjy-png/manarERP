@@ -18,6 +18,7 @@ router.get('/resignation/:employeeId', requirePermission('forms.read'), asyncHan
 router.get('/employee-warning/:employeeId', requirePermission('forms.read'), asyncHandler(formsController.getWarning));
 router.get('/performance-evaluation/:employeeId', requirePermission('forms.read'), asyncHandler(formsController.getPerformanceEvaluation));
 router.get('/employment-contract/:employeeId', requirePermission('forms.read'), asyncHandler(formsController.getEmploymentContract));
+router.get('/employee-debt-acknowledgment/:employeeId', requirePermission('forms.read'), asyncHandler(formsController.getEmployeeDebtAcknowledgment));
 router.post('/print-log', requirePermission('forms.print'), validate(logPrintSchema), asyncHandler(formsController.logPrint));
 router.post('/receipt-voucher-number', requirePermission('forms.print'), asyncHandler(formsController.generateReceiptVoucherNumber));
 

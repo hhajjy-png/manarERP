@@ -2753,6 +2753,122 @@ Chromium PDF, and backend HTML reports.
 
 ## Current Pending Work
 
+- **Employee Debt Acknowledgment Administrative Form v1 — `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`.**
+  Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
+  (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
+  refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
+  `35e31961` (RTL order for every Arabic table), `9e2f0b2e` (instalments beyond one annex page) and
+  `61d6d5f1` (balance column name, balance-at-signing, document defaults, fixed IBAN) and
+  `a1f44846` (whole-dinar instalments) and `dafc3e17` (single-instalment wording for clause 4).
+  Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
+  three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
+  declare), one shared data-entry screen, and its own non-selectable print profile
+  (`employee-debt-acknowledgment-letterhead`, 40 mm top / 20 mm bottom for the pre-printed company sheet).
+  Reuses the existing print engine end to end — no new print/PDF/Word path, no Office dependency. No schema
+  change, no migration, no new permission key. The three source `.docx` files are now committed under `docs/`
+  as the design source; the application never reads them at runtime. Geometry is **measured**, not asserted:
+  `scripts/verify-debt-acknowledgment` renders the same template and runs the production `printToPDF` call,
+  then measures per-page ink — pass for all three languages. **Open decision for the Product Owner: the
+  document prints as 5 pages per language, because the source DOCX's own first section does not fit one A4
+  at the original font sizes (~1.6 pages); no page break was invented, no font shrunk, no text shortened.**
+  **Functional refinement (same branch, before the visual review):** instalments are computed with the
+  project's own `roundMoney`/`sumMoney`, the rounding remainder lands on the last instalment only, and
+  `sum(instalments) === debtAmount` exactly; the repayment schedule is generated monthly while keeping the
+  preferred day-of-month (31/01 → 28/02 → **31**/03, and 29/02 in a leap year), with the balance computed
+  rather than entered and a 12-instalment cap **derived** from the annex row count in the DOCX; the
+  commercial registration `509001` and unified number `554731` are fixed, read-only, sourced from one
+  constants file, with **no new global company settings**; and the English/Hindi templates can no longer
+  carry Arabic — fifteen Latin twin fields with no fallback to Arabic, a foreign-template entry section,
+  and a validator covering every Arabic Unicode block (Devanagari accepted) that blocks **preview, print
+  and PDF export** alike. Signature writing space was doubled across all seven signature areas in all
+  three templates (measured ratio 2.00 in 21 cases). Page count is unchanged at 5 per language.
+  The one shared-file change is `FormLayout.exportIntercept`, an opt-in sibling of `printIntercept`.
+  **Final refinements (same branch, still before the visual review):** the printed document is now
+  **exactly four pages** in all three languages — page 1 uncompacted, page 2 merging what used to be two
+  pages, and pages 3 and 4 the two copies of the repayment annex, the second always last. The Arabic
+  annex reads right-to-left for real: its columns were **reordered** (with the cell roles moved in
+  lockstep so no value leaves its column), not mirrored — no `transform`, no reversed text; measured on
+  the rendered tree, «رقم القسط» moved from x=140 to x=707. The instructions page left the document
+  without a character being deleted: all eight guidance rows, five sources and the disclaimer stay in the
+  three content packs and are shown in a `Modal` rendered **outside `FormLayout`** — hence outside
+  `.form-page`, so it reaches neither paper, PDF nor preview even while open, and it follows the template
+  language rather than the UI language. Compaction is confined to page 2 and kept to the least that
+  works: vertical whitespace for all three languages, and line-height plus a reduced clause font for
+  **English only**, the one language nothing less sufficed for. Signature areas were not touched (their
+  padding is inline, which no compaction rule can reach) and still measure 2.00 across 27 cases. Page 2
+  never used the bottom-band exemption the Product Owner granted it — its tightest measured bottom band
+  is 23.70mm — so the approved geometry holds on all four pages and **the shared print engine was not
+  touched at all in this round**.
+  **Every Arabic table now matches Word (finding F-14 closed).** None of the seven tables in any of the
+  three DOCX files carries `w:bidiVisual`, so Word lays them all out left-to-right — which is why the
+  Arabic file's author wrote its grids **mirrored** (`6900,2460` against `2460,6900`) to get the right
+  Arabic shape. Our RTL root paints the first DOM cell at the right, so the Arabic DOM order has to be
+  the **reverse** of the grid order. All eight rendered tables were corrected: creditor details, debtor
+  details, the signature table, the witness table (single column), both annex copies and both annex
+  signature tables. Measured in pixels: the label cell moved from x=140 to x=633, and «المدين» from
+  x=140 to x=473. No `transform`, no `scale`, no flipped table direction, no reversed text —
+  `direction` appears exactly once in the whole document, on `.eda-val--ltr`, isolating a number or date
+  inside an Arabic paragraph. Every generated value is bound to its column by an explicit role
+  (`annexCellRoles`, and the new `signatureColumnRoles`) rather than by position, so the signature area
+  name is now derived from the role instead of the cell index. English and Hindi are provably
+  untouched: the visible-ink signature of all four of their pages is identical before and after. The
+  four-page invariant, the geometry, the identical annex copies and the 2.00 signature ratio all hold.
+  **Instalment counts are no longer capped by the annex page.** `MAX_INSTALLMENTS` used to be literally
+  `annexRowCount`, so the number of rows on a sheet was the limit on the number of instalments: anything
+  above twelve failed validation and produced an empty schedule. The two are now separate —
+  `ROWS_PER_ANNEX_PAGE = 12` (derived from the DOCX files; a page-design fact) and
+  `MAX_INSTALLMENTS = 120` (an independent technical fence: ten years of monthly instalments, not a
+  legal limit), with a test forbidding them from becoming equal again. A pure
+  `paginateInstallmentSchedule` splits the ONE schedule for display only, so what is edited is what is
+  printed; each annex page keeps its twelve rows, unused ones stay as the source's dotted blanks, and
+  numbering runs on (page two is 13-24, not 1-12). The two copies are two COMPLETE sets —
+  (A1 A2 A3)(A1 A2 A3), not page-by-page — and the last sheet is always the last page of the second set.
+  Page count is `2 + 2 * ceil(count / 12)`: four pages up to twelve instalments (unchanged from what was
+  approved), six up to twenty-four, eight up to thirty-six — measured from the PDF in nine documents
+  (three instalment scenarios x three languages) and matching the formula in all nine. Bands, signature
+  ratio (2.00), annex-copy identity, zero instruction pages and zero Arabic in EN/HI all hold, and the
+  five-instalment scenario reproduces the approved geometry number for number.
+  **Later refinements:** the annex balance column is now named «الرصيد المتبقي بعد القسط» /
+  "Remaining balance after instalment" / "किस्त के बाद शेष राशि" - the NAME only; the calculation,
+  column position, RTL order, row count and pagination are untouched, and it is the single deliberate
+  deviation from the DOCX text, held to a closed exception list in the fidelity suite. The instalment
+  schedule is now computed on the balance outstanding at signing rather than the principal (finding F-10
+  closed): the balance follows the principal automatically until edited by hand, after which it is never
+  overwritten and the flag lives in the document data so it survives a draft round-trip. Document-local
+  defaults were added for the legal representative and contact, plus a cash disbursement default - filled
+  only into empty fields, never overwriting a manual edit and never touching employee master data. The
+  company IBAN is a single constant forced alongside the commercial registration, so no employee, no
+  language and no stale draft can change it, and it is shown read-only.
+  **Instalments are whole dinars.** A monthly instalment carrying fractions of a fils cannot be paid,
+  transferred or booked, so the regular instalment is now `round(balance / count)` to the nearest dinar
+  and the final instalment absorbs the whole difference: 500/12 gives 42.000 x 11 then 38.000; 1000/12
+  gives 83.000 x 11 then 87.000; any fils in the balance land on the last instalment. The invariants
+  hold - the sum equals the balance exactly, the final balance is 0.000, and no instalment is zero or
+  negative - tested across every balance from 1 to 60 dinars against eight instalment counts. Two
+  rounding edges are handled: when rounding to the NEAREST dinar would swallow the last instalment the
+  regular one drops to the FLOOR dinar, and when the balance is smaller than the instalment count whole
+  dinars are arithmetically impossible, so it falls back to the three-decimal split. Clause 4 gained two
+  insertions in each language so it no longer claims every instalment is equal; the fidelity suite
+  REVERSES those insertions and matches the result against the Word file, so any other change to the
+  clause fails. The longer English clause 4 pushed English page one over (it had 4.36mm of slack), so one
+  clause moved to page 2 and English page-2 compaction deepened to 9.5pt / 1.15 - the least that restored
+  the counts; Arabic and Hindi are untouched, and English page 2 now clears 34.02mm rather than 23.70mm.
+  Page counts stay 4 / 6 / 8 for 5 / 13 / 25 instalments in all three languages.
+  **Clause 4 has a single-instalment variant** (finding F-20 closed). The approved wording describes
+  regular instalments and a final one carrying the remainder - true for two or more, vacuous when only
+  one exists. Each language now has a second phrasing stating that the debt is repaid in a single
+  instalment, with its amount and due date and no mention of a regular or final one. Which phrasing is
+  used follows the PRINTED schedule (`schedule.length === 1`) rather than a field that could disagree
+  with it; two or more instalments keep the approved wording untouched. The variant has no counterpart
+  in the DOCX and is not expected to - it is the third recorded dynamic-wording exception, and the
+  fidelity suite instead asserts that its opening and closing phrases are verbatim from the Word file,
+  that it carries no trace of the multi-instalment description, and that its only fields are the amount
+  and the date. The calculation is unchanged (a count of one has always returned the whole balance) and
+  an `i01` scenario joined the review artifacts, making twelve documents; it measures four pages in all
+  three languages while 5, 13 and 25 are unmoved.
+  Full report, field map and 20 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
+  report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
+
 - **`scripts/prepare-backend-deps.js` ships whatever Prisma client the repo root happens to hold** — it
   overlays `node_modules/.prisma` (repo root) into the packaged backend, but `prisma generate` resolves to
   `backend/node_modules/.prisma` as soon as that directory exists, which it does after any `npm run dist`.

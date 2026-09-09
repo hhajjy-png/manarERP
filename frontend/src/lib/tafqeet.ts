@@ -383,6 +383,29 @@ export function amountToWordsInvoiceKWD(amount: number, lang: TafqeetLang): stri
 // caller using the original names keeps working identically.
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * A BARE integer in words — no currency unit, no "فقط … لا غير" / "… Only" wrapper.
+ *
+ * WHY THIS EXISTS (and why it is not a fourth tafqeet variant): some legal templates
+ * already carry the currency unit and the "only" wrapper in their own printed text —
+ * the Employee Debt Acknowledgment reads «… مبلغاً قدره (500 د.ك) فقط ‹words›
+ * ديناراً كويتياً لا غير», so dropping `amountToWordsKWD`'s complete phrase into that
+ * blank would print the unit and the wrapper twice. Those documents need only the
+ * number spelled out.
+ *
+ * This is a THIN RE-EXPORT of the very same spellers `amountToWordsKWD` already uses
+ * (`arStdSpellInt` / `enIntToWords`) — no new grammar, no second algorithm, and no
+ * change whatsoever to any existing export's output.
+ *
+ * Non-integers and negatives return '' rather than a rounded guess: a legal amount in
+ * words must never silently disagree with the figures beside it. A caller that needs
+ * fils spells them out itself.
+ */
+export function integerToWords(value: number, lang: TafqeetLang): string {
+  if (!Number.isFinite(value) || value < 0 || !Number.isInteger(value)) return '';
+  return lang === 'en' ? enIntToWords(value) : arStdSpellInt(value);
+}
+
 /** @deprecated Prefer `amountToWordsKWD(amount, 'ar')`. Unchanged behavior. */
 export function tafqeetKWD(amount: number): string {
   return arabicStandard(amount);

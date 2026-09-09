@@ -27,6 +27,9 @@ export const formsController = {
   async getPerformanceEvaluation(req: Request, res: Response) {
     ok(res, await formsService.getPerformanceEvaluationData(Number(req.params.employeeId)));
   },
+  async getEmployeeDebtAcknowledgment(req: Request, res: Response) {
+    ok(res, await formsService.getEmployeeDebtAcknowledgmentData(Number(req.params.employeeId)));
+  },
   async getEmploymentContract(req: Request, res: Response) {
     ok(res, await formsService.getEmploymentContractData(Number(req.params.employeeId)));
   },

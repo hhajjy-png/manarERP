@@ -63,6 +63,19 @@ export class FormsService {
     return { employee, latestReview };
   }
 
+  /**
+   * إقرار دين موظف — بيانات الموظف وحدها.
+   *
+   * لا جدول جديد ولا حقل جديد: النموذج مستند طباعة (نموذج + معاينة + طباعة) على نمط
+   * بقية النماذج الإدارية، وبياناته المالية والقانونية تُدخل يدويًا في الشاشة نفسها.
+   * ما يحتاجه الخادم هو سجل الموظف فقط، لملء بيانات المدين تلقائيًا.
+   */
+  async getEmployeeDebtAcknowledgmentData(employeeId: number) {
+    const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!employee) throw AppError.notFound('الموظف غير موجود');
+    return { employee };
+  }
+
   async getEmploymentContractData(employeeId: number) {
     const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
     if (!employee) throw AppError.notFound('الموظف غير موجود');
