@@ -2756,7 +2756,7 @@ Chromium PDF, and backend HTML reports.
 - **Employee Debt Acknowledgment Administrative Form v1 — `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`.**
   Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
   (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
-  refinement), `58594cf3` (signature space) and `FINAL_COMMIT` (four-page layout, double annex, RTL annex).
+  refinement), `58594cf3` (signature space) and `e57b0e92` (four-page layout, double annex, RTL annex).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
