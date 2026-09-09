@@ -52,6 +52,7 @@ The two are complementary: a release-log entry describes a **release**, a comple
 | [`PROJECT_STATE_ARCHIVE_2026-07-26_to_2026-07-31.md`](PROJECT_STATE_ARCHIVE_2026-07-26_to_2026-07-31.md) | 2026-07-31 → 2026-07-26 | 41 | 2026-09-08 | Starts at *Project-Wide i18n Placeholder Integrity Pack v1*, ends at *Cheque Management Visual Polish Pack v1*. |
 | [`PROJECT_STATE_ARCHIVE_2026-07-18_to_2026-07-26.md`](PROJECT_STATE_ARCHIVE_2026-07-18_to_2026-07-26.md) | 2026-07-26 → 2026-07-18 | 41 | 2026-09-08 | Starts at *Payment Voucher Official Letterhead & Exact Preview Page-Cascade Fix Pack v1*, ends at *Employment Contract Workspace Integration & UX Refresh Pack v1*. |
 | [`PROJECT_STATE_ARCHIVE_2026-07-11_to_2026-07-18.md`](PROJECT_STATE_ARCHIVE_2026-07-11_to_2026-07-18.md) | 2026-07-18 → 2026-07-11 | 39 | 2026-09-08 | Oldest batch. Starts at *Enterprise Data Grid Foundation v1*, ends at *Historical Salary Transfer Register Integration v1*. Contains the two entries that still carry a `## Latest Release —` heading (see manifest). |
+| [`PROJECT_STATE_ARCHIVE_2026-08-19_to_2026-08-28.md`](PROJECT_STATE_ARCHIVE_2026-08-19_to_2026-08-28.md) | 2026-08-19 → 2026-08-28 | 8 | 2026-09-10، أثناء إصدار **Employee Debt Acknowledgment Administrative Form v1** — تجاوز سجلّ الإصدارات 19 مدخلًا فتجاوز عتبة الـ~15، فبقي الإصدار الحالي وأحدث 10 مدخلات |
 
 **Total archived: 172 release entries** across 4 files (939,135 bytes).
 Full accounting, invariants and verification results: [`ROTATION_MANIFEST_V1.md`](ROTATION_MANIFEST_V1.md).
@@ -91,5 +92,10 @@ table above.
 **Note on retention:** the policy's wording is "archive the oldest entries down to the most recent ~10". The
 2026-09-08 rotation retained the current release plus the **15** most recent `## Previous Release` entries —
 the more conservative end of that range, chosen so the live file still covers the whole span back to
-*Production Release 2026.5.7* without a lookup. Tightening to 10 at a future rotation is a normal,
-non-destructive follow-up.
+*Production Release 2026.5.7* without a lookup, and recorded that tightening to 10 at a future rotation would
+be a normal, non-destructive follow-up.
+
+**That follow-up happened on 2026-09-10**, during the Employee Debt Acknowledgment Administrative Form v1
+release: the log had grown to 19 entries, and the rotation retained the current release plus the **10** most
+recent `## Previous Release` entries, which is the figure the policy actually names. The live file now reaches
+back to *Remove Employee Vehicle License Expiry v1* (2026-08-28); everything older is here.
