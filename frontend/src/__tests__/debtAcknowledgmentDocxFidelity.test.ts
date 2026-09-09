@@ -141,8 +141,37 @@ describe.each(['ar', 'en', 'hi'] as const)('حزمة محتوى إقرار دي�
     for (const row of pack.witnessRows) expectVerbatim(paragraphs, segsToSource(row), `${lang}: صف شاهد/مترجم`);
   });
 
+  /**
+   * **الانحراف المقصود الوحيد عن نصّ DOCX**: تسمية عمود الرصيد.
+   *
+   * في ملفات Word: «الرصيد بعد السداد» / «Balance after payment» / «भुगतान के बाद शेष».
+   * وقرار مالك المنتج: «الرصيد المتبقي بعد القسط» ومكافئاتها — تسمية أوضح تصف ما
+   * يحمله العمود فعلًا (المتبقّي **بعد هذا القسط** لا بعد السداد كلّه).
+   *
+   * **اسم العمود وحده**: الحساب لم يُمسّ، ولا موضع العمود، ولا ما فيه من قيم، ولا أي
+   * نصّ قانوني آخر. ويُستثنى هنا صراحةً بقائمة مغلقة — فلا يمرّ انحرافٌ ثانٍ سهوًا
+   * تحت غطاء هذا الاستثناء.
+   */
+  const RENAMED_ANNEX_COLUMNS: Record<string, { was: string; now: string }> = {
+    ar: { was: 'الرصيد بعد السداد', now: 'الرصيد المتبقي بعد القسط' },
+    en: { was: 'Balance after payment', now: 'Remaining balance after instalment' },
+    hi: { was: 'भुगतान के बाद शेष', now: 'किस्त के बाद शेष राशि' },
+  };
+
+  it('عمود الرصيد وحده أُعيدت تسميته بقرار مالك المنتج — والاسم القديم ما زال في DOCX', () => {
+    const renamed = RENAMED_ANNEX_COLUMNS[lang];
+    expect(pack.annexColumns).toContain(renamed.now);
+    expect(pack.annexColumns).not.toContain(renamed.was);
+    // الاسم القديم موجود في ملف Word — فالانحراف مقصود لا خطأ في النقل.
+    expectVerbatim(paragraphs, renamed.was, `${lang}: الاسم الأصلي لعمود الرصيد`);
+  });
+
   it('جدول السداد: أعمدته وخلاياه وسطر إجمالياته منقولة حرفيًا', () => {
-    for (const col of pack.annexColumns) expectVerbatim(paragraphs, col, `${lang}: عمود ملحق «${col}»`);
+    const renamed = RENAMED_ANNEX_COLUMNS[lang];
+    for (const col of pack.annexColumns) {
+      if (col === renamed.now) continue; // الاستثناء الوحيد، مفحوصٌ في الاختبار أعلاه
+      expectVerbatim(paragraphs, col, `${lang}: عمود ملحق «${col}»`);
+    }
     for (const cellText of pack.annexRowCells) expectVerbatim(paragraphs, cellText, `${lang}: خلية ملحق`);
     expectVerbatim(paragraphs, segsToSource(pack.annexTotals), `${lang}: سطر إجماليات الملحق`);
     expect(pack.annexRowCount).toBe(12);

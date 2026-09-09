@@ -2757,7 +2757,8 @@ Chromium PDF, and backend HTML reports.
   Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
   (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
   refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
-  `35e31961` (RTL order for every Arabic table) and `9e2f0b2e` (instalments beyond one annex page).
+  `35e31961` (RTL order for every Arabic table), `9e2f0b2e` (instalments beyond one annex page) and
+  `TWEAKS_COMMIT` (balance column name, balance-at-signing, document defaults, fixed IBAN).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2826,6 +2827,17 @@ Chromium PDF, and backend HTML reports.
   (three instalment scenarios x three languages) and matching the formula in all nine. Bands, signature
   ratio (2.00), annex-copy identity, zero instruction pages and zero Arabic in EN/HI all hold, and the
   five-instalment scenario reproduces the approved geometry number for number.
+  **Later refinements:** the annex balance column is now named «الرصيد المتبقي بعد القسط» /
+  "Remaining balance after instalment" / "किस्त के बाद शेष राशि" - the NAME only; the calculation,
+  column position, RTL order, row count and pagination are untouched, and it is the single deliberate
+  deviation from the DOCX text, held to a closed exception list in the fidelity suite. The instalment
+  schedule is now computed on the balance outstanding at signing rather than the principal (finding F-10
+  closed): the balance follows the principal automatically until edited by hand, after which it is never
+  overwritten and the flag lives in the document data so it survives a draft round-trip. Document-local
+  defaults were added for the legal representative and contact, plus a cash disbursement default - filled
+  only into empty fields, never overwriting a manual edit and never touching employee master data. The
+  company IBAN is a single constant forced alongside the commercial registration, so no employee, no
+  language and no stale draft can change it, and it is shown read-only.
   Full report, field map and 19 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
   report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
 

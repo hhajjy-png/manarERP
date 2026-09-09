@@ -237,7 +237,8 @@ export const DEBT_ACK_CONTENT_HI: DebtAckContent = {
   ],
 
   annexTitle: 'परिशिष्ट (A) - भुगतान अनुसूची',
-  annexColumns: ['किस्त नं.', 'देय तारीख', 'भुगतान राशि', 'भुगतान के बाद शेष', 'टिप्पणी / रसीद नं.'],
+  // انظر التعليق في `content.ar.ts`: تسمية العمود وحدها تغيّرت بقرار مالك المنتج.
+  annexColumns: ['किस्त नं.', 'देय तारीख', 'भुगतान राशि', 'किस्त के बाद शेष राशि', 'टिप्पणी / रसीद नं.'],
   annexNumberFirst: true,
   annexRowCells: ['....../....../..........', `${d(16)} KWD`, `${d(16)} KWD`, d(32)],
   annexCellRoles: ['dueDate', 'amount', 'balance', 'notes'],

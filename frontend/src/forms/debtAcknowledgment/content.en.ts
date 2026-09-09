@@ -235,7 +235,8 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   ],
 
   annexTitle: 'ANNEX A - REPAYMENT SCHEDULE',
-  annexColumns: ['Instalment No.', 'Due date', 'Amount paid', 'Balance after payment', 'Notes / Receipt No.'],
+  // انظر التعليق في `content.ar.ts`: تسمية العمود وحدها تغيّرت بقرار مالك المنتج.
+  annexColumns: ['Instalment No.', 'Due date', 'Amount paid', 'Remaining balance after instalment', 'Notes / Receipt No.'],
   annexNumberFirst: true,
   annexRowCells: ['....../....../..........', `${d(16)} KWD`, `${d(16)} KWD`, d(32)],
   annexCellRoles: ['dueDate', 'amount', 'balance', 'notes'],

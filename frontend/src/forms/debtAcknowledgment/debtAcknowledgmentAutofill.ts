@@ -17,9 +17,13 @@
 import { containsArabicScript } from './arabicScript';
 import {
   CREDITOR_COMMERCIAL_REGISTRATION_NO,
+  CREDITOR_IBAN,
   CREDITOR_NAME_AR,
   CREDITOR_NAME_LATIN,
   CREDITOR_UNIFIED_NUMBER,
+  DEFAULT_CREDITOR_CONTACT,
+  DEFAULT_CREDITOR_REPRESENTATIVE,
+  DEFAULT_CREDITOR_REPRESENTATIVE_LATIN,
 } from './constants';
 import type { DebtAckData, FieldId } from './debtAcknowledgmentModel';
 
@@ -43,7 +47,7 @@ const s = (v: string | null | undefined) => (v ?? '').trim();
 const latinOnly = (v: string) => (v && !containsArabicScript(v) ? v : '');
 
 /**
- * بيانات الدائن **الثابتة** في هذا الإقرار: السجل التجاري والرقم الموحّد.
+ * بيانات الدائن **الثابتة** في هذا الإقرار: السجل التجاري والرقم الموحّد والآيبان.
  *
  * تُفرض على كل حالة (بعد الملء التلقائي، وبعد تحميل مسودّة قديمة، وبعد مسح الحقول)
  * لا تُملأ مرة واحدة فقط — فلا يمكن لمستند أن يُطبع بسجل تجاري خاطئ أو ناقص. وهي
@@ -52,7 +56,8 @@ const latinOnly = (v: string) => (v && !containsArabicScript(v) ? v : '');
 export function withFixedCreditorData(data: DebtAckData): DebtAckData {
   if (
     data.creditorCommercialReg === CREDITOR_COMMERCIAL_REGISTRATION_NO &&
-    data.creditorCivilId === CREDITOR_UNIFIED_NUMBER
+    data.creditorCivilId === CREDITOR_UNIFIED_NUMBER &&
+    data.creditorIban === CREDITOR_IBAN
   ) {
     return data;
   }
@@ -60,6 +65,7 @@ export function withFixedCreditorData(data: DebtAckData): DebtAckData {
     ...data,
     creditorCommercialReg: CREDITOR_COMMERCIAL_REGISTRATION_NO,
     creditorCivilId: CREDITOR_UNIFIED_NUMBER,
+    creditorIban: CREDITOR_IBAN,
   };
 }
 
@@ -80,6 +86,10 @@ export function buildDebtAckAutofill(employee: DebtAckEmployee | null | undefine
   return {
     // ── القالب العربي ────────────────────────────────────────────────────────
     creditorName: CREDITOR_NAME_AR,
+    // قيمتان افتراضيتان خاصّتان بهذا المستند (لا master data): تُكتبان في الحقل
+    // الفارغ وحده، فتعديل المستخدم يبقى ولا يمحوه تغييرُ الموظف.
+    creditorRepresentative: DEFAULT_CREDITOR_REPRESENTATIVE,
+    creditorAddress: DEFAULT_CREDITOR_CONTACT,
     debtorFullName: fullName,
     debtorCivilId: s(employee?.civilId),
     debtorNationality: nationality,
@@ -95,6 +105,8 @@ export function buildDebtAckAutofill(employee: DebtAckEmployee | null | undefine
     // تُنسخ **فقط** حين تكون القيمة خالية من العربية أصلًا (هاتف، بريد، أرقام) —
     // وإلا تُترك فارغة ليكتبها المستخدم في قسم «بيانات القالب الإنجليزي/الهندي».
     creditorNameLatin: CREDITOR_NAME_LATIN,
+    creditorRepresentativeLatin: DEFAULT_CREDITOR_REPRESENTATIVE_LATIN,
+    creditorAddressLatin: DEFAULT_CREDITOR_CONTACT,
     debtorFullNameLatin: fullNameEn || latinOnly(fullName),
     debtorNationalityLatin: latinOnly(nationality),
     debtorJobTitleLatin: latinOnly(jobTitle),

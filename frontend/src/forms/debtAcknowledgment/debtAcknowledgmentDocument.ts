@@ -36,14 +36,34 @@ export function derivedInstallmentFields(
 }
 
 /**
+ * المبلغ الذي **تُقسَّط عليه** الأقساط: الرصيد القائم عند التوقيع.
+ *
+ * ═══ لماذا الرصيد لا أصل الدين ═══
+ * البند 1 يعلن المبلغ المستلَم، والبند 3 يعلن ما بقي في ذمّة المدين **يوم توقيع
+ * الإقرار**. والمقسَّط هو الثاني: من استلم ألفًا وسدّد مئتين قبل التوقيع يوقّع على
+ * جدول مجموعه ثمانمئة، لا ألف. وفي السلفة الجديدة القيمتان متساويتان، فلا فرق.
+ *
+ * كان الجدول يُشتقّ من `amountFigures` دائمًا — وهو ما سُجِّل وقتها في `F-10` بوصفه
+ * قرارًا لمالك المنتج. وقد قرّره: الرصيد هو الأساس.
+ *
+ * والرصيد الفارغ يعود إلى أصل الدين بدل أن يُعطّل الجدول: مستندٌ لم يُملأ فيه الرصيد
+ * بعد هو مستند سلفةٍ جديدة، لا مستند دَينٍ بصفر.
+ */
+export function scheduleBaseAmount(data: DebtAckData): number {
+  const balance = Number(data.balanceFigures);
+  if (data.balanceFigures.trim() !== '' && Number.isFinite(balance)) return balance;
+  return Number(data.amountFigures);
+}
+
+/**
  * يعيد توليد الجدول والحقول المشتقّة من المدخلات الثلاثة.
  *
- * مدخلات غير صالحة (مبلغ ≤ 0، عدد غير صحيح أو خارج سعة الملحق، تاريخ ناقص) تُنتج
- * جدولًا فارغًا وحقولًا مشتقّة فارغة — لا جدولًا نصفَ صحيح. الخلل نفسه يُعرض للمستخدم
- * عبر `validateSchedule`، فلا يمرّ صامتًا.
+ * مدخلات غير صالحة (مبلغ ≤ 0، عدد غير صحيح أو خارج الحدّ، تاريخ ناقص) تُنتج جدولًا
+ * فارغًا وحقولًا مشتقّة فارغة — لا جدولًا نصفَ صحيح. الخلل نفسه يُعرض للمستخدم عبر
+ * `validateSchedule`، فلا يمرّ صامتًا.
  */
 export function regenerateSchedule(data: DebtAckData): DebtAckData {
-  const debtAmount = Number(data.amountFigures);
+  const debtAmount = scheduleBaseAmount(data);
   const count = Number(data.installmentsCount);
   const usable =
     Number.isFinite(debtAmount) &&

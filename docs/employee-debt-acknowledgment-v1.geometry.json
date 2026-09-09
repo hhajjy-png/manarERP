@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T16:51:36.761Z",
+  "generatedAt": "2026-09-09T17:56:58.313Z",
   "profileId": "employee-debt-acknowledgment-letterhead",
   "margins": {
     "top": "40mm",
@@ -42,8 +42,8 @@
           "bottomClearMm": 44.47,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 2292,
-          "visibleInkSha": "5f0885b5406ca7ce",
+          "inkOps": 2248,
+          "visibleInkSha": "8a387cadc9ab08f5",
           "readable": true
         },
         {
@@ -66,8 +66,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1627,
-          "visibleInkSha": "d9b54ef27160ea6d",
+          "inkOps": 1634,
+          "visibleInkSha": "b49c271d9d9a14ab",
           "readable": true
         },
         {
@@ -78,8 +78,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1627,
-          "visibleInkSha": "d9b54ef27160ea6d",
+          "inkOps": 1634,
+          "visibleInkSha": "b49c271d9d9a14ab",
           "readable": true
         }
       ],
@@ -423,7 +423,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 3,
-        "drawnCodePoints": 178,
+        "drawnCodePoints": 179,
         "drawnArabicCharCount": 128,
         "drawnArabicChars": [
           "،",
@@ -555,7 +555,7 @@
           "ﻻ",
           "ﻼ"
         ],
-        "arabicCharCount": 2868,
+        "arabicCharCount": 2855,
         "hasArabicScript": true,
         "hasDevanagari": false,
         "arabicSamples": [
@@ -563,7 +563,7 @@
           "ةليننوقلعضاخدئافلابرقابثلإرحم)لمعلبحاص(ن",
           "دلانايبلاًأشنملمسمسلارطلامزلتسمةفصلأوشلر",
           "للاصاشنلإةيلدلانملةكشردحوملمقرليندملمقرل",
-          "جتللجسلهتفصينوناقللثمملاعريدمينوناقللثمم"
+          "جتللجسلهتفصينوناقللثمملريدمفيانلافسنحاصت"
         ]
       },
       "problems": []
@@ -587,8 +587,8 @@
           "bottomClearMm": 24.36,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 2659,
-          "visibleInkSha": "9e23f53b45c5e3da",
+          "inkOps": 2612,
+          "visibleInkSha": "33dd359041559436",
           "readable": true
         },
         {
@@ -611,8 +611,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1662,
-          "visibleInkSha": "17d8066c4db6a5fd",
+          "inkOps": 1676,
+          "visibleInkSha": "5733d5703983cd8f",
           "readable": true
         },
         {
@@ -623,8 +623,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1662,
-          "visibleInkSha": "17d8066c4db6a5fd",
+          "inkOps": 1676,
+          "visibleInkSha": "5733d5703983cd8f",
           "readable": true
         }
       ],
@@ -968,7 +968,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 3,
-        "drawnCodePoints": 79,
+        "drawnCodePoints": 78,
         "drawnArabicCharCount": 0,
         "drawnArabicChars": [],
         "arabicCharCount": 0,
@@ -997,8 +997,8 @@
           "bottomClearMm": 34.95,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 2477,
-          "visibleInkSha": "377d6767ea6f93bf",
+          "inkOps": 2430,
+          "visibleInkSha": "0656eb85e2373c83",
           "readable": true
         },
         {
@@ -1021,8 +1021,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1624,
-          "visibleInkSha": "5cf073d3872155a5",
+          "inkOps": 1627,
+          "visibleInkSha": "a45f483b07804725",
           "readable": true
         },
         {
@@ -1033,8 +1033,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1624,
-          "visibleInkSha": "5cf073d3872155a5",
+          "inkOps": 1627,
+          "visibleInkSha": "a45f483b07804725",
           "readable": true
         }
       ],
@@ -1378,7 +1378,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 5,
-        "drawnCodePoints": 126,
+        "drawnCodePoints": 123,
         "drawnArabicCharCount": 0,
         "drawnArabicChars": [],
         "arabicCharCount": 0,
@@ -1407,8 +1407,8 @@
           "bottomClearMm": 44.47,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 2291,
-          "visibleInkSha": "8b6b5a3e56d8019a",
+          "inkOps": 2247,
+          "visibleInkSha": "4896869962f936f7",
           "readable": true
         },
         {
@@ -1431,8 +1431,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1393,
-          "visibleInkSha": "fca07155ae8f1b2c",
+          "inkOps": 1400,
+          "visibleInkSha": "b44851ed17064193",
           "readable": true
         },
         {
@@ -1443,8 +1443,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1764,
-          "visibleInkSha": "0a07eda71ccf6503",
+          "inkOps": 1771,
+          "visibleInkSha": "11bc22fb6978e2c7",
           "readable": true
         },
         {
@@ -1455,8 +1455,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1393,
-          "visibleInkSha": "fca07155ae8f1b2c",
+          "inkOps": 1400,
+          "visibleInkSha": "b44851ed17064193",
           "readable": true
         },
         {
@@ -1467,8 +1467,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1764,
-          "visibleInkSha": "0a07eda71ccf6503",
+          "inkOps": 1771,
+          "visibleInkSha": "11bc22fb6978e2c7",
           "readable": true
         }
       ],
@@ -1960,7 +1960,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 3,
-        "drawnCodePoints": 178,
+        "drawnCodePoints": 179,
         "drawnArabicCharCount": 128,
         "drawnArabicChars": [
           "،",
@@ -2092,7 +2092,7 @@
           "ﻻ",
           "ﻼ"
         ],
-        "arabicCharCount": 3210,
+        "arabicCharCount": 3211,
         "hasArabicScript": true,
         "hasDevanagari": false,
         "arabicSamples": [
@@ -2100,7 +2100,7 @@
           "ةليننوقلعضاخدئافلابرقابثلإرحم)لمعلبحاص(ن",
           "دلانايبلاًأشنملمسمسلارطلامزلتسمةفصلأوشلر",
           "للاصاشنلإةيلدلانملةكشردحوملمقرليندملمقرل",
-          "جتللجسلهتفصينوناقللثمملاعريدمينوناقللثمم"
+          "جتللجسلهتفصينوناقللثمملريدمفيانلافسنحاصت"
         ]
       },
       "problems": []
@@ -2124,8 +2124,8 @@
           "bottomClearMm": 24.36,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 2658,
-          "visibleInkSha": "c2a39ec2ffcb205e",
+          "inkOps": 2611,
+          "visibleInkSha": "ca37f0dac61053cd",
           "readable": true
         },
         {
@@ -2148,8 +2148,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1428,
-          "visibleInkSha": "5ae05fa500df4342",
+          "inkOps": 1442,
+          "visibleInkSha": "5946b27b2f584613",
           "readable": true
         },
         {
@@ -2160,8 +2160,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1799,
-          "visibleInkSha": "d02d523718af4ee5",
+          "inkOps": 1813,
+          "visibleInkSha": "98d52ab18776193c",
           "readable": true
         },
         {
@@ -2172,8 +2172,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1428,
-          "visibleInkSha": "5ae05fa500df4342",
+          "inkOps": 1442,
+          "visibleInkSha": "5946b27b2f584613",
           "readable": true
         },
         {
@@ -2184,8 +2184,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1799,
-          "visibleInkSha": "d02d523718af4ee5",
+          "inkOps": 1813,
+          "visibleInkSha": "98d52ab18776193c",
           "readable": true
         }
       ],
@@ -2677,7 +2677,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 3,
-        "drawnCodePoints": 79,
+        "drawnCodePoints": 78,
         "drawnArabicCharCount": 0,
         "drawnArabicChars": [],
         "arabicCharCount": 0,
@@ -2706,8 +2706,8 @@
           "bottomClearMm": 34.95,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 2476,
-          "visibleInkSha": "4f03530cf70b6f2a",
+          "inkOps": 2429,
+          "visibleInkSha": "3ed4363d01cb3c24",
           "readable": true
         },
         {
@@ -2730,8 +2730,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1390,
-          "visibleInkSha": "77823fa818d59588",
+          "inkOps": 1393,
+          "visibleInkSha": "ab4d25b518336427",
           "readable": true
         },
         {
@@ -2742,8 +2742,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1761,
-          "visibleInkSha": "1e4eaf7df414a8e8",
+          "inkOps": 1764,
+          "visibleInkSha": "a72680db388f6757",
           "readable": true
         },
         {
@@ -2754,8 +2754,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1390,
-          "visibleInkSha": "77823fa818d59588",
+          "inkOps": 1393,
+          "visibleInkSha": "ab4d25b518336427",
           "readable": true
         },
         {
@@ -2766,8 +2766,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1761,
-          "visibleInkSha": "1e4eaf7df414a8e8",
+          "inkOps": 1764,
+          "visibleInkSha": "a72680db388f6757",
           "readable": true
         }
       ],
@@ -3259,7 +3259,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 5,
-        "drawnCodePoints": 126,
+        "drawnCodePoints": 123,
         "drawnArabicCharCount": 0,
         "drawnArabicChars": [],
         "arabicCharCount": 0,
@@ -3288,8 +3288,8 @@
           "bottomClearMm": 44.47,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 2291,
-          "visibleInkSha": "8b6b5a3e56d8019a",
+          "inkOps": 2247,
+          "visibleInkSha": "4896869962f936f7",
           "readable": true
         },
         {
@@ -3312,8 +3312,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1394,
-          "visibleInkSha": "60ed65b804588c0c",
+          "inkOps": 1401,
+          "visibleInkSha": "136a0ccd1ab54eaf",
           "readable": true
         },
         {
@@ -3324,8 +3324,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1401,
-          "visibleInkSha": "0cbf50644b4a4fb3",
+          "inkOps": 1408,
+          "visibleInkSha": "f9b928935c83e51b",
           "readable": true
         },
         {
@@ -3336,8 +3336,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1764,
-          "visibleInkSha": "0a07eda71ccf6503",
+          "inkOps": 1771,
+          "visibleInkSha": "11bc22fb6978e2c7",
           "readable": true
         },
         {
@@ -3348,8 +3348,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1394,
-          "visibleInkSha": "60ed65b804588c0c",
+          "inkOps": 1401,
+          "visibleInkSha": "136a0ccd1ab54eaf",
           "readable": true
         },
         {
@@ -3360,8 +3360,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1401,
-          "visibleInkSha": "0cbf50644b4a4fb3",
+          "inkOps": 1408,
+          "visibleInkSha": "f9b928935c83e51b",
           "readable": true
         },
         {
@@ -3372,8 +3372,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
-          "inkOps": 1764,
-          "visibleInkSha": "0a07eda71ccf6503",
+          "inkOps": 1771,
+          "visibleInkSha": "11bc22fb6978e2c7",
           "readable": true
         }
       ],
@@ -4013,7 +4013,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 3,
-        "drawnCodePoints": 178,
+        "drawnCodePoints": 179,
         "drawnArabicCharCount": 128,
         "drawnArabicChars": [
           "،",
@@ -4145,7 +4145,7 @@
           "ﻻ",
           "ﻼ"
         ],
-        "arabicCharCount": 3552,
+        "arabicCharCount": 3567,
         "hasArabicScript": true,
         "hasDevanagari": false,
         "arabicSamples": [
@@ -4153,7 +4153,7 @@
           "ةليننوقلعضاخدئافلابرقابثلإرحم)لمعلبحاص(ن",
           "دلانايبلاًأشنملمسمسلارطلامزلتسمةفصلأوشلر",
           "للاصاشنلإةيلدلانملةكشردحوملمقرليندملمقرل",
-          "جتللجسلهتفصينوناقللثمملاعريدمينوناقللثمم"
+          "جتللجسلهتفصينوناقللثمملريدمفيانلافسنحاصت"
         ]
       },
       "problems": []
@@ -4177,8 +4177,8 @@
           "bottomClearMm": 24.36,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 2658,
-          "visibleInkSha": "c2a39ec2ffcb205e",
+          "inkOps": 2611,
+          "visibleInkSha": "ca37f0dac61053cd",
           "readable": true
         },
         {
@@ -4201,8 +4201,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1429,
-          "visibleInkSha": "5abbb0a246ed8242",
+          "inkOps": 1443,
+          "visibleInkSha": "59d2cdac5b64ee39",
           "readable": true
         },
         {
@@ -4213,8 +4213,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1436,
-          "visibleInkSha": "30a85d6fee50cca3",
+          "inkOps": 1450,
+          "visibleInkSha": "714a762255ad8d6a",
           "readable": true
         },
         {
@@ -4225,8 +4225,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1799,
-          "visibleInkSha": "d02d523718af4ee5",
+          "inkOps": 1813,
+          "visibleInkSha": "98d52ab18776193c",
           "readable": true
         },
         {
@@ -4237,8 +4237,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1429,
-          "visibleInkSha": "5abbb0a246ed8242",
+          "inkOps": 1443,
+          "visibleInkSha": "59d2cdac5b64ee39",
           "readable": true
         },
         {
@@ -4249,8 +4249,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1436,
-          "visibleInkSha": "30a85d6fee50cca3",
+          "inkOps": 1450,
+          "visibleInkSha": "714a762255ad8d6a",
           "readable": true
         },
         {
@@ -4261,8 +4261,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1799,
-          "visibleInkSha": "d02d523718af4ee5",
+          "inkOps": 1813,
+          "visibleInkSha": "98d52ab18776193c",
           "readable": true
         }
       ],
@@ -4902,7 +4902,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 3,
-        "drawnCodePoints": 79,
+        "drawnCodePoints": 78,
         "drawnArabicCharCount": 0,
         "drawnArabicChars": [],
         "arabicCharCount": 0,
@@ -4931,8 +4931,8 @@
           "bottomClearMm": 34.95,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 2476,
-          "visibleInkSha": "4f03530cf70b6f2a",
+          "inkOps": 2429,
+          "visibleInkSha": "3ed4363d01cb3c24",
           "readable": true
         },
         {
@@ -4955,8 +4955,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1391,
-          "visibleInkSha": "d78f7d43a61aeb89",
+          "inkOps": 1394,
+          "visibleInkSha": "fa9a88556da7b9cd",
           "readable": true
         },
         {
@@ -4967,8 +4967,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1398,
-          "visibleInkSha": "062166733daa407c",
+          "inkOps": 1401,
+          "visibleInkSha": "191949af7e5b368b",
           "readable": true
         },
         {
@@ -4979,8 +4979,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1761,
-          "visibleInkSha": "1e4eaf7df414a8e8",
+          "inkOps": 1764,
+          "visibleInkSha": "a72680db388f6757",
           "readable": true
         },
         {
@@ -4991,8 +4991,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1391,
-          "visibleInkSha": "d78f7d43a61aeb89",
+          "inkOps": 1394,
+          "visibleInkSha": "fa9a88556da7b9cd",
           "readable": true
         },
         {
@@ -5003,8 +5003,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1398,
-          "visibleInkSha": "062166733daa407c",
+          "inkOps": 1401,
+          "visibleInkSha": "191949af7e5b368b",
           "readable": true
         },
         {
@@ -5015,8 +5015,8 @@
           "bottomClearMm": 138.79,
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
-          "inkOps": 1761,
-          "visibleInkSha": "1e4eaf7df414a8e8",
+          "inkOps": 1764,
+          "visibleInkSha": "a72680db388f6757",
           "readable": true
         }
       ],
@@ -5656,7 +5656,7 @@
       },
       "scripts": {
         "toUnicodeMapsRead": 5,
-        "drawnCodePoints": 126,
+        "drawnCodePoints": 123,
         "drawnArabicCharCount": 0,
         "drawnArabicChars": [],
         "arabicCharCount": 0,

@@ -25,10 +25,12 @@ import { integerToWords } from '../../lib/tafqeet';
 import DebtAckScheduleEditor from './DebtAckScheduleEditor';
 import {
   CREDITOR_COMMERCIAL_REGISTRATION_NO,
+  CREDITOR_IBAN,
   CREDITOR_UNIFIED_NUMBER,
   MAX_INSTALLMENTS,
   ROWS_PER_ANNEX_PAGE,
 } from './constants';
+import { scheduleBaseAmount } from './debtAcknowledgmentDocument';
 import type { InstallmentRow, ScheduleIssue } from './debtAcknowledgmentSchedule';
 import type {
   DateFieldId,
@@ -40,6 +42,8 @@ import type {
 } from './debtAcknowledgmentModel';
 
 export interface DebtAckDataEntryProps {
+  /** إعادة مزامنة «الرصيد عند التوقيع» مع أصل الدين — يظهر حين يكون معدَّلًا يدويًا. */
+  onResyncBalance?: () => void;
   data: DebtAckData;
   /** قالب المستند المعروض — يقرّر ظهور قسم «بيانات القالب الإنجليزي/الهندي». */
   lang: DebtAckLang;
@@ -93,6 +97,7 @@ function Grid({ cols, children }: { cols: number; children: ReactNode }) {
 }
 
 export default function DebtAckDataEntry({
+  onResyncBalance,
   data,
   lang,
   onChange,
@@ -243,7 +248,38 @@ export default function DebtAckDataEntry({
         <Grid cols={3}>
           {date('receiptDate', t('page.debtAck.f.receipt_date'))}
           {text('amountFigures', t('page.debtAck.f.amount_figures'), { ltr: true })}
-          {text('balanceFigures', t('page.debtAck.f.balance_figures'), { ltr: true })}
+          {/* الرصيد عند التوقيع: يتبع أصل الدين ما دام لم يُمسّ، فإذا كُتب بيدٍ صار
+              القيمة المقصودة وعليها يُبنى جدول الأقساط. الملاحظة أدناه تُظهر أيّ
+              الحالتين قائمة، وتعرض طريق العودة بدل أن يُدهس الإدخال صامتًا. */}
+          <div className="field">
+            <label htmlFor="eda-balanceFigures">{t('page.debtAck.f.balance_figures')}</label>
+            <input
+              id="eda-balanceFigures"
+              title={t('page.debtAck.f.balance_figures')}
+              value={data.balanceFigures}
+              style={LTR_INPUT}
+              onChange={(e) => onChange({ balanceFigures: e.target.value })}
+            />
+            {data.balanceManual ? (
+              <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                {t('page.debtAck.balance_manual_note')}
+                {onResyncBalance && (
+                  <button
+                    type="button"
+                    className="btn secondary"
+                    style={{ fontSize: 11, padding: '1px 6px', marginInlineStart: 6 }}
+                    onClick={onResyncBalance}
+                  >
+                    {t('page.debtAck.balance_resync')}
+                  </button>
+                )}
+              </small>
+            ) : (
+              <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                {t('page.debtAck.balance_follows_note')}
+              </small>
+            )}
+          </div>
         </Grid>
         <Grid cols={3}>
           {wordsField('amountWordsAr', t('page.debtAck.f.amount_words_ar'), data.amountFigures, 'ar')}
@@ -311,13 +347,16 @@ export default function DebtAckDataEntry({
         </Grid>
         <DebtAckScheduleEditor
           rows={data.schedule}
-          debtAmount={Number(data.amountFigures) || 0}
+          debtAmount={scheduleBaseAmount(data) || 0}
           manual={data.scheduleManual}
           onChange={onScheduleChange}
           onRegenerate={onRegenerateSchedule}
         />
         <Grid cols={2}>
-          {text('creditorIban', t('page.debtAck.f.iban'), { ltr: true })}
+          {/* الآيبان بيانٌ ثابت لا حقل: قيمته من `CREDITOR_IBAN` وحدها، وتُفرض في
+              `withFixedCreditorData` بعد كل ملء وكل تحميل مسودّة. عرضُه قابلًا
+              للكتابة كان سيوحي بإمكان تغييره ثم يُدهس في أول تحديث. */}
+          {readOnly('creditorIban', t('page.debtAck.f.iban'), t('page.debtAck.fixed_note'))}
           {text('explanationLanguage', t('page.debtAck.f.explanation_language'))}
         </Grid>
       </Section>

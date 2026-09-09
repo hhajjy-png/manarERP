@@ -43,6 +43,9 @@ import { withFixedCreditorData } from '../../frontend/src/forms/debtAcknowledgme
 import {
   CREDITOR_NAME_AR,
   CREDITOR_NAME_LATIN,
+  DEFAULT_CREDITOR_CONTACT,
+  DEFAULT_CREDITOR_REPRESENTATIVE,
+  DEFAULT_CREDITOR_REPRESENTATIVE_LATIN,
   ROWS_PER_ANNEX_PAGE,
 } from '../../frontend/src/forms/debtAcknowledgment/constants';
 import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../../frontend/src/styles/fontRegistry';
@@ -73,8 +76,10 @@ const SAMPLE_BASE: DebtAckData = withFixedCreditorData({
 
     // ── القالب العربي ──────────────────────────────────────────────────────
     creditorName: CREDITOR_NAME_AR,
-    creditorRepresentative: 'اسم الممثل القانوني — مدير عام',
-    creditorAddress: 'الكويت — الشويخ الصناعية — هاتف 0000 0000',
+    // القيم الافتراضية نفسها التي يراها المستخدم في نموذج جديد، لا نصوصًا خاصة
+    // بالمقياس — فورقة المراجعة تُظهر ما سيُطبع فعلًا.
+    creditorRepresentative: DEFAULT_CREDITOR_REPRESENTATIVE,
+    creditorAddress: DEFAULT_CREDITOR_CONTACT,
     debtorFullName: 'راجيش كومار',
     debtorCivilId: '292010100123',
     debtorNationality: 'الهند',
@@ -96,8 +101,8 @@ const SAMPLE_BASE: DebtAckData = withFixedCreditorData({
 
     // ── النظائر اللاتينية (القالبان الإنجليزي والهندي) ──────────────────────
     creditorNameLatin: CREDITOR_NAME_LATIN,
-    creditorRepresentativeLatin: 'LEGAL REPRESENTATIVE NAME — GENERAL MANAGER',
-    creditorAddressLatin: 'Kuwait — Shuwaikh Industrial — Tel 0000 0000',
+    creditorRepresentativeLatin: DEFAULT_CREDITOR_REPRESENTATIVE_LATIN,
+    creditorAddressLatin: DEFAULT_CREDITOR_CONTACT,
     debtorFullNameLatin: 'RAJESH KUMAR',
     debtorNationalityLatin: 'India',
     debtorJobTitleLatin: 'Operations and Maintenance Worker',
@@ -121,13 +126,12 @@ const SAMPLE_BASE: DebtAckData = withFixedCreditorData({
     balanceWordsEn: 'One Thousand',
     balanceWordsHi: 'एक हज़ार',
     transferNo: 'TRF-000000',
-    creditorIban: 'KW00XXXX0000000000000000000000',
     receiptDate: '2026-09-01',
     firstInstallmentDate: '2026-10-15',
     creditorSignDate: '2026-09-01',
     debtorSignDate: '2026-09-01',
     annexDate: '2026-09-01',
-  disbursementMethod: 'transfer',
+  disbursementMethod: 'cash',
 });
 
 /**

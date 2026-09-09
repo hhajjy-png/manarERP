@@ -162,6 +162,15 @@ export interface DebtAckData extends Record<FieldId, string> {
   /** لا يُعدّ حقلًا نصيًا: يقرّر أي مربّع من الثلاثة يُطبع مؤشَّرًا (☑) في البند 1. */
   disbursementMethod: DisbursementMethod;
   /**
+   * هل عدّل المستخدم «الرصيد عند التوقيع» بيده؟
+   *
+   * الرصيد يساوي أصل الدين في الحالة الشائعة (سلفة جديدة لم يُسدَّد منها شيء)،
+   * فيتبعه تلقائيًا ما دام لم يُمسّ. وحين يكتبه المستخدم بيده يصير القيمة
+   * **المقصودة** — يعبّر عن المتبقّي فعلًا يوم التوقيع — فلا يدهسها تغييرُ أصل
+   * الدين بعد ذلك. العلم جزء من بيانات المستند، فيُحفظ في المسودّة ويعود معها.
+   */
+  balanceManual: boolean;
+  /**
    * جدول السداد المطبوع في «ملحق (أ)» — **مصدر واحد تُصيّره القوالب الثلاثة**.
    * يُولَّد من أصل الدين وعدد الأقساط وتاريخ أول قسط، ويبقى قابلًا للتعديل اليدوي.
    */
@@ -176,9 +185,12 @@ export interface DebtAckData extends Record<FieldId, string> {
 export const EMPTY_DEBT_ACK_DATA: DebtAckData = {
   ...(Object.fromEntries(TEXT_FIELD_IDS.map((k) => [k, ''])) as Record<TextFieldId, string>),
   ...(Object.fromEntries(DATE_FIELD_IDS.map((k) => [k, ''])) as Record<DateFieldId, string>),
-  disbursementMethod: '',
+  // «نقدًا» هي الحالة الغالبة في سلف الموظفين، وقرار مالك المنتج أن تكون
+  // الافتراضي. تبقى قابلة للتغيير، والاختيار يُحفظ في المسودّة ولا يُعاد ضبطه.
+  disbursementMethod: 'cash',
   schedule: [],
   scheduleManual: false,
+  balanceManual: false,
 };
 
 /**
@@ -218,7 +230,7 @@ export interface Clause {
 
 /**
  * دور خلية في صفّ «ملحق (أ) — جدول السداد»:
- * تاريخ الاستحقاق · المبلغ المسدد · الرصيد بعد السداد · ملاحظات/رقم الإيصال.
+ * تاريخ الاستحقاق · المبلغ المسدد · الرصيد المتبقي بعد القسط · ملاحظات/رقم الإيصال.
  */
 export type AnnexCellRole = 'dueDate' | 'amount' | 'balance' | 'notes';
 

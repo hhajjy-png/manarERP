@@ -27,7 +27,18 @@ import EmployeeDebtAcknowledgment from '../pages/EmployeeDebtAcknowledgment';
 import { api } from '../api/client';
 import { DEBT_ACK_CONTENT, SIGNATURE_SPACE_MULTIPLIER } from '../forms/debtAcknowledgment/DebtAcknowledgmentTemplate';
 import { PRINT_PROFILES } from '../forms/shared/printProfiles';
-import { MAX_INSTALLMENTS, ROWS_PER_ANNEX_PAGE } from '../forms/debtAcknowledgment/constants';
+import {
+  CREDITOR_IBAN,
+  DEFAULT_CREDITOR_CONTACT,
+  DEFAULT_CREDITOR_REPRESENTATIVE,
+  DEFAULT_CREDITOR_REPRESENTATIVE_LATIN,
+  MAX_INSTALLMENTS,
+  ROWS_PER_ANNEX_PAGE,
+} from '../forms/debtAcknowledgment/constants';
+import { EMPTY_DEBT_ACK_DATA } from '../forms/debtAcknowledgment/debtAcknowledgmentModel';
+import { applyAutofill, buildDebtAckAutofill, withFixedCreditorData } from '../forms/debtAcknowledgment/debtAcknowledgmentAutofill';
+import { regenerateSchedule, scheduleBaseAmount } from '../forms/debtAcknowledgment/debtAcknowledgmentDocument';
+import { scheduleTotal } from '../forms/debtAcknowledgment/debtAcknowledgmentSchedule';
 import { t as translate } from '../lib/i18n';
 import type { DebtAckLang } from '../forms/debtAcknowledgment/debtAcknowledgmentModel';
 
@@ -166,7 +177,7 @@ describe('1 · ترتيب أعمدة ملحق السداد', () => {
       'رقم القسط',
       'تاريخ الاستحقاق',
       'المبلغ المسدد',
-      'الرصيد بعد السداد',
+      'الرصيد المتبقي بعد القسط',
       'ملاحظات/رقم الإيصال',
     ]);
   });
@@ -503,6 +514,157 @@ describe('1-ج · تقسيم الملحق على صفحات', () => {
     await waitFor(() =>
       expect(screen.getByText(translate('page.debtAck.issue.countAboveMax', 'ar'))).toBeInTheDocument(),
     );
+  });
+});
+
+// ══ 1-د · الرصيد عند التوقيع هو ما تُقسَّط عليه الأقساط ══════════════════════
+//
+// البند 1 يعلن المبلغ المستلَم، والبند 3 يعلن ما بقي في الذمّة **يوم التوقيع**. والمقسَّط
+// هو الثاني: من استلم ألفًا وسدّد مئتين قبل التوقيع يوقّع على جدول مجموعه ثمانمئة.
+// وفي السلفة الجديدة القيمتان متساويتان، فيبقى السلوك كما كان.
+describe('1-د · الرصيد عند التوقيع', () => {
+  const balanceField = () => screen.getByLabelText(translate('page.debtAck.f.balance_figures', 'ar'));
+  const amountField = () => screen.getByLabelText(translate('page.debtAck.f.amount_figures', 'ar'));
+
+  it('أصل الدين يملأ الرصيد تلقائياً ما دام لم يُمسّ', async () => {
+    await renderForm();
+    fireEvent.change(amountField(), { target: { value: '1000.000' } });
+    await waitFor(() => expect(balanceField()).toHaveValue('1000.000'));
+    fireEvent.change(amountField(), { target: { value: '1200.000' } });
+    await waitFor(() => expect(balanceField()).toHaveValue('1200.000'));
+  });
+
+  it('أصل الدين 1000 والرصيد غير معدَّل ⇒ مجموع الجدول 1000.000', async () => {
+    await renderForm();
+    await fillLoan(4);
+    const rows = Array.from(docRoot().querySelectorAll('.eda-tbl--annex tr')).slice(1, 5);
+    expect(rows[0].textContent).toContain('250.000');
+    expect(rows[3].textContent).toContain('0.000');
+  });
+
+  it('الرصيد معدَّل يدوياً إلى 750 ⇒ مجموع الجدول 750.000 وآخر رصيد 0.000', async () => {
+    await renderForm();
+    await fillLoan(3);
+    fireEvent.change(balanceField(), { target: { value: '750.000' } });
+    await waitFor(() => expect(printedText()).toContain('250.000'));
+    const rows = Array.from(docRoot().querySelectorAll('.eda-tbl--annex tr')).slice(1, 4);
+    // 750 ÷ 3 = 250.000 لكل قسط، والرصيد ينتهي عند الصفر.
+    for (const row of rows) expect(row.textContent).toContain('250.000');
+    expect(rows[2].textContent).toContain('0.000');
+    // وأصل الدين لم يتغيّر: المستند يعلن ألفًا مستلَمة ورصيدًا قائمًا 750.
+    expect(amountField()).toHaveValue('1000.000');
+  });
+
+  it('وبعد التعديل اليدوي لا يدهسه تغييرُ أصل الدين', async () => {
+    await renderForm();
+    await fillLoan(3);
+    fireEvent.change(balanceField(), { target: { value: '750.000' } });
+    await waitFor(() => expect(balanceField()).toHaveValue('750.000'));
+    fireEvent.change(amountField(), { target: { value: '2000.000' } });
+    await waitFor(() => expect(amountField()).toHaveValue('2000.000'));
+    expect(balanceField()).toHaveValue('750.000');
+  });
+
+  it('والعلم يصمد عبر إعادة التصيير وحفظ المسودّة واستعادتها', () => {
+    // `balanceManual` جزء من بيانات المستند لا من حالة عابرة في المكوّن، فيُحفظ في
+    // المسودّة ويعود معها — وهو ما يمنع عودة الرصيد إلى أصل الدين بعد فتحٍ جديد.
+    const manual = { ...EMPTY_DEBT_ACK_DATA, amountFigures: '1000.000', balanceFigures: '750.000', balanceManual: true };
+    const roundTripped = withFixedCreditorData({ ...EMPTY_DEBT_ACK_DATA, ...JSON.parse(JSON.stringify(manual)) });
+    expect(roundTripped.balanceManual).toBe(true);
+    expect(roundTripped.balanceFigures).toBe('750.000');
+    expect(scheduleBaseAmount(roundTripped)).toBe(750);
+  });
+
+  it('والحساب نفسه يُبنى على الرصيد لا على أصل الدين', () => {
+    const data = regenerateSchedule({
+      ...EMPTY_DEBT_ACK_DATA,
+      amountFigures: '1000.000',
+      balanceFigures: '750.000',
+      balanceManual: true,
+      installmentsCount: '3',
+      firstInstallmentDate: '2026-10-15',
+    });
+    expect(data.schedule).toHaveLength(3);
+    expect(scheduleTotal(data.schedule)).toBe(750);
+    expect(data.schedule[2].remainingBalance).toBe(0);
+  });
+
+  it('ورصيد فارغ يعود إلى أصل الدين بدل أن يعطّل الجدول', () => {
+    const data = regenerateSchedule({
+      ...EMPTY_DEBT_ACK_DATA,
+      amountFigures: '1000.000',
+      installmentsCount: '4',
+      firstInstallmentDate: '2026-10-15',
+    });
+    expect(scheduleTotal(data.schedule)).toBe(1000);
+  });
+});
+
+// ══ 1-هـ · القيم الافتراضية الخاصة بالمستند ══════════════════════════════════
+describe('1-هـ · القيم الافتراضية والآيبان الثابت', () => {
+  it('نموذج جديد يحصل على الممثل القانوني ووسيلة الاتصال تلقائياً', async () => {
+    await renderForm();
+    expect(screen.getByLabelText(translate('page.debtAck.f.creditor_representative', 'ar'))).toHaveValue(
+      DEFAULT_CREDITOR_REPRESENTATIVE,
+    );
+    expect(screen.getByLabelText(translate('page.debtAck.f.creditor_address', 'ar'))).toHaveValue(
+      DEFAULT_CREDITOR_CONTACT,
+    );
+    expect(printedText()).toContain(DEFAULT_CREDITOR_REPRESENTATIVE);
+    expect(printedText()).toContain(DEFAULT_CREDITOR_CONTACT);
+  });
+
+  it('والنظير اللاتيني مكتوب لا منقول — فلا حرف عربي في القالبين الأجنبيين', async () => {
+    await renderForm();
+    for (const aria of ['English', 'Hindi'] as const) {
+      switchTo(aria);
+      const text = printedText();
+      expect(text).toContain(DEFAULT_CREDITOR_REPRESENTATIVE_LATIN);
+      expect(text).not.toContain(DEFAULT_CREDITOR_REPRESENTATIVE);
+      expect(text).toContain(DEFAULT_CREDITOR_CONTACT);
+    }
+  });
+
+  it('التعديل اليدوي يبقى، ولا يمحوه ملءٌ لاحق ولا تغيير الموظف', () => {
+    const edited = applyAutofill(
+      { ...EMPTY_DEBT_ACK_DATA, creditorRepresentative: 'ممثل آخر', creditorAddress: 'tel:11111111' },
+      buildDebtAckAutofill({ fullName: 'موظف ثانٍ', fullNameEn: 'SECOND EMPLOYEE' }),
+    );
+    expect(edited.creditorRepresentative).toBe('ممثل آخر');
+    expect(edited.creditorAddress).toBe('tel:11111111');
+  });
+
+  it('والقيمة الافتراضية تُملأ في الحقل الفارغ وحده', () => {
+    const fresh = applyAutofill(EMPTY_DEBT_ACK_DATA, buildDebtAckAutofill({ fullName: 'موظف' }));
+    expect(fresh.creditorRepresentative).toBe(DEFAULT_CREDITOR_REPRESENTATIVE);
+    expect(fresh.creditorAddress).toBe(DEFAULT_CREDITOR_CONTACT);
+  });
+
+  it('الآيبان ثابت بالضبط، ولا تغيّره مسودّة قديمة', () => {
+    expect(CREDITOR_IBAN).toBe('KW78NBOK0000000000002039042550');
+    const staleDraft = { ...EMPTY_DEBT_ACK_DATA, creditorIban: 'KW00OLD00000000000000000000000' };
+    expect(withFixedCreditorData(staleDraft).creditorIban).toBe(CREDITOR_IBAN);
+    expect(applyAutofill(staleDraft, buildDebtAckAutofill(null)).creditorIban).toBe(CREDITOR_IBAN);
+  });
+
+  it('ويُعرض للقراءة فقط، ولا يتغيّر بتغيّر اللغة', async () => {
+    await renderForm();
+    expect(screen.getByLabelText(translate('page.debtAck.f.iban', 'ar'))).toHaveAttribute('readonly');
+    for (const aria of ['Arabic', 'English', 'Hindi'] as const) {
+      switchTo(aria);
+      expect(printedText()).toContain(CREDITOR_IBAN);
+    }
+  });
+
+  it('وسيلة التسليم الافتراضية «نقداً»، وتعديلها يبقى', async () => {
+    expect(EMPTY_DEBT_ACK_DATA.disbursementMethod).toBe('cash');
+    await renderForm();
+    // المربّع المؤشَّر في المطبوع هو مربّع النقد، والآخران فارغان.
+    expect(printedText()).toContain('☑');
+    const changed = { ...EMPTY_DEBT_ACK_DATA, disbursementMethod: 'cheque' as const };
+    // لا شيء في مسار التحديث يعيد الوسيلة إلى الافتراضي.
+    expect(withFixedCreditorData(changed).disbursementMethod).toBe('cheque');
+    expect(applyAutofill(changed, buildDebtAckAutofill(null)).disbursementMethod).toBe('cheque');
   });
 });
 

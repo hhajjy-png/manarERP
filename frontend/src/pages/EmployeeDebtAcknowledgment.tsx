@@ -46,6 +46,7 @@ import { MAX_INSTALLMENTS } from '../forms/debtAcknowledgment/constants';
 import {
   derivedInstallmentFields,
   regenerateSchedule,
+  scheduleBaseAmount,
 } from '../forms/debtAcknowledgment/debtAcknowledgmentDocument';
 import { findArabicLeaks } from '../forms/debtAcknowledgment/arabicScript';
 import { DEBT_ACK_FIELD_LABEL_KEY } from '../forms/debtAcknowledgment/debtAcknowledgmentLabels';
@@ -69,7 +70,14 @@ const FORM_KEY = 'employee-debt-acknowledgment';
 const PROFILE = 'employee-debt-acknowledgment-letterhead';
 
 /** الحقول الثلاثة التي يُشتقّ منها جدول السداد كله. */
-const SCHEDULE_DRIVERS = ['amountFigures', 'installmentsCount', 'firstInstallmentDate'] as const;
+// محرّكات الجدول: الرصيد عند التوقيع (وهو ما يُقسَّط)، وأصل الدين لأن الرصيد يتبعه
+// ما لم يُعدَّل يدويًا، وعدد الأقساط، وتاريخ أولها.
+const SCHEDULE_DRIVERS = [
+  'amountFigures',
+  'balanceFigures',
+  'installmentsCount',
+  'firstInstallmentDate',
+] as const;
 
 /** لغة الـShell المقابلة لقالب المستند — الهندي LTR كالإنجليزي، تمامًا كملف DOCX. */
 function shellLang(lang: DebtAckLang): 'ar' | 'en' {
@@ -100,10 +108,31 @@ export default function EmployeeDebtAcknowledgment() {
    * **إلا** إذا كان الجدول مُعدَّلًا يدويًا، فحينها يُطبَّق تغيير الحقل ويُسأل المستخدم
    * قبل استبدال عمله. لا يُمحى تعديل يدوي بصمت أبدًا.
    */
+  /**
+   * «الرصيد عند التوقيع» يتبع «أصل الدين» ما دام لم يُمسّ بيد.
+   *
+   * ═══ ثلاث حالات، لا رابعة ═══
+   * 1. المستخدم يكتب في **الرصيد** نفسه ⇒ يصير يدويًا (`balanceManual`) من الآن.
+   * 2. المستخدم يغيّر **أصل الدين** والرصيد لم يُعدَّل بعدُ ⇒ ينسخ إليه.
+   * 3. المستخدم يغيّر أصل الدين والرصيد **معدَّل يدويًا** ⇒ لا يُمسّ. قيمته تعبّر عن
+   *    المتبقّي الفعلي يوم التوقيع، ودهسُها صامتًا يغيّر مبلغ الإقرار بلا علم صاحبه.
+   *    وتظهر في الشاشة ملاحظةٌ بأنه معدَّل يدويًا مع زرّ يعيد مزامنته عند الطلب.
+   */
+  function syncBalanceToPrincipal(current: DebtAckData, patch: Partial<DebtAckData>): DebtAckData {
+    const merged = { ...current, ...patch };
+    if ('balanceFigures' in patch) {
+      return { ...merged, balanceManual: patch.balanceFigures !== merged.amountFigures };
+    }
+    if ('amountFigures' in patch && !merged.balanceManual) {
+      return { ...merged, balanceFigures: merged.amountFigures };
+    }
+    return merged;
+  }
+
   function updateData(patch: Partial<DebtAckData>) {
     // يُحسب خارج مُحدِّث الحالة عمدًا: فتح الحوار أثرٌ جانبي، ومُحدِّث الحالة قد
     // يُستدعى مرتين في وضع التطوير الصارم — فيُفتح الحوار مرتين.
-    const next = withFixedCreditorData({ ...data, ...patch });
+    const next = withFixedCreditorData(syncBalanceToPrincipal(data, patch));
     const touchesDriver = SCHEDULE_DRIVERS.some((key) => key in patch);
     if (!touchesDriver) {
       setData(next);
@@ -176,7 +205,8 @@ export default function EmployeeDebtAcknowledgment() {
   const scheduleIssues = useMemo(
     () =>
       validateSchedule({
-        debtAmount: Number(data.amountFigures),
+        // ما يُتحقَّق منه هو ما يُقسَّط: الرصيد عند التوقيع.
+        debtAmount: scheduleBaseAmount(data),
         count: Number(data.installmentsCount),
         firstDate: data.firstInstallmentDate,
         rows: data.schedule,
@@ -360,6 +390,7 @@ export default function EmployeeDebtAcknowledgment() {
             }))
           }
           onRegenerateSchedule={() => setShowRecalcConfirm(true)}
+          onResyncBalance={() => updateData({ balanceFigures: data.amountFigures })}
           issues={scheduleIssues}
           arabicLeaks={arabicLeakLabels}
         />

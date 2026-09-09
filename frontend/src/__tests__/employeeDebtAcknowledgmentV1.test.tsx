@@ -28,6 +28,7 @@ import EmployeeDebtAcknowledgment from '../pages/EmployeeDebtAcknowledgment';
 import { FORM_CARDS } from '../forms/shared/formsRegistry';
 import { PRINT_PROFILES, SELECTABLE_PROFILE_IDS, getPrintProfileStyle } from '../forms/shared/printProfiles';
 import { t as translate } from '../lib/i18n';
+import { CREDITOR_IBAN } from '../forms/debtAcknowledgment/constants';
 import { api } from '../api/client';
 import {
   applyAutofill,
@@ -165,12 +166,14 @@ describe('2 · اختيار الموظف والملء التلقائي', () => {
     expect(text).toContain(`${EMPLOYEE.phone} / ${EMPLOYEE.email}`);
   });
 
-  it('خريطة الملء تغطي حقول المدين وحدها زائد اسم الدائن — بلا حقل مخترَع', () => {
+  it('خريطة الملء تغطي حقول المدين زائد بيانات الدائن الافتراضية — بلا حقل مخترَع', () => {
     const map = buildDebtAckAutofill(EMPLOYEE);
     expect(Object.keys(map).sort()).toEqual(
       [
-        // القالب العربي
+        // القالب العربي — اسم الدائن وقيمتان افتراضيتان خاصّتان بالمستند
         'creditorName',
+        'creditorRepresentative',
+        'creditorAddress',
         'debtorAddressKuwait',
         'debtorCivilId',
         'debtorContact',
@@ -182,6 +185,8 @@ describe('2 · اختيار الموظف والملء التلقائي', () => {
         'debtorSignatoryName',
         // النظائر اللاتينية للقالبين الإنجليزي والهندي — نفس الحقول، لا حقول جديدة
         'creditorNameLatin',
+        'creditorRepresentativeLatin',
+        'creditorAddressLatin',
         'debtorAddressKuwaitLatin',
         'debtorContactLatin',
         'debtorFullNameLatin',
@@ -256,8 +261,8 @@ describe('4 · تبديل القالب وحقن نفس البيانات', () => 
     await renderForm();
     const amount = screen.getByLabelText(translate('page.debtAck.f.amount_figures', 'ar'));
     fireEvent.change(amount, { target: { value: '750.000' } });
-    const iban = screen.getByLabelText(translate('page.debtAck.f.iban', 'ar'));
-    fireEvent.change(iban, { target: { value: 'KW11TEST0000000000000000000000' } });
+    // الآيبان لم يعد مُدخَلًا: قيمة ثابتة واحدة تُفرض في كل حالة، ويُعرض للقراءة فقط.
+    expect(screen.getByLabelText(translate('page.debtAck.f.iban', 'ar'))).toHaveAttribute('readonly');
 
     // القيم غير اللغوية (المبالغ، الـIBAN) واحدة في القوالب الثلاثة. أما اسم الموظف
     // فلغويّ: العربي في القالب العربي، ونظيره اللاتيني في القالبين الأجنبيين — وهو
@@ -272,7 +277,7 @@ describe('4 · تبديل القالب وحقن نفس البيانات', () => 
       await waitFor(() => {
         const text = document.querySelector('.eda-root')!.textContent ?? '';
         expect(text).toContain('750.000');
-        expect(text).toContain('KW11TEST0000000000000000000000');
+        expect(text).toContain(CREDITOR_IBAN);
         expect(text).toContain(expectedName[aria]);
       });
       if (aria !== 'Arabic') {
