@@ -18,6 +18,7 @@
  * ascent/descent ratios, so the reported clear bands are a LOWER bound on the truth.
  */
 const zlib = require('node:zlib');
+const { createHash } = require('node:crypto');
 
 const PT_PER_MM = 72 / 25.4;
 
@@ -227,6 +228,8 @@ function inkExtents(content) {
   let minY = Infinity;
   let maxY = -Infinity;
   let ops = 0;
+  /** صناديق الحبر المرئي بالترتيب — تُختصر إلى بصمة واحدة عند الخروج. */
+  const inkPrints = [];
 
   /** Points of the path being constructed, already in device space. */
   let pending = [];
@@ -237,6 +240,14 @@ function inkExtents(content) {
   const markBox = (box) => {
     const v = intersect(box, clip);
     if (v.x1 < v.x0 || v.y1 < v.y0) return; // fully clipped away
+    // بصمة الحبر **المرئي**: صندوق كل عملية رسم نجت من القصّ، بإحداثيات الورقة
+    // نفسها وبدقّة عُشر النقطة. ولماذا لا تُقارَن تدفّقات المحتوى الخام: Chromium
+    // يترك في تدفّق كل صفحة ما يفيض عنها إلى تاليتها ثم يقصّه — فصفحتان متطابقتان
+    // بصريًا يختلف خامهما عند الحدّ. البصمة هنا تُبنى **بعد** القصّ، فلا ترى إلا ما
+    // يصل الورق فعلًا.
+    inkPrints.push(
+      `${Math.round(v.x0 * 10)},${Math.round(v.y0 * 10)},${Math.round(v.x1 * 10)},${Math.round(v.y1 * 10)}`,
+    );
     if (!Number.isFinite(v.x0) || !Number.isFinite(v.y0) || !Number.isFinite(v.x1) || !Number.isFinite(v.y1)) return;
     ops += 1;
     if (v.x0 < minX) minX = v.x0;
@@ -420,7 +431,16 @@ function inkExtents(content) {
     }
   }
 
-  return ops === 0 ? null : { minX, maxX, minY, maxY, ops };
+  return ops === 0
+    ? null
+    : {
+        minX,
+        maxX,
+        minY,
+        maxY,
+        ops,
+        visibleInkSha: createHash('sha256').update(inkPrints.join(';')).digest('hex').slice(0, 16),
+      };
 }
 
 /**
@@ -454,6 +474,10 @@ function measurePdf(buf) {
       rightClearMm: null,
       inkOps: 0,
       readable: false,
+      // بصمة الحبر المرئي بعد القصّ (انظر markBox). صفحتان متطابقتا البصمة وضعتا
+      // الحبر نفسه في المواضع نفسها — دليل تطابق لا يعتمد على قراءة النصّ ولا على
+      // ترتيب الموارد، ولا يخدعه ما يقصّه المتصفح عند حدّ الصفحة.
+      visibleInkSha: null,
     };
     if (page.contentsRef === null || page.heightPt === null) return result;
     const obj = objects.get(page.contentsRef);
@@ -464,6 +488,7 @@ function measurePdf(buf) {
     if (!ext) return result;
     result.readable = true;
     result.inkOps = ext.ops;
+    result.visibleInkSha = ext.visibleInkSha;
     result.topClearMm = (page.heightPt - ext.maxY) / PT_PER_MM;
     result.bottomClearMm = ext.minY / PT_PER_MM;
     result.leftClearMm = ext.minX / PT_PER_MM;

@@ -496,7 +496,8 @@ describe('6 · جدول السداد في المستند', () => {
     await waitFor(() =>
       expect(screen.getByText(translate('page.debtAck.issue.countAboveMax', 'ar'))).toBeInTheDocument(),
     );
-    expect(document.querySelectorAll('.eda-tbl--annex tr').length).toBe(MAX_INSTALLMENTS + 1); // 12 صفًا + الترويسة
+    // (12 صفًا + ترويسة) × نسختَي الملحق — النسخة الثانية مطابقة، فسعتها هي هي.
+    expect(document.querySelectorAll('.eda-tbl--annex tr').length).toBe(2 * (MAX_INSTALLMENTS + 1));
   });
 
   it('تعديل يدوي ثم تغيير مُدخَل ⇒ سؤال قبل الاستبدال، لا مسح صامت', async () => {
@@ -538,14 +539,18 @@ describe('6 · جدول السداد في المستند', () => {
 
 // ── 7 · مساحة التوقيع ─────────────────────────────────────────────────────────
 describe('7 · مساحة التوقيع مضاعفة', () => {
+  // صفحة الملحق تُطبع مرتين بقرار مالك المنتج، فسطرا توقيعها يظهران في كل نسخة —
+  // وأسماء المناطق تحمل رقم النسخة كي يقيس مقياسُ الهندسة كلًّا منها على حدة.
   const EXPECTED_AREAS = [
     'creditor-signature',
     'debtor-signature',
     'witness-1',
     'witness-2',
     'interpreter',
-    'annex-signature-1',
-    'annex-signature-2',
+    'annex1-signature-1',
+    'annex1-signature-2',
+    'annex2-signature-1',
+    'annex2-signature-2',
   ];
 
   it.each(['Arabic', 'English', 'Hindi'] as const)('%s: كل خانات التوقيع موجودة ومعلَّمة', async (aria) => {

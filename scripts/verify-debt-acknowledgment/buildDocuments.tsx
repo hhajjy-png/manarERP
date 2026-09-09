@@ -29,7 +29,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import FormPage from '../../frontend/src/forms/shared/FormPage';
 import { PRINT_PROFILES } from '../../frontend/src/forms/shared/printProfiles';
-import DebtAcknowledgmentTemplate from '../../frontend/src/forms/debtAcknowledgment/DebtAcknowledgmentTemplate';
+import DebtAcknowledgmentTemplate, {
+  DEBT_ACK_CONTENT,
+} from '../../frontend/src/forms/debtAcknowledgment/DebtAcknowledgmentTemplate';
 import {
   EMPTY_DEBT_ACK_DATA,
   type DebtAckData,
@@ -213,7 +215,16 @@ const langs: DebtAckLang[] = ['ar', 'en', 'hi'];
 const manifest = langs.map((lang) => {
   const file = join(OUT, `debt-acknowledgment-${lang}.html`);
   writeFileSync(file, buildDocument(lang), 'utf-8');
-  return { lang, html: file, bytes: readFileSync(file).length };
+  // نصّان مرجعيان يقرؤهما المقياس: عنوان الملحق (يجب أن يظهر مرتين في المستند)
+  // وعنوان التعليمات (يجب ألّا يظهر فيه إطلاقًا — انتقل إلى حوار على الشاشة).
+  const content = DEBT_ACK_CONTENT[lang];
+  return {
+    lang,
+    html: file,
+    bytes: readFileSync(file).length,
+    annexTitle: content.annexTitle,
+    guidanceTitle: content.guidanceTitle,
+  };
 });
 
 writeFileSync(

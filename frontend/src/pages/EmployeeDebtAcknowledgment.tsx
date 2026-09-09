@@ -41,6 +41,7 @@ import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../styles/fontRegistry';
 import DebtAcknowledgmentTemplate, { DEBT_ACK_CONTENT } from '../forms/debtAcknowledgment/DebtAcknowledgmentTemplate';
 import DebtAckDataEntry from '../forms/debtAcknowledgment/DebtAckDataEntry';
 import DebtAckLanguageToggle from '../forms/debtAcknowledgment/DebtAckLanguageToggle';
+import DebtAckInstructionsDialog from '../forms/debtAcknowledgment/DebtAckInstructionsDialog';
 import { MAX_INSTALLMENTS } from '../forms/debtAcknowledgment/constants';
 import {
   derivedInstallmentFields,
@@ -169,6 +170,7 @@ export default function EmployeeDebtAcknowledgment() {
   const saveDraft = usePrintDraftStore((s) => s.saveDraft);
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
 
   // ── التحقق والبوابة اللغوية ─────────────────────────────────────────────────
   const scheduleIssues = useMemo(
@@ -251,6 +253,13 @@ export default function EmployeeDebtAcknowledgment() {
   return (
     <>
       {accurate.dialog}
+      {/* التعليمات: حوارٌ **خارج** `FormLayout` عمدًا. أبناء `FormLayout` يسكنون
+          `.form-page` — العقدة الوحيدة التي تُستنسخ إلى المعاينة الدقيقة والطباعة
+          وتصدير PDF — فسكناه هنا تعني أنه لا يدخل شجرة الطباعة أصلًا، مفتوحًا كان
+          أو مغلقًا. ولغته لغة القالب المختار لا لغة الواجهة. */}
+      {showInstructions && (
+        <DebtAckInstructionsDialog lang={lang} onClose={() => setShowInstructions(false)} />
+      )}
       <FormLayout
         formType={FORM_KEY}
         lang={layoutLang}
@@ -272,6 +281,15 @@ export default function EmployeeDebtAcknowledgment() {
         toolbarExtra={
           <>
             <DebtAckLanguageToggle lang={lang} onChange={setLang} />
+            <button
+              type="button"
+              className="btn secondary"
+              style={{ fontSize: 12, padding: '4px 8px' }}
+              title={t('page.debtAck.instructions_btn')}
+              onClick={() => setShowInstructions(true)}
+            >
+              ℹ
+            </button>
             <button
               type="button"
               className="btn secondary"

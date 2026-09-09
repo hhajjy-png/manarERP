@@ -307,21 +307,94 @@ function ClauseList({
   );
 }
 
+/**
+ * كم بندًا من «القسم 4» يبقى في الصفحة المطبوعة الأولى — **لكل لغة**.
+ *
+ * ═══ لماذا رقم صريح لا كسر تلقائي ═══
+ * قرار مالك المنتج: **أربع صفحات بالضبط**، الثانية منها دمجٌ لما كان موزَّعًا على
+ * صفحتين. فموضع الفاصل بين الصفحة 1 والصفحة 2 لم يعد يجوز أن يُترك للمتصفح: لو تُرك،
+ * لسقط حيث ينتهي الطول فتصير الصفحات خمسًا.
+ *
+ * ═══ ولماذا يختلف بين اللغات ═══
+ * ليس تفضيلًا: **نصوص ملفات Word الثلاثة مختلفة الأطوال**. بند «القسم 4» الإنجليزي
+ * أطول من نظيره العربي، فما يسع الصفحةَ الأولى في العربية والهندية (البنود 4–7 كاملة)
+ * يفيض عنها في الإنجليزية. المكان الطبيعي للفاصل يتبع النصّ لا اللغة — وهذا ما كان
+ * Word نفسه يفعله بالملف الأصلي. القيم أدناه **مقيسة** من إخراج Chromium الحقيقي
+ * (`scripts/verify-debt-acknowledgment`)، لا مقدَّرة: كلٌّ منها أكبر عدد يسع الصفحة
+ * الأولى في تلك اللغة دون أن يفيض. تغيير نصّ أي بند يستوجب إعادة القياس.
+ */
+const PAGE_1_S4_CLAUSES: Record<DebtAckLang, number> = { ar: 4, en: 3, hi: 4 };
+
+/**
+ * ملحق (أ) — جدول السداد.
+ *
+ * مكوّن **واحد** يُصيَّر مرتين في المستند المطبوع (النسختان 1 و2). لا نسخة ثانية من
+ * القالب ولا من البيانات: كلتاهما تقرأان `data.schedule` نفسه، فأي تعديل على الجدول
+ * يظهر في النسختين معًا حتمًا — لا بالاتفاق. `copy` لا يغيّر حرفًا واحدًا من المعروض:
+ * هو سمة بنيوية (`data-eda-annex-copy`) لا تُطبع، وُجدت ليثبت القياسُ والاختبار أن
+ * الصفحة الأخيرة هي النسخة الثانية. **لا وسم «نسخة» ولا علامة مائية على الورق.**
+ */
+function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: DebtAckData; copy: 1 | 2 }) {
+  const c = content;
+  const annexNumbers = Array.from({ length: c.annexRowCount }, (_unused, i) => String(i + 1));
+  return (
+    <section className="eda-page eda-page--annex" data-eda-annex-copy={copy}>
+      <p className="eda-annex-title">{c.annexTitle}</p>
+      <table className="eda-tbl eda-tbl--annex">
+        <tbody>
+          <tr>
+            {c.annexColumns.map((h) => (
+              <td
+                key={h}
+                style={{
+                  ...cell,
+                  background: FILL_ANNEX_HEAD,
+                  color: INK_HEADING,
+                  fontWeight: 700,
+                  fontSize: '9pt',
+                  WebkitPrintColorAdjust: 'exact',
+                  printColorAdjust: 'exact',
+                }}
+              >
+                {h}
+              </td>
+            ))}
+          </tr>
+          {annexNumbers.map((n, rowIndex) => {
+            // صفوف الجدول المولَّد تُملأ بالحساب؛ ما زاد عن عدد الأقساط يبقى صفًّا
+            // فارغًا بنقاط الأصل حرفيًا («وتُشطب الصفوف غير المستخدمة» كما يقول الملحق).
+            const row = data.schedule[rowIndex];
+            const numberCell = (
+              <td key="n" style={{ ...cell, fontSize: '8.5pt' }} className="eda-val--ltr">
+                {n}
+              </td>
+            );
+            const others = c.annexRowCells.map((blank, i) => (
+              <td key={`c${i}`} style={{ ...cell, fontSize: '8.5pt' }} className={row ? 'eda-val--ltr' : undefined}>
+                {row ? annexCellText(c, row, i) : blank}
+              </td>
+            ));
+            return <tr key={n}>{c.annexNumberFirst ? [numberCell, ...others] : [...others, numberCell]}</tr>;
+          })}
+        </tbody>
+      </table>
+      <p className="eda-annex-totals">{renderSegs(c.annexTotals, data, c.lang)}</p>
+      <p className="eda-annex-note">{c.annexNote}</p>
+      <DataTable rows={c.annexSignRows} content={c} data={data} labelWidth="26%" areaPrefix={`annex${copy}-signature`} />
+    </section>
+  );
+}
+
 export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowledgmentTemplateProps) {
   const c = DEBT_ACK_CONTENT[lang];
-  const annexNumbers = Array.from({ length: c.annexRowCount }, (_, i) => String(i + 1));
 
   return (
     <div className="eda-root" dir={c.dir} lang={lang}>
       <style>{TEMPLATE_CSS}</style>
 
-      {/* ── القسم 1 (صفحة DOCX الأولى): العنوان + الأقسام 1–5 (البنود 1–14) ────
-
-          قياس موثَّق: هذا القسم **لا يسع صفحة A4 واحدة** بمقاسات خطوط الأصل نفسها —
-          يحتاج قرابة 1.6 صفحة (انظر `artifacts/employee-debt-acknowledgment-v1/geometry-report.json`).
-          فيقسمه Word تلقائيًا حيث تنتهي الصفحة، وكذلك يفعل المتصفح. لم يُضَف هنا
-          فاصل صفحات من عندنا: الفواصل الثلاثة أدناه هي فواصل ملف DOCX الصريحة وحدها،
-          وقرار إضافة فاصل رابع (أو تقصير النص) يخصّ مالك المنتج لا التنفيذ. */}
+      {/* ══ الصفحة 1 — العنوان والطرفان والأقسام 3–4 حتى البند المقيس ═══════════════
+          الصفحة الأولى **لا تُضغط**: خطّها وتباعدها وهوامشها كما خرجت من ملف Word
+          حرفًا بحرف. الضغط مقصور على الصفحة 2 وحدها بقرار مالك المنتج. */}
       <section className="eda-page">
         <h1 className="eda-title">{c.title}</h1>
         <p className="eda-subtitle">{c.subtitle}</p>
@@ -337,14 +410,21 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         <ClauseList clauses={c.clauses1to3} content={c} data={data} />
 
         <Heading>{c.s4Heading}</Heading>
-        <ClauseList clauses={c.clauses4to7} content={c} data={data} />
+        <ClauseList clauses={c.clauses4to7.slice(0, PAGE_1_S4_CLAUSES[lang])} content={c} data={data} />
+      </section>
+
+      {/* ══ الصفحة 2 — بقية القسم 4 + القسم 5 + التوقيعات والشهود ═══════════════════
+          هذه هي الصفحة التي كانت صفحتين. `eda-page--compact` يضغط **التباعد** وحده
+          بالترتيب الذي أقرّه مالك المنتج (فراغ ⇐ هوامش الفقرات ⇐ فجوات الأقسام ⇐ حشو
+          الجداول ⇐ ارتفاع السطر). لا نصّ حُذف، ولا جدول أُزيل، ولا `transform: scale`.
+          ومساحات التوقيع **لا تُمسّ**: حشوها من نمط سطري (inline) لا تصل إليه قواعد
+          الضغط أصلًا، فتبقى الضعف كما أُقرّ. */}
+      <section className="eda-page eda-page--compact">
+        <ClauseList clauses={c.clauses4to7.slice(PAGE_1_S4_CLAUSES[lang])} content={c} data={data} />
 
         <Heading>{c.s5Heading}</Heading>
         <ClauseList clauses={c.clauses8to14} content={c} data={data} />
-      </section>
 
-      {/* ── القسم 2 (فاصل DOCX صريح): التوقيعات والشهود ───────────────────────── */}
-      <section className="eda-page">
         <Heading>{c.s6Heading}</Heading>
         <p className="eda-note">{c.signaturesNote}</p>
 
@@ -400,81 +480,14 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         </table>
       </section>
 
-      {/* ── القسم 3 (فاصل DOCX صريح): ملحق (أ) — جدول السداد ────────────────────────────── */}
-      <section className="eda-page">
-        <p className="eda-annex-title">{c.annexTitle}</p>
-        <table className="eda-tbl eda-tbl--annex">
-          <tbody>
-            <tr>
-              {c.annexColumns.map((h) => (
-                <td
-                  key={h}
-                  style={{
-                    ...cell,
-                    background: FILL_ANNEX_HEAD,
-                    color: INK_HEADING,
-                    fontWeight: 700,
-                    fontSize: '9pt',
-                    WebkitPrintColorAdjust: 'exact',
-                    printColorAdjust: 'exact',
-                  }}
-                >
-                  {h}
-                </td>
-              ))}
-            </tr>
-            {annexNumbers.map((n, rowIndex) => {
-              // صفوف الجدول المولَّد تُملأ بالحساب؛ ما زاد عن عدد الأقساط يبقى صفًّا
-              // فارغًا بنقاط الأصل حرفيًا («وتُشطب الصفوف غير المستخدمة» كما يقول الملحق).
-              const row = data.schedule[rowIndex];
-              const numberCell = (
-                <td key="n" style={{ ...cell, fontSize: '8.5pt' }} className="eda-val--ltr">
-                  {n}
-                </td>
-              );
-              const others = c.annexRowCells.map((blank, i) => (
-                <td key={`c${i}`} style={{ ...cell, fontSize: '8.5pt' }} className={row ? 'eda-val--ltr' : undefined}>
-                  {row ? annexCellText(c, row, i) : blank}
-                </td>
-              ));
-              return <tr key={n}>{c.annexNumberFirst ? [numberCell, ...others] : [...others, numberCell]}</tr>;
-            })}
-          </tbody>
-        </table>
-        <p className="eda-annex-totals">{renderSegs(c.annexTotals, data, c.lang)}</p>
-        <p className="eda-annex-note">{c.annexNote}</p>
-        <DataTable rows={c.annexSignRows} content={c} data={data} labelWidth="26%" areaPrefix="annex-signature" />
-      </section>
-
-      {/* ── القسم 4 (فاصل DOCX صريح): تعليمات مهمة + المصادر القانونية + التنبيه ────────── */}
-      <section className="eda-page">
-        <p className="eda-annex-title">{c.guidanceTitle}</p>
-        <table className="eda-tbl">
-          <tbody>
-            {c.guidanceRows.map((row) => {
-              const labelTd = (
-                <td key="l" style={{ ...labelCell, width: '25%', fontSize: '9pt' }}>
-                  {row.label}
-                </td>
-              );
-              const textTd = (
-                <td key="t" style={{ ...cell, fontSize: '9pt' }}>
-                  {row.text}
-                </td>
-              );
-              return <tr key={row.label}>{c.labelColumnFirst ? [labelTd, textTd] : [textTd, labelTd]}</tr>;
-            })}
-          </tbody>
-        </table>
-
-        <Heading>{c.sourcesHeading}</Heading>
-        <ul className="eda-sources">
-          {c.sources.map((s) => (
-            <li key={s}>{s}</li>
-          ))}
-        </ul>
-        <p className="eda-disclaimer">{c.disclaimer}</p>
-      </section>
+      {/* ══ الصفحتان 3 و4 — ملحق (أ) مرتين، والنسخة الثانية آخر الورق ═══════════════
+          نسختان من **نفس** المكوّن و**نفس** `data.schedule`. النسخة الثانية تبدأ في
+          ورقة جديدة بفاصل `.eda-page + .eda-page` القائم نفسه، ولا شيء بعدها.
+          و«تعليمات مهمة قبل التوقيع والاستخدام» لم تعد صفحةً في المستند: نصّها باقٍ
+          كما هو في حزم المحتوى الثلاث، ويُعرض في حوار على الشاشة وحدها — خارج
+          `.form-page` تمامًا، فلا يبلغ ورقًا ولا PDF ولا معاينةً دقيقة. */}
+      <AnnexPage content={c} data={data} copy={1} />
+      <AnnexPage content={c} data={data} copy={2} />
     </div>
   );
 }
@@ -521,7 +534,44 @@ const TEMPLATE_CSS = `
 .eda-sig-space { display: block; visibility: hidden; }
 .eda-val { font-weight: 700; color: #0f172a; }
 .eda-val--ltr { direction: ltr; unicode-bidi: isolate; }
-.eda-cb { font-family: "Cairo", Arial, sans-serif; }
+/* بلا علامات اقتباس عمدًا: هذه القواعد تُصيَّر نصًّا داخل <style> في شجرة React،
+   وReact يهرّب علامة الاقتباس إلى &quot;. و<style> عنصر نصّ خام لا يفكّ المتصفح
+   كياناته — فتصل القاعدة إلى المحرّك مكسورة وتُطرح صامتةً. أسماء الخطوط وقيم
+   السمات هنا معرّفات CSS صالحة بلا اقتباس، فتصل كما كُتبت. */
+.eda-cb { font-family: Cairo, Arial, sans-serif; }
+
+/* ══════ ضغط الصفحة 2 وحدها ══════════════════════════════════════════════════
+   الصفحة 2 هي دمج ما كان صفحتين. الضغط هنا يتبع ترتيب الأولويات الذي أقرّه مالك
+   المنتج حرفيًا، ولا يتجاوز أدنى درجة تكفي (المقاسة، لا المقدَّرة):
+
+     المستوى 1 — الفراغ الرأسي الزائد: هوامش الفقرات، فجوات الأقسام، حشو الجداول.
+     المستوى 2 — ارتفاع السطر: 1.29 ⇐ 1.20 (وخلايا الجداول 1.15 ⇐ 1.08).
+     المستوى 3 — حجم الخط (آخر ما يُمسّ، وفي هذه الصفحة وحدها).
+
+   **ما لا يُمسّ إطلاقًا:** مساحات التوقيع. حشوها الرأسي يُكتب نمطًا سطريًا من
+   signaturePadding، والنمط السطري يغلب أي قاعدة هنا — فبقاؤها الضعفَ ليس اتفاقًا
+   بل استحالةً بنيوية. ولا transform ولا zoom ولا scale في أي مستوى: تصغيرٌ بصريّ
+   يكذب على القياس ويخرج نصًّا غير قابل للانتقاء من الـPDF.
+
+   القياس الحيّ لكل لغة (حدّا الحبر، الفراغ الباقي، أصغر خط) في
+   artifacts/employee-debt-acknowledgment-v1/geometry-report.json */
+
+/* المستوى 1 — الفراغ الرأسي وحده. يسري على اللغات الثلاث: لا يمسّ حرفًا ولا حجمًا،
+   وهو أعلى الأولويات في قائمة مالك المنتج. وحده يكفي للعربية والهندية. */
+.eda-page--compact .eda-clause { margin-bottom: 2pt; }
+.eda-page--compact .eda-h1 { margin: 4pt 0 2pt; }
+.eda-page--compact .eda-note { margin-bottom: 2pt; }
+.eda-page--compact .eda-subhead { margin: 3pt 0 2pt; }
+.eda-page--compact .eda-tbl { margin-bottom: 2pt; }
+.eda-page--compact .eda-tbl td { padding-top: 0.5pt; padding-bottom: 0.5pt; }
+
+/* المستويان 2 و3 — **الإنجليزية وحدها**، بالقياس لا بالتعميم.
+   نصّ ملف Word الإنجليزي أطول من العربي والهندي، وهو اللغة الوحيدة التي لا يكفيها
+   المستوى 1 (قِيست: خمس صفحات عنده). والعربية والهندية تبلغان الأربع صفحات بالمستوى
+   الأول وحده وبفائض 46mm و42mm — فتخفيضُ خطّهما لن يشتري صفحة، وسيخالف «أكبر خط
+   ممكن» بلا مقابل. لذلك يبقى خطّهما 10.5pt وتباعدهما 1.29 كما خرج من ملف Word. */
+.eda-root[lang=en] .eda-page--compact .eda-clause { line-height: 1.20; font-size: 10pt; }
+.eda-root[lang=en] .eda-page--compact .eda-tbl td { line-height: 1.08; }
 
 @media screen {
   /* نموذج الورقة على الشاشة: كل صفحة منطقية تُرسم بمقاس A4 كامل وبنفس هوامش ملف

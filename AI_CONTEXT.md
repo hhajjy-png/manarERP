@@ -2755,8 +2755,8 @@ Chromium PDF, and backend HTML reports.
 
 - **Employee Debt Acknowledgment Administrative Form v1 — `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`.**
   Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
-  (implementation), `bdb1689e` (docs), `975402e4` (test typing) and `07efbf52` (functional
-  refinement).
+  (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
+  refinement), `58594cf3` (signature space) and `FINAL_COMMIT` (four-page layout, double annex, RTL annex).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2780,7 +2780,24 @@ Chromium PDF, and backend HTML reports.
   and PDF export** alike. Signature writing space was doubled across all seven signature areas in all
   three templates (measured ratio 2.00 in 21 cases). Page count is unchanged at 5 per language.
   The one shared-file change is `FormLayout.exportIntercept`, an opt-in sibling of `printIntercept`.
-  Full report, field map and 13 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`.
+  **Final refinements (same branch, still before the visual review):** the printed document is now
+  **exactly four pages** in all three languages — page 1 uncompacted, page 2 merging what used to be two
+  pages, and pages 3 and 4 the two copies of the repayment annex, the second always last. The Arabic
+  annex reads right-to-left for real: its columns were **reordered** (with the cell roles moved in
+  lockstep so no value leaves its column), not mirrored — no `transform`, no reversed text; measured on
+  the rendered tree, «رقم القسط» moved from x=140 to x=707. The instructions page left the document
+  without a character being deleted: all eight guidance rows, five sources and the disclaimer stay in the
+  three content packs and are shown in a `Modal` rendered **outside `FormLayout`** — hence outside
+  `.form-page`, so it reaches neither paper, PDF nor preview even while open, and it follows the template
+  language rather than the UI language. Compaction is confined to page 2 and kept to the least that
+  works: vertical whitespace for all three languages, and line-height plus a 10.5 ⇒ 10pt clause font for
+  **English only**, the one language nothing less sufficed for. Signature areas were not touched (their
+  padding is inline, which no compaction rule can reach) and still measure 2.00 across 27 cases. Page 2
+  never used the bottom-band exemption the Product Owner granted it — its tightest measured bottom band
+  is 23.70mm — so the approved geometry holds on all four pages and **the shared print engine was not
+  touched at all in this round**.
+  Full report, field map and 16 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
+  report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
 
 - **`scripts/prepare-backend-deps.js` ships whatever Prisma client the repo root happens to hold** — it
   overlays `node_modules/.prisma` (repo root) into the packaged backend, but `prisma generate` resolves to

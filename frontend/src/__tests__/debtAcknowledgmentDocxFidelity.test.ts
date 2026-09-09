@@ -214,7 +214,27 @@ describe('إقرار دين موظف — لا اختلاق ولا توحيد ق�
     expect(DEBT_ACK_CONTENT_AR.labelColumnFirst).toBe(false);
     expect(DEBT_ACK_CONTENT_EN.labelColumnFirst).toBe(true);
     expect(DEBT_ACK_CONTENT_HI.labelColumnFirst).toBe(true);
-    expect(DEBT_ACK_CONTENT_AR.annexNumberFirst).toBe(false);
+  });
+
+  /**
+   * ترتيب أعمدة الملحق: **ترتيب DOM لا ترتيب شبكة XML**.
+   *
+   * كان `annexNumberFirst` في العربية `false` نقلًا حرفيًا عن ترتيب شبكة الأعمدة في
+   * ملف DOCX (`w:gridCol`). وكان ذلك خطأً في القراءة: جدول الملحق في الملفات الثلاثة
+   * **بلا `w:bidiVisual`**، فيصفّ Word أعمدته من اليسار حسب ترتيب الشبكة — أي أن
+   * «رقم القسط»، وهو أول الشبكة، يقع بصريًا في أقصى **اليمين** في المستند العربي.
+   * أما هنا فالجدول يرث `dir="rtl"` من جذر المستند، والخلية الأولى في DOM تُرسم في
+   * أقصى اليمين. فنسخُ ترتيب الشبكة كما هو كان يعكس الجدول رأسًا على عقب مقابل Word.
+   *
+   * القياس أثبته على الشجرة المُصيَّرة: «رقم القسط» كان عند الحافة اليسرى (x=140)
+   * و«ملاحظات/رقم الإيصال» عند اليمنى (x=634) — عكس الأصل وعكس ما طلبه مالك المنتج.
+   * وبعد التصحيح: «رقم القسط» عند x=707 (أقصى اليمين) والملاحظات عند x=140.
+   *
+   * فالقيمة `true` في اللغات الثلاث ليست توحيدًا قسريًا: هي الترتيب الذي يُخرج في كل
+   * لغة **نفس الصورة** التي يخرجها ملفها في Word.
+   */
+  it('عمود «رقم القسط» أول عمود في اللغات الثلاث — فيقع يمينًا في العربية ويسارًا في غيرها', () => {
+    expect(DEBT_ACK_CONTENT_AR.annexNumberFirst).toBe(true);
     expect(DEBT_ACK_CONTENT_EN.annexNumberFirst).toBe(true);
     expect(DEBT_ACK_CONTENT_HI.annexNumberFirst).toBe(true);
   });
