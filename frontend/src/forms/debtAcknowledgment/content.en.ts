@@ -96,6 +96,17 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   ],
 
   s4Heading: '4. REPAYMENT METHOD',
+  // انظر التعليق في `content.ar.ts`: صيغة القسط الواحد، بافتتاح البند وختامه الحرفيَّين.
+  clause4Single: {
+    lead: '4. Instalments:',
+    segs: [
+      ' I shall repay the debt in a single instalment of KWD (',
+      { f: 'installmentAmount', p: d(16) },
+      '), due on ',
+      { d: 'firstInstallmentDate' },
+      ', in accordance with the attached repayment schedule.',
+    ],
+  },
   clauses4to7: [
     {
       lead: '4. Instalments:',

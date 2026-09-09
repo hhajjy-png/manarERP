@@ -749,6 +749,121 @@ describe('1-و · الأقساط الصحيحة في المستند', () => {
   });
 });
 
+// ══ 1-ز · قسط واحد: صياغة البند 4 الخاصة ════════════════════════════════════
+//
+// الصيغة المعتمدة تتحدّث عن أقساط «عادية» وعن «قسط أخير» يحمل المتبقّي — وصفٌ صحيح
+// لاثنين فأكثر، ولغوٌ حين لا يوجد إلا قسط واحد. فله صيغته، وأرقامه هي أرقام الملحق
+// نفسه لأن كليهما يقرأ الجدول الواحد.
+describe('1-ز · حالة القسط الواحد', () => {
+  /** نصّ البند 4 كما هو مطبوع. */
+  const clause4Text = (lang: DebtAckLang) => {
+    const lead = DEBT_ACK_CONTENT[lang].clauses4to7[0].lead;
+    const el = Array.from(docRoot().querySelectorAll('.eda-clause')).find((node) =>
+      (node.textContent ?? '').startsWith(lead),
+    );
+    return (el?.textContent ?? '').trim();
+  };
+
+  /** الصفّ الأول من الملحق: القيمة والتاريخ كما يعرضهما الجدول. */
+  const firstAnnexRow = () => {
+    const row = Array.from(annexSections()[0].querySelectorAll('.eda-tbl--annex tr'))[1];
+    return {
+      amount: (row.querySelector('[data-eda-col=amount]')?.textContent ?? '').trim(),
+      dueDate: (row.querySelector('[data-eda-col=dueDate]')?.textContent ?? '').trim(),
+      balance: (row.querySelector('[data-eda-col=balance]')?.textContent ?? '').trim(),
+    };
+  };
+
+  const FORBIDDEN: Record<DebtAckLang, string[]> = {
+    ar: ['عدا الأخير', 'المبلغ المتبقي', 'القسط الأخير'],
+    en: ['except the last', 'balancing instalment', 'final instalment'],
+    hi: ['अंतिम को छोड़कर', 'शेष राशि के रूप में', 'अंतिम किस्त'],
+  };
+  const SINGLE_MARK: Record<DebtAckLang, string> = {
+    ar: 'على قسط واحد بقيمة',
+    en: 'in a single instalment of KWD',
+    hi: 'की एक ही किस्त में',
+  };
+
+  const CASES: Array<['Arabic' | 'English' | 'Hindi', DebtAckLang]> = [
+    ['Arabic', 'ar'],
+    ['English', 'en'],
+    ['Hindi', 'hi'],
+  ];
+
+  it.each(CASES)('%s: قسط واحد ⇒ صياغة القسط الواحد', async (aria, lang) => {
+    await renderForm();
+    await fillLoan(1);
+    switchTo(aria);
+    const text = clause4Text(lang);
+    expect(text).toContain(SINGLE_MARK[lang]);
+  });
+
+  it.each(CASES)('%s: ولا أثر لوصف الأقساط المتعدّدة', async (aria, lang) => {
+    await renderForm();
+    await fillLoan(1);
+    switchTo(aria);
+    const text = clause4Text(lang);
+    for (const phrase of FORBIDDEN[lang]) expect(text).not.toContain(phrase);
+  });
+
+  it('قيمة البند 4 هي قيمة الملحق نفسها، وكذلك التاريخ', async () => {
+    await renderForm();
+    await fillLoan(1);
+    const row = firstAnnexRow();
+    // بمُنسِّق المشروع نفسه (تجميع الآلاف وثلاث خانات) — وهو المُنسِّق الذي يطبع به
+    // البند والملحق معًا، فيخرج الرقم نفسه بالشكل نفسه في الموضعين.
+    expect(row.amount).toBe('1,000.000 د.ك');
+    expect(row.dueDate).toBe('15/10/2026');
+    expect(row.balance).toContain('0.000');
+    const text = clause4Text('ar');
+    expect(text).toContain('1,000.000');
+    expect(text).toContain('15/10/2026');
+  });
+
+  it('والقسط الواحد هو الرصيد عند التوقيع كلّه، لا أصل الدين', async () => {
+    await renderForm();
+    await fillLoan(1);
+    fireEvent.change(screen.getByLabelText(translate('page.debtAck.f.balance_figures', 'ar')), {
+      target: { value: '750.000' },
+    });
+    await waitFor(() => expect(firstAnnexRow().amount).toBe('750.000 د.ك'));
+    expect(clause4Text('ar')).toContain('750.000');
+  });
+
+  it('قسطان فأكثر: الصياغة المعتمدة كما هي', async () => {
+    await renderForm();
+    for (const count of [2, 12]) {
+      await fillLoan(count);
+      const text = clause4Text('ar');
+      expect(text).toContain('عدا الأخير');
+      expect(text).toContain('المبلغ المتبقي');
+      expect(text).not.toContain(SINGLE_MARK.ar);
+    }
+  });
+
+  it('وقسط واحد لا يغيّر بنية المستند: أربع صفحات وصفحتا ملحق', async () => {
+    await renderForm();
+    await fillLoan(1);
+    expect(pages()).toHaveLength(4);
+    expect(annexSections()).toHaveLength(2);
+    // والصفوف اثنا عشر كما هي، أحدها مملوء وأحد عشر فراغًا.
+    expect(Array.from(annexSections()[0].querySelectorAll('.eda-tbl--annex tr')).slice(1)).toHaveLength(
+      ROWS_PER_ANNEX_PAGE,
+    );
+  });
+
+  it('ولا تسرّب عربي في القالبين الأجنبيين عند القسط الواحد', async () => {
+    await renderForm();
+    await fillLoan(1);
+    for (const aria of ['English', 'Hindi'] as const) {
+      switchTo(aria);
+      // الحارس اللغوي نفسه الذي يمنع الطباعة: يُطبَّق على النصّ المطبوع كاملًا.
+      expect(printedText()).not.toMatch(/[\u0600-\u06FF]/);
+    }
+  });
+});
+
 // ══ 2 · التعليمات: خارج المستند وباقية كاملة ═════════════════════════════════
 describe('2 · التعليمات على الشاشة وحدها', () => {
   it('نصّ التعليمات باقٍ كاملًا في حزم المحتوى الثلاث — لم يُحذف ولم يُختصر', () => {
@@ -979,9 +1094,10 @@ describe('5 · القياس الفعلي', () => {
     for (const doc of report.documents) expect(doc.problems).toEqual([]);
   });
 
-  it('السيناريوهات الثلاثة × اللغات الثلاث قِيست فعلًا', () => {
-    expect(report.documents).toHaveLength(9);
-    expect([...new Set(report.documents.map((d) => d.scenario))].sort()).toEqual(['i05', 'i13', 'i25']);
+  it('السيناريوهات الأربعة × اللغات الثلاث قِيست فعلًا', () => {
+    // أُضيف سيناريو القسط الواحد (`i01`) ليُراجَع بصريًا نصُّ البند 4 الخاص به.
+    expect(report.documents).toHaveLength(12);
+    expect([...new Set(report.documents.map((d) => d.scenario))].sort()).toEqual(['i01', 'i05', 'i13', 'i25']);
     expect([...new Set(report.documents.map((d) => d.lang))].sort()).toEqual(['ar', 'en', 'hi']);
     expect(report.requirement.rowsPerAnnexPage).toBe(ROWS_PER_ANNEX_PAGE);
   });
@@ -997,6 +1113,7 @@ describe('5 · القياس الفعلي', () => {
    * أخرجه Chromium، والصيغة تُحسب مستقلّةً عنه ثم تُطابَق به.
    */
   it.each([
+    ['i01', 1, 1, 4],
     ['i05', 5, 1, 4],
     ['i13', 13, 2, 6],
     ['i25', 25, 3, 8],

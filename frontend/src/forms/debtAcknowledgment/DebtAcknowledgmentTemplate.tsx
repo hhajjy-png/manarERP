@@ -444,6 +444,22 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
   // جدولٌ واحد، مقطوعٌ للعرض. لا حساب هنا ولا حالة: القطع مشتقّة من `data.schedule`
   // في كل تصيير، فلا نسخة ثانية منها تتخلّف عن الأصل.
   const annexPages = paginateInstallmentSchedule(data.schedule, ROWS_PER_ANNEX_PAGE);
+
+  /**
+   * البند 4 له صيغتان: المعتمدة (قسطان فأكثر) وصيغة **القسط الواحد**.
+   *
+   * ═══ من أين يُعرف العدد ═══
+   * من الجدول المطبوع نفسه أولًا (`schedule.length`) — فما يصفه البند هو ما يعرضه
+   * الملحق تحته، لا رقمًا في حقلٍ قد يخالفه. وإن لم يُولَّد جدولٌ بعد (مدخلات ناقصة أو
+   * غير صالحة) فمن العدد المُدخَل، لأنه ما يقرأه البند في فراغه.
+   *
+   * ولا يمسّ هذا الاختيارُ حسابًا: القسط الواحد هو الرصيد عند التوقيع كلّه، والملحق
+   * يعرض القيمة والتاريخ نفسيهما لأن كليهما يقرأ `data.schedule`.
+   */
+  const declaredCount = Number(data.installmentsCount);
+  const singleInstallment =
+    data.schedule.length === 1 || (data.schedule.length === 0 && declaredCount === 1);
+  const clauses4to7 = singleInstallment ? [c.clause4Single, ...c.clauses4to7.slice(1)] : c.clauses4to7;
   const annexSet = (copy: 1 | 2) =>
     annexPages.map((rows, pageIndex) => (
       <AnnexPage
@@ -479,7 +495,7 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         <ClauseList clauses={c.clauses1to3} content={c} data={data} />
 
         <Heading>{c.s4Heading}</Heading>
-        <ClauseList clauses={c.clauses4to7.slice(0, PAGE_1_S4_CLAUSES[lang])} content={c} data={data} />
+        <ClauseList clauses={clauses4to7.slice(0, PAGE_1_S4_CLAUSES[lang])} content={c} data={data} />
       </section>
 
       {/* ══ الصفحة 2 — بقية القسم 4 + القسم 5 + التوقيعات والشهود ═══════════════════
@@ -489,7 +505,7 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
           ومساحات التوقيع **لا تُمسّ**: حشوها من نمط سطري (inline) لا تصل إليه قواعد
           الضغط أصلًا، فتبقى الضعف كما أُقرّ. */}
       <section className="eda-page eda-page--compact">
-        <ClauseList clauses={c.clauses4to7.slice(PAGE_1_S4_CLAUSES[lang])} content={c} data={data} />
+        <ClauseList clauses={clauses4to7.slice(PAGE_1_S4_CLAUSES[lang])} content={c} data={data} />
 
         <Heading>{c.s5Heading}</Heading>
         <ClauseList clauses={c.clauses8to14} content={c} data={data} />

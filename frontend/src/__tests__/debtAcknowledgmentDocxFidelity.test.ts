@@ -160,6 +160,55 @@ describe.each(['ar', 'en', 'hi'] as const)('حزمة محتوى إقرار دي�
     expectVerbatim(paragraphs, withoutInsertions(source), `${lang}: البند 4 قبل الإدراجين`);
   });
 
+  /**
+   * **الاستثناء الثالث المسجَّل**: صيغة البند 4 حين يكون القسط واحدًا.
+   *
+   * ملفات Word كُتبت لحالة الأقساط المتعدّدة وحدها، فنصّها يتحدّث عن أقساط «عادية»
+   * وعن «قسط أخير» يحمل المتبقّي. وحين لا يوجد إلا قسط واحد يصير ذلك الوصف لغوًا:
+   * لا عاديَّ يقابله ولا أخيرَ يتميّز عنه. فالصيغة هنا **ديناميكية أقرّها مالك
+   * المنتج**، ولا مقابل لها في DOCX — ولا يُتوقَّع أن يكون.
+   *
+   * وما يُفحص بدلًا من المطابقة الحرفية:
+   *   · عبارتا الافتتاح والختام مأخوذتان **حرفيًا** من ملف Word، فتبقى في أسلوبه.
+   *   · لا تحمل أثرًا من وصف الحالة المتعدّدة («عدا الأخير» وأخواتها).
+   *   · تعلن القيمة والتاريخ — وهما ما يعرضه الملحق نفسه.
+   */
+  const CLAUSE_4_SINGLE: Record<string, { opens: string; closes: string; forbidden: string[] }> = {
+    ar: {
+      opens: ' أسدد الدين على',
+      closes: '، وذلك وفق جدول السداد الملحق.',
+      forbidden: ['عدا الأخير', 'المبلغ المتبقي', 'القسط الأخير'],
+    },
+    en: {
+      opens: ' I shall repay the debt in',
+      closes: ', in accordance with the attached repayment schedule.',
+      forbidden: ['except the last', 'balancing instalment', 'final instalment'],
+    },
+    hi: {
+      opens: ' मैं यह ऋण',
+      closes: ' को संलग्न भुगतान अनुसूची के अनुसार देय होगी।',
+      forbidden: ['अंतिम को छोड़कर', 'शेष राशि के रूप में', 'अंतिम किस्त'],
+    },
+  };
+
+  it('صيغة القسط الواحد: استثناء مسجَّل، بافتتاح الأصل وختامه ولا أثر لوصف الحالة المتعدّدة', () => {
+    const rule = CLAUSE_4_SINGLE[lang];
+    const source = clauseToSource(pack.clause4Single);
+    // الافتتاح والختام من ملف Word حرفيًا.
+    expectVerbatim(paragraphs, rule.opens, `${lang}: افتتاح البند 4`);
+    expectVerbatim(paragraphs, rule.closes, `${lang}: ختام البند 4`);
+    expect(source.startsWith(pack.clause4Single.lead)).toBe(true);
+    expect(source).toContain(rule.opens);
+    expect(source).toContain(rule.closes);
+    // ولا أثر لوصف الأقساط المتعدّدة.
+    for (const phrase of rule.forbidden) expect(source).not.toContain(phrase);
+    // وتعلن القيمة والتاريخ.
+    const fields = pack.clause4Single.segs
+      .filter((seg): seg is Exclude<Seg, string> => typeof seg !== 'string')
+      .map((seg) => ('f' in seg ? seg.f : 'd' in seg ? seg.d : ''));
+    expect(fields).toEqual(['installmentAmount', 'firstInstallmentDate']);
+  });
+
   it('البنود الأربعة عشر منقولة حرفيًا بنصّها وفراغاتها ومربّعات اختيارها', () => {
     const clauses = [...pack.clauses1to3, ...pack.clauses4to7, ...pack.clauses8to14];
     expect(clauses).toHaveLength(14);

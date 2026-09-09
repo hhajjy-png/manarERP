@@ -2759,7 +2759,7 @@ Chromium PDF, and backend HTML reports.
   refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
   `35e31961` (RTL order for every Arabic table), `9e2f0b2e` (instalments beyond one annex page) and
   `61d6d5f1` (balance column name, balance-at-signing, document defaults, fixed IBAN) and
-  `a1f44846` (whole-dinar instalments).
+  `a1f44846` (whole-dinar instalments) and `SINGLE_COMMIT` (single-instalment wording for clause 4).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2854,6 +2854,18 @@ Chromium PDF, and backend HTML reports.
   clause moved to page 2 and English page-2 compaction deepened to 9.5pt / 1.15 - the least that restored
   the counts; Arabic and Hindi are untouched, and English page 2 now clears 34.02mm rather than 23.70mm.
   Page counts stay 4 / 6 / 8 for 5 / 13 / 25 instalments in all three languages.
+  **Clause 4 has a single-instalment variant** (finding F-20 closed). The approved wording describes
+  regular instalments and a final one carrying the remainder - true for two or more, vacuous when only
+  one exists. Each language now has a second phrasing stating that the debt is repaid in a single
+  instalment, with its amount and due date and no mention of a regular or final one. Which phrasing is
+  used follows the PRINTED schedule (`schedule.length === 1`) rather than a field that could disagree
+  with it; two or more instalments keep the approved wording untouched. The variant has no counterpart
+  in the DOCX and is not expected to - it is the third recorded dynamic-wording exception, and the
+  fidelity suite instead asserts that its opening and closing phrases are verbatim from the Word file,
+  that it carries no trace of the multi-instalment description, and that its only fields are the amount
+  and the date. The calculation is unchanged (a count of one has always returned the whole balance) and
+  an `i01` scenario joined the review artifacts, making twelve documents; it measures four pages in all
+  three languages while 5, 13 and 25 are unmoved.
   Full report, field map and 20 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
   report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
 

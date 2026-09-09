@@ -98,6 +98,17 @@ export const DEBT_ACK_CONTENT_HI: DebtAckContent = {
   ],
 
   s4Heading: '4. भुगतान की विधि',
+  // انظر التعليق في `content.ar.ts`: صيغة القسط الواحد، بافتتاح البند وختامه الحرفيَّين.
+  clause4Single: {
+    lead: '4. किस्तें:',
+    segs: [
+      ' मैं यह ऋण KWD (',
+      { f: 'installmentAmount', p: d(16) },
+      ') की एक ही किस्त में चुकाऊँगा/चुकाऊँगी, जो ',
+      { d: 'firstInstallmentDate' },
+      ' को संलग्न भुगतान अनुसूची के अनुसार देय होगी।',
+    ],
+  },
   clauses4to7: [
     {
       lead: '4. किस्तें:',
