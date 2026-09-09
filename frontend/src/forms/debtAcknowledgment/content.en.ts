@@ -189,6 +189,7 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   signaturesNote:
     'The undersigned confirm that this signature page forms an integral part of the Employee Loan Receipt and Acknowledgment of Debt and that it was signed after the acknowledgment was read, understood and its material particulars completed.',
   signatureHeader: ['Creditor / Legal representative', 'Debtor / Employee'],
+  signatureRowIndex: 1,
   signatureRows: [
     [
       ['Name: ', { f: 'creditorSignatoryName', p: d(48) }],
@@ -234,6 +235,8 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   annexColumns: ['Instalment No.', 'Due date', 'Amount paid', 'Balance after payment', 'Notes / Receipt No.'],
   annexNumberFirst: true,
   annexRowCells: ['....../....../..........', `${d(16)} KWD`, `${d(16)} KWD`, d(32)],
+  annexCellRoles: ['dueDate', 'amount', 'balance', 'notes'],
+  annexAmountSuffix: ' KWD',
   annexRowCount: 12,
   annexTotals: [
     'Principal debt: ',
@@ -245,8 +248,8 @@ export const DEBT_ACK_CONTENT_EN: DebtAckContent = {
   ],
   annexNote: 'Both parties must sign this annex. Unused rows must be clearly struck through.',
   annexSignRows: [
-    { label: 'Creditor / Legal representative', segs: [d(96)] },
-    { label: 'Debtor / Employee', segs: [d(96)] },
+    { label: 'Creditor / Legal representative', segs: [d(96)], signature: true },
+    { label: 'Debtor / Employee', segs: [d(96)], signature: true },
     { label: 'Date', segs: [{ d: 'annexDate' }] },
   ],
 

@@ -35,6 +35,12 @@ import {
   type DebtAckData,
   type DebtAckLang,
 } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentModel';
+import { regenerateSchedule } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentDocument';
+import { withFixedCreditorData } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentAutofill';
+import {
+  CREDITOR_NAME_AR,
+  CREDITOR_NAME_LATIN,
+} from '../../frontend/src/forms/debtAcknowledgment/constants';
 import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../../frontend/src/styles/fontRegistry';
 
 const REPO = resolve(__dirname, '../..');
@@ -48,55 +54,80 @@ const profile = PRINT_PROFILES[PROFILE_ID];
  * بيانات اختبار **مُصطنعة بالكامل** — لا صلة لها بأي موظف حقيقي ولا بأي قاعدة بيانات.
  * لا تُقرأ قاعدة بيانات ولا يُشغَّل خادم في هذا المسار إطلاقًا.
  */
-const SAMPLE: DebtAckData = {
-  ...EMPTY_DEBT_ACK_DATA,
-  creditorName: 'شركة المنار الدولية لإنشاء وإصلاح الطرق والشوارع والأرصفة ومستلزمات الطرق ذ.م.م',
-  creditorCivilId: '100000000000',
-  creditorCommercialReg: '999999',
-  creditorRepresentative: 'اسم الممثل القانوني — مدير عام',
-  creditorAddress: 'الكويت — الشويخ الصناعية — هاتف 0000 0000',
-  debtorFullName: 'موظف تجريبي للاختبار البصري',
-  debtorCivilId: '299010100000',
-  debtorNationality: 'الهند',
-  debtorPassportNo: 'Z0000000',
-  debtorEmployeeNo: 'TEST-001',
-  debtorJobTitle: 'عامل تشغيل وصيانة',
-  debtorAddressKuwait: 'الكويت — الفروانية — قطعة 0 — شارع 0 — منزل 0',
-  debtorContact: '+965 0000 0000 / test@example.invalid',
-  amountFigures: '500.000',
-  amountWordsAr: 'خمسمائة',
-  amountWordsEn: 'Five Hundred',
-  amountWordsHi: 'पाँच सौ',
-  transferNo: 'TRF-000000',
-  chequeNo: '',
-  cashReceiptNo: '',
-  balanceFigures: '500.000',
-  balanceWordsAr: 'خمسمائة',
-  balanceWordsEn: 'Five Hundred',
-  balanceWordsHi: 'पाँच सौ',
-  installmentsCount: '10',
-  installmentAmount: '50.000',
-  monthlyDueDay: '28',
-  finalInstallmentAmount: '50.000',
-  creditorIban: 'KW00XXXX0000000000000000000000',
-  explanationLanguage: 'الهندية / Hindi',
-  creditorSignatoryName: 'اسم الموقّع عن الدائن',
-  debtorSignatoryName: 'موظف تجريبي للاختبار البصري',
-  witness1Name: 'شاهد أول تجريبي',
-  witness1CivilId: '200000000000',
-  witness2Name: 'شاهد ثانٍ تجريبي',
-  witness2CivilId: '200000000001',
-  interpreterName: 'مترجم تجريبي',
-  interpreterLanguage: 'الهندية',
-  interpreterCivilId: '200000000002',
-  receiptDate: '2026-09-01',
-  firstInstallmentDate: '2026-10-28',
-  finalInstallmentDate: '2027-07-28',
-  creditorSignDate: '2026-09-01',
-  debtorSignDate: '2026-09-01',
-  annexDate: '2026-09-01',
-  disbursementMethod: 'transfer',
-};
+/**
+ * بيانات اختبار **مُصطنعة بالكامل** — لا صلة لها بأي موظف حقيقي ولا بأي قاعدة بيانات.
+ * لا تُقرأ قاعدة بيانات ولا يُشغَّل خادم في هذا المسار إطلاقًا.
+ *
+ * الأرقام هي مثال مالك المنتج بالضبط: دَين 1000.000 د.ك على 5 أقساط، أولها
+ * 15/10/2026 — فيخرج الجدول 200.000 × 5 وينتهي الرصيد عند 0.000.
+ *
+ * النظائر اللاتينية معبّأة كي يخرج القالبان الإنجليزي والهندي **بلا حرف عربي واحد**،
+ * وهو ما يفحصه المقياس آليًا على الـPDF المُنتَج لا بالنظر.
+ */
+const SAMPLE: DebtAckData = regenerateSchedule(
+  withFixedCreditorData({
+    ...EMPTY_DEBT_ACK_DATA,
+
+    // ── القالب العربي ──────────────────────────────────────────────────────
+    creditorName: CREDITOR_NAME_AR,
+    creditorRepresentative: 'اسم الممثل القانوني — مدير عام',
+    creditorAddress: 'الكويت — الشويخ الصناعية — هاتف 0000 0000',
+    debtorFullName: 'راجيش كومار',
+    debtorCivilId: '292010100123',
+    debtorNationality: 'الهند',
+    debtorPassportNo: 'Z1234567',
+    debtorEmployeeNo: 'TEST-001',
+    debtorJobTitle: 'عامل تشغيل وصيانة',
+    debtorAddressKuwait: 'الكويت — الفروانية — قطعة 3 — شارع 12',
+    debtorContact: '+965 5000 0000 / test@example.invalid',
+    explanationLanguage: 'الهندية',
+    creditorSignatoryName: 'اسم الموقّع عن الدائن',
+    debtorSignatoryName: 'راجيش كومار',
+    witness1Name: 'شاهد أول تجريبي',
+    witness1CivilId: '200000000000',
+    witness2Name: 'شاهد ثانٍ تجريبي',
+    witness2CivilId: '200000000001',
+    interpreterName: 'مترجم تجريبي',
+    interpreterLanguage: 'الهندية',
+    interpreterCivilId: '200000000002',
+
+    // ── النظائر اللاتينية (القالبان الإنجليزي والهندي) ──────────────────────
+    creditorNameLatin: CREDITOR_NAME_LATIN,
+    creditorRepresentativeLatin: 'LEGAL REPRESENTATIVE NAME — GENERAL MANAGER',
+    creditorAddressLatin: 'Kuwait — Shuwaikh Industrial — Tel 0000 0000',
+    debtorFullNameLatin: 'RAJESH KUMAR',
+    debtorNationalityLatin: 'India',
+    debtorJobTitleLatin: 'Operations and Maintenance Worker',
+    debtorAddressKuwaitLatin: 'Kuwait — Farwaniya — Block 3 — Street 12',
+    debtorContactLatin: '+965 5000 0000 / test@example.invalid',
+    explanationLanguageLatin: 'Hindi',
+    creditorSignatoryNameLatin: 'CREDITOR SIGNATORY NAME',
+    debtorSignatoryNameLatin: 'RAJESH KUMAR',
+    witness1NameLatin: 'FIRST WITNESS (TEST)',
+    witness2NameLatin: 'SECOND WITNESS (TEST)',
+    interpreterNameLatin: 'INTERPRETER (TEST)',
+    interpreterLanguageLatin: 'Hindi',
+
+    // ── المبالغ والتواريخ (قيمة واحدة للقوالب الثلاثة) ──────────────────────
+    amountFigures: '1000.000',
+    amountWordsAr: 'ألف',
+    amountWordsEn: 'One Thousand',
+    amountWordsHi: 'एक हज़ार',
+    balanceFigures: '1000.000',
+    balanceWordsAr: 'ألف',
+    balanceWordsEn: 'One Thousand',
+    balanceWordsHi: 'एक हज़ार',
+    transferNo: 'TRF-000000',
+    creditorIban: 'KW00XXXX0000000000000000000000',
+    installmentsCount: '5',
+    receiptDate: '2026-09-01',
+    firstInstallmentDate: '2026-10-15',
+    creditorSignDate: '2026-09-01',
+    debtorSignDate: '2026-09-01',
+    annexDate: '2026-09-01',
+    disbursementMethod: 'transfer',
+  }),
+);
 
 function fontFace(family: string, file: string, weight: number, format: string): string {
   const url = pathToFileURL(join(FONTS, file)).href;

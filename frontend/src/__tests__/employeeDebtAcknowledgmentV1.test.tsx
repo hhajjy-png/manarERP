@@ -169,6 +169,7 @@ describe('2 · اختيار الموظف والملء التلقائي', () => {
     const map = buildDebtAckAutofill(EMPLOYEE);
     expect(Object.keys(map).sort()).toEqual(
       [
+        // القالب العربي
         'creditorName',
         'debtorAddressKuwait',
         'debtorCivilId',
@@ -179,6 +180,14 @@ describe('2 · اختيار الموظف والملء التلقائي', () => {
         'debtorNationality',
         'debtorPassportNo',
         'debtorSignatoryName',
+        // النظائر اللاتينية للقالبين الإنجليزي والهندي — نفس الحقول، لا حقول جديدة
+        'creditorNameLatin',
+        'debtorAddressKuwaitLatin',
+        'debtorContactLatin',
+        'debtorFullNameLatin',
+        'debtorJobTitleLatin',
+        'debtorNationalityLatin',
+        'debtorSignatoryNameLatin',
       ].sort(),
     );
   });
@@ -250,14 +259,25 @@ describe('4 · تبديل القالب وحقن نفس البيانات', () => 
     const iban = screen.getByLabelText(translate('page.debtAck.f.iban', 'ar'));
     fireEvent.change(iban, { target: { value: 'KW11TEST0000000000000000000000' } });
 
+    // القيم غير اللغوية (المبالغ، الـIBAN) واحدة في القوالب الثلاثة. أما اسم الموظف
+    // فلغويّ: العربي في القالب العربي، ونظيره اللاتيني في القالبين الأجنبيين — وهو
+    // بالضبط ما يمنع تسليم عامل مستندًا لا يقرؤه.
+    const expectedName: Record<string, string> = {
+      Arabic: EMPLOYEE.fullName,
+      English: EMPLOYEE.fullNameEn,
+      Hindi: EMPLOYEE.fullNameEn,
+    };
     for (const aria of ['Arabic', 'English', 'Hindi']) {
       fireEvent.click(screen.getByLabelText(aria));
       await waitFor(() => {
         const text = document.querySelector('.eda-root')!.textContent ?? '';
         expect(text).toContain('750.000');
         expect(text).toContain('KW11TEST0000000000000000000000');
-        expect(text).toContain(EMPLOYEE.fullName);
+        expect(text).toContain(expectedName[aria]);
       });
+      if (aria !== 'Arabic') {
+        expect(document.querySelector('.eda-root')!.textContent).not.toContain(EMPLOYEE.fullName);
+      }
     }
   });
 

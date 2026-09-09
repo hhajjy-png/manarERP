@@ -6,45 +6,69 @@
  * جديد هنا، ولا معاينة بديلة، ولا مسار `@page` ثانٍ:
  *
  *   · الطباعة       → `FormLayout.doPrint` (مركز الطباعة → webContents.print).
- *   · المعاينة الدقيقة → `useAccurateFormPreview` (نفس عقدة `.form-page`،
- *                        `composeStyledFromNode` ثم `printToPDF` في نافذة Chromium
- *                        مخفية) — أي أن ما يظهر في المعاينة هو ما يخرج من الطابعة.
+ *   · المعاينة الدقيقة → `composeStyledFromNode` على نفس عقدة `.form-page` ثم
+ *                        `printToPDF` في نافذة Chromium مخفية.
  *   · حفظ PDF       → `FormLayout.doExportPdf` (نفس المُركِّب).
  *
  * الهندسة (40mm أعلى / 20mm أسفل) تأتي كلها من ملف الطباعة
- * `employee-debt-acknowledgment-letterhead` — ملف مستقل أُضيف لهذا المستند وحده،
- * `selectable: false`، فلا يظهر في مبدّل أي نموذج آخر ولا يغيّر أي ملف قائم. ولأن
- * القيم تصبح هامش `@page`، يفرضها المتصفح على **كل** صفحة من صفحات المستند.
+ * `employee-debt-acknowledgment-letterhead`، و`contentOnly` تُسقط ترويسة التطبيق
+ * ورقم النموذج وكتلة الاعتماد ورمز QR.
  *
- * `contentOnly` تُسقط ترويسة الشركة ورقم النموذج والعنوان الداخلي وكتلة الاعتماد
- * ورمز QR — الورقة الفيزيائية تحمل ترويسة الشركة وتذييلها، والمستند يحمل عنوانه
- * وتوقيعاته من نصّه الرسمي نفسه.
+ * ═══ ما تملكه هذه الشاشة ═══
+ * 1. **مسار تحديث واحد** (`updateData`): كل تغيير يمرّ منه، فتُفرض بيانات الدائن
+ *    الثابتة ويُعاد توليد جدول السداد في مكان واحد لا في تأثيرات متفرقة.
+ * 2. **بوابة لغوية** قبل المعاينة والطباعة وتصدير PDF: قالبٌ أجنبي يحمل قيمة عربية
+ *    لا يخرج — انظر `arabicScript.ts` للسبب.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import ConfirmModal from '../components/ConfirmModal';
+import Modal from '../components/Modal';
 import { api, errorMessage } from '../api/client';
 import { useT, t as translate } from '../lib/i18n';
 import { generateFormNumber } from '../forms/shared/formNumber';
 import FormLayout from '../forms/shared/FormLayout';
-import { isFlagEnabled, useAccurateFormPreview, UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1 } from '../printing';
+import {
+  composeStyledFromNode,
+  getPageSpec,
+  isFlagEnabled,
+  useAccurateFormPreview,
+  UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1,
+} from '../printing';
 import { usePrintLogStore } from '../stores/printLogStore';
 import { usePrintDraftStore } from '../stores/printDraftStore';
 import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../styles/fontRegistry';
 import DebtAcknowledgmentTemplate, { DEBT_ACK_CONTENT } from '../forms/debtAcknowledgment/DebtAcknowledgmentTemplate';
 import DebtAckDataEntry from '../forms/debtAcknowledgment/DebtAckDataEntry';
 import DebtAckLanguageToggle from '../forms/debtAcknowledgment/DebtAckLanguageToggle';
+import { MAX_INSTALLMENTS } from '../forms/debtAcknowledgment/constants';
+import {
+  derivedInstallmentFields,
+  regenerateSchedule,
+} from '../forms/debtAcknowledgment/debtAcknowledgmentDocument';
+import { findArabicLeaks } from '../forms/debtAcknowledgment/arabicScript';
+import { DEBT_ACK_FIELD_LABEL_KEY } from '../forms/debtAcknowledgment/debtAcknowledgmentLabels';
+import { resolveDynamicValues } from '../forms/debtAcknowledgment/debtAcknowledgmentValues';
+import { validateSchedule } from '../forms/debtAcknowledgment/debtAcknowledgmentSchedule';
 import {
   EMPTY_DEBT_ACK_DATA,
   type DebtAckData,
   type DebtAckLang,
 } from '../forms/debtAcknowledgment/debtAcknowledgmentModel';
-import { applyAutofill, buildDebtAckAutofill, type DebtAckEmployee } from '../forms/debtAcknowledgment/debtAcknowledgmentAutofill';
+import {
+  applyAutofill,
+  buildDebtAckAutofill,
+  withFixedCreditorData,
+  type DebtAckEmployee,
+} from '../forms/debtAcknowledgment/debtAcknowledgmentAutofill';
 
 const FORM_KEY = 'employee-debt-acknowledgment';
 
 /** ملف الطباعة ثابت لهذا المستند: هندسة ورق الشركة (40mm / 20mm) لا يبدّلها المستخدم. */
 const PROFILE = 'employee-debt-acknowledgment-letterhead';
+
+/** الحقول الثلاثة التي يُشتقّ منها جدول السداد كله. */
+const SCHEDULE_DRIVERS = ['amountFigures', 'installmentsCount', 'firstInstallmentDate'] as const;
 
 /** لغة الـShell المقابلة لقالب المستند — الهندي LTR كالإنجليزي، تمامًا كملف DOCX. */
 function shellLang(lang: DebtAckLang): 'ar' | 'en' {
@@ -61,10 +85,36 @@ export default function EmployeeDebtAcknowledgment() {
   const [employee, setEmployee] = useState<DebtAckEmployee | null>(null);
   const [error, setError] = useState('');
   const [lang, setLang] = useState<DebtAckLang>('ar');
-  const [data, setData] = useState<DebtAckData>(EMPTY_DEBT_ACK_DATA);
+  const [data, setData] = useState<DebtAckData>(() => withFixedCreditorData(EMPTY_DEBT_ACK_DATA));
+  const [showRecalcConfirm, setShowRecalcConfirm] = useState(false);
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null);
 
   const layoutLang = shellLang(lang);
   const docTitle = lang === 'ar' ? translate('page.debtAck.title', 'ar') : DEBT_ACK_CONTENT[lang].title;
+
+  /**
+   * مسار التحديث الوحيد.
+   *
+   * تغيير أحد محرّكات الجدول (أصل الدين، العدد، تاريخ أول قسط) يعيد توليده تلقائيًا —
+   * **إلا** إذا كان الجدول مُعدَّلًا يدويًا، فحينها يُطبَّق تغيير الحقل ويُسأل المستخدم
+   * قبل استبدال عمله. لا يُمحى تعديل يدوي بصمت أبدًا.
+   */
+  function updateData(patch: Partial<DebtAckData>) {
+    // يُحسب خارج مُحدِّث الحالة عمدًا: فتح الحوار أثرٌ جانبي، ومُحدِّث الحالة قد
+    // يُستدعى مرتين في وضع التطوير الصارم — فيُفتح الحوار مرتين.
+    const next = withFixedCreditorData({ ...data, ...patch });
+    const touchesDriver = SCHEDULE_DRIVERS.some((key) => key in patch);
+    if (!touchesDriver) {
+      setData(next);
+      return;
+    }
+    if (next.scheduleManual) {
+      setData(next);
+      setShowRecalcConfirm(true);
+      return;
+    }
+    setData(regenerateSchedule(next));
+  }
 
   useEffect(() => {
     if (!employeeId) return;
@@ -120,15 +170,74 @@ export default function EmployeeDebtAcknowledgment() {
   const clearDraft = usePrintDraftStore((s) => s.clearDraft);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
+  // ── التحقق والبوابة اللغوية ─────────────────────────────────────────────────
+  const scheduleIssues = useMemo(
+    () =>
+      validateSchedule({
+        debtAmount: Number(data.amountFigures),
+        count: Number(data.installmentsCount),
+        firstDate: data.firstInstallmentDate,
+        rows: data.schedule,
+        maxInstallments: MAX_INSTALLMENTS,
+      }),
+    [data.amountFigures, data.installmentsCount, data.firstInstallmentDate, data.schedule],
+  );
+
+  /**
+   * الحقول التي ستُطبع بالعربية في القالب الحالي — تُفحص **القيم النهائية المحلولة**
+   * (نفس ما يُصيّره القالب)، لا الحالة الخام. فارغة دائمًا في القالب العربي.
+   */
+  const arabicLeakFields = useMemo(() => {
+    if (lang === 'ar') return [] as string[];
+    return findArabicLeaks(resolveDynamicValues(data, lang)).map((leak) => leak.field);
+  }, [data, lang]);
+
+  const arabicLeakLabels = useMemo(
+    () => arabicLeakFields.map((field) => t(DEBT_ACK_FIELD_LABEL_KEY[field] ?? field)),
+    [arabicLeakFields, t],
+  );
+
+  const blockReason = arabicLeakLabels.length
+    ? `${t('page.debtAck.arabic_block_title')} — ${arabicLeakLabels.join('، ')}`
+    : null;
+
   const printApiRef = useRef<{ getNode: () => HTMLElement | null; print: () => void } | null>(null);
+
+  /**
+   * مُركِّب المعاينة الدقيقة — **نفس** المُركِّب ونفس `PageSpec` اللذين يستعملهما المسار
+   * الافتراضي للخطّاف، مسبوقَين بالبوابة اللغوية وحدها. الرمي هنا يُظهر السبب داخل
+   * حوار المعاينة نفسه بدل أن يعرض مستندًا لا يجوز تسليمه.
+   */
+  const composeForPreview = () => {
+    if (blockReason) throw new Error(blockReason);
+    const node = printApiRef.current?.getNode() ?? null;
+    if (!node) throw new Error(t('msg.error'));
+    return composeStyledFromNode({
+      node,
+      pageSpec: getPageSpec('a4-portrait'),
+      title: docTitle,
+      lang: layoutLang,
+      stripSelectors: ['.no-print'],
+    });
+  };
+
   const accurate = useAccurateFormPreview({
     enabled: isFlagEnabled(UNIVERSAL_TRUE_CHROMIUM_WYSIWYG_PREVIEW_V1),
-    getNode: () => printApiRef.current?.getNode() ?? null,
+    compose: composeForPreview,
     onPrint: () => printApiRef.current?.print(),
     title: docTitle,
     documentLabel: `${docTitle} · ${formNumber}`,
     lang: layoutLang,
   });
+
+  /** بوابة واحدة للطباعة ولتصدير PDF: تمنع الخروج وتشرح السبب، أو تُمرّر المسار الأصلي. */
+  const gate = ({ proceed }: { proceed: () => void }) => {
+    if (blockReason) {
+      setBlockedMessage(blockReason);
+      return;
+    }
+    proceed();
+  };
 
   if (error) return <div className="center-msg">{t('msg.error')}: {error}</div>;
   if (!employee)
@@ -156,6 +265,9 @@ export default function EmployeeDebtAcknowledgment() {
         // الرسمي — فلا ترويسة تطبيق، ولا رقم نموذج، ولا كتلة اعتماد، ولا QR.
         contentOnly
         hideApprovalSection
+        // البوابة اللغوية على المسارين معًا — طباعةٌ ممنوعة و«حفظ PDF» مفتوح ليست بوابة.
+        printIntercept={gate}
+        exportIntercept={gate}
         docFontStack={lang === 'hi' ? DOC_FONT_STACK_EN_HI : DOC_FONT_STACK}
         toolbarExtra={
           <>
@@ -175,7 +287,14 @@ export default function EmployeeDebtAcknowledgment() {
                 className="btn secondary"
                 style={{ fontSize: 12, padding: '4px 8px', color: 'var(--primary)' }}
                 title={t('page.warning.load_draft_title')}
-                onClick={() => setData({ ...EMPTY_DEBT_ACK_DATA, ...(draftEntry.state as Partial<DebtAckData>) })}
+                onClick={() =>
+                  setData(
+                    withFixedCreditorData({
+                      ...EMPTY_DEBT_ACK_DATA,
+                      ...(draftEntry.state as Partial<DebtAckData>),
+                    }),
+                  )
+                }
               >
                 ↩
               </button>
@@ -211,10 +330,37 @@ export default function EmployeeDebtAcknowledgment() {
       >
         <DebtAckDataEntry
           data={data}
+          lang={lang}
           employeeNameEn={employee.fullNameEn ?? undefined}
-          onChange={(patch) => setData((prev) => ({ ...prev, ...patch }))}
+          onChange={updateData}
+          onScheduleChange={(rows) =>
+            setData((prev) => ({
+              ...prev,
+              schedule: rows,
+              scheduleManual: true,
+              ...derivedInstallmentFields(rows, prev.firstInstallmentDate),
+            }))
+          }
+          onRegenerateSchedule={() => setShowRecalcConfirm(true)}
+          issues={scheduleIssues}
+          arabicLeaks={arabicLeakLabels}
         />
         <DebtAcknowledgmentTemplate lang={lang} data={data} />
+
+        {showRecalcConfirm && (
+          <ConfirmModal
+            title={t('page.debtAck.schedule_recalc_title')}
+            message={t('page.debtAck.schedule_recalc_confirm')}
+            confirmLabel={t('page.debtAck.schedule_recalc_confirm_btn')}
+            variant="warning"
+            onConfirm={() => {
+              setShowRecalcConfirm(false);
+              setData((prev) => regenerateSchedule(prev));
+            }}
+            onCancel={() => setShowRecalcConfirm(false)}
+          />
+        )}
+
         {showClearConfirm && (
           <ConfirmModal
             message={t('page.warning.clear_confirm')}
@@ -223,10 +369,25 @@ export default function EmployeeDebtAcknowledgment() {
             onConfirm={() => {
               setShowClearConfirm(false);
               autofilledRef.current = false;
-              setData(EMPTY_DEBT_ACK_DATA);
+              setData(withFixedCreditorData(EMPTY_DEBT_ACK_DATA));
             }}
             onCancel={() => setShowClearConfirm(false)}
           />
+        )}
+
+        {blockedMessage && (
+          <Modal
+            title={t('page.debtAck.arabic_block_title')}
+            size="sm"
+            onClose={() => setBlockedMessage(null)}
+            footer={
+              <button type="button" className="btn" onClick={() => setBlockedMessage(null)}>
+                {t('page.debtAck.ok')}
+              </button>
+            }
+          >
+            <p style={{ lineHeight: 1.8, fontWeight: 600 }}>{blockedMessage}</p>
+          </Modal>
         )}
       </FormLayout>
     </>

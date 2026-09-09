@@ -5,11 +5,15 @@
  * हिन्दी) فتُحقن القيم نفسها في القالب المختار — بلا إعادة إدخال، وبلا ترجمة وقت
  * التشغيل.
  *
- * الاستثناء الوحيد هو «المبلغ بالحروف»: عبارة قانونية مشتقّة من لغة النص نفسها،
- * فلها خانة لكل قالب. للعربية والإنجليزية يُعرض اقتراح مبنيّ على محرّك التفقيط
- * القائم في المشروع (`lib/tafqeet.ts`) ولا يُكتب إلا بنقرة صريحة من المستخدم؛ ولا
- * يُعرض اقتراح للهندية لعدم وجود محوّل موثوق — فتبقى إدخالًا يدويًا، كما تبقى
- * الخانتان الأخريان قابلتين للتعديل دائمًا. الأولوية للدقة القانونية لا لتوفير الكتابة.
+ * ثلاثة استثناءات، ولكلٍّ سببه:
+ *   1. **المبلغ بالحروف**: عبارة قانونية مشتقّة من لغة النصّ، فلها خانة لكل قالب.
+ *      اقتراح من محرّك التفقيط القائم للعربية والإنجليزية بنقرة صريحة، وإدخال يدوي
+ *      للهندية — لا محوّل غير موثوق. الأولوية للدقة القانونية لا لتوفير الكتابة.
+ *   2. **بيانات القالب الأجنبي**: القيم التي تُطبع بالعربية في القالب العربي تحتاج
+ *      مقابلًا لاتينيًا في القالبين الإنجليزي والهندي — ولا يملك سجل الموظف مقابلًا
+ *      إنجليزيًا إلا للاسم. تظهر خاناتها عند اختيار قالب أجنبي فقط.
+ *   3. **الحقول المحسوبة**: قيمة القسط والقسط الأخير وتاريخه ويوم الاستحقاق مشتقّة من
+ *      جدول السداد، فتُعرض للقراءة ولا تُدخَل يدويًا بمعزل عنه.
  *
  * كل ما يُعرض هنا `.no-print` — لا يصل إلى الورق ولا إلى PDF ولا إلى المعاينة الدقيقة
  * (مُركِّب المستند يُسقط `.no-print`).
@@ -18,16 +22,53 @@ import type { ReactNode } from 'react';
 import DateInput from '../../components/DateInput';
 import { useT } from '../../lib/i18n';
 import { integerToWords } from '../../lib/tafqeet';
-import type { DateFieldId, DebtAckData, DisbursementMethod, TextFieldId } from './debtAcknowledgmentModel';
+import DebtAckScheduleEditor from './DebtAckScheduleEditor';
+import { CREDITOR_COMMERCIAL_REGISTRATION_NO, CREDITOR_UNIFIED_NUMBER, MAX_INSTALLMENTS } from './constants';
+import type { InstallmentRow, ScheduleIssue } from './debtAcknowledgmentSchedule';
+import type {
+  DateFieldId,
+  DebtAckData,
+  DebtAckLang,
+  DisbursementMethod,
+  LocalizableFieldId,
+  TextFieldId,
+} from './debtAcknowledgmentModel';
 
 export interface DebtAckDataEntryProps {
   data: DebtAckData;
+  /** قالب المستند المعروض — يقرّر ظهور قسم «بيانات القالب الإنجليزي/الهندي». */
+  lang: DebtAckLang;
   onChange: (patch: Partial<DebtAckData>) => void;
+  onScheduleChange: (rows: InstallmentRow[]) => void;
+  onRegenerateSchedule: () => void;
+  /** أخلال المدخلات والجدول — تُعرض مترجَمة أعلى القسم. */
+  issues: ScheduleIssue[];
+  /** الحقول التي ما زالت قيمتها المعروضة عربية في قالب أجنبي. */
+  arabicLeaks: string[];
   /** الاسم الإنجليزي في سجل الموظف، إن وُجد — يُعرض كاقتراح للقوالب اللاتينية. */
   employeeNameEn?: string;
 }
 
 const LTR_INPUT = { direction: 'ltr' as const, textAlign: 'start' as const };
+
+/** الحقول اللغوية ونظائرها، بترتيب ظهورها في قسم القالب الأجنبي. */
+const FOREIGN_FIELDS: { id: LocalizableFieldId; labelKey: string }[] = [
+  { id: 'debtorFullName', labelKey: 'page.debtAck.f.debtor_name_latin' },
+  { id: 'debtorNationality', labelKey: 'page.debtAck.f.debtor_nationality_latin' },
+  { id: 'debtorJobTitle', labelKey: 'page.debtAck.f.debtor_job_title_latin' },
+  { id: 'debtorAddressKuwait', labelKey: 'page.debtAck.f.debtor_address_latin' },
+  { id: 'debtorContact', labelKey: 'page.debtAck.f.debtor_contact_latin' },
+  { id: 'creditorName', labelKey: 'page.debtAck.f.creditor_name_latin' },
+  { id: 'creditorRepresentative', labelKey: 'page.debtAck.f.creditor_representative_latin' },
+  { id: 'creditorAddress', labelKey: 'page.debtAck.f.creditor_address_latin' },
+  { id: 'explanationLanguage', labelKey: 'page.debtAck.f.explanation_language_latin' },
+  { id: 'creditorSignatoryName', labelKey: 'page.debtAck.f.creditor_signatory_latin' },
+  { id: 'debtorSignatoryName', labelKey: 'page.debtAck.f.debtor_signatory_latin' },
+  { id: 'witness1Name', labelKey: 'page.debtAck.f.witness1_name_latin' },
+  { id: 'witness2Name', labelKey: 'page.debtAck.f.witness2_name_latin' },
+  { id: 'interpreterName', labelKey: 'page.debtAck.f.interpreter_name_latin' },
+  { id: 'interpreterLanguage', labelKey: 'page.debtAck.f.interpreter_language_latin' },
+];
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -46,8 +87,18 @@ function Grid({ cols, children }: { cols: number; children: ReactNode }) {
   );
 }
 
-export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: DebtAckDataEntryProps) {
+export default function DebtAckDataEntry({
+  data,
+  lang,
+  onChange,
+  onScheduleChange,
+  onRegenerateSchedule,
+  issues,
+  arabicLeaks,
+  employeeNameEn,
+}: DebtAckDataEntryProps) {
   const { t } = useT();
+  const isForeignTemplate = lang !== 'ar';
 
   const text = (id: TextFieldId, label: string, opts?: { ltr?: boolean; span?: number }) => (
     <div className="field" style={opts?.span ? { gridColumn: `span ${opts.span}` } : undefined}>
@@ -62,6 +113,15 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
     </div>
   );
 
+  /** حقل للقراءة فقط: قيمة ثابتة أو محسوبة — يُعرض ولا يُدخَل. */
+  const readOnly = (id: TextFieldId | DateFieldId, label: string, note: string) => (
+    <div className="field">
+      <label htmlFor={`eda-${id}`}>{label}</label>
+      <input id={`eda-${id}`} title={label} value={data[id]} readOnly style={{ ...LTR_INPUT, opacity: 0.75 }} />
+      <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>{note}</small>
+    </div>
+  );
+
   const date = (id: DateFieldId, label: string) => (
     <div className="field">
       <label htmlFor={`eda-${id}`}>{label}</label>
@@ -70,19 +130,14 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
   );
 
   /** اقتراح التفقيط لخانة لغة بعينها — يظهر فقط حين يكون المبلغ عدداً صحيحاً من الدنانير. */
-  const suggestion = (figures: string, lang: 'ar' | 'en'): string => {
+  const suggestion = (figures: string, words: 'ar' | 'en'): string => {
     const n = Number(figures);
     if (!figures.trim() || !Number.isFinite(n)) return '';
-    return integerToWords(n, lang);
+    return integerToWords(n, words);
   };
 
-  const wordsField = (
-    id: TextFieldId,
-    label: string,
-    figures: string,
-    lang: 'ar' | 'en' | null,
-  ) => {
-    const hint = lang ? suggestion(figures, lang) : '';
+  const wordsField = (id: TextFieldId, label: string, figures: string, words: 'ar' | 'en' | null) => {
+    const hint = words ? suggestion(figures, words) : '';
     return (
       <div className="field">
         <label htmlFor={`eda-${id}`}>{label}</label>
@@ -102,7 +157,7 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
             {t('page.debtAck.use_tafqeet')}: {hint}
           </button>
         )}
-        {!lang && (
+        {!words && (
           <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>{t('page.debtAck.words_manual_hi')}</small>
         )}
       </div>
@@ -122,11 +177,37 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
     >
       <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 12 }}>{t('page.debtAck.entry_header')}</div>
 
+      {(issues.length > 0 || arabicLeaks.length > 0) && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 12,
+            padding: '8px 12px',
+            border: '1px solid #f0b4b4',
+            background: '#fdf2f2',
+            borderRadius: 8,
+            fontSize: 12,
+          }}
+        >
+          <ul style={{ margin: 0, paddingInlineStart: 18 }}>
+            {issues.map((issue) => (
+              <li key={issue}>{t(`page.debtAck.issue.${issue}`)}</li>
+            ))}
+            {arabicLeaks.length > 0 && (
+              <li>
+                {t('page.debtAck.arabic_block_intro')} {arabicLeaks.join('، ')}
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+
       <Section title={t('page.debtAck.sec_creditor')}>
         <Grid cols={2}>
           {text('creditorName', t('page.debtAck.f.creditor_name'), { span: 2 })}
-          {text('creditorCivilId', t('page.debtAck.f.creditor_civil_id'), { ltr: true })}
-          {text('creditorCommercialReg', t('page.debtAck.f.creditor_commercial_reg'), { ltr: true })}
+          {/* بيانات ثابتة للشركة — لا تُدخَل في كل مستند ولا تُعدَّل سهوًا. */}
+          {readOnly('creditorCivilId', t('page.debtAck.f.creditor_civil_id'), t('page.debtAck.fixed_note'))}
+          {readOnly('creditorCommercialReg', t('page.debtAck.f.creditor_commercial_reg'), t('page.debtAck.fixed_note'))}
           {text('creditorRepresentative', t('page.debtAck.f.creditor_representative'))}
           {text('creditorAddress', t('page.debtAck.f.creditor_address'))}
         </Grid>
@@ -142,16 +223,6 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
               value={data.debtorFullName}
               onChange={(e) => onChange({ debtorFullName: e.target.value })}
             />
-            {employeeNameEn && employeeNameEn !== data.debtorFullName && (
-              <button
-                type="button"
-                className="btn secondary"
-                style={{ fontSize: 11, padding: '2px 8px', marginTop: 4 }}
-                onClick={() => onChange({ debtorFullName: employeeNameEn, debtorSignatoryName: employeeNameEn })}
-              >
-                {t('page.debtAck.use_english_name')}: {employeeNameEn}
-              </button>
-            )}
           </div>
           {text('debtorEmployeeNo', t('page.debtAck.f.debtor_employee_no'), { ltr: true })}
           {text('debtorCivilId', t('page.debtAck.f.debtor_civil_id'), { ltr: true })}
@@ -201,14 +272,45 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
       </Section>
 
       <Section title={t('page.debtAck.sec_repayment')}>
+        {/* المُدخَلات الثلاثة التي يُشتقّ منها الجدول كله. */}
         <Grid cols={3}>
-          {text('installmentsCount', t('page.debtAck.f.installments_count'), { ltr: true })}
-          {text('installmentAmount', t('page.debtAck.f.installment_amount'), { ltr: true })}
+          <div className="field">
+            <label htmlFor="eda-installmentsCount">{t('page.debtAck.f.installments_count')}</label>
+            <input
+              id="eda-installmentsCount"
+              type="number"
+              lang="en"
+              min={1}
+              max={MAX_INSTALLMENTS}
+              step={1}
+              title={t('page.debtAck.f.installments_count')}
+              value={data.installmentsCount}
+              style={LTR_INPUT}
+              onChange={(e) => onChange({ installmentsCount: e.target.value })}
+            />
+            <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+              {t('page.debtAck.max_installments', { n: MAX_INSTALLMENTS })}
+            </small>
+          </div>
           {date('firstInstallmentDate', t('page.debtAck.f.first_installment_date'))}
-          {text('monthlyDueDay', t('page.debtAck.f.monthly_due_day'), { ltr: true })}
-          {text('finalInstallmentAmount', t('page.debtAck.f.final_installment_amount'), { ltr: true })}
-          {date('finalInstallmentDate', t('page.debtAck.f.final_installment_date'))}
+          {readOnly('installmentAmount', t('page.debtAck.f.installment_amount'), t('page.debtAck.computed_note'))}
         </Grid>
+        <Grid cols={3}>
+          {readOnly('monthlyDueDay', t('page.debtAck.f.monthly_due_day'), t('page.debtAck.computed_note'))}
+          {readOnly(
+            'finalInstallmentAmount',
+            t('page.debtAck.f.final_installment_amount'),
+            t('page.debtAck.computed_note'),
+          )}
+          {readOnly('finalInstallmentDate', t('page.debtAck.f.final_installment_date'), t('page.debtAck.computed_note'))}
+        </Grid>
+        <DebtAckScheduleEditor
+          rows={data.schedule}
+          debtAmount={Number(data.amountFigures) || 0}
+          manual={data.scheduleManual}
+          onChange={onScheduleChange}
+          onRegenerate={onRegenerateSchedule}
+        />
         <Grid cols={2}>
           {text('creditorIban', t('page.debtAck.f.iban'), { ltr: true })}
           {text('explanationLanguage', t('page.debtAck.f.explanation_language'))}
@@ -231,6 +333,52 @@ export default function DebtAckDataEntry({ data, onChange, employeeNameEn }: Deb
           {date('annexDate', t('page.debtAck.f.annex_date'))}
         </Grid>
       </Section>
+
+      {/* ── بيانات القالب الإنجليزي / الهندي ─────────────────────────────────
+          تظهر عند اختيار قالب أجنبي فقط. قيمها **تخصّ هذا المستند وحده**: لا تُكتب
+          في سجل الموظف ولا تعدّله، وتُحفظ مع المسودّة كبقية حقول المستند. */}
+      {isForeignTemplate && (
+        <Section title={t('page.debtAck.sec_foreign')}>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: '0 0 8px' }}>
+            {t('page.debtAck.foreign_note')}
+          </p>
+          <Grid cols={3}>
+            {FOREIGN_FIELDS.map(({ id, labelKey }) => {
+              const twin = `${id}Latin` as TextFieldId;
+              const label = t(labelKey);
+              const canUseEmployeeNameEn =
+                id === 'debtorFullName' && employeeNameEn && employeeNameEn !== data[twin];
+              return (
+                <div className="field" key={twin}>
+                  <label htmlFor={`eda-${twin}`}>{label}</label>
+                  <input
+                    id={`eda-${twin}`}
+                    title={label}
+                    value={data[twin]}
+                    style={LTR_INPUT}
+                    onChange={(e) => onChange({ [twin]: e.target.value } as Partial<DebtAckData>)}
+                  />
+                  <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                    {t('page.debtAck.foreign_helper')}
+                  </small>
+                  {canUseEmployeeNameEn && (
+                    <button
+                      type="button"
+                      className="btn secondary"
+                      style={{ fontSize: 11, padding: '2px 8px', marginTop: 4 }}
+                      onClick={() =>
+                        onChange({ debtorFullNameLatin: employeeNameEn, debtorSignatoryNameLatin: employeeNameEn })
+                      }
+                    >
+                      {t('page.debtAck.use_english_name')}: {employeeNameEn}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </Grid>
+        </Section>
+      )}
     </div>
   );
 }

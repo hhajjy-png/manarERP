@@ -29,6 +29,8 @@
  */
 import type { CSSProperties, ReactNode } from 'react';
 import { formatDate } from '../../lib/date';
+import { formatNumber } from '../../lib/format/currency';
+import { resolveFieldValue } from './debtAcknowledgmentValues';
 import {
   DATE_PLACEHOLDER,
   type DebtAckContent,
@@ -38,6 +40,7 @@ import {
   type LabelledRow,
   type Seg,
 } from './debtAcknowledgmentModel';
+import type { InstallmentRow } from './debtAcknowledgmentSchedule';
 import { DEBT_ACK_CONTENT_AR } from './content.ar';
 import { DEBT_ACK_CONTENT_EN } from './content.en';
 import { DEBT_ACK_CONTENT_HI } from './content.hi';
@@ -99,6 +102,81 @@ const labelCell: CSSProperties = {
 };
 const valueCell: CSSProperties = { ...cell, fontSize: '9.5pt' };
 
+/**
+ * مضاعف مساحة الكتابة في خانات التوقيع — قرار مالك المنتج: **ضعف** المساحة السابقة.
+ *
+ * ═══ لماذا مضاعف لا ارتفاع ثابت بالمليمتر ═══
+ * ارتفاع ثابت يفترض أن نصّ الخانة سطر واحد دائمًا. وصفوف الشهود والمترجم طويلة، وقد
+ * تلتفّ إلى سطرين في لغة دون أخرى (النصّ الهندي أطول من الإنجليزي، والعربي أقصر) —
+ * فيصبح «الضعف» ضعفًا في لغة وأقلّ منه في أخرى. المضاعف يحفظ النسبة بالضبط مهما التفّ
+ * النصّ ومهما اختلفت اللغة:
+ *
+ *   الارتفاع = (المحتوى × M) + (الحشو العلوي) + (الحشو السفلي × (2M − 1))
+ *            = M × (المحتوى + 2 × الحشو)  =  M × الارتفاع الأصلي
+ *
+ * فـ`M = 1` يعطي الهندسة السابقة حرفًا بحرف (لا شيء يُضاف)، و`M = 2` يضاعفها بالضبط.
+ * وهذا ما يجعل القياس قبل/بعد قابلًا للإثبات: يُقاس الملف نفسه بالقيمتين.
+ *
+ * **الحشو العلوي لا يتغيّر**، فتبقى التسمية («التوقيع والختم:» ، «شاهد أول: …») في
+ * موضعها الرأسي السابق تمامًا، وتنزل المساحة المضافة كلها **تحتها** — وهي مساحة
+ * الكتابة المقصودة. لا يتغيّر عرض الخانة ولا حجم الخط ولا عدد التواقيع ولا ترتيبها.
+ */
+export const SIGNATURE_SPACE_MULTIPLIER = 2;
+
+/** الحشو الرأسي الأصلي لخلايا جدول التوقيعات، بالنقاط. */
+const SIGNATURE_CELL_PAD_PT = 6;
+/** الحشو الرأسي الأصلي لصفوف الشهود والمترجم، بالنقاط. */
+const WITNESS_CELL_PAD_PT = 5;
+/** الحشو الرأسي الأصلي لخلايا الجداول العامة (يشمل سطرَي توقيع الملحق). */
+const DATA_CELL_PAD_PT = 2;
+
+/** أسماء مناطق التوقيع في جدول الشهود، بترتيب صفوف ملفات Word الثلاثة. */
+const WITNESS_AREAS = ['witness-1', 'witness-2', 'interpreter'];
+
+/**
+ * حشو خانة توقيع بعد تطبيق المضاعف. `padPt` هو الحشو الرأسي الأصلي للخانة بالنقاط.
+ *
+ * ═══ ما الذي يُضاعَف بالضبط ═══
+ * **مساحة الكتابة** = صندوق المحتوى + حشوه الرأسي. هذه هي المساحة البيضاء التي يوقّع
+ * فيها الموقّع، وهي التي تتضاعف بالضبط:
+ *
+ *   قبل:  المحتوى + 2P
+ *   بعد:  (المحتوى × M) + P + (2M − 1)·P  =  M × (المحتوى + 2P)
+ *
+ * حدّ الخلية (0.5pt) **خارج** هذا الحساب عمدًا وليس سهوًا: هو خيط شعري تتقاسمه الخلية
+ * مع جارتها (`border-collapse`)، فلا يُعدّ مساحة كتابة، وتغليظه ممنوع لأنه يغيّر شكل
+ * الجدول. لذلك يبقى الحدّ كما هو، ويقيس مقياسُ الهندسة النسبةَ على صندوق المحتوى
+ * والحشو — فيخرج الضعف **بالضبط** (2.00) في اللغات الثلاث وفي كل خانة.
+ */
+function signaturePadding(padPt: number): CSSProperties {
+  return {
+    paddingTop: `${padPt}pt`,
+    paddingBottom: `${padPt * (2 * SIGNATURE_SPACE_MULTIPLIER - 1)}pt`,
+  };
+}
+
+/**
+ * محتوى خانة توقيع: النصّ كما هو، يليه (M − 1) نسخة **غير مرئية** منه.
+ *
+ * النسخة المخفيّة تحجز ارتفاع سطورها بالضبط — بنفس الالتفاف وبنفس الخط — ولا تُرسم:
+ * `visibility: hidden` يمنع الطلاء، فلا يظهر حرف على الورق ولا يدخل الـPDF أي محرف
+ * منها (تحقّق منه قياسُ الحبر، الذي لا يرى شيئًا في المساحة المضافة). و`aria-hidden`
+ * يمنع قارئ الشاشة من تكرارها.
+ */
+function SignatureArea({ area, children }: { area: string; children: ReactNode }) {
+  const spacers = Array.from({ length: SIGNATURE_SPACE_MULTIPLIER - 1 }, (_unused, i) => i);
+  return (
+    <span data-eda-sig={area} className="eda-sig">
+      <span className="eda-sig-label">{children}</span>
+      {spacers.map((i) => (
+        <span key={`sp${i}`} className="eda-sig-space" aria-hidden="true">
+          {children}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function segKey(i: number) {
   return `s${i}`;
 }
@@ -117,7 +195,9 @@ function renderSegs(segs: Seg[], data: DebtAckData, lang: DebtAckLang): ReactNod
   return segs.map((seg, i) => {
     const key = segKey(i);
     if (typeof seg === 'string') return <span key={key}>{seg}</span>;
-    if ('f' in seg) return slot(data[seg.f], seg.p, LTR_FIELDS.has(seg.f), key);
+    // القيمة تُحلّ عبر `resolveFieldValue` وحدها — نفس الدالة التي يفحصها الحارس
+    // اللغوي، فما يُفحص هو ما يُطبع حرفًا بحرف (وأرقامه غربية دائمًا).
+    if ('f' in seg) return slot(resolveFieldValue(data, seg.f, lang), seg.p, LTR_FIELDS.has(seg.f), key);
     if ('d' in seg) {
       const iso = data[seg.d];
       return slot(iso ? formatDate(iso) : '', DATE_PLACEHOLDER, true, key);
@@ -125,7 +205,7 @@ function renderSegs(segs: Seg[], data: DebtAckData, lang: DebtAckLang): ReactNod
     if ('w' in seg) {
       const suffix = lang === 'ar' ? 'Ar' : lang === 'en' ? 'En' : 'Hi';
       const id = `${seg.w === 'amount' ? 'amountWords' : 'balanceWords'}${suffix}` as FieldId;
-      return slot(data[id], '.'.repeat(84), false, key);
+      return slot(resolveFieldValue(data, id, lang), '.'.repeat(84), false, key);
     }
     return (
       <span key={key} className="eda-cb">
@@ -135,29 +215,60 @@ function renderSegs(segs: Seg[], data: DebtAckData, lang: DebtAckLang): ReactNod
   });
 }
 
+/**
+ * نصّ خلية واحدة في صفّ مولَّد من جدول السداد.
+ *
+ * المبالغ عبر `formatNumber` (مُنسِّق المشروع: أرقام غربية، ثلاث خانات، بلا لغة)،
+ * واللاحقة (` د.ك` / ` KWD`) من حزمة المحتوى — أي من ملف Word نفسه لا من اللغة.
+ * التواريخ عبر `formatDate` (DD/MM/YYYY) كشكل الأصل. خانة الملاحظات تبقى فراغ الأصل:
+ * هي لرقم الإيصال الذي يُكتب يوم السداد الفعلي، لا لبيانٍ مولَّد.
+ */
+function annexCellText(content: DebtAckContent, row: InstallmentRow, cellIndex: number): string {
+  const role = content.annexCellRoles[cellIndex];
+  const money = (v: number) => `${formatNumber(v)}${content.annexAmountSuffix}`;
+  switch (role) {
+    case 'dueDate':
+      return row.dueDate ? formatDate(row.dueDate) : DATE_PLACEHOLDER;
+    case 'amount':
+      return money(row.amount);
+    case 'balance':
+      return money(row.remainingBalance);
+    default:
+      return content.annexRowCells[cellIndex];
+  }
+}
+
 function DataTable({
   rows,
   content,
   data,
   labelWidth,
+  areaPrefix,
 }: {
   rows: LabelledRow[];
   content: DebtAckContent;
   data: DebtAckData;
   labelWidth: string;
+  /** بادئة اسم منطقة التوقيع للصفوف المعلَّمة `signature` — للقياس فقط. */
+  areaPrefix?: string;
 }) {
   return (
     <table className="eda-tbl">
       <tbody>
-        {rows.map((row) => {
+        {rows.map((row, ri) => {
           const labelTd = (
             <td key="l" style={{ ...labelCell, width: labelWidth }}>
               {row.label}
             </td>
           );
+          const body = renderSegs(row.segs, data, content.lang);
           const valueTd = (
-            <td key="v" style={valueCell}>
-              {renderSegs(row.segs, data, content.lang)}
+            <td key="v" style={row.signature ? { ...valueCell, ...signaturePadding(DATA_CELL_PAD_PT) } : valueCell}>
+              {row.signature ? (
+                <SignatureArea area={`${areaPrefix ?? 'row'}-${ri + 1}`}>{body}</SignatureArea>
+              ) : (
+                body
+              )}
             </td>
           );
           return (
@@ -237,7 +348,7 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         <Heading>{c.s6Heading}</Heading>
         <p className="eda-note">{c.signaturesNote}</p>
 
-        <table className="eda-tbl">
+        <table className="eda-tbl eda-sig-block">
           <tbody>
             <tr>
               {c.signatureHeader.map((h) => (
@@ -246,25 +357,42 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
                 </td>
               ))}
             </tr>
-            {c.signatureRows.map((row, ri) => (
-              <tr key={`sig${ri}`}>
-                {row.map((cellSegs, ci) => (
-                  <td key={`c${ci}`} style={{ ...valueCell, paddingTop: '6pt', paddingBottom: '6pt' }}>
-                    {renderSegs(cellSegs, data, c.lang)}
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {c.signatureRows.map((row, ri) => {
+              const isSignatureRow = ri === c.signatureRowIndex;
+              return (
+                <tr key={`sig${ri}`}>
+                  {row.map((cellSegs, ci) => {
+                    const body = renderSegs(cellSegs, data, c.lang);
+                    const area = ci === 0 ? 'creditor-signature' : 'debtor-signature';
+                    return (
+                      <td
+                        key={`c${ci}`}
+                        style={{
+                          ...valueCell,
+                          ...(isSignatureRow
+                            ? signaturePadding(SIGNATURE_CELL_PAD_PT)
+                            : { paddingTop: `${SIGNATURE_CELL_PAD_PT}pt`, paddingBottom: `${SIGNATURE_CELL_PAD_PT}pt` }),
+                        }}
+                      >
+                        {isSignatureRow ? <SignatureArea area={area}>{body}</SignatureArea> : body}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
         <p className="eda-subhead">{c.witnessesHeading}</p>
-        <table className="eda-tbl">
+        <table className="eda-tbl eda-sig-block">
           <tbody>
             {c.witnessRows.map((row, ri) => (
               <tr key={`w${ri}`}>
-                <td style={{ ...valueCell, paddingTop: '5pt', paddingBottom: '5pt' }}>
-                  {renderSegs(row, data, c.lang)}
+                <td style={{ ...valueCell, ...signaturePadding(WITNESS_CELL_PAD_PT) }}>
+                  <SignatureArea area={WITNESS_AREAS[ri] ?? `witness-${ri + 1}`}>
+                    {renderSegs(row, data, c.lang)}
+                  </SignatureArea>
                 </td>
               </tr>
             ))}
@@ -295,15 +423,18 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
                 </td>
               ))}
             </tr>
-            {annexNumbers.map((n) => {
+            {annexNumbers.map((n, rowIndex) => {
+              // صفوف الجدول المولَّد تُملأ بالحساب؛ ما زاد عن عدد الأقساط يبقى صفًّا
+              // فارغًا بنقاط الأصل حرفيًا («وتُشطب الصفوف غير المستخدمة» كما يقول الملحق).
+              const row = data.schedule[rowIndex];
               const numberCell = (
                 <td key="n" style={{ ...cell, fontSize: '8.5pt' }} className="eda-val--ltr">
                   {n}
                 </td>
               );
-              const others = c.annexRowCells.map((text, i) => (
-                <td key={`c${i}`} style={{ ...cell, fontSize: '8.5pt' }}>
-                  {text}
+              const others = c.annexRowCells.map((blank, i) => (
+                <td key={`c${i}`} style={{ ...cell, fontSize: '8.5pt' }} className={row ? 'eda-val--ltr' : undefined}>
+                  {row ? annexCellText(c, row, i) : blank}
                 </td>
               ));
               return <tr key={n}>{c.annexNumberFirst ? [numberCell, ...others] : [...others, numberCell]}</tr>;
@@ -312,7 +443,7 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         </table>
         <p className="eda-annex-totals">{renderSegs(c.annexTotals, data, c.lang)}</p>
         <p className="eda-annex-note">{c.annexNote}</p>
-        <DataTable rows={c.annexSignRows} content={c} data={data} labelWidth="26%" />
+        <DataTable rows={c.annexSignRows} content={c} data={data} labelWidth="26%" areaPrefix="annex-signature" />
       </section>
 
       {/* ── القسم 4 (فاصل DOCX صريح): تعليمات مهمة + المصادر القانونية + التنبيه ────────── */}
@@ -382,6 +513,12 @@ const TEMPLATE_CSS = `
 .eda-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0 0 4pt; }
 .eda-tbl td { word-wrap: break-word; overflow-wrap: anywhere; line-height: 1.15; }
 .eda-tbl--annex { table-layout: auto; }
+.eda-sig { display: block; }
+/* التسمية في أعلى الخانة كما كانت، والمساحة المضافة تحتها.
+   eda-sig-space نسخة غير مرئية من نفس النصّ: تحجز ارتفاع سطوره بالضبط — بنفس
+   الالتفاف وبنفس الخط — ولا تُطلى، فلا يصل منها حرف إلى الورق ولا إلى الـPDF. */
+.eda-sig-label { display: block; }
+.eda-sig-space { display: block; visibility: hidden; }
 .eda-val { font-weight: 700; color: #0f172a; }
 .eda-val--ltr { direction: ltr; unicode-bidi: isolate; }
 .eda-cb { font-family: "Cairo", Arial, sans-serif; }
@@ -442,6 +579,14 @@ const TEMPLATE_CSS = `
   }
   .eda-clause,
   .eda-tbl tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* كتلة التوقيعات لا تُشطر بين صفحتين: توقيعٌ في صفحة واسمُ صاحبه في أخرى يفسد
+     المستند. القاعدة على **الجدول** لا على القسم كله، فلو لم يتّسع لها ما بقي من
+     الصفحة انتقلت كاملةً إلى التالية بدل أن تُقصّ — ولا تُنشئ صفحة فارغة لأن ما
+     بعدها يواصل التدفّق طبيعيًا. يؤكّده قياس الهندسة (عدد الصفحات وسلامة الأحزمة). */
+  .eda-sig-block {
     break-inside: avoid;
     page-break-inside: avoid;
   }

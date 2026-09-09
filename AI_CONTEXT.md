@@ -2754,7 +2754,9 @@ Chromium PDF, and backend HTML reports.
 ## Current Pending Work
 
 - **Employee Debt Acknowledgment Administrative Form v1 — `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`.**
-  Branch `feature/employee-debt-acknowledgment-form-v1`, commit `4842aaf9`, off production `a3c5b18e`.
+  Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
+  (implementation), `bdb1689e` (docs), `975402e4` (test typing) and `REFINEMENT_COMMIT` (functional
+  refinement).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2766,7 +2768,19 @@ Chromium PDF, and backend HTML reports.
   then measures per-page ink — pass for all three languages. **Open decision for the Product Owner: the
   document prints as 5 pages per language, because the source DOCX's own first section does not fit one A4
   at the original font sizes (~1.6 pages); no page break was invented, no font shrunk, no text shortened.**
-  Full report, field map and 8 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`.
+  **Functional refinement (same branch, before the visual review):** instalments are computed with the
+  project's own `roundMoney`/`sumMoney`, the rounding remainder lands on the last instalment only, and
+  `sum(instalments) === debtAmount` exactly; the repayment schedule is generated monthly while keeping the
+  preferred day-of-month (31/01 → 28/02 → **31**/03, and 29/02 in a leap year), with the balance computed
+  rather than entered and a 12-instalment cap **derived** from the annex row count in the DOCX; the
+  commercial registration `509001` and unified number `554731` are fixed, read-only, sourced from one
+  constants file, with **no new global company settings**; and the English/Hindi templates can no longer
+  carry Arabic — fifteen Latin twin fields with no fallback to Arabic, a foreign-template entry section,
+  and a validator covering every Arabic Unicode block (Devanagari accepted) that blocks **preview, print
+  and PDF export** alike. Signature writing space was doubled across all seven signature areas in all
+  three templates (measured ratio 2.00 in 21 cases). Page count is unchanged at 5 per language.
+  The one shared-file change is `FormLayout.exportIntercept`, an opt-in sibling of `printIntercept`.
+  Full report, field map and 13 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`.
 
 - **`scripts/prepare-backend-deps.js` ships whatever Prisma client the repo root happens to hold** — it
   overlays `node_modules/.prisma` (repo root) into the packaged backend, but `prisma generate` resolves to

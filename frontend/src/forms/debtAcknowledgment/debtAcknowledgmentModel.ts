@@ -17,6 +17,8 @@
  * مربّع اختيار). لم يُضف حقل لأنه «منطقي».
  */
 
+import type { InstallmentRow } from './debtAcknowledgmentSchedule';
+
 /** لغات القالب الثلاث. `ar` وحدها RTL؛ الهندية LTR كما في ملف DOCX الأصلي. */
 export type DebtAckLang = 'ar' | 'en' | 'hi';
 
@@ -79,9 +81,67 @@ export const TEXT_FIELD_IDS = [
   'interpreterName',
   'interpreterLanguage',
   'interpreterCivilId',
+  // ── نظائر لاتينية للقالبين الإنجليزي والهندي ─────────────────────────────────
+  // ليست حقولًا جديدة في المستند: هي **قيمة أخرى لنفس الفراغ** حين يُطبع بلغة أجنبية.
+  // انظر `LOCALIZABLE_FIELD_IDS` أدناه للسبب الكامل.
+  'creditorNameLatin',
+  'creditorRepresentativeLatin',
+  'creditorAddressLatin',
+  'debtorFullNameLatin',
+  'debtorNationalityLatin',
+  'debtorJobTitleLatin',
+  'debtorAddressKuwaitLatin',
+  'debtorContactLatin',
+  'explanationLanguageLatin',
+  'creditorSignatoryNameLatin',
+  'debtorSignatoryNameLatin',
+  'witness1NameLatin',
+  'witness2NameLatin',
+  'interpreterNameLatin',
+  'interpreterLanguageLatin',
 ] as const;
 
 export type TextFieldId = (typeof TEXT_FIELD_IDS)[number];
+
+/**
+ * الحقول التي تختلف قيمتها باختلاف لغة القالب — لكلٍّ منها نظير لاتيني `<id>Latin`.
+ *
+ * ═══ لماذا نظير بدل قيمة واحدة ═══
+ * القالبان الإنجليزي والهندي يُسلَّمان لعامل لا يقرأ العربية، فطباعة اسمه ومهنته
+ * وجنسيته وعنوانه بالعربية داخلهما تجعل المستند غير مفهوم لمن يوقّعه. ولا يملك سجل
+ * الموظف مقابلًا إنجليزيًا لهذه الحقول (عدا `fullNameEn` وحده)، فلا مصدر تلقائي لها.
+ *
+ * القاعدة الصارمة: **لا سقوط إلى العربية**. النظير اللاتيني الفارغ يطبع فراغ النموذج
+ * (سلسلة النقاط) كخانة غير معبّأة — ولا يُنسخ النصّ العربي مكانه ولا يُترجَم ولا
+ * يُحوَّل حرفيًا. الحقول التي ليست هنا (الأرقام والهويات والتواريخ والمبالغ) قيمة
+ * واحدة تخدم القوالب الثلاثة.
+ */
+export const LOCALIZABLE_FIELD_IDS = [
+  'creditorName',
+  'creditorRepresentative',
+  'creditorAddress',
+  'debtorFullName',
+  'debtorNationality',
+  'debtorJobTitle',
+  'debtorAddressKuwait',
+  'debtorContact',
+  'explanationLanguage',
+  'creditorSignatoryName',
+  'debtorSignatoryName',
+  'witness1Name',
+  'witness2Name',
+  'interpreterName',
+  'interpreterLanguage',
+] as const;
+
+export type LocalizableFieldId = (typeof LOCALIZABLE_FIELD_IDS)[number];
+
+const LOCALIZABLE_SET: ReadonlySet<string> = new Set(LOCALIZABLE_FIELD_IDS);
+
+/** معرّف النظير اللاتيني لحقل، أو `null` إن كانت قيمته واحدة في اللغات الثلاث. */
+export function latinTwinOf(id: FieldId): TextFieldId | null {
+  return LOCALIZABLE_SET.has(id) ? (`${id}Latin` as TextFieldId) : null;
+}
 
 /** حقول التاريخ — تُدخَل بصيغة `YYYY-MM-DD` وتُطبع `DD/MM/YYYY` كشكل القالب. */
 export const DATE_FIELD_IDS = [
@@ -101,12 +161,24 @@ export type FieldId = TextFieldId | DateFieldId;
 export interface DebtAckData extends Record<FieldId, string> {
   /** لا يُعدّ حقلًا نصيًا: يقرّر أي مربّع من الثلاثة يُطبع مؤشَّرًا (☑) في البند 1. */
   disbursementMethod: DisbursementMethod;
+  /**
+   * جدول السداد المطبوع في «ملحق (أ)» — **مصدر واحد تُصيّره القوالب الثلاثة**.
+   * يُولَّد من أصل الدين وعدد الأقساط وتاريخ أول قسط، ويبقى قابلًا للتعديل اليدوي.
+   */
+  schedule: InstallmentRow[];
+  /**
+   * هل مسّ المستخدم الجدول بيده؟ حين تكون `true` لا يُعاد التوليد تلقائيًا عند تغيير
+   * أصل الدين أو العدد أو تاريخ أول قسط — يُسأل أولًا، فلا يُمحى عمل يدوي بصمت.
+   */
+  scheduleManual: boolean;
 }
 
 export const EMPTY_DEBT_ACK_DATA: DebtAckData = {
   ...(Object.fromEntries(TEXT_FIELD_IDS.map((k) => [k, ''])) as Record<TextFieldId, string>),
   ...(Object.fromEntries(DATE_FIELD_IDS.map((k) => [k, ''])) as Record<DateFieldId, string>),
   disbursementMethod: '',
+  schedule: [],
+  scheduleManual: false,
 };
 
 /**
@@ -130,6 +202,12 @@ export const DATE_PLACEHOLDER = '....../....../..........';
 export interface LabelledRow {
   label: string;
   segs: Seg[];
+  /**
+   * هذا الصفّ **خانة توقيع**: سطر يوقّع عليه طرفٌ بيده، لا حقل بيانات. يُعطى مساحة
+   * الكتابة الموسّعة نفسها التي تُعطى لخلايا جدول التوقيعات. يُعلَن في حزمة المحتوى
+   * لأن الأمر يخصّ بنية الملف الأصلي (أي صفوف الملحق سطور توقيع)، لا رقم صفّ يُخمَّن.
+   */
+  signature?: boolean;
 }
 
 /** بند مرقّم: مقدّمة عريضة ملوّنة ثم متن الفقرة — كما في ملفات Word. */
@@ -137,6 +215,12 @@ export interface Clause {
   lead: string;
   segs: Seg[];
 }
+
+/**
+ * دور خلية في صفّ «ملحق (أ) — جدول السداد»:
+ * تاريخ الاستحقاق · المبلغ المسدد · الرصيد بعد السداد · ملاحظات/رقم الإيصال.
+ */
+export type AnnexCellRole = 'dueDate' | 'amount' | 'balance' | 'notes';
 
 /** صف في جدول «تعليمات مهمة قبل التوقيع والاستخدام». */
 export interface GuidanceRow {
@@ -185,6 +269,12 @@ export interface DebtAckContent {
   signatureHeader: [string, string];
   /** صفوف جدول التوقيعات — خليتان لكل صف، منقولتان حرفيًا. */
   signatureRows: [Seg[], Seg[]][];
+  /**
+   * فهرس **صفّ التوقيع** داخل `signatureRows` — الصفّ الذي يوقّع عليه الطرفان بيدهما
+   * («التوقيع والختم:» / «التوقيع:»)، تمييزًا له عن صفّ الاسم وصفّ التاريخ. هو وحده
+   * الذي يأخذ مساحة الكتابة الموسّعة. يُعلَن هنا لأن ترتيب الصفوف خاصية للملف الأصلي.
+   */
+  signatureRowIndex: number;
   witnessesHeading: string;
   /** صفوف الشهود/المترجم — خلية واحدة بعرض الجدول لكل صف. */
   witnessRows: Seg[][];
@@ -192,6 +282,18 @@ export interface DebtAckContent {
   annexTitle: string;
   /** عناوين أعمدة جدول السداد بترتيب الملف الأصلي لهذه اللغة. */
   annexColumns: string[];
+  /**
+   * دور كل خلية في صفّ جدول السداد، **عدا خلية رقم القسط**، بترتيب الملف الأصلي لهذه
+   * اللغة. العربي يعكس ترتيب الأعمدة (شبكة RTL) فتختلف دلالة الفهرس بين اللغات —
+   * فيُعلَن الدور صراحةً بدل استنتاجه من الفهرس.
+   */
+  annexCellRoles: AnnexCellRole[];
+  /**
+   * لاحقة العملة في خلايا المبالغ داخل جدول السداد، كما يكتبها ملف Word نفسه:
+   * ` د.ك` في العربي و` KWD` في الإنجليزي والهندي. تُقرأ من هنا بدل استنتاجها من
+   * اللغة، فتبقى مطابقة للأصل حرفيًا (يحرسها اختبار الأمانة مقابل `annexRowCells`).
+   */
+  annexAmountSuffix: string;
   /** هل عمود «رقم القسط» أولًا (الإنجليزي/الهندي) أم أخيرًا (العربي). */
   annexNumberFirst: boolean;
   /** خلايا الصف الفارغ عدا خلية رقم القسط — بترتيب الملف الأصلي. */

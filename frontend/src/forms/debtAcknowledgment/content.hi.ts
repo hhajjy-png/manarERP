@@ -191,6 +191,7 @@ export const DEBT_ACK_CONTENT_HI: DebtAckContent = {
   signaturesNote:
     'नीचे हस्ताक्षर करने वाले पुष्टि करते हैं कि यह हस्ताक्षर-पृष्ठ कर्मचारी ऋण की प्राप्ति एवं ऋण-स्वीकृति घोषणा का अभिन्न भाग है और घोषणा को पढ़ने, समझने तथा सभी महत्वपूर्ण विवरण भरने के बाद हस्ताक्षर किए गए हैं।',
   signatureHeader: ['ऋणदाता / कानूनी प्रतिनिधि', 'ऋणी / कर्मचारी'],
+  signatureRowIndex: 1,
   signatureRows: [
     [
       ['नाम: ', { f: 'creditorSignatoryName', p: d(48) }],
@@ -236,6 +237,8 @@ export const DEBT_ACK_CONTENT_HI: DebtAckContent = {
   annexColumns: ['किस्त नं.', 'देय तारीख', 'भुगतान राशि', 'भुगतान के बाद शेष', 'टिप्पणी / रसीद नं.'],
   annexNumberFirst: true,
   annexRowCells: ['....../....../..........', `${d(16)} KWD`, `${d(16)} KWD`, d(32)],
+  annexCellRoles: ['dueDate', 'amount', 'balance', 'notes'],
+  annexAmountSuffix: ' KWD',
   annexRowCount: 12,
   annexTotals: [
     'मूल ऋण: ',
@@ -247,8 +250,8 @@ export const DEBT_ACK_CONTENT_HI: DebtAckContent = {
   ],
   annexNote: 'दोनों पक्ष इस परिशिष्ट पर हस्ताक्षर करें। अप्रयुक्त पंक्तियों को स्पष्ट रूप से काट दें।',
   annexSignRows: [
-    { label: 'ऋणदाता / कानूनी प्रतिनिधि', segs: [d(96)] },
-    { label: 'ऋणी / कर्मचारी', segs: [d(96)] },
+    { label: 'ऋणदाता / कानूनी प्रतिनिधि', segs: [d(96)], signature: true },
+    { label: 'ऋणी / कर्मचारी', segs: [d(96)], signature: true },
     { label: 'तारीख', segs: [{ d: 'annexDate' }] },
   ],
 

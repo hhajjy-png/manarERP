@@ -187,6 +187,7 @@ export const DEBT_ACK_CONTENT_AR: DebtAckContent = {
   signaturesNote:
     'يؤكد الموقعون أدناه أن صفحة التوقيعات هذه جزء لا يتجزأ من إقرار الدين واستلام سلفة الموظف، وأن التوقيع تم بعد قراءة الإقرار وفهمه واستكمال بياناته الجوهرية.',
   signatureHeader: ['الدائن/الممثل القانوني', 'المدين/الموظف'],
+  signatureRowIndex: 1,
   signatureRows: [
     [
       ['الاسم: ', { f: 'creditorSignatoryName', p: d(48) }],
@@ -232,6 +233,8 @@ export const DEBT_ACK_CONTENT_AR: DebtAckContent = {
   annexColumns: ['ملاحظات/رقم الإيصال', 'الرصيد بعد السداد', 'المبلغ المسدد', 'تاريخ الاستحقاق', 'رقم القسط'],
   annexNumberFirst: false,
   annexRowCells: [d(32), `${d(16)} د.ك`, `${d(16)} د.ك`, '....../....../..........'],
+  annexCellRoles: ['notes', 'balance', 'amount', 'dueDate'],
+  annexAmountSuffix: ' د.ك',
   annexRowCount: 12,
   annexTotals: [
     'إجمالي أصل الدين: ',
@@ -243,8 +246,8 @@ export const DEBT_ACK_CONTENT_AR: DebtAckContent = {
   ],
   annexNote: 'يوقّع الطرفان على هذا الملحق، وتُشطب الصفوف غير المستخدمة بخط واضح.',
   annexSignRows: [
-    { label: 'الدائن/الممثل القانوني', segs: [d(96)] },
-    { label: 'المدين/الموظف', segs: [d(96)] },
+    { label: 'الدائن/الممثل القانوني', segs: [d(96)], signature: true },
+    { label: 'المدين/الموظف', segs: [d(96)], signature: true },
     { label: 'التاريخ', segs: [{ d: 'annexDate' }] },
   ],
 
