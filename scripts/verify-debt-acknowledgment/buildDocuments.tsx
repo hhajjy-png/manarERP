@@ -38,10 +38,12 @@ import {
   type DebtAckLang,
 } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentModel';
 import { regenerateSchedule } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentDocument';
+import { annexPageCount } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentSchedule';
 import { withFixedCreditorData } from '../../frontend/src/forms/debtAcknowledgment/debtAcknowledgmentAutofill';
 import {
   CREDITOR_NAME_AR,
   CREDITOR_NAME_LATIN,
+  ROWS_PER_ANNEX_PAGE,
 } from '../../frontend/src/forms/debtAcknowledgment/constants';
 import { DOC_FONT_STACK, DOC_FONT_STACK_EN_HI } from '../../frontend/src/styles/fontRegistry';
 
@@ -66,8 +68,7 @@ const profile = PRINT_PROFILES[PROFILE_ID];
  * النظائر اللاتينية معبّأة كي يخرج القالبان الإنجليزي والهندي **بلا حرف عربي واحد**،
  * وهو ما يفحصه المقياس آليًا على الـPDF المُنتَج لا بالنظر.
  */
-const SAMPLE: DebtAckData = regenerateSchedule(
-  withFixedCreditorData({
+const SAMPLE_BASE: DebtAckData = withFixedCreditorData({
     ...EMPTY_DEBT_ACK_DATA,
 
     // ── القالب العربي ──────────────────────────────────────────────────────
@@ -121,15 +122,28 @@ const SAMPLE: DebtAckData = regenerateSchedule(
     balanceWordsHi: 'एक हज़ार',
     transferNo: 'TRF-000000',
     creditorIban: 'KW00XXXX0000000000000000000000',
-    installmentsCount: '5',
     receiptDate: '2026-09-01',
     firstInstallmentDate: '2026-10-15',
     creditorSignDate: '2026-09-01',
     debtorSignDate: '2026-09-01',
     annexDate: '2026-09-01',
-    disbursementMethod: 'transfer',
-  }),
-);
+  disbursementMethod: 'transfer',
+});
+
+/**
+ * سيناريوهات المراجعة: **عدد الأقساط وحده** يتغيّر بينها، وكل ما عداه ثابت — فأي فرق
+ * في المخرَج سببه العدد لا شيء آخر.
+ *
+ * ولماذا هذه الثلاثة: **5** مثال مالك المنتج الأصلي، وصفحةُ ملحق واحدة لكل نسخة؛
+ * **13** أوّل عدد يتجاوز الصفحة الواحدة (12 + 1)، فيُظهر صفحة ثانية فيها قسط واحد
+ * وأحد عشر صفًّا فارغًا؛ **25** يتجاوز صفحتين (24 + 1)، فيُثبت أن التقسيم يتكرّر ولا
+ * يقف عند صفحتين، ويُخرج مجموعتَي ملحق من ثلاث صفحات لكلٍّ منهما.
+ */
+const SCENARIOS = [5, 13, 25];
+
+/** نفس البيانات، وعددُ أقساطٍ واحد يتغيّر — والجدول يُشتقّ منه بالمولّد نفسه. */
+const sampleFor = (installments: number): DebtAckData =>
+  regenerateSchedule({ ...SAMPLE_BASE, installmentsCount: String(installments) });
 
 function fontFace(family: string, file: string, weight: number, format: string): string {
   const url = pathToFileURL(join(FONTS, file)).href;
@@ -171,7 +185,7 @@ html, body { margin: 0 !important; padding: 0 !important; background: #fff !impo
 }
 `;
 
-function buildDocument(lang: DebtAckLang): string {
+function buildDocument(lang: DebtAckLang, data: DebtAckData): string {
   const shellLang: 'ar' | 'en' = lang === 'ar' ? 'ar' : 'en';
   const fontStack = lang === 'hi' ? DOC_FONT_STACK_EN_HI : DOC_FONT_STACK;
 
@@ -188,7 +202,7 @@ function buildDocument(lang: DebtAckLang): string {
         titleFontSize: 22,
         qrData: { formType: 'employee-debt-acknowledgment', formNumber: '', entityName: '' },
       },
-      createElement(DebtAcknowledgmentTemplate, { lang, data: SAMPLE }),
+      createElement(DebtAcknowledgmentTemplate, { lang, data }),
     ),
   );
 
@@ -212,19 +226,34 @@ function buildDocument(lang: DebtAckLang): string {
 mkdirSync(OUT, { recursive: true });
 
 const langs: DebtAckLang[] = ['ar', 'en', 'hi'];
-const manifest = langs.map((lang) => {
-  const file = join(OUT, `debt-acknowledgment-${lang}.html`);
-  writeFileSync(file, buildDocument(lang), 'utf-8');
-  // نصّان مرجعيان يقرؤهما المقياس: عنوان الملحق (يجب أن يظهر مرتين في المستند)
-  // وعنوان التعليمات (يجب ألّا يظهر فيه إطلاقًا — انتقل إلى حوار على الشاشة).
-  const content = DEBT_ACK_CONTENT[lang];
-  return {
-    lang,
-    html: file,
-    bytes: readFileSync(file).length,
-    annexTitle: content.annexTitle,
-    guidanceTitle: content.guidanceTitle,
-  };
+const manifest = SCENARIOS.flatMap((installments) => {
+  const data = sampleFor(installments);
+  // عدد الأقساط المولَّد فعلًا، لا المطلوب: لو انكسر المولّد يومًا لظهر الفرق هنا بدل
+  // أن يمرّ المقياس على مستندٍ ينقصه نصف جدوله.
+  const generatedRows = data.schedule.length;
+  const annexPagesPerCopy = annexPageCount(generatedRows, ROWS_PER_ANNEX_PAGE);
+  const id = `i${String(installments).padStart(2, '0')}`;
+
+  return langs.map((lang) => {
+    const file = join(OUT, `debt-acknowledgment-${id}-${lang}.html`);
+    writeFileSync(file, buildDocument(lang, data), 'utf-8');
+    // نصّان مرجعيان يقرؤهما المقياس: عنوان الملحق (يجب أن يظهر مرة لكل صفحة ملحق في
+    // كل نسخة) وعنوان التعليمات (يجب ألّا يظهر إطلاقًا — انتقل إلى حوار على الشاشة).
+    const content = DEBT_ACK_CONTENT[lang];
+    return {
+      scenario: id,
+      installments,
+      generatedRows,
+      annexPagesPerCopy,
+      // صفحتا المستند + مجموعتا ملحق. الصيغة **متوقَّع** يُقارَن بالمقيس، لا بديل عنه.
+      expectedPages: 2 + annexPagesPerCopy * 2,
+      lang,
+      html: file,
+      bytes: readFileSync(file).length,
+      annexTitle: content.annexTitle,
+      guidanceTitle: content.guidanceTitle,
+    };
+  });
 });
 
 writeFileSync(
@@ -234,6 +263,8 @@ writeFileSync(
       profileId: PROFILE_ID,
       margins: profile.margins,
       page: profile.page,
+      rowsPerAnnexPage: ROWS_PER_ANNEX_PAGE,
+      scenarios: SCENARIOS,
       generatedAt: new Date().toISOString(),
       documents: manifest,
     },
@@ -247,5 +278,8 @@ writeFileSync(
 console.log(`[debt-ack] wrote ${manifest.length} documents to ${OUT}`);
 for (const m of manifest) {
   // eslint-disable-next-line no-console
-  console.log(`  ${m.lang}: ${m.html} (${m.bytes} bytes)`);
+  console.log(
+    `  ${m.scenario}/${m.lang}: ${m.installments} instalments -> ${m.generatedRows} rows, ` +
+      `${m.annexPagesPerCopy} annex page(s) per copy, ${m.expectedPages} pages expected`,
+  );
 }

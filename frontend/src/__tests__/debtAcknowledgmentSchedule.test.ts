@@ -11,14 +11,17 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  annexPageCount,
   buildInstallmentDates,
   buildInstallmentSchedule,
   calculateInstallmentAmounts,
+  paginateInstallmentSchedule,
   recalculateBalances,
   scheduleTotal,
   validateSchedule,
 } from '../forms/debtAcknowledgment/debtAcknowledgmentSchedule';
-import { MAX_INSTALLMENTS } from '../forms/debtAcknowledgment/constants';
+import { MAX_INSTALLMENTS, ROWS_PER_ANNEX_PAGE } from '../forms/debtAcknowledgment/constants';
+import { sumMoney } from '../lib/money';
 import { DEBT_ACK_CONTENT_AR } from '../forms/debtAcknowledgment/content.ar';
 import { DEBT_ACK_CONTENT_EN } from '../forms/debtAcknowledgment/content.en';
 import { DEBT_ACK_CONTENT_HI } from '../forms/debtAcknowledgment/content.hi';
@@ -201,11 +204,168 @@ describe('التحقق من الجدول', () => {
   });
 });
 
-describe('سعة ملحق السداد مشتقّة من ملفات Word لا مكتوبة', () => {
-  it('الحدّ الأقصى يساوي عدد صفوف الملحق في الحزم الثلاث', () => {
-    expect(MAX_INSTALLMENTS).toBe(12);
-    expect(DEBT_ACK_CONTENT_AR.annexRowCount).toBe(MAX_INSTALLMENTS);
-    expect(DEBT_ACK_CONTENT_EN.annexRowCount).toBe(MAX_INSTALLMENTS);
-    expect(DEBT_ACK_CONTENT_HI.annexRowCount).toBe(MAX_INSTALLMENTS);
+describe('سعة صفحة الملحق مشتقّة من ملفات Word لا مكتوبة', () => {
+  it('عدد صفوف الصفحة الواحدة يساوي عدد صفوف الملحق في الحزم الثلاث', () => {
+    expect(ROWS_PER_ANNEX_PAGE).toBe(12);
+    expect(DEBT_ACK_CONTENT_AR.annexRowCount).toBe(ROWS_PER_ANNEX_PAGE);
+    expect(DEBT_ACK_CONTENT_EN.annexRowCount).toBe(ROWS_PER_ANNEX_PAGE);
+    expect(DEBT_ACK_CONTENT_HI.annexRowCount).toBe(ROWS_PER_ANNEX_PAGE);
+  });
+
+  /**
+   * الفصل الذي طلبه مالك المنتج: عدد صفوف **الصفحة** لا يحدّ عدد **الأقساط**.
+   *
+   * كان `MAX_INSTALLMENTS` يساوي `annexRowCount` حرفيًا، فصار قيدُ تخطيطِ ورقةٍ قيدَ
+   * عمل: من أراد ثلاثة عشر قسطًا مُنع لأن الورقة تتّسع لاثني عشر صفًّا. صارا رقمين
+   * مستقلَّين، وهذا الاختبار يمنع عودتهما إلى الالتصاق.
+   */
+  it('الحدّ الأقصى للأقساط **منفصل** عن سعة الصفحة ولا يساويها', () => {
+    expect(MAX_INSTALLMENTS).not.toBe(ROWS_PER_ANNEX_PAGE);
+    expect(MAX_INSTALLMENTS).toBeGreaterThan(ROWS_PER_ANNEX_PAGE);
+    // سياجٌ تقنيّ حول رقمٍ يُدخله إنسان: عشر سنوات من الأقساط الشهرية.
+    expect(MAX_INSTALLMENTS).toBe(120);
+  });
+
+  it('والتحقّق يقبل ما فوق سعة الصفحة ويرفض ما فوق الحدّ وحده', () => {
+    const base = { debtAmount: 1000, firstDate: '2026-10-15', maxInstallments: MAX_INSTALLMENTS };
+    const issuesFor = (count: number) =>
+      validateSchedule({
+        ...base,
+        count,
+        rows: buildInstallmentSchedule({ debtAmount: 1000, count, firstDate: '2026-10-15' }),
+      });
+    expect(issuesFor(13)).not.toContain('countAboveMax');
+    expect(issuesFor(36)).not.toContain('countAboveMax');
+    expect(issuesFor(MAX_INSTALLMENTS)).not.toContain('countAboveMax');
+    expect(issuesFor(MAX_INSTALLMENTS + 1)).toContain('countAboveMax');
+  });
+});
+
+// ══ لا فشل صامت في المدخلات ══════════════════════════════════════════════════
+describe('المدخلات غير الصالحة تُعلَن ولا تُبتلع', () => {
+  const base = { debtAmount: 1000, firstDate: '2026-10-15', rows: [], maxInstallments: MAX_INSTALLMENTS };
+
+  it.each([
+    [0, 'countNotPositive'],
+    [-5, 'countNotPositive'],
+    [2.5, 'countNotInteger'],
+    [13.0001, 'countNotInteger'],
+    [MAX_INSTALLMENTS + 1, 'countAboveMax'],
+    [999999, 'countAboveMax'],
+  ])('عدد %p ⇒ %s', (count, issue) => {
+    expect(validateSchedule({ ...base, count })).toContain(issue);
+  });
+
+  it('والحاسبة نفسها لا تخترع صفوفًا من عدد غير صالح', () => {
+    for (const count of [0, -1, 2.5, Number.NaN]) {
+      expect(calculateInstallmentAmounts(1000, count)).toEqual([]);
+      expect(buildInstallmentSchedule({ debtAmount: 1000, count, firstDate: '2026-10-15' })).toEqual([]);
+    }
+  });
+});
+
+// ══ أعداد الأقساط فوق سعة الصفحة الواحدة ═════════════════════════════════════
+//
+// كان `MAX_INSTALLMENTS` يساوي عدد صفوف صفحة الملحق، فصار قيدُ **تخطيط صفحة** قيدَ
+// **عمل**: أربعة عشر قسطًا مرفوضة لأن الورقة تتّسع لاثني عشر صفًّا. فُصلا، وهذه
+// الاختبارات تحرس أن الحاسبة تعمل لأي عدد وأن التقسيم يتبعه لا يحدّه.
+describe('أعداد الأقساط فوق الاثني عشر', () => {
+  const AMOUNT = 1000;
+  const FIRST = '2026-10-15';
+  const COUNTS = [1, 12, 13, 24, 25, 36];
+
+  it.each(COUNTS)('%i قسطاً يولّد %i صفًّا بالضبط — لا جدولًا فارغًا', (count) => {
+    const rows = buildInstallmentSchedule({ debtAmount: AMOUNT, count, firstDate: FIRST });
+    expect(rows).toHaveLength(count);
+    expect(rows.map((r) => r.no)).toEqual(Array.from({ length: count }, (_u, i) => i + 1));
+  });
+
+  it.each(COUNTS)('%i قسطاً: المجموع يساوي أصل الدين بالضبط', (count) => {
+    const rows = buildInstallmentSchedule({ debtAmount: AMOUNT, count, firstDate: FIRST });
+    expect(scheduleTotal(rows)).toBe(AMOUNT);
+  });
+
+  it.each(COUNTS)('%i قسطاً: فارق التقريب على الأخير وحده', (count) => {
+    const amounts = calculateInstallmentAmounts(AMOUNT, count);
+    const head = amounts.slice(0, -1);
+    // كل ما قبل الأخير متساوٍ تمامًا؛ والأخير وحده يحمل الفارق.
+    expect(new Set(head).size).toBeLessThanOrEqual(1);
+    expect(sumMoney(amounts)).toBe(AMOUNT);
+  });
+
+  it.each(COUNTS)('%i قسطاً: الرصيد ينتهي عند صفر', (count) => {
+    const rows = buildInstallmentSchedule({ debtAmount: AMOUNT, count, firstDate: FIRST });
+    expect(rows[rows.length - 1].remainingBalance).toBe(0);
+    // ولا رصيد سالب في أي صفّ.
+    expect(rows.every((r) => r.remainingBalance >= 0)).toBe(true);
+  });
+
+  it.each(COUNTS)('%i قسطاً: التواريخ شهرية متّصلة عبر كل الصفحات', (count) => {
+    const rows = buildInstallmentSchedule({ debtAmount: AMOUNT, count, firstDate: FIRST });
+    rows.forEach((row, i) => {
+      const monthsFromStart = 9 + i; // أكتوبر = الشهر 10 ⇒ الفهرس 9
+      const year = 2026 + Math.floor(monthsFromStart / 12);
+      const month = (monthsFromStart % 12) + 1;
+      expect(row.dueDate).toBe(`${year}-${String(month).padStart(2, '0')}-15`);
+    });
+  });
+
+  it('ثلاثة عشر قسطاً على ألف دينار: القيم المتوقَّعة بالضبط', () => {
+    const rows = buildInstallmentSchedule({ debtAmount: 1000, count: 13, firstDate: FIRST });
+    expect(rows).toHaveLength(13);
+    expect(rows[0].amount).toBe(76.923);
+    expect(rows[11].amount).toBe(76.923);
+    expect(rows[12].amount).toBe(76.924);
+    expect(rows[12].dueDate).toBe('2027-10-15');
+    expect(rows[12].remainingBalance).toBe(0);
+    expect(scheduleTotal(rows)).toBe(1000);
+  });
+});
+
+// ══ تقسيم الجدول على صفحات الملحق ════════════════════════════════════════════
+describe('تقسيم جدول السداد على صفحات الملحق', () => {
+  const ROWS = 12;
+  const make = (count: number) =>
+    buildInstallmentSchedule({ debtAmount: 1000, count, firstDate: '2026-10-15' });
+
+  it.each([
+    [12, 1],
+    [13, 2],
+    [24, 2],
+    [25, 3],
+    [36, 3],
+    [1, 1],
+  ])('%i قسطاً ⇒ %i صفحة ملحق لكل نسخة', (count, expected) => {
+    expect(paginateInstallmentSchedule(make(count), ROWS)).toHaveLength(expected);
+    expect(annexPageCount(count, ROWS)).toBe(expected);
+  });
+
+  it('25 قسطاً تُقسَّم 12 · 12 · 1 بالترتيب وبلا إعادة ترقيم', () => {
+    const pages = paginateInstallmentSchedule(make(25), ROWS);
+    expect(pages.map((p) => p.length)).toEqual([12, 12, 1]);
+    expect(pages[0][0].no).toBe(1);
+    expect(pages[1][0].no).toBe(13);
+    expect(pages[2][0].no).toBe(25);
+  });
+
+  it('لا صفّ يضيع ولا يتكرّر: تجميع الصفحات يعيد الجدول نفسه', () => {
+    for (const count of [1, 12, 13, 24, 25, 36]) {
+      const rows = make(count);
+      expect(paginateInstallmentSchedule(rows, ROWS).flat()).toEqual(rows);
+    }
+  });
+
+  it('جدول فارغ يعطي صفحة ملحق واحدة فارغة — لا صفر صفحات', () => {
+    // المستند يحمل صفحة ملحق دائمًا، حتى قبل إدخال أي قسط: صفحةً بصفوفها الفارغة
+    // كما في ملف Word قبل أن يُملأ.
+    expect(paginateInstallmentSchedule([], ROWS)).toEqual([[]]);
+    expect(annexPageCount(0, ROWS)).toBe(1);
+  });
+
+  it('لا تحسب ولا تعدّل: القطع هي نفس الكائنات بترتيبها', () => {
+    const rows = make(13);
+    const pages = paginateInstallmentSchedule(rows, ROWS);
+    expect(pages[0][0]).toBe(rows[0]);
+    expect(pages[1][0]).toBe(rows[12]);
   });
 });

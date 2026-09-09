@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-09T15:45:03.282Z",
+  "generatedAt": "2026-09-09T16:51:36.761Z",
   "profileId": "employee-debt-acknowledgment-letterhead",
   "margins": {
     "top": "40mm",
@@ -11,11 +11,9 @@
     "topMm": 40,
     "bottomMm": 20,
     "page2ExemptBottomFloorMm": 8,
-    "pageCount": 4,
-    "annexPages": [
-      3,
-      4
-    ],
+    "mainPages": 2,
+    "rowsPerAnnexPage": 12,
+    "pageCountFormula": "MAIN_PAGES + 2 * ceil(installments / rowsPerAnnexPage)",
     "toleranceMm": 0.5,
     "signatureMultiplier": 2
   },
@@ -26,9 +24,14 @@
   "goldenDbTouched": false,
   "documents": [
     {
+      "scenario": "i05",
+      "installments": 5,
+      "generatedRows": 5,
+      "annexPagesPerCopy": 1,
+      "expectedPages": 4,
       "lang": "ar",
-      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-ar.pdf",
-      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-ar.png",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i05-ar.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i05-ar.png",
       "pageCount": 4,
       "pages": [
         {
@@ -40,7 +43,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 2292,
-          "visibleInkSha": "590e73ebebea105e",
+          "visibleInkSha": "5f0885b5406ca7ce",
           "readable": true
         },
         {
@@ -52,7 +55,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 2218,
-          "visibleInkSha": "abcb09a052e38f5a",
+          "visibleInkSha": "d9132295d22a654f",
           "readable": true
         },
         {
@@ -64,7 +67,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 1627,
-          "visibleInkSha": "46b9e6bd48ad4028",
+          "visibleInkSha": "d9b54ef27160ea6d",
           "readable": true
         },
         {
@@ -76,7 +79,7 @@
           "leftClearMm": 16.59,
           "rightClearMm": 16.3,
           "inkOps": 1627,
-          "visibleInkSha": "46b9e6bd48ad4028",
+          "visibleInkSha": "d9b54ef27160ea6d",
           "readable": true
         }
       ],
@@ -167,7 +170,7 @@
           "ratio": 2
         },
         {
-          "area": "annex1-signature-1",
+          "area": "annex1p1-signature-1",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -184,7 +187,7 @@
           "ratio": 2
         },
         {
-          "area": "annex1-signature-2",
+          "area": "annex1p1-signature-2",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -201,7 +204,7 @@
           "ratio": 2
         },
         {
-          "area": "annex2-signature-1",
+          "area": "annex2p1-signature-1",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -218,7 +221,7 @@
           "ratio": 2
         },
         {
-          "area": "annex2-signature-2",
+          "area": "annex2p1-signature-2",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -383,7 +386,12 @@
           "1",
           "2"
         ],
+        "annexPageNumbers": [
+          "1",
+          "1"
+        ],
         "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "1",
         "instructionsNodes": 0
       },
       "page2": {
@@ -561,9 +569,14 @@
       "problems": []
     },
     {
+      "scenario": "i05",
+      "installments": 5,
+      "generatedRows": 5,
+      "annexPagesPerCopy": 1,
+      "expectedPages": 4,
       "lang": "en",
-      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-en.pdf",
-      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-en.png",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i05-en.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i05-en.png",
       "pageCount": 4,
       "pages": [
         {
@@ -575,7 +588,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 2659,
-          "visibleInkSha": "97bbf617425f2b80",
+          "visibleInkSha": "9e23f53b45c5e3da",
           "readable": true
         },
         {
@@ -587,7 +600,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 3289,
-          "visibleInkSha": "12aa70d60b208b6a",
+          "visibleInkSha": "f435a586d7e415d1",
           "readable": true
         },
         {
@@ -599,7 +612,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 1662,
-          "visibleInkSha": "b19778a6ff0c41c2",
+          "visibleInkSha": "17d8066c4db6a5fd",
           "readable": true
         },
         {
@@ -611,7 +624,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 1662,
-          "visibleInkSha": "b19778a6ff0c41c2",
+          "visibleInkSha": "17d8066c4db6a5fd",
           "readable": true
         }
       ],
@@ -702,7 +715,7 @@
           "ratio": 2
         },
         {
-          "area": "annex1-signature-1",
+          "area": "annex1p1-signature-1",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -719,7 +732,7 @@
           "ratio": 2
         },
         {
-          "area": "annex1-signature-2",
+          "area": "annex1p1-signature-2",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -736,7 +749,7 @@
           "ratio": 2
         },
         {
-          "area": "annex2-signature-1",
+          "area": "annex2p1-signature-1",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -753,7 +766,7 @@
           "ratio": 2
         },
         {
-          "area": "annex2-signature-2",
+          "area": "annex2p1-signature-2",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -918,7 +931,12 @@
           "1",
           "2"
         ],
+        "annexPageNumbers": [
+          "1",
+          "1"
+        ],
         "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "1",
         "instructionsNodes": 0
       },
       "page2": {
@@ -961,9 +979,14 @@
       "problems": []
     },
     {
+      "scenario": "i05",
+      "installments": 5,
+      "generatedRows": 5,
+      "annexPagesPerCopy": 1,
+      "expectedPages": 4,
       "lang": "hi",
-      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-hi.pdf",
-      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-hi.png",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i05-hi.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i05-hi.png",
       "pageCount": 4,
       "pages": [
         {
@@ -975,7 +998,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 2477,
-          "visibleInkSha": "d9ac5b4f9903cfd3",
+          "visibleInkSha": "377d6767ea6f93bf",
           "readable": true
         },
         {
@@ -987,7 +1010,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 2605,
-          "visibleInkSha": "f4acbd4b43ba32b4",
+          "visibleInkSha": "9428ce61928c2536",
           "readable": true
         },
         {
@@ -999,7 +1022,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 1624,
-          "visibleInkSha": "82bdbd3e2242fe75",
+          "visibleInkSha": "5cf073d3872155a5",
           "readable": true
         },
         {
@@ -1011,7 +1034,7 @@
           "leftClearMm": 16.4,
           "rightClearMm": 16.48,
           "inkOps": 1624,
-          "visibleInkSha": "82bdbd3e2242fe75",
+          "visibleInkSha": "5cf073d3872155a5",
           "readable": true
         }
       ],
@@ -1102,7 +1125,7 @@
           "ratio": 2
         },
         {
-          "area": "annex1-signature-1",
+          "area": "annex1p1-signature-1",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -1119,7 +1142,7 @@
           "ratio": 2
         },
         {
-          "area": "annex1-signature-2",
+          "area": "annex1p1-signature-2",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -1136,7 +1159,7 @@
           "ratio": 2
         },
         {
-          "area": "annex2-signature-1",
+          "area": "annex2p1-signature-1",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -1153,7 +1176,7 @@
           "ratio": 2
         },
         {
-          "area": "annex2-signature-2",
+          "area": "annex2p1-signature-2",
           "labelHeightPx": 14.554,
           "padTopPx": 2.667,
           "padBottomPx": 8,
@@ -1318,7 +1341,4290 @@
           "1",
           "2"
         ],
+        "annexPageNumbers": [
+          "1",
+          "1"
+        ],
         "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "1",
+        "instructionsNodes": 0
+      },
+      "page2": {
+        "heightPx": 1122.515,
+        "minFontPt": 9.5,
+        "minFontSample": "ऋणदाता / कानूनी प्रतिनिधि",
+        "clause": {
+          "selector": ".eda-clause",
+          "fontPt": 10.5,
+          "lineHeightPx": 18.06,
+          "lineHeightRatio": 1.29
+        },
+        "heading": {
+          "selector": ".eda-h1",
+          "fontPt": 13.5,
+          "lineHeightPx": 23.22,
+          "lineHeightRatio": 1.29
+        },
+        "tableCell": {
+          "selector": ".eda-tbl td",
+          "fontPt": 9.5,
+          "lineHeightPx": 14.567,
+          "lineHeightRatio": 1.15
+        },
+        "topInkBoundaryMm": 41.75,
+        "bottomInkBoundaryMm": 251.87,
+        "remainingWhitespaceMm": 25.13,
+        "bottomExemptionUsed": false
+      },
+      "scripts": {
+        "toUnicodeMapsRead": 5,
+        "drawnCodePoints": 126,
+        "drawnArabicCharCount": 0,
+        "drawnArabicChars": [],
+        "arabicCharCount": 0,
+        "hasArabicScript": false,
+        "hasDevanagari": true,
+        "arabicSamples": []
+      },
+      "problems": []
+    },
+    {
+      "scenario": "i13",
+      "installments": 13,
+      "generatedRows": 13,
+      "annexPagesPerCopy": 2,
+      "expectedPages": 6,
+      "lang": "ar",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i13-ar.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i13-ar.png",
+      "pageCount": 6,
+      "pages": [
+        {
+          "index": 1,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.32,
+          "bottomClearMm": 44.47,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 2291,
+          "visibleInkSha": "8b6b5a3e56d8019a",
+          "readable": true
+        },
+        {
+          "index": 2,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.5,
+          "bottomClearMm": 49.89,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 2218,
+          "visibleInkSha": "d9132295d22a654f",
+          "readable": true
+        },
+        {
+          "index": 3,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1393,
+          "visibleInkSha": "fca07155ae8f1b2c",
+          "readable": true
+        },
+        {
+          "index": 4,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1764,
+          "visibleInkSha": "0a07eda71ccf6503",
+          "readable": true
+        },
+        {
+          "index": 5,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1393,
+          "visibleInkSha": "fca07155ae8f1b2c",
+          "readable": true
+        },
+        {
+          "index": 6,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1764,
+          "visibleInkSha": "0a07eda71ccf6503",
+          "readable": true
+        }
+      ],
+      "signatures": [
+        {
+          "area": "debtor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "creditor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "witness-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "witness-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "interpreter",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        }
+      ],
+      "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 9,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 10,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 11,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 12,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          }
+        ],
+        "sectionCount": 6,
+        "sections": [
+          {
+            "index": 1,
+            "classes": "eda-page",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 2,
+            "classes": "eda-page eda-page--compact",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 3,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 4,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 5,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 6,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          }
+        ],
+        "annexCopies": [
+          "1",
+          "1",
+          "2",
+          "2"
+        ],
+        "annexPageNumbers": [
+          "1",
+          "2",
+          "1",
+          "2"
+        ],
+        "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "2",
+        "instructionsNodes": 0
+      },
+      "page2": {
+        "heightPx": 1122.515,
+        "minFontPt": 9.5,
+        "minFontSample": "المدين/الموظف",
+        "clause": {
+          "selector": ".eda-clause",
+          "fontPt": 10.5,
+          "lineHeightPx": 18.06,
+          "lineHeightRatio": 1.29
+        },
+        "heading": {
+          "selector": ".eda-h1",
+          "fontPt": 13.5,
+          "lineHeightPx": 23.22,
+          "lineHeightRatio": 1.29
+        },
+        "tableCell": {
+          "selector": ".eda-tbl td",
+          "fontPt": 9.5,
+          "lineHeightPx": 14.567,
+          "lineHeightRatio": 1.15
+        },
+        "topInkBoundaryMm": 40.5,
+        "bottomInkBoundaryMm": 247.11,
+        "remainingWhitespaceMm": 29.89,
+        "bottomExemptionUsed": false
+      },
+      "scripts": {
+        "toUnicodeMapsRead": 3,
+        "drawnCodePoints": 178,
+        "drawnArabicCharCount": 128,
+        "drawnArabicChars": [
+          "،",
+          "ء",
+          "آ",
+          "أ",
+          "إ",
+          "ا",
+          "ب",
+          "ة",
+          "ت",
+          "ح",
+          "د",
+          "ذ",
+          "ر",
+          "ز",
+          "ض",
+          "ط",
+          "ع",
+          "ف",
+          "ق",
+          "ك",
+          "ل",
+          "م",
+          "ن",
+          "ه",
+          "و",
+          "ى",
+          "ي",
+          "ً",
+          "ٍ",
+          "ُ",
+          "ّ",
+          "ﱃ",
+          "ﱄ",
+          "ﱪ",
+          "ﱯ",
+          "ﱰ",
+          "ﱱ",
+          "ﱴ",
+          "ﱵ",
+          "ﲆ",
+          "ﲋ",
+          "ﲏ",
+          "ﲑ",
+          "ﲔ",
+          "ﴍ",
+          "ﴢ",
+          "ﴤ",
+          "ﴩ",
+          "ﴫ",
+          "ﺄ",
+          "ﺆ",
+          "ﺈ",
+          "ﺋ",
+          "ﺎ",
+          "ﺐ",
+          "ﺑ",
+          "ﺒ",
+          "ﺔ",
+          "ﺖ",
+          "ﺗ",
+          "ﺘ",
+          "ﺛ",
+          "ﺜ",
+          "ﺟ",
+          "ﺠ",
+          "ﺢ",
+          "ﺣ",
+          "ﺤ",
+          "ﺦ",
+          "ﺧ",
+          "ﺨ",
+          "ﺪ",
+          "ﺬ",
+          "ﺮ",
+          "ﺰ",
+          "ﺲ",
+          "ﺳ",
+          "ﺴ",
+          "ﺶ",
+          "ﺷ",
+          "ﺸ",
+          "ﺺ",
+          "ﺻ",
+          "ﺼ",
+          "ﺾ",
+          "ﺿ",
+          "ﻀ",
+          "ﻂ",
+          "ﻃ",
+          "ﻄ",
+          "ﻇ",
+          "ﻈ",
+          "ﻊ",
+          "ﻋ",
+          "ﻌ",
+          "ﻎ",
+          "ﻏ",
+          "ﻐ",
+          "ﻒ",
+          "ﻓ",
+          "ﻔ",
+          "ﻖ",
+          "ﻗ",
+          "ﻘ",
+          "ﻚ",
+          "ﻛ",
+          "ﻜ",
+          "ﻞ",
+          "ﻟ",
+          "ﻠ",
+          "ﻢ",
+          "ﻣ",
+          "ﻤ",
+          "ﻦ",
+          "ﻧ",
+          "ﻨ",
+          "ﻪ",
+          "ﻫ",
+          "ﻬ",
+          "ﻮ",
+          "ﻰ",
+          "ﻲ",
+          "ﻳ",
+          "ﻴ",
+          "ﻷ",
+          "ﻹ",
+          "ﻻ",
+          "ﻼ"
+        ],
+        "arabicCharCount": 3210,
+        "hasArabicScript": true,
+        "hasDevanagari": false,
+        "arabicSamples": [
+          "فظومةفلسلاتسنيرقتيوك",
+          "ةليننوقلعضاخدئافلابرقابثلإرحم)لمعلبحاص(ن",
+          "دلانايبلاًأشنملمسمسلارطلامزلتسمةفصلأوشلر",
+          "للاصاشنلإةيلدلانملةكشردحوملمقرليندملمقرل",
+          "جتللجسلهتفصينوناقللثمملاعريدمينوناقللثمم"
+        ]
+      },
+      "problems": []
+    },
+    {
+      "scenario": "i13",
+      "installments": 13,
+      "generatedRows": 13,
+      "annexPagesPerCopy": 2,
+      "expectedPages": 6,
+      "lang": "en",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i13-en.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i13-en.png",
+      "pageCount": 6,
+      "pages": [
+        {
+          "index": 1,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.32,
+          "bottomClearMm": 24.36,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 2658,
+          "visibleInkSha": "c2a39ec2ffcb205e",
+          "readable": true
+        },
+        {
+          "index": 2,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 39.95,
+          "bottomClearMm": 23.7,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 3289,
+          "visibleInkSha": "f435a586d7e415d1",
+          "readable": true
+        },
+        {
+          "index": 3,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1428,
+          "visibleInkSha": "5ae05fa500df4342",
+          "readable": true
+        },
+        {
+          "index": 4,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1799,
+          "visibleInkSha": "d02d523718af4ee5",
+          "readable": true
+        },
+        {
+          "index": 5,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1428,
+          "visibleInkSha": "5ae05fa500df4342",
+          "readable": true
+        },
+        {
+          "index": 6,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1799,
+          "visibleInkSha": "d02d523718af4ee5",
+          "readable": true
+        }
+      ],
+      "signatures": [
+        {
+          "area": "creditor-signature",
+          "labelHeightPx": 13.676,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 60.283,
+          "baselineHeightPx": 29.676000000000002,
+          "finalHeightPx": 59.351,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 60.283,
+          "baselineMm": 7.85,
+          "finalMm": 15.7,
+          "ratio": 2
+        },
+        {
+          "area": "debtor-signature",
+          "labelHeightPx": 13.676,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 60.283,
+          "baselineHeightPx": 29.676000000000002,
+          "finalHeightPx": 59.351,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 60.283,
+          "baselineMm": 7.85,
+          "finalMm": 15.7,
+          "ratio": 2
+        },
+        {
+          "area": "witness-1",
+          "labelHeightPx": 13.676,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 54.955,
+          "baselineHeightPx": 27.009999999999998,
+          "finalHeightPx": 54.018,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 54.955,
+          "baselineMm": 7.15,
+          "finalMm": 14.29,
+          "ratio": 2
+        },
+        {
+          "area": "witness-2",
+          "labelHeightPx": 13.676,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 54.955,
+          "baselineHeightPx": 27.009999999999998,
+          "finalHeightPx": 54.018,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 54.955,
+          "baselineMm": 7.15,
+          "finalMm": 14.29,
+          "ratio": 2
+        },
+        {
+          "area": "interpreter",
+          "labelHeightPx": 13.676,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 54.955,
+          "baselineHeightPx": 27.009999999999998,
+          "finalHeightPx": 54.018,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 54.955,
+          "baselineMm": 7.15,
+          "finalMm": 14.29,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        }
+      ],
+      "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 9,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 10,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 11,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 12,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          }
+        ],
+        "sectionCount": 6,
+        "sections": [
+          {
+            "index": 1,
+            "classes": "eda-page",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 2,
+            "classes": "eda-page eda-page--compact",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 3,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 4,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 5,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 6,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          }
+        ],
+        "annexCopies": [
+          "1",
+          "1",
+          "2",
+          "2"
+        ],
+        "annexPageNumbers": [
+          "1",
+          "2",
+          "1",
+          "2"
+        ],
+        "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "2",
+        "instructionsNodes": 0
+      },
+      "page2": {
+        "heightPx": 1122.515,
+        "minFontPt": 9.5,
+        "minFontSample": "Creditor / Legal representative",
+        "clause": {
+          "selector": ".eda-clause",
+          "fontPt": 10,
+          "lineHeightPx": 16,
+          "lineHeightRatio": 1.2
+        },
+        "heading": {
+          "selector": ".eda-h1",
+          "fontPt": 13.5,
+          "lineHeightPx": 23.22,
+          "lineHeightRatio": 1.29
+        },
+        "tableCell": {
+          "selector": ".eda-tbl td",
+          "fontPt": 9.5,
+          "lineHeightPx": 13.68,
+          "lineHeightRatio": 1.08
+        },
+        "topInkBoundaryMm": 39.95,
+        "bottomInkBoundaryMm": 273.3,
+        "remainingWhitespaceMm": 3.7,
+        "bottomExemptionUsed": false
+      },
+      "scripts": {
+        "toUnicodeMapsRead": 3,
+        "drawnCodePoints": 79,
+        "drawnArabicCharCount": 0,
+        "drawnArabicChars": [],
+        "arabicCharCount": 0,
+        "hasArabicScript": false,
+        "hasDevanagari": false,
+        "arabicSamples": []
+      },
+      "problems": []
+    },
+    {
+      "scenario": "i13",
+      "installments": 13,
+      "generatedRows": 13,
+      "annexPagesPerCopy": 2,
+      "expectedPages": 6,
+      "lang": "hi",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i13-hi.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i13-hi.png",
+      "pageCount": 6,
+      "pages": [
+        {
+          "index": 1,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.32,
+          "bottomClearMm": 34.95,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 2476,
+          "visibleInkSha": "4f03530cf70b6f2a",
+          "readable": true
+        },
+        {
+          "index": 2,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 41.75,
+          "bottomClearMm": 45.13,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 2605,
+          "visibleInkSha": "9428ce61928c2536",
+          "readable": true
+        },
+        {
+          "index": 3,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1390,
+          "visibleInkSha": "77823fa818d59588",
+          "readable": true
+        },
+        {
+          "index": 4,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1761,
+          "visibleInkSha": "1e4eaf7df414a8e8",
+          "readable": true
+        },
+        {
+          "index": 5,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1390,
+          "visibleInkSha": "77823fa818d59588",
+          "readable": true
+        },
+        {
+          "index": 6,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1761,
+          "visibleInkSha": "1e4eaf7df414a8e8",
+          "readable": true
+        }
+      ],
+      "signatures": [
+        {
+          "area": "creditor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "debtor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "witness-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "witness-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "interpreter",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        }
+      ],
+      "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 9,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 10,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 11,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 12,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          }
+        ],
+        "sectionCount": 6,
+        "sections": [
+          {
+            "index": 1,
+            "classes": "eda-page",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 2,
+            "classes": "eda-page eda-page--compact",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 3,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 4,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 5,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 6,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          }
+        ],
+        "annexCopies": [
+          "1",
+          "1",
+          "2",
+          "2"
+        ],
+        "annexPageNumbers": [
+          "1",
+          "2",
+          "1",
+          "2"
+        ],
+        "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "2",
+        "instructionsNodes": 0
+      },
+      "page2": {
+        "heightPx": 1122.515,
+        "minFontPt": 9.5,
+        "minFontSample": "ऋणदाता / कानूनी प्रतिनिधि",
+        "clause": {
+          "selector": ".eda-clause",
+          "fontPt": 10.5,
+          "lineHeightPx": 18.06,
+          "lineHeightRatio": 1.29
+        },
+        "heading": {
+          "selector": ".eda-h1",
+          "fontPt": 13.5,
+          "lineHeightPx": 23.22,
+          "lineHeightRatio": 1.29
+        },
+        "tableCell": {
+          "selector": ".eda-tbl td",
+          "fontPt": 9.5,
+          "lineHeightPx": 14.567,
+          "lineHeightRatio": 1.15
+        },
+        "topInkBoundaryMm": 41.75,
+        "bottomInkBoundaryMm": 251.87,
+        "remainingWhitespaceMm": 25.13,
+        "bottomExemptionUsed": false
+      },
+      "scripts": {
+        "toUnicodeMapsRead": 5,
+        "drawnCodePoints": 126,
+        "drawnArabicCharCount": 0,
+        "drawnArabicChars": [],
+        "arabicCharCount": 0,
+        "hasArabicScript": false,
+        "hasDevanagari": true,
+        "arabicSamples": []
+      },
+      "problems": []
+    },
+    {
+      "scenario": "i25",
+      "installments": 25,
+      "generatedRows": 25,
+      "annexPagesPerCopy": 3,
+      "expectedPages": 8,
+      "lang": "ar",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i25-ar.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i25-ar.png",
+      "pageCount": 8,
+      "pages": [
+        {
+          "index": 1,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.32,
+          "bottomClearMm": 44.47,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 2291,
+          "visibleInkSha": "8b6b5a3e56d8019a",
+          "readable": true
+        },
+        {
+          "index": 2,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.5,
+          "bottomClearMm": 49.89,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 2218,
+          "visibleInkSha": "d9132295d22a654f",
+          "readable": true
+        },
+        {
+          "index": 3,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1394,
+          "visibleInkSha": "60ed65b804588c0c",
+          "readable": true
+        },
+        {
+          "index": 4,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1401,
+          "visibleInkSha": "0cbf50644b4a4fb3",
+          "readable": true
+        },
+        {
+          "index": 5,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1764,
+          "visibleInkSha": "0a07eda71ccf6503",
+          "readable": true
+        },
+        {
+          "index": 6,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1394,
+          "visibleInkSha": "60ed65b804588c0c",
+          "readable": true
+        },
+        {
+          "index": 7,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1401,
+          "visibleInkSha": "0cbf50644b4a4fb3",
+          "readable": true
+        },
+        {
+          "index": 8,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.59,
+          "rightClearMm": 16.3,
+          "inkOps": 1764,
+          "visibleInkSha": "0a07eda71ccf6503",
+          "readable": true
+        }
+      ],
+      "signatures": [
+        {
+          "area": "debtor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "creditor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "witness-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "witness-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "interpreter",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p3-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p3-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p3-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p3-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        }
+      ],
+      "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 9,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 10,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 11,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 12,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 13,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 14,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          },
+          {
+            "index": 15,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ],
+            "bodyVisualOrder": [
+              "notes",
+              "balance",
+              "amount",
+              "dueDate",
+              "no"
+            ]
+          },
+          {
+            "index": 16,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "value",
+              "label"
+            ],
+            "bodyVisualOrder": [
+              "value",
+              "label"
+            ]
+          }
+        ],
+        "sectionCount": 8,
+        "sections": [
+          {
+            "index": 1,
+            "classes": "eda-page",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 2,
+            "classes": "eda-page eda-page--compact",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 3,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 4,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 5,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 6,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 7,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 8,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          }
+        ],
+        "annexCopies": [
+          "1",
+          "1",
+          "1",
+          "2",
+          "2",
+          "2"
+        ],
+        "annexPageNumbers": [
+          "1",
+          "2",
+          "3",
+          "1",
+          "2",
+          "3"
+        ],
+        "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "3",
+        "instructionsNodes": 0
+      },
+      "page2": {
+        "heightPx": 1122.515,
+        "minFontPt": 9.5,
+        "minFontSample": "المدين/الموظف",
+        "clause": {
+          "selector": ".eda-clause",
+          "fontPt": 10.5,
+          "lineHeightPx": 18.06,
+          "lineHeightRatio": 1.29
+        },
+        "heading": {
+          "selector": ".eda-h1",
+          "fontPt": 13.5,
+          "lineHeightPx": 23.22,
+          "lineHeightRatio": 1.29
+        },
+        "tableCell": {
+          "selector": ".eda-tbl td",
+          "fontPt": 9.5,
+          "lineHeightPx": 14.567,
+          "lineHeightRatio": 1.15
+        },
+        "topInkBoundaryMm": 40.5,
+        "bottomInkBoundaryMm": 247.11,
+        "remainingWhitespaceMm": 29.89,
+        "bottomExemptionUsed": false
+      },
+      "scripts": {
+        "toUnicodeMapsRead": 3,
+        "drawnCodePoints": 178,
+        "drawnArabicCharCount": 128,
+        "drawnArabicChars": [
+          "،",
+          "ء",
+          "آ",
+          "أ",
+          "إ",
+          "ا",
+          "ب",
+          "ة",
+          "ت",
+          "ح",
+          "د",
+          "ذ",
+          "ر",
+          "ز",
+          "ض",
+          "ط",
+          "ع",
+          "ف",
+          "ق",
+          "ك",
+          "ل",
+          "م",
+          "ن",
+          "ه",
+          "و",
+          "ى",
+          "ي",
+          "ً",
+          "ٍ",
+          "ُ",
+          "ّ",
+          "ﱃ",
+          "ﱄ",
+          "ﱪ",
+          "ﱯ",
+          "ﱰ",
+          "ﱱ",
+          "ﱴ",
+          "ﱵ",
+          "ﲆ",
+          "ﲋ",
+          "ﲏ",
+          "ﲑ",
+          "ﲔ",
+          "ﴍ",
+          "ﴢ",
+          "ﴤ",
+          "ﴩ",
+          "ﴫ",
+          "ﺄ",
+          "ﺆ",
+          "ﺈ",
+          "ﺋ",
+          "ﺎ",
+          "ﺐ",
+          "ﺑ",
+          "ﺒ",
+          "ﺔ",
+          "ﺖ",
+          "ﺗ",
+          "ﺘ",
+          "ﺛ",
+          "ﺜ",
+          "ﺟ",
+          "ﺠ",
+          "ﺢ",
+          "ﺣ",
+          "ﺤ",
+          "ﺦ",
+          "ﺧ",
+          "ﺨ",
+          "ﺪ",
+          "ﺬ",
+          "ﺮ",
+          "ﺰ",
+          "ﺲ",
+          "ﺳ",
+          "ﺴ",
+          "ﺶ",
+          "ﺷ",
+          "ﺸ",
+          "ﺺ",
+          "ﺻ",
+          "ﺼ",
+          "ﺾ",
+          "ﺿ",
+          "ﻀ",
+          "ﻂ",
+          "ﻃ",
+          "ﻄ",
+          "ﻇ",
+          "ﻈ",
+          "ﻊ",
+          "ﻋ",
+          "ﻌ",
+          "ﻎ",
+          "ﻏ",
+          "ﻐ",
+          "ﻒ",
+          "ﻓ",
+          "ﻔ",
+          "ﻖ",
+          "ﻗ",
+          "ﻘ",
+          "ﻚ",
+          "ﻛ",
+          "ﻜ",
+          "ﻞ",
+          "ﻟ",
+          "ﻠ",
+          "ﻢ",
+          "ﻣ",
+          "ﻤ",
+          "ﻦ",
+          "ﻧ",
+          "ﻨ",
+          "ﻪ",
+          "ﻫ",
+          "ﻬ",
+          "ﻮ",
+          "ﻰ",
+          "ﻲ",
+          "ﻳ",
+          "ﻴ",
+          "ﻷ",
+          "ﻹ",
+          "ﻻ",
+          "ﻼ"
+        ],
+        "arabicCharCount": 3552,
+        "hasArabicScript": true,
+        "hasDevanagari": false,
+        "arabicSamples": [
+          "فظومةفلسلاتسنيرقتيوك",
+          "ةليننوقلعضاخدئافلابرقابثلإرحم)لمعلبحاص(ن",
+          "دلانايبلاًأشنملمسمسلارطلامزلتسمةفصلأوشلر",
+          "للاصاشنلإةيلدلانملةكشردحوملمقرليندملمقرل",
+          "جتللجسلهتفصينوناقللثمملاعريدمينوناقللثمم"
+        ]
+      },
+      "problems": []
+    },
+    {
+      "scenario": "i25",
+      "installments": 25,
+      "generatedRows": 25,
+      "annexPagesPerCopy": 3,
+      "expectedPages": 8,
+      "lang": "en",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i25-en.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i25-en.png",
+      "pageCount": 8,
+      "pages": [
+        {
+          "index": 1,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.32,
+          "bottomClearMm": 24.36,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 2658,
+          "visibleInkSha": "c2a39ec2ffcb205e",
+          "readable": true
+        },
+        {
+          "index": 2,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 39.95,
+          "bottomClearMm": 23.7,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 3289,
+          "visibleInkSha": "f435a586d7e415d1",
+          "readable": true
+        },
+        {
+          "index": 3,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1429,
+          "visibleInkSha": "5abbb0a246ed8242",
+          "readable": true
+        },
+        {
+          "index": 4,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1436,
+          "visibleInkSha": "30a85d6fee50cca3",
+          "readable": true
+        },
+        {
+          "index": 5,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1799,
+          "visibleInkSha": "d02d523718af4ee5",
+          "readable": true
+        },
+        {
+          "index": 6,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1429,
+          "visibleInkSha": "5abbb0a246ed8242",
+          "readable": true
+        },
+        {
+          "index": 7,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1436,
+          "visibleInkSha": "30a85d6fee50cca3",
+          "readable": true
+        },
+        {
+          "index": 8,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1799,
+          "visibleInkSha": "d02d523718af4ee5",
+          "readable": true
+        }
+      ],
+      "signatures": [
+        {
+          "area": "creditor-signature",
+          "labelHeightPx": 13.676,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 60.283,
+          "baselineHeightPx": 29.676000000000002,
+          "finalHeightPx": 59.351,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 60.283,
+          "baselineMm": 7.85,
+          "finalMm": 15.7,
+          "ratio": 2
+        },
+        {
+          "area": "debtor-signature",
+          "labelHeightPx": 13.676,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 60.283,
+          "baselineHeightPx": 29.676000000000002,
+          "finalHeightPx": 59.351,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 60.283,
+          "baselineMm": 7.85,
+          "finalMm": 15.7,
+          "ratio": 2
+        },
+        {
+          "area": "witness-1",
+          "labelHeightPx": 13.676,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 54.955,
+          "baselineHeightPx": 27.009999999999998,
+          "finalHeightPx": 54.018,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 54.955,
+          "baselineMm": 7.15,
+          "finalMm": 14.29,
+          "ratio": 2
+        },
+        {
+          "area": "witness-2",
+          "labelHeightPx": 13.676,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 54.955,
+          "baselineHeightPx": 27.009999999999998,
+          "finalHeightPx": 54.018,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 54.955,
+          "baselineMm": 7.15,
+          "finalMm": 14.29,
+          "ratio": 2
+        },
+        {
+          "area": "interpreter",
+          "labelHeightPx": 13.676,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 54.955,
+          "baselineHeightPx": 27.009999999999998,
+          "finalHeightPx": 54.018,
+          "spacerCount": 1,
+          "spacerHeightPx": 13.676,
+          "wrapperHeightPx": 27.351,
+          "rowHeightPx": 54.955,
+          "baselineMm": 7.15,
+          "finalMm": 14.29,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p3-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p3-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p3-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p3-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        }
+      ],
+      "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 9,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 10,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 11,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 12,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 13,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 14,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 15,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 16,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          }
+        ],
+        "sectionCount": 8,
+        "sections": [
+          {
+            "index": 1,
+            "classes": "eda-page",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 2,
+            "classes": "eda-page eda-page--compact",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 3,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 4,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 5,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 6,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 7,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 8,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          }
+        ],
+        "annexCopies": [
+          "1",
+          "1",
+          "1",
+          "2",
+          "2",
+          "2"
+        ],
+        "annexPageNumbers": [
+          "1",
+          "2",
+          "3",
+          "1",
+          "2",
+          "3"
+        ],
+        "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "3",
+        "instructionsNodes": 0
+      },
+      "page2": {
+        "heightPx": 1122.515,
+        "minFontPt": 9.5,
+        "minFontSample": "Creditor / Legal representative",
+        "clause": {
+          "selector": ".eda-clause",
+          "fontPt": 10,
+          "lineHeightPx": 16,
+          "lineHeightRatio": 1.2
+        },
+        "heading": {
+          "selector": ".eda-h1",
+          "fontPt": 13.5,
+          "lineHeightPx": 23.22,
+          "lineHeightRatio": 1.29
+        },
+        "tableCell": {
+          "selector": ".eda-tbl td",
+          "fontPt": 9.5,
+          "lineHeightPx": 13.68,
+          "lineHeightRatio": 1.08
+        },
+        "topInkBoundaryMm": 39.95,
+        "bottomInkBoundaryMm": 273.3,
+        "remainingWhitespaceMm": 3.7,
+        "bottomExemptionUsed": false
+      },
+      "scripts": {
+        "toUnicodeMapsRead": 3,
+        "drawnCodePoints": 79,
+        "drawnArabicCharCount": 0,
+        "drawnArabicChars": [],
+        "arabicCharCount": 0,
+        "hasArabicScript": false,
+        "hasDevanagari": false,
+        "arabicSamples": []
+      },
+      "problems": []
+    },
+    {
+      "scenario": "i25",
+      "installments": 25,
+      "generatedRows": 25,
+      "annexPagesPerCopy": 3,
+      "expectedPages": 8,
+      "lang": "hi",
+      "pdf": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i25-hi.pdf",
+      "png": "C:\\Users\\hhajj\\Claude\\Projects\\manarERP\\artifacts\\employee-debt-acknowledgment-v1\\debt-acknowledgment-i25-hi.png",
+      "pageCount": 8,
+      "pages": [
+        {
+          "index": 1,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.32,
+          "bottomClearMm": 34.95,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 2476,
+          "visibleInkSha": "4f03530cf70b6f2a",
+          "readable": true
+        },
+        {
+          "index": 2,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 41.75,
+          "bottomClearMm": 45.13,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 2605,
+          "visibleInkSha": "9428ce61928c2536",
+          "readable": true
+        },
+        {
+          "index": 3,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1391,
+          "visibleInkSha": "d78f7d43a61aeb89",
+          "readable": true
+        },
+        {
+          "index": 4,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1398,
+          "visibleInkSha": "062166733daa407c",
+          "readable": true
+        },
+        {
+          "index": 5,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1761,
+          "visibleInkSha": "1e4eaf7df414a8e8",
+          "readable": true
+        },
+        {
+          "index": 6,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1391,
+          "visibleInkSha": "d78f7d43a61aeb89",
+          "readable": true
+        },
+        {
+          "index": 7,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1398,
+          "visibleInkSha": "062166733daa407c",
+          "readable": true
+        },
+        {
+          "index": 8,
+          "widthMm": 209.89,
+          "heightMm": 297.01,
+          "topClearMm": 40.43,
+          "bottomClearMm": 138.79,
+          "leftClearMm": 16.4,
+          "rightClearMm": 16.48,
+          "inkOps": 1761,
+          "visibleInkSha": "1e4eaf7df414a8e8",
+          "readable": true
+        }
+      ],
+      "signatures": [
+        {
+          "area": "creditor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "debtor-signature",
+          "labelHeightPx": 14.554,
+          "padTopPx": 8,
+          "padBottomPx": 24,
+          "bordersPx": 1.904,
+          "cellHeightPx": 62.039,
+          "baselineHeightPx": 30.554000000000002,
+          "finalHeightPx": 61.107,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 62.039,
+          "baselineMm": 8.08,
+          "finalMm": 16.17,
+          "ratio": 2
+        },
+        {
+          "area": "witness-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "witness-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "interpreter",
+          "labelHeightPx": 14.554,
+          "padTopPx": 6.667,
+          "padBottomPx": 20,
+          "bordersPx": 1.904,
+          "cellHeightPx": 56.711,
+          "baselineHeightPx": 27.887999999999998,
+          "finalHeightPx": 55.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 56.711,
+          "baselineMm": 7.38,
+          "finalMm": 14.76,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p3-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex1p3-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p1-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p2-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p3-signature-1",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        },
+        {
+          "area": "annex2p3-signature-2",
+          "labelHeightPx": 14.554,
+          "padTopPx": 2.667,
+          "padBottomPx": 8,
+          "bordersPx": 1.904,
+          "cellHeightPx": 40.714,
+          "baselineHeightPx": 19.887999999999998,
+          "finalHeightPx": 39.774,
+          "spacerCount": 1,
+          "spacerHeightPx": 14.554,
+          "wrapperHeightPx": 29.107,
+          "rowHeightPx": 40.714,
+          "baselineMm": 5.26,
+          "finalMm": 10.52,
+          "ratio": 2
+        }
+      ],
+      "structure": {
+        "tables": [
+          {
+            "index": 1,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 2,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 3,
+            "kind": "signature",
+            "columns": 2,
+            "headVisualOrder": [
+              "creditor",
+              "debtor"
+            ],
+            "bodyVisualOrder": [
+              "creditor",
+              "debtor"
+            ]
+          },
+          {
+            "index": 4,
+            "kind": "plain",
+            "columns": 1,
+            "headVisualOrder": [
+              null
+            ],
+            "bodyVisualOrder": [
+              null
+            ]
+          },
+          {
+            "index": 5,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 6,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 7,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 8,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 9,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 10,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 11,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 12,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 13,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 14,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          },
+          {
+            "index": 15,
+            "kind": "annex",
+            "columns": 5,
+            "headVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ],
+            "bodyVisualOrder": [
+              "no",
+              "dueDate",
+              "amount",
+              "balance",
+              "notes"
+            ]
+          },
+          {
+            "index": 16,
+            "kind": "data",
+            "columns": 2,
+            "headVisualOrder": [
+              "label",
+              "value"
+            ],
+            "bodyVisualOrder": [
+              "label",
+              "value"
+            ]
+          }
+        ],
+        "sectionCount": 8,
+        "sections": [
+          {
+            "index": 1,
+            "classes": "eda-page",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 2,
+            "classes": "eda-page eda-page--compact",
+            "annexCopy": null,
+            "heightPx": 1122.515
+          },
+          {
+            "index": 3,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 4,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 5,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "1",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 6,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 7,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          },
+          {
+            "index": 8,
+            "classes": "eda-page eda-page--annex",
+            "annexCopy": "2",
+            "heightPx": 1122.515
+          }
+        ],
+        "annexCopies": [
+          "1",
+          "1",
+          "1",
+          "2",
+          "2",
+          "2"
+        ],
+        "annexPageNumbers": [
+          "1",
+          "2",
+          "3",
+          "1",
+          "2",
+          "3"
+        ],
+        "lastSectionAnnexCopy": "2",
+        "lastSectionAnnexPage": "3",
         "instructionsNodes": 0
       },
       "page2": {

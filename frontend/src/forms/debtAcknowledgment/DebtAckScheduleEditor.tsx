@@ -19,6 +19,19 @@ import DateInput from '../../components/DateInput';
 import { useT } from '../../lib/i18n';
 import { formatNumber } from '../../lib/format/currency';
 import { recalculateBalances, type InstallmentRow } from './debtAcknowledgmentSchedule';
+import { ROWS_PER_ANNEX_PAGE } from './constants';
+
+/**
+ * ارتفاع الجدول قبل أن يصير قابلًا للتمرير — بعدد صفوف لا ببكسل.
+ *
+ * جدولٌ من ستّين قسطًا يدفع بقية النموذج (الشهود، التوقيعات، رقم الآيبان) خارج الشاشة
+ * تمامًا. والقصّ عند عددٍ ثابت من الصفوف يجعل ما بعده غير قابل للتحرير — وهو ما نُهي
+ * عنه صراحةً. فالحلّ: كل الصفوف موجودة وقابلة للتحرير، وما زاد عن صفحة ملحق كاملة
+ * يُمرَّر داخل إطاره وترويستُه ثابتة فوقه.
+ */
+const VISIBLE_ROWS_BEFORE_SCROLL = ROWS_PER_ANNEX_PAGE;
+/** ارتفاع الصفّ التقريبي بالبكسل — للحدّ الأقصى وحده، لا لتخطيط الصفّ. */
+const ROW_HEIGHT_PX = 30;
 
 export interface DebtAckScheduleEditorProps {
   rows: InstallmentRow[];
@@ -82,46 +95,57 @@ export default function DebtAckScheduleEditor({
         )}
       </div>
 
-      <table className="xpl-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th style={cellStyle}>{t('page.debtAck.schedule_col_no')}</th>
-            <th style={cellStyle}>{t('page.debtAck.schedule_col_due_date')}</th>
-            <th style={cellStyle}>{t('page.debtAck.schedule_col_amount')}</th>
-            <th style={cellStyle}>{t('page.debtAck.schedule_col_balance')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={row.no}>
-              <td style={{ ...cellStyle, textAlign: 'center', direction: 'ltr' }}>{row.no}</td>
-              <td style={cellStyle}>
-                <DateInput
-                  title={`${t('page.debtAck.schedule_col_due_date')} ${row.no}`}
-                  value={row.dueDate}
-                  onChange={(v) => patchRow(i, { dueDate: v })}
-                />
-              </td>
-              <td style={cellStyle}>
-                <input
-                  type="number"
-                  lang="en"
-                  step="0.001"
-                  min="0"
-                  title={`${t('page.debtAck.schedule_col_amount')} ${row.no}`}
-                  value={row.amount}
-                  style={{ direction: 'ltr', textAlign: 'start', width: '100%' }}
-                  onChange={(e) => patchRow(i, { amount: Number(e.target.value) })}
-                />
-              </td>
-              {/* الرصيد محسوب لا مُدخَل — يُعرض للقراءة فقط. */}
-              <td style={{ ...cellStyle, direction: 'ltr', textAlign: 'start', fontWeight: 700 }}>
-                {formatNumber(row.remainingBalance)}
-              </td>
+      {/* كل الأقساط قابلة للتحرير مهما بلغ عددها — لا أوّل اثني عشر منها. ما زاد عن
+          صفحة ملحق كاملة يُمرَّر داخل إطاره وترويستُه ثابتة فوقه، فلا يُدفع بقيةُ
+          النموذج خارج الشاشة ولا يُقصّ صفٌّ من التحرير. */}
+      <div
+        style={
+          rows.length > VISIBLE_ROWS_BEFORE_SCROLL
+            ? { maxHeight: (VISIBLE_ROWS_BEFORE_SCROLL + 1) * ROW_HEIGHT_PX, overflowY: 'auto' }
+            : undefined
+        }
+      >
+        <table className="xpl-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 1 }}>
+            <tr>
+              <th style={cellStyle}>{t('page.debtAck.schedule_col_no')}</th>
+              <th style={cellStyle}>{t('page.debtAck.schedule_col_due_date')}</th>
+              <th style={cellStyle}>{t('page.debtAck.schedule_col_amount')}</th>
+              <th style={cellStyle}>{t('page.debtAck.schedule_col_balance')}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={row.no}>
+                <td style={{ ...cellStyle, textAlign: 'center', direction: 'ltr' }}>{row.no}</td>
+                <td style={cellStyle}>
+                  <DateInput
+                    title={`${t('page.debtAck.schedule_col_due_date')} ${row.no}`}
+                    value={row.dueDate}
+                    onChange={(v) => patchRow(i, { dueDate: v })}
+                  />
+                </td>
+                <td style={cellStyle}>
+                  <input
+                    type="number"
+                    lang="en"
+                    step="0.001"
+                    min="0"
+                    title={`${t('page.debtAck.schedule_col_amount')} ${row.no}`}
+                    value={row.amount}
+                    style={{ direction: 'ltr', textAlign: 'start', width: '100%' }}
+                    onChange={(e) => patchRow(i, { amount: Number(e.target.value) })}
+                  />
+                </td>
+                {/* الرصيد محسوب لا مُدخَل — يُعرض للقراءة فقط. */}
+                <td style={{ ...cellStyle, direction: 'ltr', textAlign: 'start', fontWeight: 700 }}>
+                  {formatNumber(row.remainingBalance)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

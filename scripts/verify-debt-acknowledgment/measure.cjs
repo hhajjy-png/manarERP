@@ -41,10 +41,15 @@ const REQUIRED_BOTTOM_MM = 20;
  */
 const PAGE_2_EXEMPT_BOTTOM_FLOOR_MM = 8;
 
-/** قرار مالك المنتج النهائي: أربع صفحات بالضبط في اللغات الثلاث. */
-const REQUIRED_PAGE_COUNT = 4;
-/** ترتيب الصفحات المُلزِم: الملحق نسختين، والثانية آخر الورق. */
-const ANNEX_PAGES = [3, 4];
+/**
+ * صفحات **المستند** قبل الملحق — ثابتة: الأولى والثانية.
+ *
+ * ما بعدهما مشتقّ من عدد الأقساط لا مكتوب: صفحات الملحق لكل نسخة =
+ * `ceil(count / 12)`، والمجموع = `2 + 2 × ذلك`. فقاعدة «أربع صفحات» لم تُلغَ بل صارت
+ * **حالةَ** هذه الصيغة حين لا يتجاوز العدد اثني عشر. ويبقى المقيس هو الحَكَم: يحمل
+ * البيان `expectedPages` المحسوب، ويقارنه هذا المقياس بما أخرجه Chromium فعلًا.
+ */
+const MAIN_PAGES = 2;
 /** سماحية القياس: نصف مليمتر — أقل من دقة أي طابعة مكتبية. */
 const TOLERANCE_MM = 0.5;
 
@@ -201,8 +206,13 @@ const STRUCTURE_SCRIPT = `
       })),
       annexCopies: Array.from(document.querySelectorAll('[data-eda-annex-copy]'))
         .map((el) => el.getAttribute('data-eda-annex-copy')),
+      annexPageNumbers: Array.from(document.querySelectorAll('[data-eda-annex-page]'))
+        .map((el) => el.getAttribute('data-eda-annex-page')),
       lastSectionAnnexCopy: sections.length
         ? sections[sections.length - 1].getAttribute('data-eda-annex-copy')
+        : null,
+      lastSectionAnnexPage: sections.length
+        ? sections[sections.length - 1].getAttribute('data-eda-annex-page')
         : null,
       instructionsNodes: document.querySelectorAll('[data-eda-instructions]').length,
       documentText: document.body.textContent || '',
@@ -244,7 +254,7 @@ async function renderOne(win, doc) {
     printBackground: true,
     preferCSSPageSize: true,
   });
-  const pdfPath = path.join(OUT, `debt-acknowledgment-${doc.lang}.pdf`);
+  const pdfPath = path.join(OUT, `debt-acknowledgment-${doc.scenario}-${doc.lang}.pdf`);
   fs.writeFileSync(pdfPath, pdfBuffer);
 
   const measurement = measurePdf(pdfBuffer);
@@ -252,7 +262,7 @@ async function renderOne(win, doc) {
 
   // لقطة بصرية للمراجعة اليدوية: نموذج الشاشة (كل صفحة منطقية بمقاس A4 كامل بنفس
   // هوامش ملف الطباعة). ملف الـPDF أعلاه هو مرجع الطباعة الفعلي؛ هذه للعرض السريع.
-  const pngPath = path.join(OUT, `debt-acknowledgment-${doc.lang}.png`);
+  const pngPath = path.join(OUT, `debt-acknowledgment-${doc.scenario}-${doc.lang}.png`);
   const size = await win.webContents.executeJavaScript(
     `({ w: Math.ceil(document.documentElement.scrollWidth), h: Math.ceil(document.documentElement.scrollHeight) })`,
     true,
@@ -266,10 +276,10 @@ async function renderOne(win, doc) {
   return { pdfPath, pngPath, measurement, signatureCells, structure, scripts };
 }
 
-function verdictFor(measurement) {
+function verdictFor(measurement, expectedPages) {
   const problems = [];
-  if (measurement.pageCount !== REQUIRED_PAGE_COUNT)
-    problems.push(`page count ${measurement.pageCount} != ${REQUIRED_PAGE_COUNT}`);
+  if (measurement.pageCount !== expectedPages)
+    problems.push(`page count ${measurement.pageCount} != ${expectedPages}`);
   for (const page of measurement.pages) {
     const label = `page ${page.index}`;
     // الصفحة 2 وحدها معفاة من حزام 20mm السفلي — وما عداها لا.
@@ -313,8 +323,9 @@ app.whenReady().then(async () => {
       topMm: REQUIRED_TOP_MM,
       bottomMm: REQUIRED_BOTTOM_MM,
       page2ExemptBottomFloorMm: PAGE_2_EXEMPT_BOTTOM_FLOOR_MM,
-      pageCount: REQUIRED_PAGE_COUNT,
-      annexPages: ANNEX_PAGES,
+      mainPages: MAIN_PAGES,
+      rowsPerAnnexPage: manifest.rowsPerAnnexPage,
+      pageCountFormula: 'MAIN_PAGES + 2 * ceil(installments / rowsPerAnnexPage)',
       toleranceMm: TOLERANCE_MM,
       signatureMultiplier: SIGNATURE_MULTIPLIER,
     },
@@ -326,25 +337,70 @@ app.whenReady().then(async () => {
   let failed = false;
   for (const doc of manifest.documents) {
     const { pdfPath, pngPath, measurement, signatureCells, structure, scripts } = await renderOne(win, doc);
-    const problems = verdictFor(measurement);
+    // عدد صفحات الملحق لكل نسخة والمجموع المتوقَّع — من البيان، مبنيَّين على الجدول
+    // المولَّد فعلًا لا على العدد المطلوب.
+    const annexPagesPerCopy = doc.annexPagesPerCopy;
+    const expectedPages = doc.expectedPages;
+    // مواضع صفحات الملحق: مجموعة أولى تلي صفحتَي المستند، ثم مجموعة ثانية تليها.
+    const setOne = Array.from({ length: annexPagesPerCopy }, (_unused, k) => MAIN_PAGES + 1 + k);
+    const setTwo = setOne.map((n) => n + annexPagesPerCopy);
 
-    // ── البنية: أربعة أقسام، الملحق نسختان، والنسخة الثانية آخر المستند ──────
-    if (structure.sectionCount !== REQUIRED_PAGE_COUNT)
-      problems.push(`document sections ${structure.sectionCount} != ${REQUIRED_PAGE_COUNT}`);
-    if (structure.annexCopies.join(',') !== '1,2')
-      problems.push(`annex copies [${structure.annexCopies.join(',')}] != [1,2]`);
+    const problems = verdictFor(measurement, expectedPages);
+
+    // ── البنية: صفحتا المستند، ثم مجموعتا ملحق كاملتان، وآخر الورق آخر الثانية ──
+    if (structure.sectionCount !== expectedPages)
+      problems.push(`document sections ${structure.sectionCount} != ${expectedPages}`);
+
+    // النمط المُلزِم: **كل** صفحات النسخة الأولى ثم **كل** صفحات الثانية — لا تبادلًا
+    // بينهما. نسخةٌ تُسلَّم صفحاتها مشفوعةً بصفحات النسخة الأخرى ليست نسخة.
+    const wantCopies = [
+      ...Array.from({ length: annexPagesPerCopy }, () => '1'),
+      ...Array.from({ length: annexPagesPerCopy }, () => '2'),
+    ];
+    if (structure.annexCopies.join(',') !== wantCopies.join(','))
+      problems.push(`annex copy order [${structure.annexCopies.join(',')}] != [${wantCopies.join(',')}]`);
+
+    // وترقيم صفحات كل نسخة يبدأ من واحد ويتّصل إلى آخرها.
+    const wantAnnexPages = wantCopies.map((_unused, i) => String((i % annexPagesPerCopy) + 1));
+    if (structure.annexPageNumbers.join(',') !== wantAnnexPages.join(','))
+      problems.push(
+        `annex page order [${structure.annexPageNumbers.join(',')}] != [${wantAnnexPages.join(',')}]`,
+      );
     if (structure.lastSectionAnnexCopy !== '2')
       problems.push(`last section is not annex copy 2 (got ${structure.lastSectionAnnexCopy})`);
-    for (const index of ANNEX_PAGES) {
-      const page = measurement.pages[index - 1];
-      if (!page) problems.push(`annex page ${index} missing`);
-    }
-    // النسختان متطابقتان: بصمة تدفّق المحتوى واحدة — نفس الأوامر ونفس الإحداثيات.
-    const [a, b] = ANNEX_PAGES.map((i) => measurement.pages[i - 1]);
-    if (a && b && a.visibleInkSha && b.visibleInkSha && a.visibleInkSha !== b.visibleInkSha)
+    if (structure.lastSectionAnnexPage !== String(annexPagesPerCopy))
       problems.push(
-        `annex copies differ: page ${a.index} ${a.visibleInkSha} vs page ${b.index} ${b.visibleInkSha}`,
+        `last section is not the last annex page (got ${structure.lastSectionAnnexPage} of ${annexPagesPerCopy})`,
       );
+
+    // المجموعتان متطابقتان **صفحةً بصفحة**: بصمة الحبر المرئي واحدة لكل زوج — تُبنى
+    // بعد القصّ، فلا يخدعها ما يفيض بين صفحتين.
+    for (let k = 0; k < annexPagesPerCopy; k += 1) {
+      const first = measurement.pages[setOne[k] - 1];
+      const second = measurement.pages[setTwo[k] - 1];
+      if (!first || !second) {
+        problems.push(`annex pages ${setOne[k]}/${setTwo[k]} missing`);
+        continue;
+      }
+      if (first.visibleInkSha && second.visibleInkSha && first.visibleInkSha !== second.visibleInkSha)
+        problems.push(
+          `annex page ${k + 1} differs between copies: p${first.index} ${first.visibleInkSha} vs p${second.index} ${second.visibleInkSha}`,
+        );
+      // البصمة تُقارن **ترتيب** الحبر؛ وهذه تُقارن موضعه المطلق على الورقة. معًا:
+      // نفس الحبر، بنفس الترتيب، في نفس المكان من الصفحة.
+      const band = (page) =>
+        [page.topClearMm, page.bottomClearMm, page.leftClearMm, page.rightClearMm]
+          .map((v) => (v === null ? 'null' : v.toFixed(2)))
+          .join('/');
+      if (band(first) !== band(second))
+        problems.push(
+          `annex page ${k + 1} sits differently between copies: p${first.index} ${band(first)} vs p${second.index} ${band(second)}`,
+        );
+      if (first.inkOps !== second.inkOps)
+        problems.push(
+          `annex page ${k + 1} ink ops differ between copies: p${first.index} ${first.inkOps} vs p${second.index} ${second.inkOps}`,
+        );
+    }
 
     // ── الترتيب البصري لكل جدول، يسارًا إلى يمينًا ───────────────────────────
     //
@@ -380,14 +436,17 @@ app.whenReady().then(async () => {
           `table ${table.index} (${table.kind}): body order [${table.bodyVisualOrder.join(',')}] != head order [${table.headVisualOrder.join(',')}]`,
         );
     }
-    // كل الجداول المتوقَّعة حاضرة: بيانات الدائن والمدين + توقيعات + ملحقان + توقيعا ملحق.
+    // كل الجداول المتوقَّعة حاضرة، وعددها يتبع عدد صفحات الملحق:
+    //   جدول ملحق لكل صفحة ملحق (× نسختين)، وجدولا توقيع الملحق معه،
+    //   زائد جدولَي بيانات الدائن والمدين، وجدول التوقيعات الواحد.
+    const annexSections = annexPagesPerCopy * 2;
     const kinds = structure.tables.map((t) => t.kind);
-    if (kinds.filter((k) => k === 'annex').length !== 2)
-      problems.push(`annex tables ${kinds.filter((k) => k === 'annex').length} != 2`);
+    if (kinds.filter((k) => k === 'annex').length !== annexSections)
+      problems.push(`annex tables ${kinds.filter((k) => k === 'annex').length} != ${annexSections}`);
     if (kinds.filter((k) => k === 'signature').length !== 1)
       problems.push(`signature tables ${kinds.filter((k) => k === 'signature').length} != 1`);
-    if (kinds.filter((k) => k === 'data').length !== 4)
-      problems.push(`data tables ${kinds.filter((k) => k === 'data').length} != 4`);
+    if (kinds.filter((k) => k === 'data').length !== 2 + annexSections)
+      problems.push(`data tables ${kinds.filter((k) => k === 'data').length} != ${2 + annexSections}`);
 
     // ── التعليمات: نصّها كاملٌ في حزمة المحتوى، وصفرُ أثرٍ له في المستند المطبوع ──
     if (structure.instructionsNodes !== 0)
@@ -397,7 +456,9 @@ app.whenReady().then(async () => {
     // وعنوان الملحق يظهر مرتين — مرة لكل نسخة.
     if (doc.annexTitle) {
       const occurrences = structure.documentText.split(doc.annexTitle).length - 1;
-      if (occurrences !== 2) problems.push(`annex title appears ${occurrences} times, expected 2`);
+      const wantTitles = annexPagesPerCopy * 2;
+      if (occurrences !== wantTitles)
+        problems.push(`annex title appears ${occurrences} times, expected ${wantTitles}`);
     }
 
     // ── الصفحة 2: أرقام صريحة لا كلمة «تسع» ────────────────────────────────
@@ -449,6 +510,11 @@ app.whenReady().then(async () => {
 
     if (problems.length) failed = true;
     report.documents.push({
+      scenario: doc.scenario,
+      installments: doc.installments,
+      generatedRows: doc.generatedRows,
+      annexPagesPerCopy,
+      expectedPages,
       lang: doc.lang,
       pdf: pdfPath,
       png: pngPath,
@@ -471,7 +537,9 @@ app.whenReady().then(async () => {
         sectionCount: structure.sectionCount,
         sections: structure.sections,
         annexCopies: structure.annexCopies,
+        annexPageNumbers: structure.annexPageNumbers,
         lastSectionAnnexCopy: structure.lastSectionAnnexCopy,
+        lastSectionAnnexPage: structure.lastSectionAnnexPage,
         instructionsNodes: structure.instructionsNodes,
       },
       page2,

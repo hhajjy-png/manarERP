@@ -23,7 +23,12 @@ import DateInput from '../../components/DateInput';
 import { useT } from '../../lib/i18n';
 import { integerToWords } from '../../lib/tafqeet';
 import DebtAckScheduleEditor from './DebtAckScheduleEditor';
-import { CREDITOR_COMMERCIAL_REGISTRATION_NO, CREDITOR_UNIFIED_NUMBER, MAX_INSTALLMENTS } from './constants';
+import {
+  CREDITOR_COMMERCIAL_REGISTRATION_NO,
+  CREDITOR_UNIFIED_NUMBER,
+  MAX_INSTALLMENTS,
+  ROWS_PER_ANNEX_PAGE,
+} from './constants';
 import type { InstallmentRow, ScheduleIssue } from './debtAcknowledgmentSchedule';
 import type {
   DateFieldId,
@@ -289,7 +294,7 @@ export default function DebtAckDataEntry({
               onChange={(e) => onChange({ installmentsCount: e.target.value })}
             />
             <small style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-              {t('page.debtAck.max_installments', { n: MAX_INSTALLMENTS })}
+              {t('page.debtAck.max_installments', { n: MAX_INSTALLMENTS, rows: ROWS_PER_ANNEX_PAGE })}
             </small>
           </div>
           {date('firstInstallmentDate', t('page.debtAck.f.first_installment_date'))}

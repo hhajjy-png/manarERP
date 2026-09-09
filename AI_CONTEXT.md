@@ -2757,7 +2757,7 @@ Chromium PDF, and backend HTML reports.
   Branch `feature/employee-debt-acknowledgment-form-v1`, off production `a3c5b18e`; commits `4842aaf9`
   (implementation), `bdb1689e` (docs), `975402e4` (test typing), `07efbf52` (functional
   refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
-  and `35e31961` (RTL order for every Arabic table).
+  `35e31961` (RTL order for every Arabic table) and `EXT_COMMIT` (instalments beyond one annex page).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
@@ -2811,7 +2811,22 @@ Chromium PDF, and backend HTML reports.
   name is now derived from the role instead of the cell index. English and Hindi are provably
   untouched: the visible-ink signature of all four of their pages is identical before and after. The
   four-page invariant, the geometry, the identical annex copies and the 2.00 signature ratio all hold.
-  Full report, field map and 16 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
+  **Instalment counts are no longer capped by the annex page.** `MAX_INSTALLMENTS` used to be literally
+  `annexRowCount`, so the number of rows on a sheet was the limit on the number of instalments: anything
+  above twelve failed validation and produced an empty schedule. The two are now separate —
+  `ROWS_PER_ANNEX_PAGE = 12` (derived from the DOCX files; a page-design fact) and
+  `MAX_INSTALLMENTS = 120` (an independent technical fence: ten years of monthly instalments, not a
+  legal limit), with a test forbidding them from becoming equal again. A pure
+  `paginateInstallmentSchedule` splits the ONE schedule for display only, so what is edited is what is
+  printed; each annex page keeps its twelve rows, unused ones stay as the source's dotted blanks, and
+  numbering runs on (page two is 13-24, not 1-12). The two copies are two COMPLETE sets —
+  (A1 A2 A3)(A1 A2 A3), not page-by-page — and the last sheet is always the last page of the second set.
+  Page count is `2 + 2 * ceil(count / 12)`: four pages up to twelve instalments (unchanged from what was
+  approved), six up to twenty-four, eight up to thirty-six — measured from the PDF in nine documents
+  (three instalment scenarios x three languages) and matching the formula in all nine. Bands, signature
+  ratio (2.00), annex-copy identity, zero instruction pages and zero Arabic in EN/HI all hold, and the
+  five-instalment scenario reproduces the approved geometry number for number.
+  Full report, field map and 19 findings: `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`; the measurement
   report itself is checked in at `docs/employee-debt-acknowledgment-v1.geometry.json`.
 
 - **`scripts/prepare-backend-deps.js` ships whatever Prisma client the repo root happens to hold** — it

@@ -40,7 +40,8 @@ import {
   type LabelledRow,
   type Seg,
 } from './debtAcknowledgmentModel';
-import type { InstallmentRow } from './debtAcknowledgmentSchedule';
+import { paginateInstallmentSchedule, type InstallmentRow } from './debtAcknowledgmentSchedule';
+import { ROWS_PER_ANNEX_PAGE } from './constants';
 import { DEBT_ACK_CONTENT_AR } from './content.ar';
 import { DEBT_ACK_CONTENT_EN } from './content.en';
 import { DEBT_ACK_CONTENT_HI } from './content.hi';
@@ -330,17 +331,44 @@ function ClauseList({
 const PAGE_1_S4_CLAUSES: Record<DebtAckLang, number> = { ar: 4, en: 3, hi: 4 };
 
 /**
- * ملحق (أ) — جدول السداد.
+ * ملحق (أ) — جدول السداد: **صفحة واحدة** منه.
  *
- * مكوّن **واحد** يُصيَّر مرتين في المستند المطبوع (النسختان 1 و2). لا نسخة ثانية من
- * القالب ولا من البيانات: كلتاهما تقرأان `data.schedule` نفسه، فأي تعديل على الجدول
- * يظهر في النسختين معًا حتمًا — لا بالاتفاق. `copy` لا يغيّر حرفًا واحدًا من المعروض:
- * هو سمة بنيوية (`data-eda-annex-copy`) لا تُطبع، وُجدت ليثبت القياسُ والاختبار أن
- * الصفحة الأخيرة هي النسخة الثانية. **لا وسم «نسخة» ولا علامة مائية على الورق.**
+ * ═══ مكوّن واحد، وكل الصفحات ═══
+ * يُصيَّر هذا المكوّن مرة لكل صفحة ملحق، ومرتين لكل نسخة. لا نسخة ثانية من القالب ولا
+ * من البيانات: كل صفحة تتلقّى **قطعة** من `data.schedule` نفسه (`rows`)، والقطع تُشتقّ
+ * بـ`paginateInstallmentSchedule`. فأي تعديل على الجدول يظهر في كل صفحة تخصّه وفي
+ * النسختين معًا **حتمًا** لا بالاتفاق.
+ *
+ * ═══ الصفوف اثنا عشر دائمًا ═══
+ * تصميم الصفحة لا يتغيّر بعدد ما فيها: `ROWS_PER_ANNEX_PAGE` صفًّا في كل صفحة، ما زاد
+ * عن أقساطها يبقى صفًّا فارغًا بنقاط الأصل حرفيًا («وتُشطب الصفوف غير المستخدمة» كما
+ * يقول الملحق). فلا يقصر الجدول ولا يتغيّر ارتفاعه في الصفحة الأخيرة.
+ *
+ * ═══ الترقيم متّصل ═══
+ * `startNo` يجعل أرقام الصفحة الثانية تبدأ من 13 لا من 1 — للصفوف المملوءة والفارغة
+ * على السواء. صفحةٌ تعيد الترقيم من واحد تجعل «القسط 1» يعني القسط الثالث عشر.
+ *
+ * `copy` و`pageIndex` لا يغيّران حرفًا من المعروض: سمتان بنيويتان لا تُطبعان
+ * (`data-eda-annex-copy` · `data-eda-annex-page`)، وُجدتا ليثبت القياسُ والاختبار
+ * ترتيبَ الصفحات وتطابقَ النسختين. **لا وسم «نسخة» ولا «صفحة 1 من 3» ولا علامة مائية.**
  */
-function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: DebtAckData; copy: 1 | 2 }) {
+function AnnexPage({
+  content,
+  data,
+  rows,
+  startNo,
+  copy,
+  pageIndex,
+}: {
+  content: DebtAckContent;
+  data: DebtAckData;
+  rows: readonly InstallmentRow[];
+  startNo: number;
+  copy: 1 | 2;
+  pageIndex: number;
+}) {
   const c = content;
-  const annexNumbers = Array.from({ length: c.annexRowCount }, (_unused, i) => String(i + 1));
+  const annexNumbers = Array.from({ length: ROWS_PER_ANNEX_PAGE }, (_unused, i) => String(startNo + i));
   // دور كل عمود بترتيب DOM — عمود الرقم في طرفه، وبقية الأعمدة بأدوارها. يُوسَم به
   // كل خلية (ترويسةً وجسمًا) ليقيس مقياسُ الهندسة **الترتيب البصري** لا ترتيب DOM،
   // ويثبت أن كل قيمة مولَّدة تحت ترويستها.
@@ -348,7 +376,11 @@ function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: Deb
     ? ['no', ...c.annexCellRoles]
     : [...c.annexCellRoles, 'no'];
   return (
-    <section className="eda-page eda-page--annex" data-eda-annex-copy={copy}>
+    <section
+      className="eda-page eda-page--annex"
+      data-eda-annex-copy={copy}
+      data-eda-annex-page={pageIndex + 1}
+    >
       <p className="eda-annex-title">{c.annexTitle}</p>
       <table className="eda-tbl eda-tbl--annex">
         <tbody>
@@ -374,7 +406,7 @@ function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: Deb
           {annexNumbers.map((n, rowIndex) => {
             // صفوف الجدول المولَّد تُملأ بالحساب؛ ما زاد عن عدد الأقساط يبقى صفًّا
             // فارغًا بنقاط الأصل حرفيًا («وتُشطب الصفوف غير المستخدمة» كما يقول الملحق).
-            const row = data.schedule[rowIndex];
+            const row = rows[rowIndex];
             const numberCell = (
               <td key="n" data-eda-col="no" style={{ ...cell, fontSize: '8.5pt' }} className="eda-val--ltr">
                 {n}
@@ -396,13 +428,34 @@ function AnnexPage({ content, data, copy }: { content: DebtAckContent; data: Deb
       </table>
       <p className="eda-annex-totals">{renderSegs(c.annexTotals, data, c.lang)}</p>
       <p className="eda-annex-note">{c.annexNote}</p>
-      <DataTable rows={c.annexSignRows} content={c} data={data} labelWidth="26%" areaPrefix={`annex${copy}-signature`} />
+      <DataTable
+        rows={c.annexSignRows}
+        content={c}
+        data={data}
+        labelWidth="26%"
+        areaPrefix={`annex${copy}p${pageIndex + 1}-signature`}
+      />
     </section>
   );
 }
 
 export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowledgmentTemplateProps) {
   const c = DEBT_ACK_CONTENT[lang];
+  // جدولٌ واحد، مقطوعٌ للعرض. لا حساب هنا ولا حالة: القطع مشتقّة من `data.schedule`
+  // في كل تصيير، فلا نسخة ثانية منها تتخلّف عن الأصل.
+  const annexPages = paginateInstallmentSchedule(data.schedule, ROWS_PER_ANNEX_PAGE);
+  const annexSet = (copy: 1 | 2) =>
+    annexPages.map((rows, pageIndex) => (
+      <AnnexPage
+        key={`annex${copy}-${pageIndex}`}
+        content={c}
+        data={data}
+        rows={rows}
+        startNo={pageIndex * ROWS_PER_ANNEX_PAGE + 1}
+        copy={copy}
+        pageIndex={pageIndex}
+      />
+    ));
 
   return (
     <div className="eda-root" dir={c.dir} lang={lang}>
@@ -504,14 +557,19 @@ export default function DebtAcknowledgmentTemplate({ lang, data }: DebtAcknowled
         </table>
       </section>
 
-      {/* ══ الصفحتان 3 و4 — ملحق (أ) مرتين، والنسخة الثانية آخر الورق ═══════════════
-          نسختان من **نفس** المكوّن و**نفس** `data.schedule`. النسخة الثانية تبدأ في
-          ورقة جديدة بفاصل `.eda-page + .eda-page` القائم نفسه، ولا شيء بعدها.
-          و«تعليمات مهمة قبل التوقيع والاستخدام» لم تعد صفحةً في المستند: نصّها باقٍ
-          كما هو في حزم المحتوى الثلاث، ويُعرض في حوار على الشاشة وحدها — خارج
-          `.form-page` تمامًا، فلا يبلغ ورقًا ولا PDF ولا معاينةً دقيقة. */}
-      <AnnexPage content={c} data={data} copy={1} />
-      <AnnexPage content={c} data={data} copy={2} />
+      {/* ══ الملحق: **مجموعتان كاملتان** والثانية آخر الورق ══════════════════════
+          حتى اثني عشر قسطًا: صفحة ملحق واحدة لكل نسخة — أي أربع صفحات، كما اعتُمد.
+          وما زاد: تُقسَّم الأقساط على صفحات ملحق بنفس التصميم، **ثم تتكرّر المجموعة
+          كاملةً** — لا صفحةً صفحةً. فالترتيب: (A1 A2 …) ثم (A1 A2 …)، لأن النسخة
+          الثانية مستندٌ ثانٍ يوقّعه طرفٌ آخر، ونسخةٌ تُسلَّم صفحاتها مشفوعةً بصفحات
+          النسخة الأخرى ليست نسخة.
+
+          كل صفحة تبدأ ورقة جديدة بفاصل `.eda-page + .eda-page` القائم نفسه، ولا شيء
+          بعد آخر صفحة من المجموعة الثانية. و«تعليمات مهمة قبل التوقيع والاستخدام» لم
+          تعد صفحةً في المستند: نصّها باقٍ كما هو في حزم المحتوى الثلاث، ويُعرض في حوار
+          على الشاشة وحدها — خارج `.form-page` تمامًا. */}
+      {annexSet(1)}
+      {annexSet(2)}
     </div>
   );
 }

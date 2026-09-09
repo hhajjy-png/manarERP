@@ -121,6 +121,42 @@ export function recalculateBalances(rows: readonly InstallmentRow[], debtAmount:
   });
 }
 
+/**
+ * تقسيم الجدول على صفحات الملحق — **للعرض وحده**.
+ *
+ * ═══ جدول واحد، وصفحات كثيرة ═══
+ * لا يوجد في المستند إلا جدول سداد **واحد** (`DebtAckData.schedule`). هذه الدالة لا
+ * تُنشئ جداول، ولا تحسب شيئًا، ولا تلمس قيمة: تقطع المصفوفة القائمة إلى قطع متتابعة
+ * بطول ثابت. فما يُحرَّر في الشاشة وما يُطبع في الملحق شيء واحد، مهما بلغ عدد الصفحات.
+ *
+ * ═══ لماذا تعيد قطعة واحدة فارغة حين لا جدول ═══
+ * المستند يحمل صفحة ملحق **دائمًا**، حتى قبل إدخال أي قسط: صفحةً بصفوفها الاثني عشر
+ * فارغةً بنقاط الأصل، تمامًا كما في ملف Word قبل أن يُملأ. فلو أعادت `[]` لاختفت
+ * صفحة الملحق من مستند لم يُملأ بعد.
+ *
+ * `[1..12], [13..24], [25]` لخمسة وعشرين قسطًا — بالترتيب، بلا إعادة ترقيم، وبلا
+ * فقدان صفّ.
+ */
+export function paginateInstallmentSchedule(
+  rows: readonly InstallmentRow[],
+  rowsPerPage: number,
+): InstallmentRow[][] {
+  if (!Number.isInteger(rowsPerPage) || rowsPerPage < 1) return [[]];
+  if (rows.length === 0) return [[]];
+  const pages: InstallmentRow[][] = [];
+  for (let start = 0; start < rows.length; start += rowsPerPage) {
+    pages.push(rows.slice(start, start + rowsPerPage));
+  }
+  return pages;
+}
+
+/** عدد صفحات الملحق التي يحتاجها عددٌ من الأقساط — نسخةً واحدة. */
+export function annexPageCount(installmentCount: number, rowsPerPage: number): number {
+  if (!Number.isInteger(rowsPerPage) || rowsPerPage < 1) return 1;
+  if (!Number.isFinite(installmentCount) || installmentCount < 1) return 1;
+  return Math.ceil(installmentCount / rowsPerPage);
+}
+
 /** مجموع أقساط الجدول، مقرَّبًا مرة واحدة. */
 export function scheduleTotal(rows: readonly InstallmentRow[]): number {
   return sumMoney(rows.map((r) => r.amount));

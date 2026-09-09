@@ -33,6 +33,7 @@ import {
   CREDITOR_NAME_LATIN,
   CREDITOR_UNIFIED_NUMBER,
   MAX_INSTALLMENTS,
+  ROWS_PER_ANNEX_PAGE,
 } from '../forms/debtAcknowledgment/constants';
 import {
   applyAutofill,
@@ -485,7 +486,7 @@ describe('6 · جدول السداد في المستند', () => {
     await waitFor(() => expect(printedText()).toContain('200.000 KWD'));
   });
 
-  it('تجاوز سعة الملحق يظهر كخلل صريح ولا يولّد صفوفاً خارج التصميم', async () => {
+  it('تجاوز الحدّ الأقصى يظهر كخلل صريح ولا يولّد جدولاً', async () => {
     await renderForm();
     fireEvent.change(screen.getByLabelText(translate('page.debtAck.f.amount_figures', 'ar')), {
       target: { value: '1000.000' },
@@ -496,8 +497,11 @@ describe('6 · جدول السداد في المستند', () => {
     await waitFor(() =>
       expect(screen.getByText(translate('page.debtAck.issue.countAboveMax', 'ar'))).toBeInTheDocument(),
     );
-    // (12 صفًا + ترويسة) × نسختَي الملحق — النسخة الثانية مطابقة، فسعتها هي هي.
-    expect(document.querySelectorAll('.eda-tbl--annex tr').length).toBe(2 * (MAX_INSTALLMENTS + 1));
+    // عددٌ فوق الحدّ لا يولّد جدولًا أصلًا، فيبقى المستند على صفحة ملحق **فارغة**
+    // لكل نسخة — بصفوفها الاثني عشر ونقاط الأصل، كما في ملف Word قبل أن يُملأ.
+    // (12 صفًّا + ترويسة) × نسختين = 26. ولا صفوف «خارج التصميم» بحال.
+    expect(document.querySelectorAll('.eda-page--annex')).toHaveLength(2);
+    expect(document.querySelectorAll('.eda-tbl--annex tr').length).toBe(2 * (ROWS_PER_ANNEX_PAGE + 1));
   });
 
   it('تعديل يدوي ثم تغيير مُدخَل ⇒ سؤال قبل الاستبدال، لا مسح صامت', async () => {
@@ -546,16 +550,19 @@ describe('7 · مساحة التوقيع مضاعفة', () => {
   // مطابقًا لملف Word (الدائن يسارًا)، فيسبق «المدين» في الشجرة. الاسم يُشتقّ من
   // **الدور** لا من الموضع، فلا يحمل توقيعُ أحدهما اسمَ الآخر — وهذا ما يثبته هذا
   // الاختبار: نفس المجموعة في اللغات الثلاث، بترتيبٍ يتبع اتجاه القالب.
+  // الاسم يحمل رقم النسخة **ورقم صفحة الملحق** داخلها (`annex<نسخة>p<صفحة>`): صفحات
+  // الملحق صارت أكثر من واحدة حين يتجاوز عدد الأقساط سعة الصفحة، ولا بدّ أن يقيس
+  // مقياسُ الهندسة كل خانة على حدة. الحالة هنا خمسة أقساط ⇒ صفحة ملحق واحدة لكل نسخة.
   const AREAS_LTR = [
     'creditor-signature',
     'debtor-signature',
     'witness-1',
     'witness-2',
     'interpreter',
-    'annex1-signature-1',
-    'annex1-signature-2',
-    'annex2-signature-1',
-    'annex2-signature-2',
+    'annex1p1-signature-1',
+    'annex1p1-signature-2',
+    'annex2p1-signature-1',
+    'annex2p1-signature-2',
   ];
   const AREAS_RTL = ['debtor-signature', 'creditor-signature', ...AREAS_LTR.slice(2)];
   const EXPECTED_AREAS = AREAS_LTR;

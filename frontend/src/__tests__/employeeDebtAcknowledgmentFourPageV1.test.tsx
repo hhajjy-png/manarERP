@@ -27,6 +27,8 @@ import EmployeeDebtAcknowledgment from '../pages/EmployeeDebtAcknowledgment';
 import { api } from '../api/client';
 import { DEBT_ACK_CONTENT, SIGNATURE_SPACE_MULTIPLIER } from '../forms/debtAcknowledgment/DebtAcknowledgmentTemplate';
 import { PRINT_PROFILES } from '../forms/shared/printProfiles';
+import { MAX_INSTALLMENTS, ROWS_PER_ANNEX_PAGE } from '../forms/debtAcknowledgment/constants';
+import { t as translate } from '../lib/i18n';
 import type { DebtAckLang } from '../forms/debtAcknowledgment/debtAcknowledgmentModel';
 
 const ROUTE = '/forms/employee-debt-acknowledgment/:employeeId';
@@ -110,6 +112,34 @@ function printedText(): string {
   clone.querySelectorAll('.no-print, style, [style*="display: none"]').forEach((el) => el.remove());
   return clone.textContent ?? '';
 }
+
+/**
+ * يملأ محرّكات الجدول الثلاثة ثم ينتظر ظهور آخر قسط في المطبوع.
+ *
+ * الانتظار على **آخر** قسط لا على أوّله عمدًا: الخلل الذي أُصلح هنا كان يُظهر الصفحة
+ * الأولى صحيحةً ويسقط ما بعدها، فانتظارُ الصفّ الأول كان سيمرّ عليه.
+ */
+async function fillLoan(count: number, amount = '1000.000') {
+  fireEvent.change(screen.getByLabelText(translate('page.debtAck.f.amount_figures', 'ar')), {
+    target: { value: amount },
+  });
+  fireEvent.change(screen.getByLabelText(translate('page.debtAck.f.installments_count', 'ar')), {
+    target: { value: String(count) },
+  });
+  const field = screen.getByLabelText(translate('page.debtAck.f.first_installment_date', 'ar'));
+  fireEvent.change(field, { target: { value: '15/10/2026' } });
+  fireEvent.blur(field);
+  await waitFor(() => expect(annexSections().length).toBe(2 * Math.ceil(count / ROWS_PER_ANNEX_PAGE)));
+}
+
+const annexSections = () =>
+  Array.from(docRoot().querySelectorAll('.eda-page--annex')) as HTMLElement[];
+
+/** أرقام الصفوف المطبوعة في عمود «رقم القسط» لصفحة ملحق واحدة. */
+const annexRowNumbers = (section: HTMLElement) =>
+  Array.from(section.querySelectorAll('.eda-tbl--annex tr'))
+    .slice(1)
+    .map((tr) => (tr.querySelector('[data-eda-col=no]')?.textContent ?? '').trim());
 
 function openInstructions() {
   const button = screen
@@ -279,6 +309,200 @@ describe('1-ب · جداول القالب العربي كلها', () => {
     expect(directionRules).toHaveLength(1);
     expect(directionRules[0]).toContain('.eda-val--ltr');
     expect(TEMPLATE_CSS_TEXT).not.toMatch(/eda-tbl[^{]*\{[^}]*direction/);
+  });
+});
+
+// ══ 1-ج · أكثر من اثني عشر قسطاً ═════════════════════════════════════════════
+//
+// كان عدد الأقساط مربوطًا بعدد صفوف صفحة الملحق، فكان أي عدد فوق الاثني عشر يُرفَض في
+// التحقّق ويخرج جدولًا فارغًا. صار الجدولُ يُقسَّم على صفحات ملحق بنفس التصميم، و**تتكرّر
+// المجموعة كاملةً** لا صفحةً صفحةً.
+describe('1-ج · تقسيم الملحق على صفحات', () => {
+  it.each([
+    [1, 1],
+    [12, 1],
+    [13, 2],
+    [24, 2],
+    [25, 3],
+    [36, 3],
+  ])('%i قسطاً ⇒ %i صفحة ملحق لكل نسخة (ونسختان في المستند)', async (count, perCopy) => {
+    await renderForm();
+    await fillLoan(count);
+    expect(annexSections()).toHaveLength(perCopy * 2);
+    // صفحتا المستند ثم مجموعتا الملحق.
+    expect(pages()).toHaveLength(2 + perCopy * 2);
+  });
+
+  it('ثلاثة عشر قسطاً: الصفحة الأولى 1–12 والثانية القسط 13 ثم أحد عشر صفًّا فارغًا', async () => {
+    await renderForm();
+    await fillLoan(13);
+    const [first, second] = annexSections();
+    expect(annexRowNumbers(first)).toEqual(['1','2','3','4','5','6','7','8','9','10','11','12']);
+    expect(annexRowNumbers(second)).toEqual(['13','14','15','16','17','18','19','20','21','22','23','24']);
+    // الصفّ الأول مملوء، وما بعده فراغات الأصل — بلا تغيّر في عدد الصفوف.
+    const rows = Array.from(second.querySelectorAll('.eda-tbl--annex tr')).slice(1);
+    expect(rows).toHaveLength(ROWS_PER_ANNEX_PAGE);
+    expect(rows[0].textContent).toContain('15/10/2027');
+    expect(rows[1].textContent).toContain('....../....../..........');
+  });
+
+  it('كل صفحة ملحق تحمل اثني عشر صفًّا مهما كان عدد الأقساط', async () => {
+    await renderForm();
+    for (const count of [1, 13, 25]) {
+      await fillLoan(count);
+      for (const section of annexSections()) {
+        expect(Array.from(section.querySelectorAll('.eda-tbl--annex tr')).slice(1)).toHaveLength(
+          ROWS_PER_ANNEX_PAGE,
+        );
+      }
+    }
+  });
+
+  it('خمسة وعشرون قسطاً: الترقيم متّصل عبر الصفحات الثلاث', async () => {
+    await renderForm();
+    await fillLoan(25);
+    const set = annexSections().slice(0, 3);
+    expect(annexRowNumbers(set[0])[0]).toBe('1');
+    expect(annexRowNumbers(set[1])[0]).toBe('13');
+    expect(annexRowNumbers(set[2])[0]).toBe('25');
+    expect(set[2].textContent).toContain('0.000');
+  });
+
+  it('المجموعة الأولى كاملةً ثم المجموعة الثانية — لا تبادل بينهما', async () => {
+    await renderForm();
+    await fillLoan(25);
+    const copies = annexSections().map((el) => el.getAttribute('data-eda-annex-copy'));
+    const numbers = annexSections().map((el) => el.getAttribute('data-eda-annex-page'));
+    expect(copies).toEqual(['1', '1', '1', '2', '2', '2']);
+    expect(numbers).toEqual(['1', '2', '3', '1', '2', '3']);
+  });
+
+  it('والنسخة الثانية مطابقة للأولى صفحةً بصفحة', async () => {
+    await renderForm();
+    await fillLoan(25);
+    const set = annexSections();
+    for (let i = 0; i < 3; i += 1) {
+      expect(set[i + 3].textContent).toBe(set[i].textContent);
+    }
+  });
+
+  it('وآخر صفحة في المستند هي آخر صفحة من المجموعة الثانية', async () => {
+    await renderForm();
+    await fillLoan(25);
+    const last = pages().at(-1) as HTMLElement;
+    expect(last.getAttribute('data-eda-annex-copy')).toBe('2');
+    expect(last.getAttribute('data-eda-annex-page')).toBe('3');
+  });
+
+  it('حتى اثني عشر قسطاً يبقى المستند أربع صفحات كما اعتُمد', async () => {
+    await renderForm();
+    for (const count of [1, 5, 12]) {
+      await fillLoan(count);
+      expect(pages()).toHaveLength(4);
+      expect(annexSections()).toHaveLength(2);
+    }
+  });
+
+  it('ترتيب أعمدة الملحق العربي صحيح في **كل** صفحة من الصفحات الست', async () => {
+    await renderForm();
+    await fillLoan(25);
+    for (const section of annexSections()) {
+      const head = Array.from(section.querySelectorAll('.eda-tbl--annex tr')[0].children).map((td) =>
+        td.getAttribute('data-eda-col'),
+      );
+      expect(head).toEqual(['no', 'dueDate', 'amount', 'balance', 'notes']);
+    }
+  });
+
+  it('والإنجليزية والهندية تقسمان مثلها وبترتيب أعمدتهما', async () => {
+    await renderForm();
+    await fillLoan(25);
+    for (const aria of ['English', 'Hindi'] as const) {
+      switchTo(aria);
+      expect(annexSections()).toHaveLength(6);
+      for (const section of annexSections()) {
+        const head = Array.from(section.querySelectorAll('.eda-tbl--annex tr')[0].children).map((td) =>
+          td.getAttribute('data-eda-col'),
+        );
+        expect(head).toEqual(['no', 'dueDate', 'amount', 'balance', 'notes']);
+      }
+    }
+  });
+
+  it('مساحة التوقيع ما زالت الضعف على كل صفحة ملحق إضافية', async () => {
+    await renderForm();
+    await fillLoan(25);
+    // خمس خانات في المستند + خانتان لكل صفحة ملحق × ستّ صفحات.
+    const areas = Array.from(docRoot().querySelectorAll('[data-eda-sig]'));
+    expect(areas).toHaveLength(5 + 2 * 6);
+    for (const area of areas) {
+      const td = area.closest('td') as HTMLElement;
+      expect(parseFloat(td.style.paddingBottom)).toBeCloseTo(parseFloat(td.style.paddingTop) * 3, 5);
+    }
+  });
+
+  it('ولا صفحة تعليمات واحدة مهما كثرت صفحات الملحق', async () => {
+    await renderForm();
+    await fillLoan(25);
+    expect(printedText()).not.toContain(DEBT_ACK_CONTENT.ar.guidanceTitle);
+    expect(document.querySelectorAll('[data-eda-instructions]')).toHaveLength(0);
+  });
+
+  it('عنوان الملحق يتكرّر مرة لكل صفحة ملحق، بلا «تابع» ولا ترقيم مُضاف', async () => {
+    await renderForm();
+    await fillLoan(25);
+    const text = printedText();
+    expect(text.split(DEBT_ACK_CONTENT.ar.annexTitle).length - 1).toBe(6);
+    expect(text).not.toMatch(/تابع|Continued|صفحة \d+ من|\d+\s*\/\s*\d+\s*ملحق/);
+  });
+
+  it('كل الأقساط قابلة للتحرير في لوحة الإدخال — لا أوّل اثني عشر منها', async () => {
+    await renderForm();
+    await fillLoan(25);
+    const panel = printedRoot().querySelector('.no-print') as HTMLElement;
+    // بالعنوان الكامل `<التسمية> <رقم>` لا ببادئته: حقل «قيمة القسط» المحسوب في أعلى
+    // القسم يحمل التسمية نفسها بلا رقم، فالبادئة وحدها كانت تلتقطه معها. ولا يُبنى من
+    // التسمية تعبيرٌ نمطي: نصّها «قيمة القسط (د.ك)» يحمل قوسين، فيصيران مجموعةً في
+    // التعبير ولا يُطابَقان حرفًا — وهو ما جعل الفحص يعدّ صفرًا.
+    const label = translate('page.debtAck.schedule_col_amount', 'ar');
+    const amountInputs = Array.from(panel.querySelectorAll('input')).filter((el) => {
+      const title = el.getAttribute('title') ?? '';
+      if (!title.startsWith(`${label} `)) return false;
+      const suffix = title.slice(label.length + 1);
+      return suffix.length > 0 && [...suffix].every((ch) => ch >= '0' && ch <= '9');
+    });
+    expect(amountInputs).toHaveLength(25);
+    expect(panel.querySelector(`[title="${translate('page.debtAck.schedule_col_amount', 'ar')} 25"]`)).toBeTruthy();
+  });
+
+  it('وجدول واحد قابل للتحرير: لا نسخة منفصلة لكل صفحة ملحق', async () => {
+    await renderForm();
+    await fillLoan(13);
+    const panel = printedRoot().querySelector('.no-print') as HTMLElement;
+    // جدول تحرير واحد في اللوحة، ولا صفحة ملحق داخلها.
+    expect(panel.querySelectorAll('[data-eda-annex-copy]')).toHaveLength(0);
+    const editors = Array.from(panel.querySelectorAll('table')).filter((t) =>
+      t.querySelector('input[type=number]'),
+    );
+    expect(editors).toHaveLength(1);
+  });
+
+  it('حقل العدد يقبل الحدّ الجديد لا اثني عشر', async () => {
+    await renderForm();
+    const field = screen.getByLabelText(translate('page.debtAck.f.installments_count', 'ar'));
+    expect(field.getAttribute('max')).toBe(String(MAX_INSTALLMENTS));
+    expect(MAX_INSTALLMENTS).toBeGreaterThan(ROWS_PER_ANNEX_PAGE);
+  });
+
+  it('عدد غير صالح يُعلَن ولا يُبتلع في جدول فارغ بلا تفسير', async () => {
+    await renderForm();
+    await fillLoan(13);
+    fireEvent.change(screen.getByLabelText(translate('page.debtAck.f.installments_count', 'ar')), {
+      target: { value: String(MAX_INSTALLMENTS + 1) },
+    });
+    await waitFor(() =>
+      expect(screen.getByText(translate('page.debtAck.issue.countAboveMax', 'ar'))).toBeInTheDocument(),
+    );
   });
 });
 
@@ -473,22 +697,38 @@ describe('5 · القياس الفعلي', () => {
   // النسخة المحفوظة في المستودع من تقرير القياس — يكتبها `measure.cjs` بجانب نسخة
   // artifacts/ المستثناة من Git، فيقرأ الاختبارُ ما قِيس فعلًا لا ما توقّعه أحد.
   const reportPath = path.resolve(__dirname, '../../../docs/employee-debt-acknowledgment-v1.geometry.json');
+  interface ReportPage {
+    index: number;
+    topClearMm: number;
+    bottomClearMm: number;
+    visibleInkSha: string;
+    inkOps: number;
+  }
+  interface ReportDoc {
+    scenario: string;
+    installments: number;
+    generatedRows: number;
+    annexPagesPerCopy: number;
+    expectedPages: number;
+    lang: string;
+    pageCount: number;
+    pages: ReportPage[];
+    structure: {
+      sectionCount: number;
+      annexCopies: string[];
+      annexPageNumbers: string[];
+      lastSectionAnnexCopy: string;
+      lastSectionAnnexPage: string;
+      instructionsNodes: number;
+      tables: Array<{ index: number; kind: string; headVisualOrder: string[]; bodyVisualOrder: string[] }>;
+    };
+    page2: { minFontPt: number; clause: { fontPt: number; lineHeightRatio: number } };
+    problems: string[];
+  }
   const report = JSON.parse(fs.readFileSync(reportPath, 'utf-8')) as {
     pass: boolean;
-    documents: Array<{
-      lang: string;
-      pageCount: number;
-      pages: Array<{ index: number; topClearMm: number; bottomClearMm: number; visibleInkSha: string }>;
-      structure: {
-        sectionCount: number;
-        annexCopies: string[];
-        lastSectionAnnexCopy: string;
-        instructionsNodes: number;
-        tables: Array<{ index: number; kind: string; headVisualOrder: string[]; bodyVisualOrder: string[] }>;
-      };
-      page2: { minFontPt: number; clause: { fontPt: number; lineHeightRatio: number } };
-      problems: string[];
-    }>;
+    requirement: { rowsPerAnnexPage: number; mainPages: number };
+    documents: ReportDoc[];
   };
 
   it('القياس مرّ بلا مشكلة واحدة', () => {
@@ -496,35 +736,82 @@ describe('5 · القياس الفعلي', () => {
     for (const doc of report.documents) expect(doc.problems).toEqual([]);
   });
 
-  it('أربع صفحات في اللغات الثلاث — مقيسة من الـPDF لا مُعلَنة', () => {
-    expect(report.documents.map((d) => d.lang).sort()).toEqual(['ar', 'en', 'hi']);
-    for (const doc of report.documents) {
-      expect(doc.pageCount).toBe(4);
-      expect(doc.structure.sectionCount).toBe(4);
+  it('السيناريوهات الثلاثة × اللغات الثلاث قِيست فعلًا', () => {
+    expect(report.documents).toHaveLength(9);
+    expect([...new Set(report.documents.map((d) => d.scenario))].sort()).toEqual(['i05', 'i13', 'i25']);
+    expect([...new Set(report.documents.map((d) => d.lang))].sort()).toEqual(['ar', 'en', 'hi']);
+    expect(report.requirement.rowsPerAnnexPage).toBe(ROWS_PER_ANNEX_PAGE);
+  });
+
+  it('عدد الأقساط المطلوب هو عدد الصفوف المولَّد — 13 تعني 13 لا جدولًا فارغًا', () => {
+    for (const doc of report.documents) expect(doc.generatedRows).toBe(doc.installments);
+  });
+
+  /**
+   * الصيغة: `صفحتا المستند + 2 × ceil(الأقساط ÷ 12)`.
+   *
+   * وهي **متوقَّع يُقارَن بالمقيس** لا بديلٌ عنه: `pageCount` أدناه مقروء من الـPDF الذي
+   * أخرجه Chromium، والصيغة تُحسب مستقلّةً عنه ثم تُطابَق به.
+   */
+  it.each([
+    ['i05', 5, 1, 4],
+    ['i13', 13, 2, 6],
+    ['i25', 25, 3, 8],
+  ])('%s: %i قسطاً ⇒ %i صفحة ملحق لكل نسخة ⇒ %i صفحات مقيسة', (scenario, installments, perCopy, total) => {
+    const docs = report.documents.filter((d) => d.scenario === scenario);
+    expect(docs).toHaveLength(3);
+    for (const doc of docs) {
+      expect(doc.installments).toBe(installments);
+      expect(doc.annexPagesPerCopy).toBe(perCopy);
+      expect(report.requirement.mainPages + 2 * perCopy).toBe(total);
+      expect(doc.expectedPages).toBe(total);
+      expect(doc.pageCount).toBe(total);
+      expect(doc.structure.sectionCount).toBe(total);
     }
   });
 
-  it('الحزام العلوي 40mm محفوظ على الصفحات الأربع', () => {
+  it('الحزام العلوي 40mm والسفلي 20mm محفوظان على **كل** صفحة في كل سيناريو', () => {
     for (const doc of report.documents) {
-      for (const page of doc.pages) expect(page.topClearMm).toBeGreaterThanOrEqual(39.5);
+      for (const page of doc.pages) {
+        expect(page.topClearMm).toBeGreaterThanOrEqual(39.5);
+        expect(page.bottomClearMm).toBeGreaterThanOrEqual(19.5);
+        // ولا صفحة بيضاء: كل صفحة تحمل حبرًا.
+        expect(page.inkOps).toBeGreaterThan(0);
+      }
     }
   });
 
-  it('الحزام السفلي 20mm محفوظ حتى على الصفحة 2 — فلم يُستهلك إعفاؤها', () => {
+  it('المجموعة الثانية مطابقة للأولى صفحةً بصفحة في كل سيناريو', () => {
     for (const doc of report.documents) {
-      for (const page of doc.pages) expect(page.bottomClearMm).toBeGreaterThanOrEqual(19.5);
+      const n = doc.annexPagesPerCopy;
+      for (let k = 0; k < n; k += 1) {
+        const first = doc.pages[report.requirement.mainPages + k];
+        const second = doc.pages[report.requirement.mainPages + n + k];
+        expect(second.visibleInkSha).toBe(first.visibleInkSha);
+        expect(second.inkOps).toBe(first.inkOps);
+        expect(second.topClearMm).toBe(first.topClearMm);
+        expect(second.bottomClearMm).toBe(first.bottomClearMm);
+      }
     }
   });
 
-  it('صفحتا الملحق تحملان الحبر نفسه في المواضع نفسها', () => {
+  it('ترتيب المجموعتين: كل الأولى ثم كل الثانية، وآخر الورق آخر الثانية', () => {
     for (const doc of report.documents) {
-      expect(doc.pages[2].visibleInkSha).toBe(doc.pages[3].visibleInkSha);
-      expect(doc.structure.annexCopies).toEqual(['1', '2']);
+      const n = doc.annexPagesPerCopy;
+      expect(doc.structure.annexCopies).toEqual([
+        ...Array.from({ length: n }, () => '1'),
+        ...Array.from({ length: n }, () => '2'),
+      ]);
+      expect(doc.structure.annexPageNumbers).toEqual([
+        ...Array.from({ length: n }, (_u, i) => String(i + 1)),
+        ...Array.from({ length: n }, (_u, i) => String(i + 1)),
+      ]);
       expect(doc.structure.lastSectionAnnexCopy).toBe('2');
+      expect(doc.structure.lastSectionAnnexPage).toBe(String(n));
     }
   });
 
-  it('لا عقدة تعليمات واحدة في المستند المُخرَج', () => {
+  it('لا عقدة تعليمات واحدة في أي مستند مُخرَج', () => {
     for (const doc of report.documents) expect(doc.structure.instructionsNodes).toBe(0);
   });
 
@@ -548,11 +835,13 @@ describe('5 · القياس الفعلي', () => {
     },
   };
 
-  it('كل جدول عربي يقع بصريًا كما يعرضه ملف Word — والإنجليزي والهندي كما هما', () => {
+  it('كل جدول عربي يقع بصريًا كما يعرضه ملف Word — في كل صفحة ملحق وكل سيناريو', () => {
     for (const doc of report.documents) {
       const want = doc.lang === 'ar' ? VISUAL.ar : VISUAL.ltr;
       const measured = doc.structure.tables.filter((t) => t.kind !== 'plain');
-      expect(measured.length).toBe(7);
+      // جدولا بيانات + جدول توقيعات + (جدول ملحق وجدول توقيع ملحق) لكل صفحة ملحق.
+      const annexSections = doc.annexPagesPerCopy * 2;
+      expect(measured).toHaveLength(3 + annexSections * 2);
       for (const table of measured) {
         expect(table.headVisualOrder).toEqual(want[table.kind as keyof typeof want]);
         // الجسم يتبع الترويسة: لا قيمة مولَّدة تحت ترويسة غير ترويستها.
@@ -561,20 +850,14 @@ describe('5 · القياس الفعلي', () => {
     }
   });
 
-  it('الجداول كلها حاضرة: أربعة بيانات وواحد توقيعات وملحقان', () => {
+  it('عدد الجداول يتبع عدد صفحات الملحق', () => {
     for (const doc of report.documents) {
+      const annexSections = doc.annexPagesPerCopy * 2;
       const kinds = doc.structure.tables.map((t) => t.kind);
-      expect(kinds.filter((k) => k === 'data').length).toBe(4);
-      expect(kinds.filter((k) => k === 'signature').length).toBe(1);
-      expect(kinds.filter((k) => k === 'annex').length).toBe(2);
-    }
-  });
-
-  it('نسختا الملحق ما زالتا متطابقتَي الترتيب البصري', () => {
-    for (const doc of report.documents) {
-      const annexes = doc.structure.tables.filter((t) => t.kind === 'annex');
-      expect(annexes[1].headVisualOrder).toEqual(annexes[0].headVisualOrder);
-      expect(annexes[1].bodyVisualOrder).toEqual(annexes[0].bodyVisualOrder);
+      expect(kinds.filter((k) => k === 'annex')).toHaveLength(annexSections);
+      expect(kinds.filter((k) => k === 'signature')).toHaveLength(1);
+      // جدولا الدائن والمدين + جدول توقيع لكل صفحة ملحق.
+      expect(kinds.filter((k) => k === 'data')).toHaveLength(2 + annexSections);
     }
   });
 
