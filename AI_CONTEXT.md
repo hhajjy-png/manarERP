@@ -2759,7 +2759,7 @@ Chromium PDF, and backend HTML reports.
   refinement), `58594cf3` (signature space) `e57b0e92` (four-page layout, double annex, RTL annex)
   `35e31961` (RTL order for every Arabic table), `9e2f0b2e` (instalments beyond one annex page) and
   `61d6d5f1` (balance column name, balance-at-signing, document defaults, fixed IBAN) and
-  `WHOLE_COMMIT` (whole-dinar instalments).
+  `a1f44846` (whole-dinar instalments).
   Not merged, not tagged, no version bump, no installer. A new administrative form «إقرار دين موظف» with
   three independent official templates (Arabic RTL / English / Hindi — both LTR, as their own DOCX files
   declare), one shared data-entry screen, and its own non-selectable print profile
