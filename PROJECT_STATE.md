@@ -59,7 +59,8 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | **`d52d53dc`** (release/version) + توثيق الإصدار فوقه — **Production Release 2026.5.10** (Desktop Installer), tag `stable-production-release-2026.5.10` → **commit رفع النسخة نفسه** (نفس دلالة وسم 2026.5.9 الذي أشار إلى `ab9480d9`). مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج منذ مثبِّت 2026.5.9: حزمتان تحملان كودًا (**Employee Debt Acknowledgment Form v1** و**Receipts Page & Comprehensive Report v1**) وثلاث حزم توثيقية. الترحيلات **71 بلا تغيير** · 87 نموذج Prisma · قاعدة الإنتاج لم تُمَسّ. |
+| **Production HEAD** | **`561fbb3d`** (merge) + توثيق الإصدار فوقه — **Reports Center Run Button Stale Selection Fix v1** (feature fix release), merge `561fbb3d` (أبواه `45f085d2` و`b51e1838`), tag `stable-reports-run-button-stale-selection-fix-v1` → **commit الدمج نفسه**. إصلاح إغلاق (stale closure) في زرّ «تشغيل» داخل بطاقة التقرير: كان قد يفتح التقرير المحدَّد سابقًا بدل تقرير البطاقة المضغوطة. التنفيذ صار يمرّر مفتاح البطاقة صراحةً بلا اعتماد على انتشار `setState`. تغطية انحدار مسوقة بسجلّ `REPORT_TYPES` (19 تقريرًا). العيب **قائم مسبقًا منذ Desktop Production 2026.5.9**، اكتُشف أثناء التحقّق من 2026.5.10 — ليس انحدارًا من حزم المقبوضات. الترحيلات **71 بلا تغيير** · صفر تغييرات مخطّط · صفر تغييرات خلفية · صفر تغييرات بصرية. نسخة سطح المكتب تبقى **`2026.5.10`** — إصدار إصلاح بلا مثبِّت ولا رفع نسخة. Product Owner Functional Review: **APPROVED** |
+| **Production HEAD before that** | **`d52d53dc`** (release/version) + توثيق الإصدار فوقه — **Production Release 2026.5.10** (Desktop Installer), tag `stable-production-release-2026.5.10` → **commit رفع النسخة نفسه** (نفس دلالة وسم 2026.5.9 الذي أشار إلى `ab9480d9`). مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج منذ مثبِّت 2026.5.9: حزمتان تحملان كودًا (**Employee Debt Acknowledgment Form v1** و**Receipts Page & Comprehensive Report v1**) وثلاث حزم توثيقية. الترحيلات **71 بلا تغيير** · 87 نموذج Prisma · قاعدة الإنتاج لم تُمَسّ. |
 | **Production HEAD before that** | **`bcd67793`** (merge) + توثيق الإصدار `1326b444` وcommit إغلاق الهاش فوقه — **Receipts Page & Comprehensive Report v1** (feature release يضمّ حزمتين: صفحة «المقبوضات» وتقرير «المقبوضات» في التقارير الشاملة), merge `bcd67793` (أبواه `968c18cf` و`313c77c0`), tag `stable-receipts-page-and-report-v1` → **commit الدمج نفسه**. الحزمتان تتشاركان مصدر الحقيقة نفسه (`Payment` لفواتير مبيعات فعّالة عبر `SALES_INVOICE_ACTIVE`) — تكافؤ الإجمالي والعدد **مُثبَت حيًّا على 10 حالات فلترة**. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
 | **Production HEAD before that** | **`814116b4`** (merge) + توثيق الإصدار `291e1a20` وcommit إغلاق الهاش فوقه — **Employee Debt Acknowledgment Administrative Form v1** (feature release), merge `814116b4` (أبواه `a3c5b18e` و`618f00b0`), tag `stable-employee-debt-acknowledgment-form-v1` → **commit الدمج نفسه**, توثيق الإصدار في `291e1a20` يعلوه commit إغلاق الهاش. **أول إصدار يحمل كودًا منذ Production Release 2026.5.9**: ما سبقه على `production` كان توثيقًا خالصًا. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
 | **Production HEAD before that** | `f37c9c7f` — **Complete User Manual v1** (documentation release), merge `57e2c8a1`, tag `stable-complete-user-manual-v1`, docs/final commit `f37c9c7f`. **The last code-bearing release is Production Release 2026.5.9** (release commit `ab9480d9`, tag `stable-production-release-2026.5.9`); everything merged onto `production` after it is **documentation only** — mechanically verified: `git diff --name-only ab9480d9 f37c9c7f` touches 98 files, all under `docs/` plus `PROJECT_STATE.md` and `AI_CONTEXT.md`, with zero files under `backend/`, `frontend/`, `electron/`, `scripts/`, `prisma/` and no `package.json` change. The older HEAD chain continues in the rows below; the full entry for each of those releases lives in the release log or in `docs/history/` |
@@ -93,7 +94,57 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
-## Latest Release — Production Release 2026.5.10 (Desktop Installer)
+## Latest Release — Reports Center Run Button Stale Selection Fix v1
+
+> **الحالة:** RELEASED / COMPLETED · **Product Owner Functional Review — APPROVED**
+> «تمت المراجعة الوظيفية واعتماد إصلاح زر «تشغيل» في مركز التقارير.»
+
+| الحقل | القيمة |
+|---|---|
+| نوع الإصدار | Feature fix release — **بلا مثبِّت وبلا رفع نسخة سطح المكتب** |
+| نسخة سطح المكتب | **`2026.5.10` بلا تغيير** |
+| قاعدة الانطلاق | `production` @ `45f085d2` |
+| الفرع | `fix/reports-run-button-stale-selection-v1` @ `b51e1838` |
+| وسم التحقّق | `checkpoint/pre-reports-run-button-fix-v1` |
+| الدمج | `561fbb3d` (`--no-ff`، أبواه `45f085d2` و`b51e1838`) |
+| الوسم المستقرّ | `stable-reports-run-button-stale-selection-fix-v1` → commit الدمج نفسه |
+
+**السبب الجذري.** زرّ «تشغيل» داخل بطاقة التقرير كان ينفّذ `selectReport(rt.key)` ثم
+`setTimeout(loadPreview, 0)`. و`loadPreview` دالّة `useCallback` تغلق على `selected` الخاصّ برسمة
+الضغط — أي التقرير المحدَّد **قبل** الضغط. `setSelected` غير متزامن، و`setTimeout` تحتجز المرجع
+القديم، فينطلق المؤقّت طالبًا `/reports/<التقرير السابق>/preview` لا تقرير البطاقة المضغوطة.
+وللسبب نفسه كانت فلاتر التقرير السابق تتسرّب إلى الطلب.
+
+**الإصلاح.** استُخرجت `runReport(reportKey, params)` صريحة الوسائط لا تقرأ الحالة إطلاقًا،
+ويستدعيها زرّ البطاقة بمفتاح بطاقته مباشرةً داخل معالج الضغط، و`api.get` يُنفَّذ تزامنيًا في
+المعالج نفسه. **لا `setTimeout`، ولا تأخير، ولا إعادة محاولة، ولا انتظار لانتشار `setState`** —
+صحّة النتيجة لا علاقة لها بترتيب الرسم. ومسار «تهيئة ← تشغيل التقرير» يستدعي الدالّة نفسها
+بالتقرير المحدَّد وفلاتره المعروضة بلا تغيّر سلوك. وتضمن `directRunParams` ألّا تتسرّب فلاتر
+تقرير إلى تقرير لا تخصّه.
+
+**التغطية.** تغطية الانحدار **مسوقة بالسجلّ** `REPORT_TYPES` نفسه (**19 تقريرًا** حاليًا) فتشمل
+أيّ تقرير يُضاف مستقبلًا تلقائيًا: مفتاح البطاقة المضغوطة == المفتاح المنفَّذ، مقروءًا من عنوان
+الطلب الفعلي. الاختبار شُغّل على الكود **قبل** الإصلاح فسقطت **18 من 19 بطاقة** بالبصمة الحرفية
+للإغلاق القديم (`expected 'invoices' to be 'receipts'`، والضغط المتتابع
+`['invoices','contracts'] ≠ ['contracts','equipment']`). **28 اختبارًا جديدًا.**
+
+**النسب.** العيب **قائم مسبقًا منذ Desktop Production 2026.5.9**، اكتُشف أثناء التحقّق من
+**Desktop Production 2026.5.10** — **ليس انحدارًا من حزم المقبوضات**؛ تلك الحزم أضافت بطاقة إلى
+مركز موجود أصلًا بالعيب فظهر أثره على أحدث بطاقة فلُوحظ.
+
+**النطاق.** إصلاح وظيفي في الواجهة فقط: صفر تغييرات بصرية/CSS، صفر تغييرات خلفية، صفر ترحيلات
+(71 بلا تغيير)، صفر تغييرات مخطّط، بلا رفع نسخة سطح المكتب وبلا مثبِّت.
+
+**التحقّق.** `tsc --noEmit` نظيف في الواجهة والخلفية وإلكترون · `build:front` و`build:back` ناجحان ·
+الواجهة 4,637/4,640 · الخلفية 3,760/3,765 · إلكترون 502/502 · **صفر إخفاق جديد** (السقطات القائمة
+مسبقًا نفسها: `entitlementsBankExport` ×2، `employeeCompensationBatchPrint` ×1،
+`chequeDesignerTemplates.integration.contract` ×5).
+
+**التفاصيل الكاملة:** [`docs/REPORTS_RUN_BUTTON_STALE_SELECTION_FIX_V1.md`](docs/REPORTS_RUN_BUTTON_STALE_SELECTION_FIX_V1.md)
+
+---
+
+## Previous Release — Production Release 2026.5.10 (Desktop Installer)
 
 | Field | Value |
 |-------|-------|
