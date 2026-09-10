@@ -105,7 +105,7 @@ const RC_GRP_OPERATIONS = 'rc.grp.operations';
 const RC_GRP_OPERATIONAL_FULL = 'rc.grp.operational_full';
 const RC_GRP_RECEIVABLES = 'rc.grp.receivables';
 
-const REPORT_TYPES: ReportType[] = [
+export const REPORT_TYPES: ReportType[] = [
   {
     key: 'invoices', label: 'report.type.invoices', icon: '🧾', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
     filters: ['date', 'customer', 'direction', 'status'],
@@ -673,24 +673,50 @@ export default function Reports() {
     return p;
   }
 
-  const loadPreview = useCallback(async () => {
+  /**
+   * تشغيل تقرير **بمفتاحه ووسائطه الصريحة** — لا يقرأ `selected` ولا حالة الفلاتر.
+   *
+   * هذا هو جوهر إصلاح «زرّ التشغيل في البطاقة»: النداء المباشر من بطاقة يمرّر مفتاح
+   * البطاقة نفسها، فلا يبقى للتنفيذ اعتماد على انتشار `setState` ولا حاجة إلى
+   * `setTimeout` تلتقط دالّة أُغلقت على التقرير السابق.
+   */
+  const runReport = useCallback(async (reportKey: string, params: Record<string, string>) => {
     if (!canView) return;
     setLoading(true);
     setError('');
     setPreview(null);
     setPanelOpen(false);
     try {
-      const res = await api.get(`/reports/${selected}/preview`, { params: buildParams() });
+      const res = await api.get(`/reports/${reportKey}/preview`, { params });
       setPreview(res.data.data);
       setGeneratedAt(new Date());
-      pushRecent(selected);
+      pushRecent(reportKey);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
+  }, [canView]);
+
+  /** تشغيل التقرير المحدَّد بفلاتره المعروضة — مسار «تهيئة ← تشغيل» كما كان. */
+  const loadPreview = useCallback(() => {
+    void runReport(selected, buildParams());
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, entYear, entMonth, department, method, canView]);
+  }, [runReport, selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, entYear, entMonth, department, method]);
+
+  /**
+   * وسائط التشغيل المباشر من بطاقة. عند التبديل إلى تقرير آخر تُستعمل قيم البدء
+   * التي يضبطها أثر تغيّر `selected` (from/to من الفترة العالمية، وبقيّة الفلاتر
+   * فارغة) — فلا تتسرّب فلاتر التقرير السابق إلى تقرير لا تخصّه. أمّا الضغط على
+   * بطاقة التقرير المحدَّد أصلًا فيحترم الفلاتر التي ضبطها المستخدم له.
+   */
+  function directRunParams(reportKey: string): Record<string, string> {
+    if (reportKey === selected) return buildParams();
+    const p: Record<string, string> = {};
+    if (period.fromDate) p.from = period.fromDate;
+    if (period.toDate)   p.to   = period.toDate;
+    return p;
+  }
 
   // وسم الفترة لاسم الملف: نطاق from/to، أو «كل الفترات» عند غيابهما.
   const exportPeriod = { from: from || undefined, to: to || undefined, allPeriods: !from && !to };
@@ -1200,7 +1226,12 @@ export default function Reports() {
                       variant="primary"
                       icon="play_arrow"
                       small
-                      onClick={(e) => { e.stopPropagation(); selectReport(rt.key); setTimeout(loadPreview, 0); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const params = directRunParams(rt.key);
+                        selectReport(rt.key);
+                        void runReport(rt.key, params);
+                      }}
                     >
                       {t('rc.action.run')}
                     </Button>
