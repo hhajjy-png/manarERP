@@ -16,6 +16,9 @@ import { buildExpenseAnalysis } from './expenseAnalysis';
 import { buildCollectionsAnalysis } from './collectionsAnalysis';
 import { buildEmployeeEntitlementsReport } from './employeeEntitlementsReport';
 import { buildVehicleInsuranceReport } from './vehicleInsuranceReport';
+// تقرير المقبوضات — يبنيه ملفّه المخصَّص من نفس خدمة صفحة المقبوضات، بلا استعلام
+// مالي ثانٍ ولا تعريف موازٍ لـ«المقبوض».
+import { buildReceiptsReport } from './receiptsReport';
 import { ARABIC_MONTHS } from '../../core/utils/arabicMonths';
 import { monthWindowsBetween, clampMonthWindows, endOfLocalDay, startOfLocalDay, localDateRange } from '../../core/utils/dateWindows';
 import { roundMoney } from '../../shared/utils/money';
@@ -67,6 +70,14 @@ interface ReportQuery {
   company?: string;
   /** إضافي (استخدام الاتفاقيات): وحدة العقد — `ProjectPrice.contractUnit`. */
   workType?: string;
+  /**
+   * إضافي (تقرير المقبوضات): وسيلة القبض — CASH | BANK | CHEQUE | TRANSFER.
+   * لا تستعمله أي تقرير آخر، فوجوده لا يغيّر سلوك أيٍّ منها.
+   */
+  method?: string;
+  /** إضافي (تقرير المقبوضات): حدّا المبلغ — يقبلهما العقد المشترك ولا تعرضهما الواجهة. */
+  minAmount?: string;
+  maxAmount?: string;
 }
 
 /**
@@ -130,9 +141,41 @@ export class ReportsService {
       // تأمين المركبات — يقرأ جدولَي الوحدة وحدهما، ولا يمسّ أي تقرير قائم.
       case 'vehicle-insurance':
         return buildVehicleInsuranceReport({ status: query.status });
+      // المقبوضات — نفس SSoT صفحة `#/receipts` (Payment لفواتير مبيعات فعّالة).
+      case 'receipts':
+        return this.receipts(query);
       default:
         throw AppError.badRequest('نوع تقرير غير معروف');
     }
+  }
+
+  /**
+   * تقرير المقبوضات — Receipts Comprehensive Report v1.
+   *
+   * **منسِّق بحت**: لا استعلام Prisma هنا ولا قاعدة عمل. الصفوف والإجماليات من
+   * `receiptsQueryService` نفسه الذي تقرأ منه صفحة `#/receipts`، فيستحيل أن
+   * يختلف تعريف «المقبوض» بين الشاشتين. الاستعلام الوحيد أدناه يقرأ **اسم**
+   * العميل للترويسة — بيان عرض لا مبلغ، ولا يدخل أي حساب.
+   */
+  private async receipts(q: ReportQuery): Promise<ReportInput> {
+    const customerId = Number(q.customerId);
+    const customer = Number.isFinite(customerId) && customerId > 0
+      ? await prisma.customer.findUnique({ where: { id: customerId }, select: { name: true } })
+      : null;
+
+    return buildReceiptsReport(
+      {
+        from: q.from,
+        to: q.to,
+        customerId: q.customerId,
+        status: q.status,
+        method: q.method,
+        search: q.search,
+        minAmount: q.minAmount,
+        maxAmount: q.maxAmount,
+      },
+      customer?.name ?? null,
+    );
   }
 
   private async customers(q: ReportQuery): Promise<ReportInput> {

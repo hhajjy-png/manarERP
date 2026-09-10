@@ -55,6 +55,9 @@ import banksRoutes from './modules/banks/banks.routes';
 import expirationsRoutes from './modules/expirations/expirations.routes';
 import financialAnalysisRoutes from './modules/financialAnalysis/financialAnalysis.routes';
 import collectionAnalysisRoutes from './modules/collectionAnalysis/collectionAnalysis.routes';
+// صفحة المقبوضات — قراءة فقط فوق `Payment` (فواتير مبيعات فعّالة)، وهو نفس
+// المصدر التشغيلي الذي يقرؤه `getCollections`. لا جدول جديد ولا مسار كتابة.
+import receiptsRoutes from './modules/receipts/receipts.routes';
 import printingRoutes from './modules/printing/printing.routes';
 import attachmentsRouter from './modules/attachments/attachments.routes';
 import searchRoutes from './modules/search/search.routes';
@@ -158,6 +161,8 @@ export function createApp(): Application {
   app.use('/api/financial-analysis', financialAnalysisRoutes);
   // تحليل التحصيلات — محرّك مستقل يربط سنة إصدار الفاتورة بسنة تحصيلها.
   app.use('/api/collection-analysis', collectionAnalysisRoutes);
+  // المقبوضات — الصفحة التشغيلية اليومية لما قُبض من العملاء.
+  app.use('/api/receipts', receiptsRoutes);
   // Print Center Foundation v1 — audit sink for PRINT / PDF_EXPORT events.
   app.use('/api/printing', printingRoutes);
   app.use('/api/attachments', attachmentsRouter);
