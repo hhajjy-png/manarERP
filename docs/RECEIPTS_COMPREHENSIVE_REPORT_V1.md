@@ -1,8 +1,11 @@
 # Receipts Comprehensive Report v1 — تقرير «المقبوضات»
 
-> **الحالة:** `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`
-> **الفرع:** `feature/receipts-page-v1` · **الأساس:** `a82796a8` (صفحة المقبوضات v1) فوق `production` @ `968c18cf`
-> لا إصدار · لا رفع نسخة · لا مثبِّت · لا وسم ثابت · لا دمج في `production`.
+> **الحالة:** `RELEASED / COMPLETED` — Feature Release، 2026-09-10
+> **Product Owner Visual Review — APPROVED**
+> «تمت المراجعة البصرية واعتماد صفحة المقبوضات وتقرير المقبوضات داخل التقارير الشاملة.»
+> **الدمج:** `bcd67793` (merge `--no-ff`، أبواه `968c18cf` و`313c77c0`) · **الوسم:** `stable-receipts-page-and-report-v1` → commit الدمج نفسه
+> **الفرع:** `feature/receipts-page-v1` · **الأساس:** `968c18cf` · **commits:** `a82796a8` (الصفحة) · `313c77c0` (التقرير)
+> نسخة سطح المكتب **`2026.5.9` لم تتغيّر** — إصدار ميزة بلا رفع نسخة ولا مثبِّت.
 
 ---
 

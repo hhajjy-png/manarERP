@@ -59,7 +59,8 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | **`814116b4`** (merge) + توثيق الإصدار `291e1a20` وcommit إغلاق الهاش فوقه — **Employee Debt Acknowledgment Administrative Form v1** (feature release), merge `814116b4` (أبواه `a3c5b18e` و`618f00b0`), tag `stable-employee-debt-acknowledgment-form-v1` → **commit الدمج نفسه**, توثيق الإصدار في `291e1a20` يعلوه commit إغلاق الهاش. **أول إصدار يحمل كودًا منذ Production Release 2026.5.9**: ما سبقه على `production` كان توثيقًا خالصًا. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
+| **Production HEAD** | **`bcd67793`** (merge) + توثيق الإصدار فوقه — **Receipts Page & Comprehensive Report v1** (feature release يضمّ حزمتين: صفحة «المقبوضات» وتقرير «المقبوضات» في التقارير الشاملة), merge `bcd67793` (أبواه `968c18cf` و`313c77c0`), tag `stable-receipts-page-and-report-v1` → **commit الدمج نفسه**. الحزمتان تتشاركان مصدر الحقيقة نفسه (`Payment` لفواتير مبيعات فعّالة عبر `SALES_INVOICE_ACTIVE`) — تكافؤ الإجمالي والعدد **مُثبَت حيًّا على 10 حالات فلترة**. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
+| **Production HEAD before that** | **`814116b4`** (merge) + توثيق الإصدار `291e1a20` وcommit إغلاق الهاش فوقه — **Employee Debt Acknowledgment Administrative Form v1** (feature release), merge `814116b4` (أبواه `a3c5b18e` و`618f00b0`), tag `stable-employee-debt-acknowledgment-form-v1` → **commit الدمج نفسه**, توثيق الإصدار في `291e1a20` يعلوه commit إغلاق الهاش. **أول إصدار يحمل كودًا منذ Production Release 2026.5.9**: ما سبقه على `production` كان توثيقًا خالصًا. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
 | **Production HEAD before that** | `f37c9c7f` — **Complete User Manual v1** (documentation release), merge `57e2c8a1`, tag `stable-complete-user-manual-v1`, docs/final commit `f37c9c7f`. **The last code-bearing release is Production Release 2026.5.9** (release commit `ab9480d9`, tag `stable-production-release-2026.5.9`); everything merged onto `production` after it is **documentation only** — mechanically verified: `git diff --name-only ab9480d9 f37c9c7f` touches 98 files, all under `docs/` plus `PROJECT_STATE.md` and `AI_CONTEXT.md`, with zero files under `backend/`, `frontend/`, `electron/`, `scripts/`, `prisma/` and no `package.json` change. The older HEAD chain continues in the rows below; the full entry for each of those releases lives in the release log or in `docs/history/` |
 | **Production HEAD before that** | `95f67a9c` — release `stable-production-release-2026.5.5` (**Production Release 2026.5.5** — merge of `feature/production-release-2026.5.5`. Packages into a new self-contained Windows installer every Feature Release merged onto `production` since the 2026.5.4 installer: **Employee Compensation — Batch Printing v1** (`78cbab4b`, merge `876f0ff8`), **Migration History Reconciliation v1** (`99b89c68`, merge `bd15959f`), **XBRL Readiness Foundation v1** (`2d221663`, merge `66f03cf7`) and **Vehicle Insurance Management v1** (`b80b8c4b`, merge `581ad7ee`) — each already merged, tagged and documented individually. `package.json` `version` `2026.5.4` → `2026.5.5` is the only tracked-file change the release itself introduces; no new feature work, no schema change, no migration, no new permission key, no new dependency. **The recurring Prisma packaging defect recurred again and was neutralised before packaging:** the repo-root `node_modules/.prisma` client was stale at **75 models** against the schema’s **85** — `scripts/prepare-backend-deps.js` overlays the *root* client into the package while `prisma generate` writes to `backend/node_modules/.prisma`, so the root copy silently stops tracking the schema. `npm run db:generate` was run and the fresh `backend/node_modules/.prisma` + `@prisma/client` were copied over their root counterparts before `npm run dist`; the shipped client was then verified to carry **all 85 models with a model set identical to `backend/prisma/schema.prisma` — zero missing, zero extra** — both in `win-unpacked` and by extraction from inside `Setup.exe`. Had the workaround been skipped, the installer would have shipped a client missing 10 models and failed at runtime on Vehicle Insurance and XBRL Readiness. The underlying `prepare-backend-deps.js` weakness is **still not fixed at source** and remains required follow-up work. Validation: Backend/Frontend/Electron `tsc --noEmit` clean · `prisma validate` clean · `migrate status` 69/69 applied (latest `20260819120000_add_xbrl_readiness_foundation`) · Backend 212 files/**3418** tests (2 intentionally-skipped diagnostic probe stubs, pre-existing) · Frontend 223 files/**4088** tests · Electron 26 files/**499** tests — all green, and the Electron suite re-run after the version bump so the packaging version contract is enforced against `2026.5.5`. Packaging audit: all **4,108** entries of `Setup.exe` enumerated via `7za l -slt` plus all **686** `app.asar` entries listed directly — zero source maps, zero `__tests__`, zero `*.test.*`/`*.spec.*`, zero `.ts`/`.tsx`/`.d.ts`, zero `.pem`/`.key`/`.pfx`/`.crt`, zero SQLite journals (`-wal`/`-shm`/`-journal`), zero `.bak`, zero non-Windows native Prisma engines, and zero build-machine state files (`gdrive-token.dat`/`device-identity.json`/`sync-metadata.json`/`gdrive-account.json`/`security.json`). Exactly **one** `.db` ships (`resources\backend\data\manar.db`). One `.env`-pattern hit inspected and confirmed a false positive — `@dabh/diagnostics/adapters/process.env.js`, a normal JS module of a winston dependency. Present and confirmed: `app.asar`, `backend\dist\server.js`, `electron-dist\main.js` and `frontend\dist\index.html` (both inside `app.asar`), `preload.js`, `schema.prisma`, 69 migration folders, `gdrive-oauth-client.json`, `runtime-requirements.json` (reporting zero external prerequisites), `seed-data/golden-manifest.json`, and 69 bundled font files (49 in `app.asar` + 20 in `extraResources`). Golden Database SHA-256 `f62a08a874f40baf7a600732605ea4e276a1a8621472b400f27c2a13e52e041c` (3,866,624 bytes · `integrity_check = ok` · 0 foreign-key violations · 86 tables · 69 applied migrations) verified byte-identical in **four** places: source `backend/data/manar.db` · `release/win-unpacked/resources/backend/data/manar.db` · extracted directly from inside `Setup.exe` via `7za` (`cmp` exit 0) · and `seed-data/golden-manifest.json`, which records the identical hash and size. No hot journal existed beside the source at packaging time, and the source hash was unchanged after the full build. Integrity was checked on a byte-identical copy so the shipped file was never opened by a writer. Installer `AlManarERP-Setup-2026.5.5.exe`, 138,437,006 bytes (132.02 MiB), SHA-256 `706e79e7e3ac239f336e3aebf3b3c5c1ad34b4b4932179ba7c22876bed636a2c`; `win-unpacked` 3,376 files / 470,061,262 bytes (448.3 MiB). GUI-only install/first-run flow not driven interactively — no desktop session available in this environment — covered by the Product Owner’s completed manual visual and functional review, confirmed prior to this release) |
 | **Production HEAD before that** | `581ad7ee` — release `stable-vehicle-insurance-management-v1` (**Vehicle Insurance Management v1** — merge of `feature/vehicle-insurance-recovery-v1`, feature commit `b80b8c4b`, 24 files. وحدة تشغيلية مستقلة لإدارة وثائق تأمين المعدات وحوادثها، تعيش في جدولين جديدين فقط بمفتاح أجنبي إلى `equipment`: **لا قيود محاسبية ولا مصروفات ولا صيانة ولا تعويضات**، و`equipment.insuranceExpiry` الذي يقرأه «مركز انتهاء الوثائق» لم يُمسّ. التجديد يُنشئ وثيقة جديدة ولا يعدّل القديمة، والحوادث سجل تاريخي دائم — فلا مسار حذف ولا مفتاح `delete`. أربعة مفاتيح صلاحيات (`vehicleInsurance.read`/`create`/`update`/`export`) مستقلة عن `equipment.*` و`maintenance.*`. **استعادة لا تنفيذ جديد**: الحزمة نُفِّذت في `353e71d0` ولم تصل production لأن `rebase --onto production` أسقطها عند إصدار الطباعة الجماعية؛ أُعيدت من الفرع الأصلي كمصدر وحيد، والملفات الاثنا عشر المملوكة للحزمة مطابقة بايتًا له. **لا ترحيل جديد** — `20260818120000_add_vehicle_insurance` مطبَّق مسبقًا وموجود على production منذ حزمة المواءمة، والنموذجان كانا معلنَين بنيويًا فلم يُكرَّرا. Source-only release — لا installer، والنسخة تبقى `2026.5.4`. Validation: `prisma generate`/`validate`/`migrate status` 69/69 ✅ · Backend/Frontend/Electron `tsc` ✅ · `build:back`/`build:front` ✅ · Backend 212/3418 ✅ · Frontend 223/4088 ✅ · Electron 25/488 ✅ · صفر انحدار. Product Owner manual visual & functional review: **completed and approved**) |
@@ -91,7 +92,111 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
-## Latest Release — Employee Debt Acknowledgment Administrative Form v1
+## Latest Release — Receipts Page & Comprehensive Report v1
+
+| Field | Value |
+|-------|-------|
+| **Package** | حزمتان تُصدَّران معًا: **صفحة «المقبوضات»** (شاشة تشغيلية يومية على `#/receipts`) و**تقرير «المقبوضات»** داخل مركز التقارير الشاملة. تتشاركان **مصدر الحقيقة نفسه ودلالات الاستعلام نفسها**، فلا يوجد تعريفان لـ«المقبوض» في النظام |
+| **Release status** | **`RELEASED / COMPLETED`** — Feature Release |
+| **Product Owner Visual Review** | **APPROVED** — «تمت المراجعة البصرية واعتماد صفحة المقبوضات وتقرير المقبوضات داخل التقارير الشاملة.» شملت: الصفحة · التقرير · الفلاتر · الجداول · الإجماليات · معاينة الطباعة · PDF · Excel · المخرجات متعددة الصفحات |
+| **Release date** | 2026-09-10 |
+| **Desktop version** | **`2026.5.9`** — **لم يتغيّر**: إصدار ميزة لا إصدار سطح مكتب. لا رفع نسخة، ولا مثبِّت، ولا electron-builder، ولا وسم سطح مكتب |
+| **Branch / commits** | `feature/receipts-page-v1` · `a82796a8` (صفحة المقبوضات) · `313c77c0` (تقرير المقبوضات) |
+| **Base production HEAD** | `968c18cf` |
+| **Checkpoint tag** | `checkpoint/pre-receipts-page-v1` → `968c18cf` |
+| **Final feature HEAD** | `313c77c0` — commitان فوق `968c18cf`، و`a82796a8` سلف مباشر مُتحقَّق منه |
+| **Merge commit** | `bcd67793` — merge `--no-ff`، أبواه `968c18cf` (production) و`313c77c0` (feature). لا squash ولا rebase ولا fast-forward ولا cherry-pick |
+| **Stable tag** | `stable-receipts-page-and-report-v1` → **`bcd67793`** (يشير إلى **commit الدمج** نفسه، لا إلى commit التوثيق الذي يليه) |
+| **Schema / migrations** | **لا شيء** — صفر migration وصفر تغيير schema وصفر فهرس جديد. عدد ملفات الترحيل قبل الحزمة وبعدها **72 = 72**، و`schema.prisma` بلا تغيير. الحزمتان قراءة فقط فوق البيانات القائمة |
+| **Permission** | الصفحة: `invoices.read` القائمة · التقرير: `reports.read` / `reports.export` القائمتان — **لا مفتاح صلاحية جديد**، ولا تعديل على `constants.ts` ولا الـseed |
+| **الحجم** | 28 ملفًا، **+5,039 / −6** سطرًا |
+
+### مصدر الحقيقة المشترك (SSoT)
+
+| البند | القيمة |
+|---|---|
+| **المصدر** | `Payment` لفواتير مبيعات فعّالة — `SALES_INVOICE_ACTIVE` **مستورَد** من `shared/services/operational.reporting.ts`، وهو نفسه شرط `getCollections()` الذي يغذّي لوحة التحكم ومركز القرار والتقارير وملخص المحاسبة ومركز التحليل المالي وتحليل التحصيلات |
+| **التاريخ الحاكم** | **`Payment.date`** (تاريخ القبض الذي يُدخله المستخدم) — لا `createdAt`. هو نفسه تاريخ القيد المحاسبي، ويُصحَّح إداريًا عبر `paymentsService.correctCollectionDate` |
+| **الاستبعادات** | `direction = 'SALES'` و`invoice.status != 'CANCELLED'`. لا حالة إلغاء/عكس/حذف ناعم على `Payment` — غير موجودة في النموذج، وإلغاء فاتورة عليها تحصيلات مرفوض بنيويًا |
+| **لا احتساب مزدوج** | المصدر جدول `payments` وحده. `journal_entries` (1:1 مع الدفعة) · `invoices.paidAmount` (لقطة تُكتب في نفس المعاملة) · `bank_statement_transactions` · الدفتر القديم `transactions` — **لا يُقرأ أيٌّ منها** في أي من الشاشتين. يحرسه اختبار صريح في كلتا الحزمتين |
+| **التكافؤ** | `Receipts Page and Comprehensive Receipts Report share the same Payment SSoT and query semantics.` التقرير يستدعي `receiptsQueryService` نفسه الذي تستدعيه الصفحة (`listAll` + `summary`)، وكلاهما يبني الشرط بـ`buildReceiptWhere` واحدة — فالتطابق **بنيويّ لا اتفاقيّ** |
+
+**بوابة التكافؤ — مُثبتة حيًّا على قاعدة معزولة (10/10 ALL MATCH):**
+
+| الحالة | إجمالي التقرير | إجمالي الصفحة | عدد التقرير | عدد الصفحة |
+|---|---:|---:|---:|---:|
+| بلا فلاتر | 969,797.350 | 969,797.350 | 123 | 123 |
+| الشهر الحالي | 152,888.920 | 152,888.920 | 33 | 33 |
+| الشهر السابق | 103,910.330 | 103,910.330 | 37 | 37 |
+| CASH | 44,135.010 | 44,135.010 | 9 | 9 |
+| CHEQUE | 763,617.700 | 763,617.700 | 87 | 87 |
+| BANK | 67,767.400 | 67,767.400 | 8 | 8 |
+| TRANSFER | 94,277.240 | 94,277.240 | 19 | 19 |
+| PAID | 943,518.700 | 943,518.700 | 103 | 103 |
+| PARTIAL | 26,278.650 | 26,278.650 | 20 | 20 |
+| مركّب (شهر + شيك + مسددة) | 35,614.600 | 35,614.600 | 10 | 10 |
+
+### Receipts / Collections Page v1 — صفحة «المقبوضات»
+
+| البند | القيمة |
+|---|---|
+| **المسار** | `#/receipts` — الشريط الجانبي: مجموعة «الإدارة المالية»، مباشرةً بعد «الفواتير والمطالبات» |
+| **الصلاحية** | `invoices.read` — لا مفتاح جديد: الدفعات مكشوفة أصلًا لحاملها عبر `GET /invoices/:id` |
+| **النقاط** | `GET /api/receipts` (قائمة مُرقَّمة) · `GET /api/receipts/summary` (إجماليات + تفصيل + مقارنة الشهرين) |
+| **الفلاتر** | 7 اختصارات فترة (اليوم · أمس · هذا الأسبوع «يبدأ **السبت**» · هذا الشهر · الشهر السابق · آخر 30 يوم · هذه السنة) + نطاق مخصص عبر `DateInput` · العميل · وسيلة القبض · حالة سداد الفاتورة · بحث مُهدَّأ 350ms · حدّا مبلغ · شرائح فلاتر نشطة بإزالة منفردة · إعادة ضبط |
+| **KPIs** | الإجمالي (بطاقة كبرى) · الشهر الحالي (بمؤشّر تغيّر) · الشهر السابق · الفرق · عدد العمليات · النقدي · الشيكات · التحويلات البنكية · أكبر عملية. بطاقتا النقدي/الشيكات تعملان كفلتر بالنقر |
+| **وسائل القبض** | `CASH` نقدي · `BANK` تحويل بنكي · `CHEQUE` شيك · `TRANSFER` حوالة بنكية — قيم `ENUMS.paymentMethod` المخزَّنة وحدها. **لا KNET ولا POS ولا OTHER** |
+| **BANK / TRANSFER** | مجموعتان في بطاقة «التحويلات البنكية» **فقط** (كلتاهما تُدين حساب البنك 1010 محاسبيًا)، و**متمايزتان في التفصيل** وفي كل صفّ — فلا تضيع المعلومة المخزَّنة |
+| **الشيكات — الإفصاح** | النظام **لا يملك دورة حياة لشيك العميل الوارد**: `Payment` بلا `status`/`clearedDate`/`depositDate`، وجدول `cheques` صادر بالكامل. ⇒ **كل قبض مسجَّل هو قبض مؤكَّد بتاريخه**. إفصاح دائم أعلى الجدول يقول ذلك نصًّا، وفلتر الحالة يعرض **حالة سداد الفاتورة** (`PAID`/`PARTIAL`) ومسمّى كذلك صراحةً. **لم تُخترَع** حالة «محصَّل» ولا «قيد التحصيل» ولا «مرتجع» |
+| **الفرز/الترقيم** | **خادميّان**: التاريخ · المبلغ · الوسيلة · العميل (عبر العلاقة)، قائمة بيضاء ترفض ما عداها؛ 15 صفًا/صفحة مع كاسر تعادل `id` يمنع تكرار صفّ أو سقوطه |
+| **الشهر الحالي/السابق** | الحالي: أول الشهر → **نهاية اليوم** (حدّ أعلى صريح يمنع دخول قبضٍ بتاريخ مستقبلي). السابق: شهر تقويمي كامل. الحدود من مكوّنات التقويم المحلي لا من نصّ ISO. `previous = 0` ⇒ النسبة `null` — لا `Infinity` ولا `NaN` |
+| **لوحة التفاصيل** | بيانات القبض · بيانات الفاتورة · بيانات الإدخال (`createdAt` للعرض فقط) · إجراء «فتح الفاتورة» → `#/invoices/:id/preview` القائم |
+| **التصدير** | Excel بكل النتائج المطابقة عبر الصفحات (`fetchAllRows`)، بنفس فلاتر وفرز الشاشة ومن مصدر أعمدة واحد |
+| **الاختبارات** | **102** (54 backend + 48 frontend) |
+| **التوثيق** | [`docs/RECEIPTS_COLLECTIONS_PAGE_V1.md`](docs/RECEIPTS_COLLECTIONS_PAGE_V1.md) |
+
+### Receipts Comprehensive Report v1 — تقرير «المقبوضات»
+
+| البند | القيمة |
+|---|---|
+| **التسجيل** | المفتاح `receipts` في `REPORT_TYPES` (الواجهة) وفي `ReportsService.build()` (الخادم) — مجموعة **«المالية»**، حالة «تقرير مباشر». صار المركز يعرض **19 تقريرًا** |
+| **الشريط الجانبي** | **لا عنصر جديد** — مركز التقارير لا يعمل بهذه الطريقة (يحرسه اختبار) |
+| **النقاط** | القياسية وحدها: `GET /api/reports/receipts/preview` · `/export?format=excel\|html` · معاينة `#/print/receipts`. **لا نقطة API جديدة ولا محرّك تقارير جديد** |
+| **الصلاحية** | `reports.read` / `reports.export` — لا مفتاح جديد، ولا إدخال في `REPORT_EXTRA_PERMISSION` |
+| **الخدمة المشتركة** | `receiptsQueryService.listAll()` + `.summary()`. `listAll` هي الإضافة الوحيدة على خدمة الصفحة: نفس الشرط والفرز والأعمدة بلا `skip`/`take` — لأن مركز التقارير لا يُرقّم أصلًا. ملف بناء التقرير **لا يحوي استعلام Prisma واحدًا** |
+| **الفلاتر** | من/إلى تاريخ + **اختصارات فترة سريعة تستعمل نفس `presetRange` المشترك مع الصفحة** (فـ«هذا الشهر» يعني النطاق نفسه في الشاشتين) · العميل · وسيلة القبض · حالة سداد الفاتورة · بحث وفرز داخل النتائج عبر `tableTools` القائمة |
+| **الجدول** | م · تاريخ القبض · العميل · رقم الفاتورة · وسيلة القبض · المرجع · حالة سداد الفاتورة · المبلغ. **بلا أعمدة البنك/تاريخ الشيك/حالة الشيك** — `Payment` لا يحملها. المرجع يتبع الوسيلة (رقم شيك · رقم عملية · اسم مستلم). تسميات عربية لا رموز داخلية |
+| **الملخّص** | الإجمالي · العدد · النقدي · الشيكات · التحويلات البنكية (`BANK + TRANSFER`) · المتوسط. وقسم «التوزيع حسب وسيلة القبض» يُبقي **الوسائل الأربع منفصلة دائمًا** بما فيها ذات الصفر |
+| **الطباعة** | A4 **أفقي** RTL (لأن التقرير يرسل `sections` — نفس قاعدة `collections-summary`)، ترويسة الشركة + العنوان + الفلاتر النشطة وحدها + بطاقات المؤشرات + الجدول + صفّ الإجمالي + قسم التوزيع. رأس الجدول يتكرّر على الصفحات |
+| **متعدد الصفحات — مقيس** | عينة 100 صف ⇒ **PDF من 5 صفحات**؛ تجاوز أفقي: **لا** (1497 = 1497)؛ قصّ خلايا: **0**؛ صفحة أخيرة فارغة: **لا**؛ تحقّق التوزيع: 44,135.010 + 67,767.400 + 404,545.700 + 94,277.240 = **610,725.350** ✅ و9+8+64+19 = **100** ✅ |
+| **PDF / Excel** | كلاهما يشمل **كل** النتائج المطابقة للفلاتر لا صفحة منها. Excel بثلاث أوراق (المقبوضات · المؤشرات التنفيذية · التوزيع حسب الوسيلة)، مبالغ خلايا رقمية خام بتنسيق `#,##0.000`، تواريخ DD/MM/YYYY، تسميات عربية |
+| **الاختبارات** | **59** (38 backend + 21 frontend) |
+| **التوثيق** | [`docs/RECEIPTS_COMPREHENSIVE_REPORT_V1.md`](docs/RECEIPTS_COMPREHENSIVE_REPORT_V1.md) |
+
+### QA
+
+| الفحص | النتيجة |
+|---|---|
+| **اختبارات جديدة** | **161** (92 backend + 69 frontend) — كلها ناجحة |
+| **انحدار backend** | 3,765 اختبارًا · 5 إخفاقات **قائمة قبل الحزمة** (`chequeDesignerTemplates.integration.contract` ×5 — تقرأ `chequeDesignerStore.ts` غير الموجود في المستودع؛ مُثبَت غيابه عند `checkpoint`) |
+| **انحدار frontend** | 4,612 اختبارًا · 3 إخفاقات **قائمة قبل الحزمة** (`employeeCompensationBatchPrint` ×1، `entitlementsBankExport` ×2 — مُثبتة بتشغيلها على شجرة نظيفة) |
+| **انحدارات جديدة** | **صفر** |
+| **TypeScript** | `tsc --noEmit` نظيف: backend · frontend · electron |
+| **Builds** | `build:back` ✅ · `build:front` ✅ |
+| **ESLint** | غير متاح — `eslint` غير مثبَّت في `frontend`؛ قائم قبل الحزمة ولم يُلمس |
+| **Golden DB** | **لم تُلمَس خلال نافذة الإصدار**: البصمة `417272f8…c4af` متطابقة قبل وبعد كل الاختبارات وبوابة التكافؤ. كل الاختبارات تكتب في صناديق رملية لكل عامل، وكل الفحوص الحيّة جرت على **نسخة قابلة للرمي** في مجلد المؤقتات وخلفية معزولة على المنفذ **48311**. تغيّرُ البصمة عن قياس الحزمة السابقة (`87ac6dc3…d247e`) سببه **جلسة التطبيق الحيّة لمالك المنتج أثناء المراجعة البصرية** — يوثّقه سجلّ التدقيق (`LOGIN` 15:47، `CREATE/invoices` 16:22، `EXPORT/reports` 18:13)، والبيانات المالية سليمة: 104 دفعة بإجمالي 946,548.600 كما هي |
+
+### القيود المعروفة
+
+1. **لا دورة حياة للشيك الوارد** — كل قبض مؤكَّد بتاريخه المسجَّل. فصل «قيد التحصيل» عن «محصَّل» عن «مرتجع» يتطلّب تغيير schema وهو **حزمة مستقلة مستقبلًا**، لم تُنفَّذ عمدًا.
+2. **لا قبض بلا فاتورة** — `Payment.invoiceId` إلزامي، فالدفعة المقدَّمة/على الحساب غير قابلة للتسجيل في النموذج الحالي.
+3. **سند القبض غير مرتبط** — نموذج طباعة لا يُخزَّن (عدّاد `RCV-` في `Setting` فقط)، فلا ربط ولا بحث برقمه.
+4. **لا فلتر مدى مبلغ في واجهة التقرير** — مدعوم في الـAPI، وغير معروض اتّباعًا لاتفاقية مركز التقارير.
+5. **فرق مقصود مع لوحة التحكم** — «هذا الشهر» في الصفحة مسقوف بنهاية اليوم؛ في لوحة التحكم بلا حدّ أعلى. لم تُمَسّ لوحة التحكم في هذه الحزمة.
+
+---
+
+## Previous Release — Employee Debt Acknowledgment Administrative Form v1
 
 | Field | Value |
 |-------|-------|
