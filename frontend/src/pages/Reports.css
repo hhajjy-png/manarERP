@@ -297,3 +297,27 @@ th[aria-sort] .rcx-sort-btn .material-symbols-outlined { opacity: 1; }
 }
 .rcx-filter-field input:focus,
 .rcx-filter-field select:focus { border-color: var(--xpl-primary); box-shadow: 0 0 0 3px var(--xpl-faint); }
+
+/* ── اختصارات الفترة السريعة (Receipts Comprehensive Report v1) ─────────────
+   صفّ أزرار صغيرة فوق حقلَي التاريخ، للتقارير التي تُعلن `datePresets` وحدها.
+   يتبع توكنات ExplorerKit نفسها فلا لغة بصرية ثانية ولا لون ثابت. */
+.rcx-preset-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.rcx-preset {
+  border: 1px solid var(--xpl-border);
+  background: var(--xpl-surface);
+  color: var(--xpl-muted);
+  border-radius: 999px;
+  padding: 5px 11px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease, background .2s ease;
+}
+.rcx-preset:hover { border-color: var(--xpl-primary); color: var(--xpl-text); }
+.rcx-preset:focus-visible { outline: none; border-color: var(--xpl-primary); box-shadow: 0 0 0 3px var(--xpl-faint); }
+.rcx-preset.active {
+  background: var(--xpl-faint);
+  border-color: var(--xpl-primary);
+  color: var(--xpl-primary);
+}

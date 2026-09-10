@@ -143,6 +143,32 @@ export class ReceiptsQueryService {
   }
 
   /**
+   * **كل** المقبوضات المطابقة — بلا ترقيم.
+   *
+   * تخدم المستهلكين الذين يجب أن يروا المجموعة كاملة لا صفحةً منها: تقرير
+   * المقبوضات في مركز التقارير (عرض · طباعة · PDF · Excel). الشرط والفرز
+   * يُبنيان بنفس `buildReceiptWhere` و`buildOrderBy` اللذين تستعملهما `list`
+   * حرفيًا — الفرق الوحيد غياب `skip`/`take`، فيستحيل أن يختلف تعريف
+   * «المقبوض» بين الصفحة والتقرير.
+   *
+   * ملاحظة على الحجم: مركز التقارير في هذا النظام **لا يُرقّم** أصلًا — كل تقرير
+   * يُعيد مجموعته المفلترة كاملة ثم تُطبع وتُصدَّر منها. هذه الدالة تتبع نفس
+   * العقد، والحدّ العملي هو مدى الفترة التي يختارها المستخدم.
+   */
+  async listAll(query: ReceiptListQuery): Promise<ReceiptRow[]> {
+    const where = buildReceiptWhere(this.filtersOf(query));
+    const orderBy = buildOrderBy(
+      query,
+      RECEIPT_SORT_WHITELIST,
+      RECEIPT_DEFAULT_ORDER,
+      RECEIPT_TIEBREAKER,
+    ) as Prisma.PaymentOrderByWithRelationInput[];
+
+    const rows = await prisma.payment.findMany({ where, select: RECEIPT_ROW_SELECT, orderBy });
+    return (rows as unknown as RawReceipt[]).map(mapReceiptRow);
+  }
+
+  /**
    * الملخّص الكامل — خمسة تجميعات على **نفس** الشرط، بلا جلب أي صفّ كامل عدا
    * أكبر عملية واحدة (`take: 1`).
    */

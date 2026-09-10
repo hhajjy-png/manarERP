@@ -3,6 +3,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { roundMoney } from '../lib/money';
 import DateInput from '../components/DateInput';
+// اختصارات الفترة — نفس المساعد المشترك الذي تستعمله صفحة المقبوضات، فلا يختلف
+// معنى «هذا الشهر» بين الشاشتين.
+import { RECEIPT_PRESETS, matchPreset, presetRange } from '../lib/receiptPeriods';
 import { downloadBlob } from '../utils/exportUtils';
 import { exportReportAsPdf } from '../utils/pdfExport';
 import { generateExportFileName, ReportName } from '../utils/exportFilename';
@@ -60,7 +63,7 @@ type EmployeeItem = { id: number; fullName: string; department?: string | null }
 
 // ─── Report Definitions ───────────────────────────────────────────────────────
 
-type FilterKey = 'date' | 'customer' | 'employee' | 'status' | 'direction' | 'billingMonth' | 'billingYear' | 'company' | 'workType' | 'year' | 'month' | 'department';
+type FilterKey = 'date' | 'customer' | 'employee' | 'status' | 'direction' | 'billingMonth' | 'billingYear' | 'company' | 'workType' | 'year' | 'month' | 'department' | 'method';
 
 interface ReportType {
   key: string;
@@ -83,6 +86,16 @@ interface ReportType {
   statusColumnKey?: string;
   /** مفتاح العمود الذي يحمل تسمية صف المجاميع (يُعاد وسمه عند البحث السريع). */
   totalsLabelKey?: string;
+  /**
+   * اختصارات فترة سريعة فوق حقلَي التاريخ — **اشتراك صريح**.
+   *
+   * تُبنى من `presetRange` في `lib/receiptPeriods.ts`، وهو **نفس** المساعد الذي
+   * تستعمله صفحة المقبوضات. فحين يختار المستخدم «هذا الشهر» في الشاشتين يحصل على
+   * النطاق نفسه بالضبط، ولا يمكن أن يختلف الرقمان لسبب زمني.
+   *
+   * التقارير التي لا تُعلنها تبقى بحقلَي تاريخ عاريين كما كانت حرفيًا.
+   */
+  datePresets?: boolean;
 }
 
 // عربي «العمليات» هنا مختلف حرفيًا عن نص المفتاح report.group.operations («التشغيل») —
@@ -248,6 +261,28 @@ const REPORT_TYPES: ReportType[] = [
     filters: ['date', 'customer'],
     descKey: 'report.desc.collections_summary',
     statusType: 'live',
+  },
+  {
+    /**
+     * Receipts Comprehensive Report v1 — تقرير المقبوضات.
+     *
+     * مصدره **نفس** خدمة صفحة المقبوضات (`#/receipts`): `Payment` لفواتير مبيعات
+     * فعّالة عبر `SALES_INVOICE_ACTIVE` المستورَد من المحرّك التشغيلي. لا تعريف
+     * مالي ثانٍ، ولا مفتاح صلاحية جديد (`reports.read` / `reports.export`).
+     *
+     * `status` هنا هو **حالة سداد الفاتورة** المقبوض ضدّها لا حالة الشيك — النظام
+     * لا يملك دورة حياة لشيك العميل الوارد، والتسمية تقول ذلك صراحةً.
+     */
+    key: 'receipts', label: 'report.type.receipts', icon: '💵', group: 'report.group.financial', groupLabelKey: 'report.group.financial',
+    filters: ['date', 'customer', 'method', 'status'],
+    statuses: [['PAID', 'rcp.status.paid'], ['PARTIAL', 'rcp.status.partial']],
+    statusLabel: 'rcp.filter.status',
+    descKey: 'report.desc.receipts',
+    statusType: 'live',
+    datePresets: true,
+    tableTools: true,
+    statusColumnKey: 'invoiceStatus',
+    totalsLabelKey: 'date',
   },
 ];
 
@@ -541,6 +576,8 @@ export default function Reports() {
   const [entYear, setEntYear]         = useState('');
   const [entMonth, setEntMonth]       = useState('');
   const [department, setDepartment]   = useState('');
+  // فلتر تقرير المقبوضات — وسيلة القبض (CASH | BANK | CHEQUE | TRANSFER).
+  const [method, setMethod]           = useState('');
 
   // Preview state — preserved exactly
   const [preview, setPreview]         = useState<ReportData | null>(null);
@@ -593,7 +630,7 @@ export default function Reports() {
     setStatus(''); setDirection('');
     setBillingMonth(''); setBillingYear('');
     setCompany(''); setWorkType('');
-    setEntYear(''); setEntMonth(''); setDepartment('');
+    setEntYear(''); setEntMonth(''); setDepartment(''); setMethod('');
     setPreview(null); setError('');
   }, [selected, period.fromDate, period.toDate, period.isAllPeriods]);
 
@@ -613,7 +650,7 @@ export default function Reports() {
     setStatus(''); setDirection('');
     setBillingMonth(''); setBillingYear('');
     setCompany(''); setWorkType('');
-    setEntYear(''); setEntMonth(''); setDepartment('');
+    setEntYear(''); setEntMonth(''); setDepartment(''); setMethod('');
     setPreview(null); setError('');
   }
 
@@ -632,6 +669,7 @@ export default function Reports() {
     if (entYear)      p.year         = entYear;
     if (entMonth)     p.month        = entMonth;
     if (department)   p.department   = department;
+    if (method)       p.method       = method;
     return p;
   }
 
@@ -652,7 +690,7 @@ export default function Reports() {
       setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, entYear, entMonth, department, canView]);
+  }, [selected, from, to, customerId, employeeId, status, direction, billingMonth, billingYear, company, workType, entYear, entMonth, department, method, canView]);
 
   // وسم الفترة لاسم الملف: نطاق from/to، أو «كل الفترات» عند غيابهما.
   const exportPeriod = { from: from || undefined, to: to || undefined, allPeriods: !from && !to };
@@ -761,6 +799,8 @@ export default function Reports() {
   const hasAnyFilter = !!(from || to || customerId || employeeId || status || direction || billingMonth || billingYear || company || workType || entYear || entMonth || department);
   const f = currentType.filters;
   const curStatus = statusMeta(currentType.statusType, t);
+  /** الاختصار المطابق للنطاق الحالي — يبقى مضيئًا بعد اختياره؛ `custom` عند التحرير اليدوي. */
+  const activePreset = matchPreset({ from, to });
 
   // ─── Filter fields (rendered inside the report drawer) ────────────────────
 
@@ -769,6 +809,26 @@ export default function Reports() {
       <div className="rcx-drawer-filters">
         {f.includes('date') && (
           <>
+            {/* اختصارات الفترة — للتقارير التي تُعلن `datePresets` وحدها.
+                النطاق يأتي من `presetRange` المشترك مع صفحة المقبوضات. */}
+            {currentType.datePresets && (
+              <div className="rcx-filter-field rcx-filter-presets">
+                <label>{t('rc.filter.quick_period')}</label>
+                <div className="rcx-preset-row">
+                  {RECEIPT_PRESETS.map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      className={`rcx-preset${activePreset === p.key ? ' active' : ''}`}
+                      aria-pressed={activePreset === p.key ? 'true' : 'false'}
+                      onClick={() => { const r = presetRange(p.key); setFrom(r.from); setTo(r.to); }}
+                    >
+                      {t(p.labelKey)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="rcx-filter-field">
               <label>{t('filter.date_from')}</label>
               <DateInput ariaLabel={t('filter.date_from')} value={from} onChange={setFrom} />
@@ -840,6 +900,19 @@ export default function Reports() {
             <select aria-label={t(currentType.statusLabel ?? 'filter.status')} value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">{t('opt.all')}</option>
               {currentType.statuses.map(([val, lbl]) => <option key={val} value={val}>{t(lbl)}</option>)}
+            </select>
+          </div>
+        )}
+        {f.includes('method') && (
+          <div className="rcx-filter-field">
+            {/* القيم المخزَّنة فعلًا وحدها — لا KNET ولا POS ولا OTHER. */}
+            <label>{t('rcp.filter.method')}</label>
+            <select aria-label={t('rcp.filter.method')} value={method} onChange={(e) => setMethod(e.target.value)}>
+              <option value="">{t('opt.all')}</option>
+              <option value="CASH">{t('rcp.method.cash')}</option>
+              <option value="BANK">{t('rcp.method.bank')}</option>
+              <option value="CHEQUE">{t('rcp.method.cheque')}</option>
+              <option value="TRANSFER">{t('rcp.method.transfer')}</option>
             </select>
           </div>
         )}
