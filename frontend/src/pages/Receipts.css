@@ -1,0 +1,137 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   صفحة المقبوضات — أنماط الصفحة وحدها (البادئة `.rcpx-`).
+
+   تُركَّب فوق ExplorerKit (`explorer-kit.css` / `.xpl-*`) ولا تُعيد تعريف أيٍّ من
+   رموزه. كل لون هنا يأتي من توكن (`--xpl-*`) لا من قيمة ثابتة، فيتبع الوضعين
+   الفاتح والداكن تلقائيًا بلا كتلة ثانية.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── المؤشرات: بطاقة كبرى + شبكة ثانوية ───────────────────────────────── */
+.rcpx-metrics {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 1100px) { .rcpx-metrics { grid-template-columns: 1fr; } }
+
+/* ── حقلا النطاق المخصّص داخل شريط الاختصارات ─────────────────────────── */
+.rcpx-range {
+  display: flex;
+  gap: 10px;
+  margin-inline-start: auto;
+}
+.rcpx-range .xpl-field { min-width: 148px; }
+@media (max-width: 860px) {
+  .rcpx-range { margin-inline-start: 0; inline-size: 100%; }
+  .rcpx-range .xpl-field { flex: 1 1 0; min-width: 0; }
+}
+
+/* شريحة الفترة النشطة — معلومة دائمة لا فلتر يُزال، فبلا زرّ إغلاق. */
+.rcpx-period-chip { background: var(--xpl-surface-2); color: var(--xpl-text); }
+.rcpx-period-chip .material-symbols-outlined { font-size: 15px; color: var(--xpl-primary); }
+
+/* ── تفصيل وسائل القبض ────────────────────────────────────────────────── */
+.rcpx-breakdown { display: flex; flex-direction: column; gap: 10px; }
+.rcpx-break-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 56px 92px minmax(120px, auto);
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+}
+@media (max-width: 780px) {
+  .rcpx-break-row { grid-template-columns: 1fr auto; row-gap: 4px; }
+  .rcpx-break-bar { grid-column: 1 / -1; }
+  .rcpx-break-count { display: none; }
+}
+
+.rcpx-break-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--xpl-muted);
+  font-weight: 600;
+}
+.rcpx-break-label .material-symbols-outlined { font-size: 17px; color: var(--xpl-primary); }
+
+.rcpx-break-bar {
+  block-size: 8px;
+  border-radius: 999px;
+  background: var(--xpl-surface-2);
+  overflow: hidden;
+}
+.rcpx-break-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: 999px;
+  background: var(--xpl-primary);
+  /* عرضٌ فقط — خاصية مركَّبة، لا تُحرَّك الأبعاد المؤثّرة في التخطيط. */
+  transition: inline-size .28s cubic-bezier(.16, 1, .3, 1);
+}
+.rcpx-break-fill--green  { background: var(--xpl-green); }
+.rcpx-break-fill--blue   { background: var(--xpl-blue); }
+.rcpx-break-fill--indigo { background: var(--xpl-primary); }
+.rcpx-break-fill--neutral{ background: var(--xpl-muted); }
+
+.rcpx-break-pct   { color: var(--xpl-text); font-weight: 700; font-variant-numeric: tabular-nums; }
+.rcpx-break-count { color: var(--xpl-muted); font-variant-numeric: tabular-nums; }
+.rcpx-break-value { text-align: end; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* ── الإفصاح عن تعريف «مقبوض» ─────────────────────────────────────────── */
+.rcpx-disclosure {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--xpl-faint-2);
+  border: 1px solid var(--xpl-border);
+  color: var(--xpl-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.rcpx-disclosure .material-symbols-outlined {
+  font-size: 17px;
+  color: var(--xpl-primary);
+  flex: 0 0 auto;
+  margin-block-start: 1px;
+}
+
+/* ── الجدول ───────────────────────────────────────────────────────────── */
+.rcpx-date { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.rcpx-mono {
+  font-family: var(--app-font-mono);
+  font-size: 12px;
+  color: var(--xpl-muted);
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+  /*
+   * `plaintext` لا `direction: ltr`.
+   *
+   * حقل المرجع نصّ حرّ يكتبه المستخدم، فقد يكون رقمًا لاتينيًا خالصًا
+   * («004108») أو جملة عربية («شيك رقم 004066 التجاري»). فرض LTR كان يقلب
+   * ترتيب كلمات الجملة العربية بصريًا — رُصد ذلك في لقطة المراجعة.
+   *
+   * `plaintext` يجعل اتجاه كل قيمة يتبع أوّل حرف قويّ فيها: الرقم يُعرض LTR
+   * والجملة العربية RTL، بلا فحص لغة في الكود ولا صنفين مختلفين.
+   */
+  unicode-bidi: plaintext;
+  text-align: start;
+}
+
+/* المبلغ هو العمود الذي تُقرأ الصفحة من أجله — أبرز خلية في الصفّ. */
+.rcpx-amount {
+  font-weight: 800;
+  font-size: 13.5px;
+  color: var(--xpl-text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.rcpx-cell-end { text-align: end; }
+
+.rcpx-cell-chevron { inline-size: 32px; text-align: center; color: var(--xpl-muted); }
+.rcpx-cell-chevron .material-symbols-outlined { font-size: 18px; }
+.xpl-row--click:hover .rcpx-cell-chevron { color: var(--xpl-primary); }

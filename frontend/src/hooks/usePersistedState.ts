@@ -3,7 +3,7 @@ import { persistPreference } from '../lib/syncedPreferences';
 
 // All prefixes used by usePersistedState across the app.
 // Update this list when adding persisted state to a new page.
-const UI_STATE_PREFIXES = ['rp:', 'inv:', 'att:', 'maint:', 'invt:', 'sal:', 'acc:'];
+const UI_STATE_PREFIXES = ['rp:', 'inv:', 'att:', 'maint:', 'invt:', 'sal:', 'acc:', 'rcp:'];
 
 /** Remove all persisted UI state — call on logout to prevent cross-user state leaks. */
 export function clearPersistedUIState(): void {

@@ -537,6 +537,9 @@ export const NAV: { group: string; items: { key: string; label: string; icon: st
   ] },
   { group: 'nav.group.financial', items: [
     { key: 'invoices', label: 'nav.invoices', icon: 'receipt_long', permission: 'invoices.read' },
+    // المقبوضات — تلي الفواتير مباشرةً لأنها الوجه الآخر لها: ما قُبض منها فعلًا.
+    // تقرأ `Payment` وحدها، وتحرسها `invoices.read` لأنها لا تكشف بيانًا جديدًا.
+    { key: 'receipts', label: 'nav.receipts', icon: 'account_balance_wallet', permission: 'invoices.read' },
     { key: 'expenses', label: 'nav.expenses', icon: 'payments', permission: 'expenses.read' },
     { key: 'cheques', label: 'nav.cheques', icon: 'edit_note', permission: 'cheques.read' },
     // البنوك والحسابات — مصدر هوية البنك لوحدة الشيكات، فموضعها بجوارها مباشرةً.

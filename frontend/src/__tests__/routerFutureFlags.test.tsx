@@ -80,7 +80,8 @@ describe('العلم في الإنتاج (HashRouter)', () => {
     // +1: شاشة الطباعة الجماعية لمستحقات الموظف — كسولة كبقية أسطح الطباعة.
     // +1: صفحة تأمين المركبات (Vehicle Insurance Management v1) — كسولة كبقية الصفحات.
     // +1: صفحة البنوك والحسابات (Multi-Bank Cheques Foundation v1) — كسولة كبقية الصفحات.
-    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(68);
+    // +1: صفحة المقبوضات (Receipts / Collections Page v1) — كسولة كبقية الصفحات.
+    expect((appSrc.match(/lazy\(/g) ?? []).length).toBe(69);
     expect(appSrc).toContain('<Route path="*" element={<Navigate to="/" replace />} />');
   });
 });

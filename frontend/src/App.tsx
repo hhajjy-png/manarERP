@@ -64,6 +64,9 @@ const FinancialAnalysisCenter = lazy(() => import('./pages/FinancialAnalysisCent
 // تحليل التحصيلات — صفحة تحليلية داخلية، مخفيّة عن الشريط الجانبي عمدًا:
 // تُفتح من قسم «تحليل التحصيلات» داخل مركز التحليل المالي وحده.
 const CollectionAnalysis = lazy(() => import('./pages/CollectionAnalysis'));
+// المقبوضات — الصفحة التشغيلية اليومية لما قُبض من العملاء. تقرأ `Payment`
+// لفواتير المبيعات الفعّالة (نفس مصدر `getCollections`)، ولا تكتب شيئًا.
+const Receipts = lazy(() => import('./pages/Receipts'));
 // جاهزية XBRL — أداة إعداد داخلية، مخفيّة عن الشريط الجانبي عمدًا: تُفتح من رأس
 // صفحة «المحاسبة». لا تدّعي توافقًا رسميًا مع QAYD ولا تُنتج ملفًا حكوميًا.
 const XbrlReadiness = lazy(() => import('./pages/XbrlReadiness'));
@@ -172,6 +175,7 @@ export default function App() {
             <Route path="/expenses" element={<Expenses />} />
             <Route path="/users" element={<Users />} />
             <Route path="/invoices" element={<Invoices />} />
+            <Route path="/receipts" element={<Receipts />} />
             <Route path="/salaries" element={<Salaries />} />
             <Route path="/accounting" element={<Accounting />} />
             <Route path="/reports" element={<Reports />} />
