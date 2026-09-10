@@ -24,6 +24,13 @@ type ReportSection = { title: string; note?: string; columns: ReportColumnDef[];
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[] };
 
+/**
+ * تقارير تُطبع A4 **أفقيًا** رغم خلوّها من الأقسام التحليلية، لأن جدولها الرئيسي
+ * نفسه عريض. «المقبوضات» (تسعة أعمدة) كانت أفقية بحكم قسم التوزيع؛ بعد إزالته
+ * يُثبَّت اتجاهها هنا صراحةً بدل أن ينقلب عموديًا.
+ */
+const WIDE_TABLE_REPORTS: ReadonlySet<string> = new Set(['receipts']);
+
 const th: CSSProperties = { border: '1px solid #cbd5e1', padding: '4px 8px', background: '#1d4e6f', color: '#fff', textAlign: 'right', fontSize: 10.5, fontWeight: 700, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
 const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '4px 8px', textAlign: 'right', fontSize: 9.5, fontWeight: 400 };
 const tdNum: CSSProperties = { fontVariantNumeric: 'tabular-nums', fontWeight: 600 };
@@ -174,13 +181,16 @@ export default function ReportPrint() {
    * التقارير التحليلية تُطبع **أفقيًا**: مصفوفة «التصنيفات × الأشهر» تصل إلى أربعة
    * عشر عمودًا، ولا تُقرأ على A4 عمودي. الشرط معلّق على وجود أقسام تحليلية، فأي
    * تقرير لا يرسلها يبقى عموديًا كما كان بالضبط (وهو ما تفعله كل التقارير الأخرى).
+   *
+   * واستثناءً، تقارير جدولها وحده عريض فتُطبع أفقيًا بلا أقسام — `WIDE_TABLE_REPORTS`.
    */
   const hasSections = !!rep.sections?.length;
-  const pageSpecId = hasSections ? 'a4-landscape' : 'a4-portrait';
-  const pageCss = hasSections ? '@page { size: A4 landscape; margin: 10mm;' : '@page { margin: 12mm;';
+  const isLandscape = hasSections || WIDE_TABLE_REPORTS.has(type ?? '');
+  const pageSpecId = isLandscape ? 'a4-landscape' : 'a4-portrait';
+  const pageCss = isLandscape ? '@page { size: A4 landscape; margin: 10mm;' : '@page { margin: 12mm;';
 
   return (
-    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: DOC_FONT_STACK, maxWidth: hasSections ? 1400 : 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
+    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: DOC_FONT_STACK, maxWidth: isLandscape ? 1400 : 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
       {/* Print footer: only "صفحة X من Y" (page X of Y) */}
       <style>{`@media print { ${pageCss} @bottom-center { content: "صفحة " counter(page) " من " counter(pages); font-family: ${DOC_FONT_STACK}; font-size: 7px; color: #94a3b8; } } }`}</style>
 

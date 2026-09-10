@@ -22,13 +22,14 @@
    لا يُقرأ أيٌّ منها هنا ولا في الخدمة المشتركة.
    ════════════════════════════════════════════════════════════════════════════ */
 
-import type { ReportInput, ReportKpi, ReportSection } from '../../shared/services/reportEngine/excel.service';
-import { formatCurrency, formatPercent } from '../../shared/utils/currency';
+import type { ReportInput, ReportKpi } from '../../shared/services/reportEngine/excel.service';
+import { formatCurrency } from '../../shared/utils/currency';
 import { formatDisplayDate } from '../../shared/utils/dateDisplay';
 import { roundMoney, sumMoney } from '../../shared/utils/money';
-import { RECEIPT_METHODS, type ReceiptRow } from '../receipts/receipts.calc';
+import type { ReceiptRow } from '../receipts/receipts.calc';
 import { receiptsQueryService, type ReceiptsSummary } from '../receipts/receipts.service';
 import { receiptListSchema } from '../receipts/receipts.schema';
+import { loadChequeTotals, originalChequeAmountOf, type ChequeTotals } from './receiptsChequeAmounts';
 
 /* ── مفردات العرض ────────────────────────────────────────────────────────── */
 
@@ -116,8 +117,7 @@ function methodTotal(summary: ReceiptsSummary, methods: readonly string[]): { to
  *
  * «التحويلات البنكية» = `BANK + TRANSFER` — نفس تجميعة صفحة المقبوضات، لأن
  * الوسيلتين تحويل بنكي دلاليًا ويُدينان حساب البنك نفسه في الترحيل المحاسبي.
- * التفصيل الأصلي **لا يضيع**: قسم «التوزيع حسب وسيلة القبض» أدناه يعرض الوسائل
- * الأربع منفصلة، وعمود «وسيلة القبض» في الجدول يحمل قيمة كل صفّ كما هي.
+ * التفصيل الأصلي **لا يضيع**: عمود «وسيلة القبض» في الجدول يحمل قيمة كل صفّ كما هي.
  */
 export function buildKpis(summary: ReceiptsSummary): ReportKpi[] {
   const cash = methodTotal(summary, ['CASH']);
@@ -130,48 +130,7 @@ export function buildKpis(summary: ReceiptsSummary): ReportKpi[] {
     { label: 'النقدي', value: cash.total, format: 'currency', hint: `${cash.count} عملية`, color: 'green', icon: 'payments' },
     { label: 'الشيكات', value: cheque.total, format: 'currency', hint: `${cheque.count} عملية`, color: 'default', icon: 'receipt_long' },
     { label: 'التحويلات البنكية', value: bankish.total, format: 'currency', hint: `${bankish.count} عملية`, color: 'blue', icon: 'account_balance' },
-    { label: 'متوسط قيمة العملية', value: summary.totals.average, format: 'currency', icon: 'calculate' },
   ];
-}
-
-/* ── قسم التوزيع ─────────────────────────────────────────────────────────── */
-
-/**
- * التوزيع حسب وسيلة القبض — **الوسائل الأربع منفصلة دائمًا**، بما فيها ذات الصفر.
- *
- * إسقاط الوسيلة الصفرية كان سيجعل صفّ «النقدي» يختفي كلّما لم يُقبض نقدًا في
- * الفترة، فيقرأ المستخدم غيابه كعطل لا كصفر. وإبقاء `BANK` و`TRANSFER` منفصلتين
- * هنا يحفظ المعلومة الأصلية المخزَّنة رغم جمعهما في بطاقة الملخّص.
- */
-export function buildMethodSection(summary: ReceiptsSummary): ReportSection {
-  const rows = RECEIPT_METHODS.map((method) => {
-    const row = summary.byMethod.find((r) => r.method === method);
-    return {
-      method: methodAr(method),
-      count: row?.count ?? 0,
-      total: row?.total ?? 0,
-      percent: row?.percent == null ? '—' : formatPercent(row.percent),
-    };
-  });
-
-  return {
-    title: 'التوزيع حسب وسيلة القبض',
-    note: 'الوسائل الأربع كما هي مخزَّنة — «تحويل بنكي» و«حوالة بنكية» مجموعتان في بطاقة التحويلات البنكية أعلاه ومنفصلتان هنا.',
-    sheetName: 'التوزيع حسب الوسيلة',
-    columns: [
-      { header: 'وسيلة القبض', key: 'method', width: 20 },
-      { header: 'عدد العمليات', key: 'count', width: 14, type: 'number', align: 'center' },
-      { header: 'الإجمالي', key: 'total', width: 18, format: 'currency', type: 'currency' },
-      { header: 'النسبة', key: 'percent', width: 12, align: 'center' },
-    ],
-    rows,
-    totalsRow: {
-      method: 'الإجمالي',
-      count: summary.totals.count,
-      total: summary.totals.total,
-      percent: summary.totals.total > 0 ? formatPercent(100) : '—',
-    },
-  };
 }
 
 /* ── التقرير ─────────────────────────────────────────────────────────────── */
@@ -214,8 +173,12 @@ export function toReceiptQuery(q: ReceiptsReportQuery) {
   });
 }
 
-/** صفوف الجدول المطبوع/المصدَّر — تسميات عربية، لا رموز داخلية. */
-export function toReportRows(rows: ReceiptRow[]): Record<string, unknown>[] {
+/**
+ * صفوف الجدول المطبوع/المصدَّر — تسميات عربية، لا رموز داخلية.
+ *
+ * «قيمة الشيك الأصلية» تُكرَّر على كل سطر من أسطر الشيك نفسه، و«—» لغير الشيك.
+ */
+export function toReportRows(rows: ReceiptRow[], chequeTotals: ChequeTotals = new Map()): Record<string, unknown>[] {
   return rows.map((r, i) => ({
     seq: i + 1,
     date: formatDisplayDate(r.date),
@@ -225,6 +188,7 @@ export function toReportRows(rows: ReceiptRow[]): Record<string, unknown>[] {
     reference: referenceOf(r),
     invoiceStatus: invoiceStatusAr(r.invoiceStatus),
     amount: r.amount,
+    originalChequeAmount: originalChequeAmountOf(r, chequeTotals) ?? '—',
   }));
 }
 
@@ -249,6 +213,9 @@ export async function buildReceiptsReport(
    */
   const displayedTotal = sumMoney(rows.map((r) => r.amount));
 
+  // قيمة الشيك الأصلية من كامل تحصيلاته في قاعدة البيانات — لا من الصفوف المفلترة.
+  const chequeTotals = await loadChequeTotals(rows);
+
   return {
     title: 'تقرير المقبوضات',
     subtitle: buildSubtitle(
@@ -266,10 +233,11 @@ export async function buildReceiptsReport(
       { header: 'المرجع', key: 'reference', width: 24 },
       { header: 'حالة سداد الفاتورة', key: 'invoiceStatus', width: 18, align: 'center' },
       { header: 'المبلغ', key: 'amount', width: 18, format: 'currency', type: 'currency' },
+      { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', width: 18, format: 'currency', type: 'currency' },
     ],
-    rows: toReportRows(rows),
+    rows: toReportRows(rows, chequeTotals),
+    // لا مجموع لـ«قيمة الشيك الأصلية»: تتكرّر على أسطر الشيك الواحد، فجمعها احتساب مزدوج.
     totalsRow: { date: 'الإجمالي', amount: roundMoney(displayedTotal) },
-    sections: [buildMethodSection(summary)],
     metaFooter: [
       'يُحتسب المبلغ مقبوضًا بتاريخ القبض المسجَّل على الدفعة (Payment.date).',
       'لا يتتبّع النظام دورة حياة الشيك الوارد (مستلم / مودع / محصَّل / مرتجع)، فكل قبض مسجَّل هو قبض مؤكَّد بتاريخه.',

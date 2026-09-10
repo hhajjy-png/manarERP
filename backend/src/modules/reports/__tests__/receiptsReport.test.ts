@@ -27,7 +27,7 @@ vi.mock('../../../config/database', () => ({
 }));
 
 import { prisma } from '../../../config/database';
-import { buildReceiptsReport, buildSubtitle, buildMethodSection, buildKpis, referenceOf, toReportRows } from '../receiptsReport';
+import { buildReceiptsReport, buildSubtitle, buildKpis, referenceOf, toReportRows } from '../receiptsReport';
 import { ReceiptsQueryService } from '../../receipts/receipts.service';
 import { reportsService } from '../reports.service';
 import { receiptListSchema, receiptFiltersSchema } from '../../receipts/receipts.schema';
@@ -216,12 +216,9 @@ describe('لا احتساب مزدوج', () => {
     expect(new Set(seqs).size).toBe(report.rows.length);
   });
 
-  it('مجموع التوزيع حسب الوسيلة = الإجمالي، ولا يُضاف إليه', async () => {
+  it('«قيمة الشيك الأصلية» لا تدخل صفّ المجاميع — تكرارها على أسطر الشيك يجعل جمعها احتسابًا مزدوجًا', async () => {
     const report = await buildReceiptsReport({});
-    const section = report.sections![0];
-    const sum = section.rows.reduce((s, r) => s + Number(r.total ?? 0), 0);
-    expect(sum).toBe(TOTAL);
-    expect(section.totalsRow!.total).toBe(TOTAL);
+    expect(report.totalsRow).toEqual({ date: 'الإجمالي', amount: TOTAL });
   });
 });
 
@@ -270,7 +267,7 @@ describe('العرض — تسميات لا رموز', () => {
   it('أعمدة الجدول بالترتيب المطلوب، وبلا بنك ولا تاريخ شيك', async () => {
     const report = await buildReceiptsReport({});
     expect(report.columns.map((c) => c.key)).toEqual([
-      'seq', 'date', 'customer', 'invoiceNumber', 'method', 'reference', 'invoiceStatus', 'amount',
+      'seq', 'date', 'customer', 'invoiceNumber', 'method', 'reference', 'invoiceStatus', 'amount', 'originalChequeAmount',
     ]);
     const headers = report.columns.map((c) => c.header);
     expect(headers.some((h) => h.includes('البنك'))).toBe(false);
@@ -294,30 +291,16 @@ describe('العرض — تسميات لا رموز', () => {
   });
 });
 
-describe('التوزيع حسب وسيلة القبض', () => {
-  it('الوسائل الأربع منفصلة دائمًا — بما فيها ذات الصفر', () => {
-    const section = buildMethodSection({
-      totals: { total: 1000, count: 1, average: 1000 },
-      largest: null,
-      byMethod: [
-        { method: 'CASH' as const, total: 0, count: 0, percent: 0 },
-        { method: 'BANK' as const, total: 0, count: 0, percent: 0 },
-        { method: 'CHEQUE' as const, total: 1000, count: 1, percent: 100 },
-        { method: 'TRANSFER' as const, total: 0, count: 0, percent: 0 },
-      ],
-      months: { current: { total: 0, count: 0, from: '', to: '' }, previous: { total: 0, count: 0, from: '', to: '' }, delta: 0, percent: null },
-    });
-    expect(section.rows).toHaveLength(4);
-    expect(section.rows.map((r) => r.method)).toEqual(['نقدي', 'تحويل بنكي', 'شيك', 'حوالة بنكية']);
+describe('إزالة «التوزيع حسب وسيلة القبض» من التقرير الشامل', () => {
+  it('لا أقسام تحليلية بعد الجدول — لا في العرض ولا الطباعة ولا Excel', async () => {
+    const report = await buildReceiptsReport({});
+    expect(report.sections ?? []).toHaveLength(0);
   });
 
-  it('BANK و TRANSFER تبقيان صفّين متمايزين في التفصيل', async () => {
+  it('عمود «وسيلة القبض» ما زال يحمل الوسائل الأربع منفصلة صفًّا بصفّ', async () => {
     const report = await buildReceiptsReport({});
-    const section = report.sections![0];
-    const bank = section.rows.find((r) => r.method === 'تحويل بنكي')!;
-    const transfer = section.rows.find((r) => r.method === 'حوالة بنكية')!;
-    expect(bank.total).toBe(5000);
-    expect(transfer.total).toBe(9500);
+    const methods = new Set(report.rows.map((r) => r.method));
+    expect([...methods].sort()).toEqual(['تحويل بنكي', 'حوالة بنكية', 'شيك', 'نقدي'].sort());
   });
 });
 
@@ -341,11 +324,22 @@ describe('بطاقات المؤشرات', () => {
     expect(bankish.hint).toBe('3 عملية');
   });
 
-  it('تعرض الإجمالي والعدد والنقدي والشيكات', () => {
+  it('تعرض الإجمالي والعدد والنقدي والشيكات والتحويلات — بلا «متوسط قيمة العملية»', () => {
     const labels = buildKpis(summary).map((k) => k.label);
     expect(labels).toEqual([
-      'إجمالي المقبوضات', 'عدد عمليات القبض', 'النقدي', 'الشيكات', 'التحويلات البنكية', 'متوسط قيمة العملية',
+      'إجمالي المقبوضات', 'عدد عمليات القبض', 'النقدي', 'الشيكات', 'التحويلات البنكية',
     ]);
+  });
+
+  it('قيم البطاقات الباقية لم تتغيّر', () => {
+    const byLabel = Object.fromEntries(buildKpis(summary).map((k) => [k.label, k]));
+    expect(byLabel['إجمالي المقبوضات'].value).toBe(45000);
+    expect(byLabel['عدد عمليات القبض'].value).toBe(8);
+    expect(byLabel['النقدي'].value).toBe(4000);
+    expect(byLabel['النقدي'].hint).toBe('2 عملية');
+    expect(byLabel['الشيكات'].value).toBe(26500);
+    expect(byLabel['الشيكات'].hint).toBe('3 عملية');
+    expect(byLabel['التحويلات البنكية'].value).toBe(14500);
   });
 });
 

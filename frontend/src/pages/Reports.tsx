@@ -435,12 +435,16 @@ function PreviewTable({
    * القارئ. فحين يكون البحث نشطًا تُعاد الأعمدة النقدية من **الصفوف الظاهرة**،
    * وتُفرَّغ بقية الخلايا، ويُعاد وسم الصف صراحةً بأنه مجموع نتائج البحث.
    * بلا بحث: صفّ الخادم كما هو حرفيًا.
+   *
+   * يُعاد حساب العمود النقدي الذي **يجمعه الخادم** وحده: عمود نقدي بلا مجموع في
+   * صفّ الخادم (مثل «قيمة الشيك الأصلية» المكرَّرة على أسطر الشيك الواحد) يبقى
+   * فارغًا، لأن جمعه احتساب مزدوج.
    */
   const effectiveTotals = useMemo(() => {
     if (!totalsRow || !trimmedQuery) return totalsRow;
     const out: Record<string, unknown> = {};
     columns.forEach((c) => {
-      out[c.key] = c.format === 'currency'
+      out[c.key] = c.format === 'currency' && totalsRow[c.key] != null && totalsRow[c.key] !== ''
         ? round3(visibleRows.reduce((sum, r) => sum + (Number(r[c.key]) || 0), 0))
         : '';
     });
