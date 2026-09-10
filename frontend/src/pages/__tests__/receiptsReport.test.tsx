@@ -46,19 +46,21 @@ const REPORT = {
     { header: 'تاريخ القبض', key: 'date', align: 'center' },
     { header: 'العميل', key: 'customer' },
     { header: 'رقم الفاتورة', key: 'invoiceNumber' },
+    { header: 'شهر الحساب', key: 'accountingMonth', align: 'center' },
     { header: 'وسيلة القبض', key: 'method', align: 'center' },
     { header: 'المرجع', key: 'reference' },
-    { header: 'حالة سداد الفاتورة', key: 'invoiceStatus', align: 'center' },
     { header: 'المبلغ', key: 'amount', format: 'currency' },
-    { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', format: 'currency' },
+    { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', format: 'currency', mergeRowGroup: true },
   ],
+  rowGroupKey: 'chequeGroup',
   rows: [
-    // الشيك 004212 مسجَّل تحصيلين (15,000 هنا + 5,000 خارج الفلتر) ⇒ قيمته الأصلية 20,000.
-    { seq: 1, date: '09/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0220', method: 'شيك', reference: '004212', invoiceStatus: 'مسددة بالكامل', amount: 15000, originalChequeAmount: 20000 },
-    { seq: 2, date: '07/09/2026', customer: 'بلدية الكويت', invoiceNumber: 'MN-INV-2026-0148', method: 'حوالة بنكية', reference: '0409TR8821', invoiceStatus: 'عليها رصيد', amount: 8500, originalChequeAmount: '—' },
-    { seq: 3, date: '02/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0178', method: 'نقدي', reference: 'أحمد المطيري', invoiceStatus: 'عليها رصيد', amount: 3000, originalChequeAmount: '—' },
+    // الشيك 004212 على فاتورتين متتاليتين (15,000 + 5,000) ⇒ قيمته الأصلية 20,000.
+    { seq: 1, date: '09/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0220', accountingMonth: '7-2026', method: 'شيك', reference: '004212', amount: 15000, originalChequeAmount: 20000, chequeGroup: '3|2026-09-09|004212' },
+    { seq: 2, date: '09/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0221', accountingMonth: '8-2026', method: 'شيك', reference: '004212', amount: 5000, originalChequeAmount: 20000, chequeGroup: '3|2026-09-09|004212' },
+    { seq: 3, date: '07/09/2026', customer: 'بلدية الكويت', invoiceNumber: 'MN-INV-2026-0148', accountingMonth: '6-2026', method: 'حوالة بنكية', reference: '0409TR8821', amount: 8500, originalChequeAmount: '—', chequeGroup: null },
+    { seq: 4, date: '02/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0178', accountingMonth: '12-2025', method: 'نقدي', reference: 'أحمد المطيري', amount: 3000, originalChequeAmount: '—', chequeGroup: null },
   ],
-  totalsRow: { date: 'الإجمالي', amount: 26500 },
+  totalsRow: { date: 'الإجمالي', amount: 31500 },
 };
 
 function route(opts: { report?: unknown; fail?: boolean } = {}) {
@@ -287,21 +289,89 @@ describe('عرض النتائج', () => {
     expect(screen.getAllByRole('table')).toHaveLength(1);
   });
 
-  it('عمود «قيمة الشيك الأصلية» بالدينار، و«—» لغير الشيك', async () => {
+  it('L/M) الأعمدة: «شهر الحساب» بعد «رقم الفاتورة»، ولا «حالة سداد الفاتورة»', async () => {
     renderPage();
     await openReceiptsReport();
     const table = (await screen.findAllByRole('table'))[0];
     // نصّ الرأس وحده — دون أيقونة الفرز المجاورة.
     const headers = Array.from(table.querySelectorAll('thead th .rcx-sort-btn > span:first-child')).map((s) => s.textContent);
-    expect(headers.at(-1)).toBe('قيمة الشيك الأصلية (KWD)');
-
-    const lastCells = Array.from(table.querySelectorAll('tbody tr:not(.rcx-totals-row) td:last-child')).map((td) => td.textContent);
-    expect(lastCells).toEqual(['20,000.000', '—', '—']);
-    // المرجع لم يتغيّر.
-    expect(within(table).getByText('004212')).toBeTruthy();
+    expect(headers).toEqual([
+      'م', 'تاريخ القبض', 'العميل', 'رقم الفاتورة', 'شهر الحساب', 'وسيلة القبض', 'المرجع', 'المبلغ (KWD)', 'قيمة الشيك الأصلية (KWD)',
+    ]);
+    expect(within(table).queryByText('مسددة بالكامل')).toBeNull();
+    expect(within(table).getByText('12-2025')).toBeTruthy();
   });
 
-  it('صفّ المجاميع لا يجمع «قيمة الشيك الأصلية» — ولا أثناء البحث السريع', async () => {
+  /** خلايا «قيمة الشيك الأصلية» الفعلية في الجدول (المدمجة تُعدّ مرّة). */
+  const originalCells = (table: HTMLElement) =>
+    Array.from(table.querySelectorAll('tbody tr:not(.rcx-totals-row)')).map((tr) => {
+      const tds = tr.querySelectorAll('td');
+      return { count: tds.length, last: tds[tds.length - 1], grouped: tr.classList.contains('rcx-row-group') };
+    });
+
+  it('F) أسطر الشيك المتتالية ⇒ القيمة الأصلية مرّة واحدة في خليّة rowspan، و«—» لغير الشيك', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    const rows = originalCells(table);
+
+    expect(rows.map((r) => r.count)).toEqual([9, 8, 9, 9]);
+    expect(rows[0].last.textContent).toBe('20,000.000');
+    expect(rows[0].last.getAttribute('rowspan')).toBe('2');
+    expect(within(table).getAllByText('20,000.000')).toHaveLength(1);
+    // مبلغ كل فاتورة في سطره — عمود المبلغ لا يُدمج.
+    expect(within(table).getByText('15,000.000')).toBeTruthy();
+    expect(within(table).getByText('5,000.000')).toBeTruthy();
+    expect(rows.slice(2).map((r) => r.last.textContent)).toEqual(['—', '—']);
+    // المرجع لم يتغيّر.
+    expect(within(table).getAllByText('004212')).toHaveLength(2);
+  });
+
+  it('لون المجموعة على أسطر الشيك وحدها', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const rows = originalCells((await screen.findAllByRole('table'))[0]);
+    expect(rows.map((r) => r.grouped)).toEqual([true, true, false, false]);
+  });
+
+  it('G) فرز يفصل أسطر الشيك ⇒ لا rowspan عبر صفوف غريبة', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    // الفرز بالمبلغ تصاعديًا: 3,000 · 5,000 · 8,500 · 15,000 — جزءا الشيك منفصلان.
+    fireEvent.click(within(table).getByText('المبلغ (KWD)'));
+    const rows = originalCells(table);
+    expect(rows.map((r) => r.count)).toEqual([9, 9, 9, 9]);
+    expect(table.querySelector('td[rowspan]')).toBeNull();
+    expect(rows.every((r) => !r.grouped)).toBe(true);
+    // القيمة الأصلية ما زالت كاملة على كل جزء.
+    expect(within(table).getAllByText('20,000.000')).toHaveLength(2);
+  });
+
+  it('H) بحث سريع يُبقي جزءًا من الشيك ⇒ القيمة كاملة بلا دمج عبر صفوف مخفيّة', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    fireEvent.change(screen.getByPlaceholderText('بحث سريع داخل النتائج…'), { target: { value: '0221' } });
+    await screen.findByText('إجمالي نتائج البحث');
+    const rows = originalCells(table);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].last.textContent).toBe('20,000.000');
+    expect(rows[0].last.getAttribute('rowspan')).toBeNull();
+  });
+
+  it('H) بحث يُبقي جزأي الشيك متجاورين ⇒ rowspan=2 على الظاهر وحده', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    fireEvent.change(screen.getByPlaceholderText('بحث سريع داخل النتائج…'), { target: { value: '004212' } });
+    await screen.findByText('إجمالي نتائج البحث');
+    const rows = originalCells(table);
+    expect(rows.map((r) => r.count)).toEqual([9, 8]);
+    expect(rows[0].last.getAttribute('rowspan')).toBe('2');
+  });
+
+  it('N) صفّ المجاميع لا يجمع «قيمة الشيك الأصلية» — ولا أثناء البحث السريع', async () => {
     renderPage();
     await openReceiptsReport();
     const table = (await screen.findAllByRole('table'))[0];
@@ -311,9 +381,9 @@ describe('عرض النتائج', () => {
     fireEvent.change(screen.getByPlaceholderText('بحث سريع داخل النتائج…'), { target: { value: 'وزارة' } });
     await screen.findByText('إجمالي نتائج البحث');
     expect(totalsLast()).toBe('');
-    // عمود «المبلغ» ما زال يُعاد جمعه من الصفوف الظاهرة: 15,000 + 3,000.
+    // عمود «المبلغ» ما زال يُعاد جمعه من الصفوف الظاهرة: 15,000 + 5,000 + 3,000.
     const totalsCells = Array.from(table.querySelectorAll('tr.rcx-totals-row td')).map((td) => td.textContent);
-    expect(totalsCells.at(-2)).toBe('18,000.000');
+    expect(totalsCells.at(-2)).toBe('23,000.000');
   });
 
   it('حالة فارغة عند غياب النتائج', async () => {

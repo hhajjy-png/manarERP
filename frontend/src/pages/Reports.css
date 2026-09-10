@@ -208,6 +208,15 @@ th[aria-sort] .rcx-sort-btn .material-symbols-outlined { opacity: 1; }
    BiDi، وبدون هذا التصريح يصير `start` فيها يسارًا. مقصورة على جداول هذه الحزمة. */
 .rcx-table--tools .xpl-table th.num,
 .rcx-table--tools .xpl-table td.money-cell { text-align: right; }
+/* مجموعة صفوف متجاورة (مثل شيك موزَّع على عدّة فواتير) — لون خفيف موحّد لكل أسطرها،
+   والخليّة المدمجة (rowspan) بحدّ جانبي يفصلها عن عمود المبلغ. لا تُضاف إلا لتقرير
+   يُعلن `rowGroupKey`. */
+.rcx-table--tools .xpl-table tbody tr.rcx-row-group td { background: rgba(59, 130, 246, .07); }
+.rcx-table--tools .xpl-table tbody tr.rcx-row-group:hover td { background: rgba(59, 130, 246, .12); }
+.rcx-table--tools .xpl-table td.rcx-merged-cell {
+  border-inline-start: 1px solid var(--xpl-border);
+  border-bottom: 1px solid var(--xpl-border);
+}
 .rcx-totals-row td {
   font-weight: 800 !important;
   color: var(--xpl-text) !important;

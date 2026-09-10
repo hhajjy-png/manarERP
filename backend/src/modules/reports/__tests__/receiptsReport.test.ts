@@ -27,7 +27,7 @@ vi.mock('../../../config/database', () => ({
 }));
 
 import { prisma } from '../../../config/database';
-import { buildReceiptsReport, buildSubtitle, buildKpis, referenceOf, toReportRows } from '../receiptsReport';
+import { accountingMonthOf, buildReceiptsReport, buildSubtitle, buildKpis, referenceOf, toReportRows } from '../receiptsReport';
 import { ReceiptsQueryService } from '../../receipts/receipts.service';
 import { reportsService } from '../reports.service';
 import { receiptListSchema, receiptFiltersSchema } from '../../receipts/receipts.schema';
@@ -253,7 +253,7 @@ describe('المصدر والاستبعادات', () => {
 /* ── ٤) العرض ───────────────────────────────────────────────────────────── */
 
 describe('العرض — تسميات لا رموز', () => {
-  it('يُصدِّر التسمية العربية للوسيلة ولحالة السداد', async () => {
+  it('يُصدِّر التسمية العربية للوسيلة', async () => {
     const report = await buildReceiptsReport({});
     const methods = report.rows.map((r) => r.method);
     expect(methods).toContain('شيك');
@@ -261,18 +261,37 @@ describe('العرض — تسميات لا رموز', () => {
     expect(methods).toContain('تحويل بنكي');
     expect(methods).toContain('حوالة بنكية');
     expect(methods).not.toContain('CHEQUE');
-    expect(report.rows[0].invoiceStatus).toBe('مسددة بالكامل');
   });
 
   it('أعمدة الجدول بالترتيب المطلوب، وبلا بنك ولا تاريخ شيك', async () => {
     const report = await buildReceiptsReport({});
+    expect(report.columns.map((c) => c.header)).toEqual([
+      'م', 'تاريخ القبض', 'العميل', 'رقم الفاتورة', 'شهر الحساب', 'وسيلة القبض', 'المرجع', 'المبلغ', 'قيمة الشيك الأصلية',
+    ]);
     expect(report.columns.map((c) => c.key)).toEqual([
-      'seq', 'date', 'customer', 'invoiceNumber', 'method', 'reference', 'invoiceStatus', 'amount', 'originalChequeAmount',
+      'seq', 'date', 'customer', 'invoiceNumber', 'accountingMonth', 'method', 'reference', 'amount', 'originalChequeAmount',
     ]);
     const headers = report.columns.map((c) => c.header);
     expect(headers.some((h) => h.includes('البنك'))).toBe(false);
     expect(headers.some((h) => h.includes('تاريخ الشيك'))).toBe(false);
     expect(headers.some((h) => h.includes('حالة الشيك'))).toBe(false);
+  });
+
+  it('L) لا عمود «حالة سداد الفاتورة» — لا في الأعمدة ولا في بيانات الصفوف', async () => {
+    const report = await buildReceiptsReport({});
+    expect(report.columns.some((c) => c.header === 'حالة سداد الفاتورة' || c.key === 'invoiceStatus')).toBe(false);
+    expect(report.rows.every((r) => !('invoiceStatus' in r))).toBe(true);
+  });
+
+  it('M) «شهر الحساب» مباشرة بعد «رقم الفاتورة»', async () => {
+    const report = await buildReceiptsReport({});
+    const keys = report.columns.map((c) => c.key);
+    expect(keys.indexOf('accountingMonth')).toBe(keys.indexOf('invoiceNumber') + 1);
+  });
+
+  it('فلتر حالة السداد ما زال يصل الاستعلام كما كان', async () => {
+    await buildReceiptsReport({ status: 'PARTIAL' });
+    expect(mp.payment.findMany.mock.calls[0][0].where.invoice.status).toBe('PARTIAL');
   });
 
   it('المرجع يتبع الوسيلة: رقم الشيك · رقم العملية · اسم المستلم نقدًا', () => {
@@ -288,6 +307,28 @@ describe('العرض — تسميات لا رموز', () => {
       { id: 8, date: new Date(2026, 8, 2), amount: 20, method: 'CASH', reference: null, notes: 'س', createdAt: new Date(), invoiceId: 1, invoiceNumber: 'A', invoiceIssueDate: new Date(), invoiceTotal: 20, invoiceRemaining: 0, invoiceStatus: 'PAID', customerId: 1, customerName: 'ع', contractId: null, contractCode: null },
     ]);
     expect(rows.map((r) => r.seq)).toEqual([1, 2]);
+  });
+});
+
+describe('«شهر الحساب» — من تاريخ إصدار الفاتورة', () => {
+  it('A) 2026-07-15 ⇒ «7-2026» بلا صفر بادئ', () => {
+    expect(accountingMonthOf(new Date(2026, 6, 15))).toBe('7-2026');
+  });
+
+  it('B) 2026-12-01 ⇒ «12-2026»', () => {
+    expect(accountingMonthOf(new Date(2026, 11, 1))).toBe('12-2026');
+  });
+
+  it('2026-08-01 ⇒ «8-2026»، وغياب التاريخ ⇒ «—»', () => {
+    expect(accountingMonthOf(new Date(2026, 7, 1))).toBe('8-2026');
+    expect(accountingMonthOf(null)).toBe('—');
+  });
+
+  it('المصدر `Invoice.issueDate` لا `Payment.date`', async () => {
+    // الدفعة في سبتمبر (ROWS)، والفاتورة صادرة في يوليو.
+    const report = await buildReceiptsReport({});
+    expect(report.rows[0].date).toBe('07/09/2026');
+    expect(report.rows[0].accountingMonth).toBe('7-2026');
   });
 });
 
@@ -384,6 +425,12 @@ describe('ترويسة التقرير', () => {
     const report = await buildReceiptsReport({});
     const footer = (report.metaFooter ?? []).join(' ');
     expect(footer).toContain('دورة حياة الشيك الوارد');
-    expect(footer).toContain('حالة سداد الفاتورة');
+  });
+
+  it('إفصاح «حالة سداد الفاتورة» يظهر حين يكون فلترها نشطًا وحده — العمود أُزيل', async () => {
+    const without = (await buildReceiptsReport({})).metaFooter!.join(' ');
+    const withStatus = (await buildReceiptsReport({ status: 'PAID' })).metaFooter!.join(' ');
+    expect(without).not.toContain('حالة سداد الفاتورة');
+    expect(withStatus).toContain('حالة سداد الفاتورة');
   });
 });

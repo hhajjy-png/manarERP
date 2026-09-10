@@ -77,6 +77,25 @@ export function originalChequeAmountOf(
 }
 
 /**
+ * عدد عمليات القبض **الفعلية** في مجموعة صفوف.
+ *
+ * الشيك الموزَّع على عدّة فواتير عملية واحدة (مفتاح `chequeGroupKey`). أي وسيلة أخرى:
+ * كل `Payment` عملية مستقلة — النموذج لا يحمل معرّفًا صريحًا يربط تحويلًا أو نقدًا
+ * بدفعة واحدة، والدمج بالمبلغ/التاريخ/العميل تخمين قد يدمج دفعات مستقلة. وشيك بلا
+ * رقم مرجع يُعدّ بدوره عملية مستقلة لكل سطر.
+ */
+export function countReceiptOperations(rows: readonly ChequePart[]): number {
+  const chequeKeys = new Set<string>();
+  let ungrouped = 0;
+  for (const row of rows) {
+    const key = chequeGroupKey(row);
+    if (key) chequeKeys.add(key);
+    else ungrouped++;
+  }
+  return chequeKeys.size + ungrouped;
+}
+
+/**
  * يحمّل قيمة الشيك الأصلية لكل شيك يظهر في الصفوف — من كامل تحصيلاته المسجَّلة.
  */
 export async function loadChequeTotals(rows: readonly ChequePart[]): Promise<ChequeTotals> {

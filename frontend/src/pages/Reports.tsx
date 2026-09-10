@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, errorMessage } from '../api/client';
 import { roundMoney } from '../lib/money';
+import { rowGroupLayout } from '../lib/reportRowGroups';
 import DateInput from '../components/DateInput';
 // اختصارات الفترة — نفس المساعد المشترك الذي تستعمله صفحة المقبوضات، فلا يختلف
 // معنى «هذا الشهر» بين الشاشتين.
@@ -39,7 +40,8 @@ import { fcMoneyHeader } from '../components/financial/financialLabels';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-type ReportColumnDef = { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right' };
+/** `mergeRowGroup`: قيمة العمود تظهر مرّة واحدة لكل كتلة متجاورة من `rowGroupKey` (rowspan). */
+type ReportColumnDef = { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right'; mergeRowGroup?: boolean };
 
 /** بطاقة مؤشّر تنفيذي يرسلها التقرير (اختيارية — التقارير التي لا ترسلها لا تتأثر). */
 type ReportKpi = {
@@ -57,7 +59,7 @@ type ReportKpi = {
 type ReportSection = { title: string; note?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[] };
+type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[]; rowGroupKey?: string };
 type CustomerItem = { id: number; name: string };
 type EmployeeItem = { id: number; fullName: string; department?: string | null };
 
@@ -281,7 +283,6 @@ export const REPORT_TYPES: ReportType[] = [
     statusType: 'live',
     datePresets: true,
     tableTools: true,
-    statusColumnKey: 'invoiceStatus',
     totalsLabelKey: 'date',
   },
 ];
@@ -400,7 +401,7 @@ const round3 = roundMoney;
  */
 function PreviewTable({
   columns, rows, totalsRow, applyAlign, emptyText,
-  tools, statusColumnKey, totalsLabelKey,
+  tools, statusColumnKey, totalsLabelKey, rowGroupKey,
 }: {
   columns: ReportColumnDef[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -412,6 +413,8 @@ function PreviewTable({
   tools?: boolean;
   statusColumnKey?: string;
   totalsLabelKey?: string;
+  /** حقل مجموعة الصفوف الذي يُعلنه التقرير — كتل متجاورة تُلوَّن وتُدمج أعمدتها `mergeRowGroup`. */
+  rowGroupKey?: string;
 }) {
   const { t } = useT();
   const [query, setQuery] = useState('');
@@ -427,6 +430,12 @@ function PreviewTable({
     const sorted = [...filtered].sort((a, b) => compareCells(a[sort.key], b[sort.key]));
     return sort.dir === 'asc' ? sorted : sorted.reverse();
   }, [rows, columns, trimmedQuery, sort]);
+
+  // الكتل من الصفوف الظاهرة بترتيبها الحالي — بعد الفرز والبحث، لا من صفوف الخادم.
+  const groups = useMemo(
+    () => (rowGroupKey ? rowGroupLayout(visibleRows, rowGroupKey) : undefined),
+    [visibleRows, rowGroupKey],
+  );
 
   /**
    * صفّ المجاميع أثناء البحث السريع.
@@ -513,15 +522,23 @@ function PreviewTable({
             {visibleRows.length === 0 ? (
               <tr><td colSpan={columns.length} style={{ textAlign: 'center', color: 'var(--xpl-muted)', padding: 28 }}>{emptyText}</td></tr>
             ) : (
-              visibleRows.map((row, i) => (
-                <tr key={i}>{columns.map((c) => (
-                  <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
-                    {c.key === statusColumnKey && row[c.key]
-                      ? <StatusChip tone={STATEMENT_STATUS_TONES[String(row[c.key])] ?? 'neutral'}>{String(row[c.key])}</StatusChip>
-                      : formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
-                  </td>
-                ))}</tr>
-              ))
+              visibleRows.map((row, i) => {
+                const group = groups?.[i];
+                return (
+                  <tr key={i} className={group?.grouped ? 'rcx-row-group' : undefined}>{columns.map((c) => {
+                    const merged = c.mergeRowGroup && group && group.span !== 1;
+                    if (merged && group.span === 0) return null; // مغطّاة بخليّة أول صفّ في الكتلة
+                    const classes = [c.format === 'currency' ? 'money-cell' : '', merged ? 'rcx-merged-cell' : ''].filter(Boolean).join(' ');
+                    return (
+                      <td key={c.key} className={classes || undefined} style={cellStyle(c)} rowSpan={merged ? group.span : undefined}>
+                        {c.key === statusColumnKey && row[c.key]
+                          ? <StatusChip tone={STATEMENT_STATUS_TONES[String(row[c.key])] ?? 'neutral'}>{String(row[c.key])}</StatusChip>
+                          : formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                      </td>
+                    );
+                  })}</tr>
+                );
+              })
             )}
             {effectiveTotals && (
               <tr className="rcx-totals-row">
@@ -1375,6 +1392,7 @@ export default function Reports() {
                 tools={currentType.tableTools}
                 statusColumnKey={currentType.statusColumnKey}
                 totalsLabelKey={currentType.totalsLabelKey}
+                rowGroupKey={preview.rowGroupKey}
               />
             </div>
           )}

@@ -65,6 +65,7 @@ export function buildReportHtml(input: ReportInput, options?: ReportOptions): st
   const table        = buildTable(input.columns, input.rows, input.totalsRow, {
     noWrapCells: options?.invoiceReportLayout,
     totalsAsLastRow: options?.invoiceReportLayout,
+    rowGroupKey: input.rowGroupKey,
   });
   const summaryTableHtml = options?.summaryTable
     ? buildSummaryTable(options.summaryTable.columns, options.summaryTable.rows)

@@ -20,20 +20,30 @@ vi.mock('../../utils/print', () => ({ printCurrentView: vi.fn() }));
 
 import ReportPrint from '../ReportPrint';
 
+const K1474 = '3|2026-08-15|001474';
+const K1527 = '5|2026-08-20|001527';
+
 const RECEIPTS = {
   title: 'تقرير المقبوضات',
-  kpis: [{ label: 'الشيكات', value: 5050, format: 'currency' }],
+  kpis: [{ label: 'الشيكات', value: 7455, format: 'currency' }],
   columns: [
+    { header: 'رقم الفاتورة', key: 'invoiceNumber' },
+    { header: 'شهر الحساب', key: 'accountingMonth', align: 'center' },
     { header: 'المرجع', key: 'reference' },
     { header: 'المبلغ', key: 'amount', format: 'currency' },
-    { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', format: 'currency' },
+    { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', format: 'currency', mergeRowGroup: true },
   ],
+  rowGroupKey: 'chequeGroup',
   rows: [
-    { reference: '001474', amount: 1135, originalChequeAmount: 5050 },
-    { reference: '001474', amount: 3915, originalChequeAmount: 5050 },
-    { reference: 'أحمد', amount: 750, originalChequeAmount: '—' },
+    { invoiceNumber: 'A1', accountingMonth: '7-2026', reference: '001474', amount: 1135, originalChequeAmount: 5050, chequeGroup: K1474 },
+    { invoiceNumber: 'A2', accountingMonth: '7-2026', reference: '001474', amount: 2080, originalChequeAmount: 5050, chequeGroup: K1474 },
+    { invoiceNumber: 'A3', accountingMonth: '8-2026', reference: '001474', amount: 405, originalChequeAmount: 5050, chequeGroup: K1474 },
+    { invoiceNumber: 'A4', accountingMonth: '8-2026', reference: '001474', amount: 1430, originalChequeAmount: 5050, chequeGroup: K1474 },
+    { invoiceNumber: 'B1', accountingMonth: '8-2026', reference: '001527', amount: 1200, originalChequeAmount: 2405, chequeGroup: K1527 },
+    { invoiceNumber: 'B2', accountingMonth: '8-2026', reference: '001527', amount: 1205, originalChequeAmount: 2405, chequeGroup: K1527 },
+    { invoiceNumber: 'C1', accountingMonth: '9-2026', reference: 'أحمد', amount: 750, originalChequeAmount: '—', chequeGroup: null },
   ],
-  totalsRow: { reference: 'الإجمالي', amount: 5800 },
+  totalsRow: { invoiceNumber: 'الإجمالي', amount: 8205 },
 };
 
 function renderPrint(type: string, report: unknown) {
@@ -59,13 +69,41 @@ describe('طباعة تقرير المقبوضات', () => {
     expect(printCss(container)).toContain('@page { size: A4 landscape; margin: 10mm;');
   });
 
-  it('تعرض العمود الجديد بقيمه، و«—» لغير الشيك، ولا توزيع', async () => {
+  it('I) الدمج يصل مستند الطباعة: خليّة واحدة لكل شيك بـ rowspan حقيقي', async () => {
     const { container } = renderPrint('receipts', RECEIPTS);
     await screen.findByText('تقرير المقبوضات');
     expect(screen.getByText('قيمة الشيك الأصلية (KWD)')).toBeTruthy();
-    expect(screen.getAllByText('5,050.000')).toHaveLength(2);
+
+    const c5050 = screen.getByText('5,050.000');
+    const c2405 = screen.getByText('2,405.000');
+    expect(c5050.getAttribute('rowspan')).toBe('4');
+    expect(c2405.getAttribute('rowspan')).toBe('2');
     expect(screen.getByText('—')).toBeTruthy();
+
+    const bodyRows = Array.from(container.querySelectorAll('tbody tr')).slice(0, 7);
+    expect(bodyRows.map((tr) => tr.querySelectorAll('td').length)).toEqual([5, 4, 4, 4, 5, 4, 5]);
+    // مبالغ التحصيل في أسطرها.
+    ['1,135.000', '2,080.000', '405.000', '1,430.000', '1,200.000', '1,205.000'].forEach((v) => expect(screen.getByText(v)).toBeTruthy());
     expect(container.textContent).not.toContain('التوزيع حسب وسيلة القبض');
+    expect(container.textContent).not.toContain('حالة سداد الفاتورة');
+  });
+
+  it('لون المجموعة على أسطر الشيكات وحدها، ومفروض في الطباعة', async () => {
+    const { container } = renderPrint('receipts', RECEIPTS);
+    await screen.findByText('تقرير المقبوضات');
+    const bodyRows = Array.from(container.querySelectorAll('tbody tr')).slice(0, 7) as HTMLElement[];
+    expect(bodyRows.map((tr) => tr.classList.contains('row-group'))).toEqual([true, true, true, true, true, true, false]);
+    expect(bodyRows[0].style.background).toBe('rgb(232, 241, 250)');
+    expect(bodyRows[0].getAttribute('style')).toContain('print-color-adjust: exact');
+    expect(bodyRows[6].getAttribute('style')).not.toContain('print-color-adjust');
+  });
+
+  it('تقرير بلا `rowGroupKey` يبقى بلا دمج ولا لون مجموعة', async () => {
+    const { container } = renderPrint('expenses', { ...RECEIPTS, title: 'تقرير المصروفات', rowGroupKey: undefined });
+    await screen.findByText('تقرير المصروفات');
+    expect(container.querySelector('td[rowspan]')).toBeNull();
+    expect(container.querySelector('tr.row-group')).toBeNull();
+    expect(screen.getAllByText('5,050.000')).toHaveLength(4);
   });
 
   it('تقرير آخر بلا أقسام يبقى عموديًا كما كان', async () => {
