@@ -59,7 +59,8 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | **`bcd67793`** (merge) + توثيق الإصدار `1326b444` وcommit إغلاق الهاش فوقه — **Receipts Page & Comprehensive Report v1** (feature release يضمّ حزمتين: صفحة «المقبوضات» وتقرير «المقبوضات» في التقارير الشاملة), merge `bcd67793` (أبواه `968c18cf` و`313c77c0`), tag `stable-receipts-page-and-report-v1` → **commit الدمج نفسه**. الحزمتان تتشاركان مصدر الحقيقة نفسه (`Payment` لفواتير مبيعات فعّالة عبر `SALES_INVOICE_ACTIVE`) — تكافؤ الإجمالي والعدد **مُثبَت حيًّا على 10 حالات فلترة**. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
+| **Production HEAD** | **`d52d53dc`** (release/version) + توثيق الإصدار فوقه — **Production Release 2026.5.10** (Desktop Installer), tag `stable-production-release-2026.5.10` → **commit رفع النسخة نفسه** (نفس دلالة وسم 2026.5.9 الذي أشار إلى `ab9480d9`). مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج منذ مثبِّت 2026.5.9: حزمتان تحملان كودًا (**Employee Debt Acknowledgment Form v1** و**Receipts Page & Comprehensive Report v1**) وثلاث حزم توثيقية. الترحيلات **71 بلا تغيير** · 87 نموذج Prisma · قاعدة الإنتاج لم تُمَسّ. |
+| **Production HEAD before that** | **`bcd67793`** (merge) + توثيق الإصدار `1326b444` وcommit إغلاق الهاش فوقه — **Receipts Page & Comprehensive Report v1** (feature release يضمّ حزمتين: صفحة «المقبوضات» وتقرير «المقبوضات» في التقارير الشاملة), merge `bcd67793` (أبواه `968c18cf` و`313c77c0`), tag `stable-receipts-page-and-report-v1` → **commit الدمج نفسه**. الحزمتان تتشاركان مصدر الحقيقة نفسه (`Payment` لفواتير مبيعات فعّالة عبر `SALES_INVOICE_ACTIVE`) — تكافؤ الإجمالي والعدد **مُثبَت حيًّا على 10 حالات فلترة**. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
 | **Production HEAD before that** | **`814116b4`** (merge) + توثيق الإصدار `291e1a20` وcommit إغلاق الهاش فوقه — **Employee Debt Acknowledgment Administrative Form v1** (feature release), merge `814116b4` (أبواه `a3c5b18e` و`618f00b0`), tag `stable-employee-debt-acknowledgment-form-v1` → **commit الدمج نفسه**, توثيق الإصدار في `291e1a20` يعلوه commit إغلاق الهاش. **أول إصدار يحمل كودًا منذ Production Release 2026.5.9**: ما سبقه على `production` كان توثيقًا خالصًا. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
 | **Production HEAD before that** | `f37c9c7f` — **Complete User Manual v1** (documentation release), merge `57e2c8a1`, tag `stable-complete-user-manual-v1`, docs/final commit `f37c9c7f`. **The last code-bearing release is Production Release 2026.5.9** (release commit `ab9480d9`, tag `stable-production-release-2026.5.9`); everything merged onto `production` after it is **documentation only** — mechanically verified: `git diff --name-only ab9480d9 f37c9c7f` touches 98 files, all under `docs/` plus `PROJECT_STATE.md` and `AI_CONTEXT.md`, with zero files under `backend/`, `frontend/`, `electron/`, `scripts/`, `prisma/` and no `package.json` change. The older HEAD chain continues in the rows below; the full entry for each of those releases lives in the release log or in `docs/history/` |
 | **Production HEAD before that** | `95f67a9c` — release `stable-production-release-2026.5.5` (**Production Release 2026.5.5** — merge of `feature/production-release-2026.5.5`. Packages into a new self-contained Windows installer every Feature Release merged onto `production` since the 2026.5.4 installer: **Employee Compensation — Batch Printing v1** (`78cbab4b`, merge `876f0ff8`), **Migration History Reconciliation v1** (`99b89c68`, merge `bd15959f`), **XBRL Readiness Foundation v1** (`2d221663`, merge `66f03cf7`) and **Vehicle Insurance Management v1** (`b80b8c4b`, merge `581ad7ee`) — each already merged, tagged and documented individually. `package.json` `version` `2026.5.4` → `2026.5.5` is the only tracked-file change the release itself introduces; no new feature work, no schema change, no migration, no new permission key, no new dependency. **The recurring Prisma packaging defect recurred again and was neutralised before packaging:** the repo-root `node_modules/.prisma` client was stale at **75 models** against the schema’s **85** — `scripts/prepare-backend-deps.js` overlays the *root* client into the package while `prisma generate` writes to `backend/node_modules/.prisma`, so the root copy silently stops tracking the schema. `npm run db:generate` was run and the fresh `backend/node_modules/.prisma` + `@prisma/client` were copied over their root counterparts before `npm run dist`; the shipped client was then verified to carry **all 85 models with a model set identical to `backend/prisma/schema.prisma` — zero missing, zero extra** — both in `win-unpacked` and by extraction from inside `Setup.exe`. Had the workaround been skipped, the installer would have shipped a client missing 10 models and failed at runtime on Vehicle Insurance and XBRL Readiness. The underlying `prepare-backend-deps.js` weakness is **still not fixed at source** and remains required follow-up work. Validation: Backend/Frontend/Electron `tsc --noEmit` clean · `prisma validate` clean · `migrate status` 69/69 applied (latest `20260819120000_add_xbrl_readiness_foundation`) · Backend 212 files/**3418** tests (2 intentionally-skipped diagnostic probe stubs, pre-existing) · Frontend 223 files/**4088** tests · Electron 26 files/**499** tests — all green, and the Electron suite re-run after the version bump so the packaging version contract is enforced against `2026.5.5`. Packaging audit: all **4,108** entries of `Setup.exe` enumerated via `7za l -slt` plus all **686** `app.asar` entries listed directly — zero source maps, zero `__tests__`, zero `*.test.*`/`*.spec.*`, zero `.ts`/`.tsx`/`.d.ts`, zero `.pem`/`.key`/`.pfx`/`.crt`, zero SQLite journals (`-wal`/`-shm`/`-journal`), zero `.bak`, zero non-Windows native Prisma engines, and zero build-machine state files (`gdrive-token.dat`/`device-identity.json`/`sync-metadata.json`/`gdrive-account.json`/`security.json`). Exactly **one** `.db` ships (`resources\backend\data\manar.db`). One `.env`-pattern hit inspected and confirmed a false positive — `@dabh/diagnostics/adapters/process.env.js`, a normal JS module of a winston dependency. Present and confirmed: `app.asar`, `backend\dist\server.js`, `electron-dist\main.js` and `frontend\dist\index.html` (both inside `app.asar`), `preload.js`, `schema.prisma`, 69 migration folders, `gdrive-oauth-client.json`, `runtime-requirements.json` (reporting zero external prerequisites), `seed-data/golden-manifest.json`, and 69 bundled font files (49 in `app.asar` + 20 in `extraResources`). Golden Database SHA-256 `f62a08a874f40baf7a600732605ea4e276a1a8621472b400f27c2a13e52e041c` (3,866,624 bytes · `integrity_check = ok` · 0 foreign-key violations · 86 tables · 69 applied migrations) verified byte-identical in **four** places: source `backend/data/manar.db` · `release/win-unpacked/resources/backend/data/manar.db` · extracted directly from inside `Setup.exe` via `7za` (`cmp` exit 0) · and `seed-data/golden-manifest.json`, which records the identical hash and size. No hot journal existed beside the source at packaging time, and the source hash was unchanged after the full build. Integrity was checked on a byte-identical copy so the shipped file was never opened by a writer. Installer `AlManarERP-Setup-2026.5.5.exe`, 138,437,006 bytes (132.02 MiB), SHA-256 `706e79e7e3ac239f336e3aebf3b3c5c1ad34b4b4932179ba7c22876bed636a2c`; `win-unpacked` 3,376 files / 470,061,262 bytes (448.3 MiB). GUI-only install/first-run flow not driven interactively — no desktop session available in this environment — covered by the Product Owner’s completed manual visual and functional review, confirmed prior to this release) |
@@ -92,7 +93,105 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
-## Latest Release — Receipts Page & Comprehensive Report v1
+## Latest Release — Production Release 2026.5.10 (Desktop Installer)
+
+| Field | Value |
+|-------|-------|
+| **Package** | مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج على `production` منذ مثبِّت **2026.5.9** — إصدار تغليف، بلا أي عمل ميزات جديد |
+| **Release status** | **`RELEASED / COMPLETED`** — Desktop Production Release |
+| **Release date** | 2026-09-10 |
+| **Desktop version** | **`2026.5.9` → `2026.5.10`** — `package.json` هو الملف الوحيد المتغيّر في commit الإصدار (نفس عُرف 2026.5.9) |
+| **Starting production HEAD** | `bb2621e5` |
+| **Release/version commit** | **`d52d53dc`** — `chore(release): Production Release 2026.5.10` |
+| **Stable tag** | `stable-production-release-2026.5.10` → **`d52d53dc`** (commit رفع النسخة، لا commit التوثيق — نفس دلالة وسم 2026.5.9 → `ab9480d9`) |
+| **Previous desktop release** | `stable-production-release-2026.5.9` → `ab9480d9` |
+
+### الدلتا — مستخرجة من Git لا من الذاكرة
+
+`ab9480d9..HEAD` = **38 commit**، منها **خمس عمليات دمج**. 65 ملف كود و119 ملف توثيق.
+
+| # | الحزمة | الدمج | النوع |
+|---|---|---|---|
+| 1 | **Complete User Manual v1** | `57e2c8a1` | توثيق خالص |
+| 2 | **PROJECT_STATE Documentation Rotation & Maintenance v1** | `448aa78e` | توثيق خالص |
+| 3 | **Completed Features Documentation Compaction & Archive v1** | `2bdc3d8b` | توثيق خالص |
+| 4 | **Employee Debt Acknowledgment Administrative Form v1** | `814116b4` | **كود** · PO APPROVED |
+| 5 | **Receipts / Collections Page v1 + Receipts Comprehensive Report v1** | `bcd67793` | **كود** · PO APPROVED |
+
+الحزمتان الحاملتان للكود هما أول ما يشحنه مثبِّت منذ 2026.5.9 — ما سبقهما على `production` كان توثيقًا خالصًا.
+
+### تحقّق المقبوضات داخل هذا الإصدار
+
+| البند | النتيجة |
+|---|---|
+| `bcd67793` سلف لـ`production` | ✅ (وكذلك `a82796a8` و`313c77c0` و`814116b4`) |
+| صفحة المقبوضات | `#/receipts` تحت «الإدارة المالية» · `invoices.read` · Payment SSoT · `SALES_INVOICE_ACTIVE` · `Payment.date` · الشهر الحالي مسقوف بنهاية اليوم · الشهر السابق تقويمي كامل · الوسائل الأربع · `BANK+TRANSFER` مجموعتان في الملخّص ومنفصلتان في الصفوف · فرز وترقيم خادميّان · لوحة تفاصيل · تصدير Excel · إفصاح الشيكات · لا حالات شيك مخترَعة · لا احتساب مزدوج — **17/17 مُتحقَّق منها على HEAD** |
+| تقرير المقبوضات | المفتاح `receipts` · مجموعة «المالية» · بنية التقارير القياسية · `reports.read`/`reports.export` · لا عنصر جانبي · نفس `receiptsQueryService` ونفس SSoT ونفس `Payment.date` · فلاتر · جدول · ملخّص · طباعة A4 أفقي · متعدد الصفحات · PDF · Excel · تصدير كامل النتائج · لا احتساب مزدوج — **17/17 مُتحقَّق منها على HEAD** |
+| **بوابة التكافؤ** | **10/10 ALL MATCH** على قاعدة معزولة: بلا فلاتر · الشهر الحالي · الشهر السابق · CASH · CHEQUE · BANK · TRANSFER · PAID · PARTIAL · مركّب — الإجمالي والعدد متطابقان في كلٍّ منها |
+| **التكافؤ داخل التطبيق المعبأ** | **4/4 ALL MATCH** (بلا فلاتر · CHEQUE · CASH · PAID) على بيانات معزولة داخل المثبِّت نفسه |
+
+### QA
+
+| الفحص | النتيجة |
+|---|---|
+| backend | **3,765** اختبارًا · 5 إخفاقات **قائمة قبل الإصدار** (`chequeDesignerTemplates.integration.contract` ×5) |
+| frontend | **4,612** اختبارًا · 3 إخفاقات **قائمة قبل الإصدار** (`employeeCompensationBatchPrint` ×1، `entitlementsBankExport` ×2) |
+| electron | **502/502** ✅ |
+| targeted (المقبوضات) | 92 backend + 69 frontend — كلها ناجحة |
+| **انحدارات جديدة** | **صفر** |
+| TypeScript | `tsc --noEmit` نظيف: backend · frontend · electron |
+| Builds | `build:back` · `build:front` · `electron:build` — الثلاثة ناجحة ضمن `npm run dist` |
+
+### قاعدة البيانات
+
+| البند | القيمة |
+|---|---|
+| الترحيلات | **71** — بلا تغيير منذ 2026.5.9 (`20260907120000_add_leave_request_date` آخرها) · كلها بصيغة طابع زمني صحيحة · لا تكرار |
+| نماذج Prisma | **87** — بلا تغيير |
+| `schema.prisma` | **0** سطر مُعدَّل عبر الدلتا كاملة |
+| **Golden DB** | `417272f8…c4af` — **بصمة وحجم و mtime متطابقة قبل كل بوابات الإصدار وبعدها**، بلا أي ملف journal جانبي. لم تُستعمل في أي اختبار أو تشغيل حيّ؛ كل الفحوص الحيّة على نسخ قابلة للرمي و userData معزول |
+
+> ملاحظة على القالب المشحون: `prepare-seed-data` **يقرأ** `backend/data/manar.db` كقالب أوّل تشغيل ويرفض المتابعة عند وجود ملف journal — قراءة لا كتابة، وهو تصميم كل إصدار سابق. بصمة القالب في `build/seed-data/golden-manifest.json` تساوي بصمة القاعدة أعلاه.
+
+### المثبِّت
+
+| البند | القيمة |
+|---|---|
+| المسار | `release/AlManarERP-Setup-2026.5.10.exe` |
+| الحجم | **138,583,336 بايت** (~132.2 ميجابايت) |
+| SHA-256 | `056fb1f553a74113a805149831295ac1fbd6c5ba9b8d433d67efcf357cdc1141` |
+| الهدف | NSIS · `perMachine: false` (بلا صلاحيات مسؤول) · `deleteAppDataOnUninstall: false` |
+| متطلبات وقت التشغيل | **لا شيء** — مكتفٍ ذاتيًا على وندوز 10/11 نظيف (`analyze-runtime-deps` فحص 10 ملفات PE) |
+
+### التطبيق المعبأ — تحقّق النسخة والتشغيل
+
+| البند | القيمة |
+|---|---|
+| `package.json` الجذر | `2026.5.10` |
+| `app.asar/package.json` | `2026.5.10` |
+| exe المعبأ — FileVersion | `2026.5.10` |
+| exe المعبأ — ProductVersion | `2026.5.10.0` (اتفاقية وندوز رباعية) |
+| المثبِّت — FileVersion / ProductVersion | `2026.5.10` |
+| أصول الواجهة داخل `app.asar` | مطابقة بايتًا ببايت لمخرجات البناء (`index.html`، `Receipts-*.js`، `Receipts-*.css`) |
+| الإقلاع | Electron يعمل · الخلفية تستمع · قاعدة البيانات تُهيَّأ من القالب المشحون داخل `userData` معزول · جدولة النسخ الاحتياطي تعمل |
+| صفحة المقبوضات | تفتح · **9 بطاقات KPI** · صفوف · 3 فلاتر · **7 اختصارات فترة** · التوزيع · الإفصاح · بلا أخطاء |
+| مركز التقارير | يفتح · **19 تقريرًا** · «المقبوضات» موجود |
+| تقرير المقبوضات | يعمل عبر «تهيئة ← تشغيل التقرير»: جدولان · الأعمدة الثمانية بالترتيب المعتمد · صفّ إجمالي · سطر وصفي بالفلاتر النشطة · قسم التوزيع |
+| معاينة الطباعة | «تقرير المقبوضات» · 104 صف + إجمالي · 4 وسائل + إجمالي · **بلا تجاوز أفقي** |
+| PDF | 5 صفحات من الحزمة المعبأة |
+| Excel | HTTP 200 · 16,041 بايت |
+
+### عيب سابق مكتشَف أثناء الفحص (خارج نطاق هذا الإصدار)
+
+زرّ **«تشغيل»** على بطاقة أي تقرير في مركز التقارير يُشغّل **التقرير المختار سابقًا** لا تقرير البطاقة:
+`onClick={… selectReport(rt.key); setTimeout(loadPreview, 0); }` — الـ`loadPreview` المُلتقَط في المؤقّت يغلق على
+قيمة `selected` القديمة. مُثبَت أنه **قائم حرفيًا منذ Desktop 2026.5.9** (نفس السطر في `ab9480d9`) و**لم تمسّه**
+حزمتا هذا الإصدار، ويصيب التقارير الـ19 جميعًا. المسار المعتمد «تهيئة ← تشغيل التقرير» يعمل بشكل صحيح.
+**لم يُصلَح هنا** التزامًا بقاعدة «لا تغيير وظيفي داخل حزمة إصدار» — يُسجَّل كبند مستقل.
+
+---
+
+## Previous Release — Receipts Page & Comprehensive Report v1
 
 | Field | Value |
 |-------|-------|
