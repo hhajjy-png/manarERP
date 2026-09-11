@@ -5818,7 +5818,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'rcp.drawer.open_invoice': 'فتح الفاتورة',
     // ── تقرير المقبوضات (Receipts Comprehensive Report v1) ──────────────────
     'report.type.receipts': 'المقبوضات',
-    'report.desc.receipts': 'كشف تفصيلي بكل ما قُبض من العملاء خلال الفترة، مع التوزيع حسب وسيلة القبض',
+    'report.desc.receipts': 'كشف تفصيلي بكل ما قُبض من العملاء خلال الفترة',
     'rc.filter.quick_period': 'فترة سريعة',
   },
   en: {
@@ -11604,7 +11604,7 @@ const DICT: Record<Lang, Record<string, string>> = {
     'rcp.drawer.open_invoice': 'Open invoice',
     // ── Receipts Comprehensive Report v1 ────────────────────────────────────
     'report.type.receipts': 'Receipts',
-    'report.desc.receipts': 'Detailed statement of everything collected from customers in the period, with a breakdown by receipt method',
+    'report.desc.receipts': 'Detailed statement of everything collected from customers in the period',
     'rc.filter.quick_period': 'Quick period',
   },
 };

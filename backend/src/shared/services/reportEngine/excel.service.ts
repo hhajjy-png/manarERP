@@ -6,6 +6,7 @@ import {
   HEADER_FILL,
   TOTALS_FILL,
   ZEBRA_FILL,
+  ROW_GROUP_FILL,
   HEADER_BORDER,
   ROW_BORDER,
   CENTER_ALIGN,
@@ -18,6 +19,7 @@ import {
   TOTALS_FONT,
   META_FONT,
 } from './excelStyle';
+import { rowGroupLayout } from './rowGroups';
 
 export interface ReportColumn {
   header: string;
@@ -40,6 +42,11 @@ export interface ReportColumn {
    *  **Excel ignores this styling mechanism**: it maps `align` to its own native
    *  `cell.alignment` (via `alignFor()`), independent of any HTML/CSS. */
   align?: 'left' | 'center' | 'right';
+  /** Presentation-only: within each contiguous row group (`ReportInput.rowGroupKey`) this
+   *  column shows its value ONCE — a real `rowspan` cell in HTML/PDF and the preview; in
+   *  Excel the first row of the block keeps the value and the rest stay blank (merged
+   *  cells of unequal size would break the header autofilter's sort). See `rowGroups.ts`. */
+  mergeRowGroup?: boolean;
 }
 
 /**
@@ -95,6 +102,12 @@ export interface ReportInput {
   metaFooter?: string[];
   /** تنسيق مشروط اختياري لكل صف بيانات — يُستخدم لاحقًا لتلوين حالات الرواتب/البنوك. */
   rowStyle?: (row: Record<string, unknown>, index: number) => { fillArgb?: string; fontColorArgb?: string } | undefined;
+  /**
+   * حقل معرّف مجموعة الصفوف (عرضٌ بحت، لا يُعرض كعمود). كل كتلة **متجاورة** من صفّين
+   * فأكثر بنفس المعرّف تُلوَّن لونًا موحّدًا، وتُدمج فيها أعمدة `mergeRowGroup` — انظر
+   * `rowGroups.ts`.
+   */
+  rowGroupKey?: string;
 }
 
 const DEFAULT_SHEET_NAME = 'التقرير';
@@ -227,13 +240,17 @@ function renderSheet(ws: ExcelJS.Worksheet, input: ReportInput): void {
   }
 
   // الصفوف
+  const groups = input.rowGroupKey ? rowGroupLayout(input.rows, input.rowGroupKey) : undefined;
   input.rows.forEach((row, rowIdx) => {
-    const r = ws.addRow(input.columns.map((c) => row[c.key] ?? ''));
+    const group = groups?.[rowIdx];
+    // عمود `mergeRowGroup`: القيمة في أول صفّ من الكتلة وحده، والباقي فارغ.
+    const hiddenByGroup = (c: ReportColumn) => !!c.mergeRowGroup && group?.span === 0;
+    const r = ws.addRow(input.columns.map((c) => (hiddenByGroup(c) ? '' : row[c.key] ?? '')));
     const isZebra = zebraEnabled && rowIdx % 2 === 1;
     const custom = input.rowStyle?.(row, rowIdx);
     input.columns.forEach((c, i) => {
       const cell = r.getCell(i + 1);
-      const value = row[c.key];
+      const value = hiddenByGroup(c) ? '' : row[c.key];
       const numFmt = resolveNumFmt(c, value);
       if (numFmt) cell.numFmt = numFmt;
 
@@ -245,6 +262,8 @@ function renderSheet(ws: ExcelJS.Worksheet, input: ReportInput): void {
 
       if (custom?.fillArgb) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: custom.fillArgb } };
+      } else if (group?.grouped) {
+        cell.fill = ROW_GROUP_FILL;
       } else if (isZebra) {
         cell.fill = ZEBRA_FILL;
       }

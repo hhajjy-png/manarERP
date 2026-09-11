@@ -46,35 +46,21 @@ const REPORT = {
     { header: 'تاريخ القبض', key: 'date', align: 'center' },
     { header: 'العميل', key: 'customer' },
     { header: 'رقم الفاتورة', key: 'invoiceNumber' },
+    { header: 'شهر الحساب', key: 'accountingMonth', align: 'center' },
     { header: 'وسيلة القبض', key: 'method', align: 'center' },
     { header: 'المرجع', key: 'reference' },
-    { header: 'حالة سداد الفاتورة', key: 'invoiceStatus', align: 'center' },
     { header: 'المبلغ', key: 'amount', format: 'currency' },
+    { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', format: 'currency', mergeRowGroup: true },
   ],
+  rowGroupKey: 'chequeGroup',
   rows: [
-    { seq: 1, date: '09/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0220', method: 'شيك', reference: '004212', invoiceStatus: 'مسددة بالكامل', amount: 15000 },
-    { seq: 2, date: '07/09/2026', customer: 'بلدية الكويت', invoiceNumber: 'MN-INV-2026-0148', method: 'حوالة بنكية', reference: '0409TR8821', invoiceStatus: 'عليها رصيد', amount: 8500 },
-    { seq: 3, date: '02/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0178', method: 'نقدي', reference: 'أحمد المطيري', invoiceStatus: 'عليها رصيد', amount: 3000 },
+    // الشيك 004212 على فاتورتين متتاليتين (15,000 + 5,000) ⇒ قيمته الأصلية 20,000.
+    { seq: 1, date: '09/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0220', accountingMonth: '7-2026', method: 'شيك', reference: '004212', amount: 15000, originalChequeAmount: 20000, chequeGroup: '3|2026-09-09|004212' },
+    { seq: 2, date: '09/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0221', accountingMonth: '8-2026', method: 'شيك', reference: '004212', amount: 5000, originalChequeAmount: 20000, chequeGroup: '3|2026-09-09|004212' },
+    { seq: 3, date: '07/09/2026', customer: 'بلدية الكويت', invoiceNumber: 'MN-INV-2026-0148', accountingMonth: '6-2026', method: 'حوالة بنكية', reference: '0409TR8821', amount: 8500, originalChequeAmount: '—', chequeGroup: null },
+    { seq: 4, date: '02/09/2026', customer: 'وزارة الأشغال', invoiceNumber: 'MN-INV-2026-0178', accountingMonth: '12-2025', method: 'نقدي', reference: 'أحمد المطيري', amount: 3000, originalChequeAmount: '—', chequeGroup: null },
   ],
-  totalsRow: { date: 'الإجمالي', amount: 26500 },
-  sections: [
-    {
-      title: 'التوزيع حسب وسيلة القبض',
-      columns: [
-        { header: 'وسيلة القبض', key: 'method' },
-        { header: 'عدد العمليات', key: 'count', align: 'center' },
-        { header: 'الإجمالي', key: 'total', format: 'currency' },
-        { header: 'النسبة', key: 'percent', align: 'center' },
-      ],
-      rows: [
-        { method: 'نقدي', count: 1, total: 3000, percent: '11.3%' },
-        { method: 'تحويل بنكي', count: 0, total: 0, percent: '0.0%' },
-        { method: 'شيك', count: 1, total: 15000, percent: '56.6%' },
-        { method: 'حوالة بنكية', count: 1, total: 8500, percent: '32.1%' },
-      ],
-      totalsRow: { method: 'الإجمالي', count: 3, total: 26500, percent: '100.0%' },
-    },
-  ],
+  totalsRow: { date: 'الإجمالي', amount: 31500 },
 };
 
 function route(opts: { report?: unknown; fail?: boolean } = {}) {
@@ -294,22 +280,146 @@ describe('عرض النتائج', () => {
     expect(screen.getByText('الشيكات')).toBeTruthy();
   });
 
-  it('يعرض قسم التوزيع بالوسائل الأربع منفصلة', async () => {
+  it('لا قسم «التوزيع حسب وسيلة القبض» ولا بطاقة «متوسط قيمة العملية»', async () => {
     renderPage();
     await openReceiptsReport();
-    const section = await screen.findByText('التوزيع حسب وسيلة القبض');
-    expect(section).toBeTruthy();
-    const tables = screen.getAllByRole('table');
-    const breakdown = tables[tables.length - 1];
-    const methods = Array.from(breakdown.querySelectorAll('tbody tr td:first-child')).map((td) => td.textContent);
-    expect(methods).toContain('نقدي');
-    expect(methods).toContain('تحويل بنكي');
-    expect(methods).toContain('شيك');
-    expect(methods).toContain('حوالة بنكية');
+    await screen.findByText('التحويلات البنكية');
+    expect(screen.queryByText('التوزيع حسب وسيلة القبض')).toBeNull();
+    expect(screen.queryByText('متوسط قيمة العملية')).toBeNull();
+    expect(screen.getAllByRole('table')).toHaveLength(1);
+  });
+
+  it('L/M) الأعمدة: «شهر الحساب» بعد «رقم الفاتورة»، ولا «حالة سداد الفاتورة»', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    // نصّ الرأس وحده — دون أيقونة الفرز المجاورة.
+    const headers = Array.from(table.querySelectorAll('thead th .rcx-sort-btn > span:first-child')).map((s) => s.textContent);
+    expect(headers).toEqual([
+      'م', 'تاريخ القبض', 'العميل', 'رقم الفاتورة', 'شهر الحساب', 'وسيلة القبض', 'المرجع', 'المبلغ (KWD)', 'قيمة الشيك الأصلية (KWD)',
+    ]);
+    expect(within(table).queryByText('مسددة بالكامل')).toBeNull();
+    expect(within(table).getByText('12-2025')).toBeTruthy();
+  });
+
+  /** خلايا «قيمة الشيك الأصلية» الفعلية في الجدول (المدمجة تُعدّ مرّة). */
+  const originalCells = (table: HTMLElement) =>
+    Array.from(table.querySelectorAll('tbody tr:not(.rcx-totals-row)')).map((tr) => {
+      const tds = tr.querySelectorAll('td');
+      return { count: tds.length, last: tds[tds.length - 1], grouped: tr.classList.contains('rcx-row-group') };
+    });
+
+  it('F) أسطر الشيك المتتالية ⇒ القيمة الأصلية مرّة واحدة في خليّة rowspan، و«—» لغير الشيك', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    const rows = originalCells(table);
+
+    expect(rows.map((r) => r.count)).toEqual([9, 8, 9, 9]);
+    expect(rows[0].last.textContent).toBe('20,000.000');
+    expect(rows[0].last.getAttribute('rowspan')).toBe('2');
+    expect(within(table).getAllByText('20,000.000')).toHaveLength(1);
+    // مبلغ كل فاتورة في سطره — عمود المبلغ لا يُدمج.
+    expect(within(table).getByText('15,000.000')).toBeTruthy();
+    expect(within(table).getByText('5,000.000')).toBeTruthy();
+    expect(rows.slice(2).map((r) => r.last.textContent)).toEqual(['—', '—']);
+    // المرجع لم يتغيّر.
+    expect(within(table).getAllByText('004212')).toHaveLength(2);
+  });
+
+  it('لون المجموعة على أسطر الشيك وحدها', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const rows = originalCells((await screen.findAllByRole('table'))[0]);
+    expect(rows.map((r) => r.grouped)).toEqual([true, true, false, false]);
+  });
+
+  it('G) فرز يفصل أسطر الشيك ⇒ لا rowspan عبر صفوف غريبة', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    // الفرز بالمبلغ تصاعديًا: 3,000 · 5,000 · 8,500 · 15,000 — جزءا الشيك منفصلان.
+    fireEvent.click(within(table).getByText('المبلغ (KWD)'));
+    const rows = originalCells(table);
+    expect(rows.map((r) => r.count)).toEqual([9, 9, 9, 9]);
+    expect(table.querySelector('td[rowspan]')).toBeNull();
+    expect(rows.every((r) => !r.grouped)).toBe(true);
+    // القيمة الأصلية ما زالت كاملة على كل جزء.
+    expect(within(table).getAllByText('20,000.000')).toHaveLength(2);
+  });
+
+  it('H) بحث سريع يُبقي جزءًا من الشيك ⇒ القيمة كاملة بلا دمج عبر صفوف مخفيّة', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    fireEvent.change(screen.getByPlaceholderText('بحث سريع داخل النتائج…'), { target: { value: '0221' } });
+    await screen.findByText('إجمالي نتائج البحث');
+    const rows = originalCells(table);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].last.textContent).toBe('20,000.000');
+    expect(rows[0].last.getAttribute('rowspan')).toBeNull();
+  });
+
+  it('H) بحث يُبقي جزأي الشيك متجاورين ⇒ rowspan=2 على الظاهر وحده', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    fireEvent.change(screen.getByPlaceholderText('بحث سريع داخل النتائج…'), { target: { value: '004212' } });
+    await screen.findByText('إجمالي نتائج البحث');
+    const rows = originalCells(table);
+    expect(rows.map((r) => r.count)).toEqual([9, 8]);
+    expect(rows[0].last.getAttribute('rowspan')).toBe('2');
+  });
+
+  it('Revision 3: عرض كثيف — صفحة بلا سقف عرض، بطاقات مضغوطة، جدول أكثف', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    await screen.findByText('التحويلات البنكية');
+
+    expect(document.querySelector('.xpl-page.rcx-page--dense')).toBeTruthy();
+    const preview = document.querySelector('.rcx-preview--dense') as HTMLElement;
+    expect(preview).toBeTruthy();
+    expect(preview.style.gap).toBe('6px');
+    // البطاقات الخمس داخل النتيجة الكثيفة، بلا حذف ولا تغيير قيمة.
+    expect(preview.querySelectorAll('.rcx-kpi-grid .xpl-metric')).toHaveLength(5);
+    expect(table.closest('.xpl-table-wrap')!.className).toContain('rcx-table--dense');
+  });
+
+  it('Revision 3: الأعمدة القصيرة والمالية بعرض محتواها، والعميل والمرجع يأخذان الفائض', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    const fitHeaders = Array.from(table.querySelectorAll('thead th'))
+      .map((th, i) => (th.classList.contains('rcx-col-fit') ? i : -1))
+      .filter((i) => i >= 0);
+    // م · تاريخ القبض · رقم الفاتورة · شهر الحساب · وسيلة القبض · المبلغ · قيمة الشيك الأصلية
+    expect(fitHeaders).toEqual([0, 1, 3, 4, 5, 7, 8]);
+    const firstRow = table.querySelector('tbody tr')!.querySelectorAll('td');
+    expect(firstRow[2].classList.contains('rcx-col-fit')).toBe(false); // العميل
+    expect(firstRow[6].classList.contains('rcx-col-fit')).toBe(false); // المرجع
+    // الخليّة المدمجة تحتفظ بأصنافها كلها.
+    expect(firstRow[8].className).toBe('money-cell rcx-merged-cell rcx-col-fit');
+    expect(firstRow[8].getAttribute('rowspan')).toBe('2');
+  });
+
+  it('N) صفّ المجاميع لا يجمع «قيمة الشيك الأصلية» — ولا أثناء البحث السريع', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    const totalsLast = () => table.querySelector('tr.rcx-totals-row td:last-child')!.textContent;
+    expect(totalsLast()).toBe('');
+
+    fireEvent.change(screen.getByPlaceholderText('بحث سريع داخل النتائج…'), { target: { value: 'وزارة' } });
+    await screen.findByText('إجمالي نتائج البحث');
+    expect(totalsLast()).toBe('');
+    // عمود «المبلغ» ما زال يُعاد جمعه من الصفوف الظاهرة: 15,000 + 5,000 + 3,000.
+    const totalsCells = Array.from(table.querySelectorAll('tr.rcx-totals-row td')).map((td) => td.textContent);
+    expect(totalsCells.at(-2)).toBe('23,000.000');
   });
 
   it('حالة فارغة عند غياب النتائج', async () => {
-    route({ report: { ...REPORT, rows: [], totalsRow: undefined, sections: [] } });
+    route({ report: { ...REPORT, rows: [], totalsRow: undefined } });
     renderPage();
     await openReceiptsReport();
     await waitFor(() => expect(reportCalls().length).toBeGreaterThan(0));

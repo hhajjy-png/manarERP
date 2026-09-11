@@ -31,6 +31,7 @@ export const COLORS = {
   SUBTITLE_TEXT: 'FF64748B',
   TOTALS_FILL: 'FFF0F3F7',
   ZEBRA_FILL: 'FFF8FAFC',    // رمادي فاتح جدًا للصفوف الزوجية
+  ROW_GROUP_FILL: 'FFE8F1FA', // أزرق فاتح جدًا — صفوف مجموعة واحدة (مثل شيك موزَّع على عدّة فواتير)
   BORDER_LIGHT: 'FFE2E8F0',
   META_TEXT: 'FF94A3B8',
 } as const;
@@ -81,6 +82,12 @@ export const ZEBRA_FILL: Fill = Object.freeze({
   type: 'pattern',
   pattern: 'solid',
   fgColor: { argb: COLORS.ZEBRA_FILL },
+}) as Fill;
+
+export const ROW_GROUP_FILL: Fill = Object.freeze({
+  type: 'pattern',
+  pattern: 'solid',
+  fgColor: { argb: COLORS.ROW_GROUP_FILL },
 }) as Fill;
 
 export const HEADER_BORDER: Partial<Borders> = Object.freeze({

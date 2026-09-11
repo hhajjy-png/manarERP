@@ -208,6 +208,15 @@ th[aria-sort] .rcx-sort-btn .material-symbols-outlined { opacity: 1; }
    BiDi، وبدون هذا التصريح يصير `start` فيها يسارًا. مقصورة على جداول هذه الحزمة. */
 .rcx-table--tools .xpl-table th.num,
 .rcx-table--tools .xpl-table td.money-cell { text-align: right; }
+/* مجموعة صفوف متجاورة (مثل شيك موزَّع على عدّة فواتير) — لون خفيف موحّد لكل أسطرها،
+   والخليّة المدمجة (rowspan) بحدّ جانبي يفصلها عن عمود المبلغ. لا تُضاف إلا لتقرير
+   يُعلن `rowGroupKey`. */
+.rcx-table--tools .xpl-table tbody tr.rcx-row-group td { background: rgba(59, 130, 246, .07); }
+.rcx-table--tools .xpl-table tbody tr.rcx-row-group:hover td { background: rgba(59, 130, 246, .12); }
+.rcx-table--tools .xpl-table td.rcx-merged-cell {
+  border-inline-start: 1px solid var(--xpl-border);
+  border-bottom: 1px solid var(--xpl-border);
+}
 .rcx-totals-row td {
   font-weight: 800 !important;
   color: var(--xpl-text) !important;
@@ -321,3 +330,41 @@ th[aria-sort] .rcx-sort-btn .material-symbols-outlined { opacity: 1; }
   border-color: var(--xpl-primary);
   color: var(--xpl-primary);
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   عرض كثيف لنتيجة التقرير — Receipts Comprehensive Report, Revision 3.
+
+   كل قاعدة هنا مشروطة بـ `.rcx-page--dense` أو `.rcx-preview--dense` أو
+   `.rcx-table--dense`، ولا تُضاف إلا لتقرير يُعلن `densePreview` (المقبوضات وحدها).
+   لا تمسّ `MetricCard` ولا توكنات ExplorerKit لأي تقرير آخر ولا لصفحة المقبوضات،
+   والطباعة و PDF و Excel لا تقرأ هذا الملف أصلًا.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* الصفحة بلا سقف عرض (1400px) وبهامش جانبي أصغر — الجدول يأخذ عرض الشاشة. */
+.rcx-page--dense { max-width: none; padding-inline: 12px; }
+
+.rcx-preview--dense.xpl-card--pad { padding: 8px 8px 10px; }
+.rcx-preview--dense .rcx-results-bar { padding: 4px 10px; border-radius: 8px; }
+.rcx-preview--dense .rcx-results-bar strong { font-size: 13px; }
+.rcx-preview--dense .rcx-preview-subtitle { font-size: 12px; padding: 0 2px 4px; }
+.rcx-preview--dense .rcx-table-tools { margin-bottom: 6px; }
+
+/* بطاقات المؤشرات: سطران بدل ثلاثة — التسمية فوق، والقيمة وتفصيلها جنبًا إلى جنب.
+   القيمة لا تُقصّ: `min-width: 0` يسمح لـ`useFitText` بتصغير خطّها عند الضيق،
+   والتفصيل (`flex: 0 1 auto`) ينزل إلى سطر ثانٍ بدل أن يزاحم المبلغ. */
+.rcx-preview--dense .rcx-kpi-grid { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 6px; }
+.rcx-preview--dense .xpl-metric { padding: 5px 10px; gap: 8px; align-items: center; border-radius: 10px; }
+.rcx-preview--dense .xpl-metric-icon { width: 26px; height: 26px; border-radius: 7px; }
+.rcx-preview--dense .xpl-metric-icon .material-symbols-outlined { font-size: 16px !important; }
+.rcx-preview--dense .xpl-metric-body { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 6px; row-gap: 0; }
+.rcx-preview--dense .xpl-metric-label { flex: 0 0 100%; font-size: 10.5px; line-height: 1.25; }
+.rcx-preview--dense .xpl-metric-value { flex: 0 1 auto; min-width: 0; font-size: 16px; line-height: 1.2; }
+.rcx-preview--dense .xpl-metric-sub { flex: 0 1 auto; min-width: 0; font-size: 10px; line-height: 1.2; }
+
+/* الجدول: صفوف أكثف، وارتفاع أكبر من الشاشة، والأعمدة القصيرة بعرض محتواها
+   (`width: 1%` + `nowrap`) فيذهب الفائض إلى العميل والمرجع. لا قصّ: الخلايا القصيرة
+   تتّسع لمحتواها، والعميل والمرجع يلتفّان عند الضيق. */
+.rcx-table--dense.xpl-table-wrap { max-height: 76vh; border-radius: 10px; }
+.rcx-table--dense .xpl-table th { padding: 7px 8px; }
+.rcx-table--dense .xpl-table td { padding: 4px 8px; line-height: 1.35; }
+.rcx-table--dense .xpl-table .rcx-col-fit { width: 1%; white-space: nowrap; }

@@ -22,13 +22,20 @@
    لا يُقرأ أيٌّ منها هنا ولا في الخدمة المشتركة.
    ════════════════════════════════════════════════════════════════════════════ */
 
-import type { ReportInput, ReportKpi, ReportSection } from '../../shared/services/reportEngine/excel.service';
-import { formatCurrency, formatPercent } from '../../shared/utils/currency';
+import type { ReportInput, ReportKpi } from '../../shared/services/reportEngine/excel.service';
+import { formatCurrency } from '../../shared/utils/currency';
 import { formatDisplayDate } from '../../shared/utils/dateDisplay';
 import { roundMoney, sumMoney } from '../../shared/utils/money';
-import { RECEIPT_METHODS, type ReceiptRow } from '../receipts/receipts.calc';
+import type { ReceiptRow } from '../receipts/receipts.calc';
 import { receiptsQueryService, type ReceiptsSummary } from '../receipts/receipts.service';
 import { receiptListSchema } from '../receipts/receipts.schema';
+import {
+  chequeGroupKey,
+  countReceiptOperations,
+  loadChequeTotals,
+  originalChequeAmountOf,
+  type ChequeTotals,
+} from './receiptsChequeAmounts';
 
 /* ── مفردات العرض ────────────────────────────────────────────────────────── */
 
@@ -81,8 +88,15 @@ export interface ReceiptsReportContext {
 /**
  * السطر الوصفي تحت العنوان: النطاق الزمني ثم **الفلاتر النشطة وحدها**.
  * فلتر غير مُفعَّل لا يُذكر إطلاقًا — لا «كل العملاء» ولا «كل الوسائل».
+ *
+ * «عدد العمليات» هو عدد عمليات القبض الفعلية (`countReceiptOperations`) — نفس رقم
+ * بطاقة «عدد عمليات القبض» — لا عدد أسطر الدفعات.
  */
-export function buildSubtitle(ctx: ReceiptsReportContext, summary: ReceiptsSummary): string {
+export function buildSubtitle(
+  ctx: ReceiptsReportContext,
+  summary: ReceiptsSummary,
+  operationCount: number = summary.totals.count,
+): string {
   const parts: string[] = [];
 
   if (ctx.from && ctx.to) parts.push(`من ${formatDisplayDate(ctx.from)} إلى ${formatDisplayDate(ctx.to)}`);
@@ -94,7 +108,7 @@ export function buildSubtitle(ctx: ReceiptsReportContext, summary: ReceiptsSumma
   if (ctx.method) parts.push(`وسيلة القبض: ${methodAr(ctx.method)}`);
   if (ctx.invoiceStatus) parts.push(`حالة سداد الفاتورة: ${invoiceStatusAr(ctx.invoiceStatus)}`);
 
-  parts.push(`عدد العمليات: ${summary.totals.count}`);
+  parts.push(`عدد العمليات: ${operationCount}`);
   parts.push(`إجمالي المقبوضات: ${formatCurrency(summary.totals.total)}`);
 
   return parts.join(' · ');
@@ -116,62 +130,28 @@ function methodTotal(summary: ReceiptsSummary, methods: readonly string[]): { to
  *
  * «التحويلات البنكية» = `BANK + TRANSFER` — نفس تجميعة صفحة المقبوضات، لأن
  * الوسيلتين تحويل بنكي دلاليًا ويُدينان حساب البنك نفسه في الترحيل المحاسبي.
- * التفصيل الأصلي **لا يضيع**: قسم «التوزيع حسب وسيلة القبض» أدناه يعرض الوسائل
- * الأربع منفصلة، وعمود «وسيلة القبض» في الجدول يحمل قيمة كل صفّ كما هي.
+ * التفصيل الأصلي **لا يضيع**: عمود «وسيلة القبض» في الجدول يحمل قيمة كل صفّ كما هي.
+ *
+ * العدّادات عدّ **عمليات قبض فعلية** (`countReceiptOperations`): الشيك الموزَّع على
+ * عدّة فواتير عملية واحدة، في بطاقة العدد وفي تفصيل بطاقة الشيكات معًا — كي لا
+ * يناقض أحدهما الآخر. النقدي والتحويلات: كل دفعة عملية، فعدّادهما من الملخّص كما هو.
+ * المبالغ كلها من الملخّص دون أي تغيير.
  */
-export function buildKpis(summary: ReceiptsSummary): ReportKpi[] {
+export function buildKpis(
+  summary: ReceiptsSummary,
+  operations: { total: number; cheque: number } = { total: summary.totals.count, cheque: methodTotal(summary, ['CHEQUE']).count },
+): ReportKpi[] {
   const cash = methodTotal(summary, ['CASH']);
   const cheque = methodTotal(summary, ['CHEQUE']);
   const bankish = methodTotal(summary, ['BANK', 'TRANSFER']);
 
   return [
     { label: 'إجمالي المقبوضات', value: summary.totals.total, format: 'currency', color: 'blue', icon: 'account_balance_wallet' },
-    { label: 'عدد عمليات القبض', value: summary.totals.count, icon: 'tag' },
+    { label: 'عدد عمليات القبض', value: operations.total, icon: 'tag' },
     { label: 'النقدي', value: cash.total, format: 'currency', hint: `${cash.count} عملية`, color: 'green', icon: 'payments' },
-    { label: 'الشيكات', value: cheque.total, format: 'currency', hint: `${cheque.count} عملية`, color: 'default', icon: 'receipt_long' },
+    { label: 'الشيكات', value: cheque.total, format: 'currency', hint: `${operations.cheque} عملية`, color: 'default', icon: 'receipt_long' },
     { label: 'التحويلات البنكية', value: bankish.total, format: 'currency', hint: `${bankish.count} عملية`, color: 'blue', icon: 'account_balance' },
-    { label: 'متوسط قيمة العملية', value: summary.totals.average, format: 'currency', icon: 'calculate' },
   ];
-}
-
-/* ── قسم التوزيع ─────────────────────────────────────────────────────────── */
-
-/**
- * التوزيع حسب وسيلة القبض — **الوسائل الأربع منفصلة دائمًا**، بما فيها ذات الصفر.
- *
- * إسقاط الوسيلة الصفرية كان سيجعل صفّ «النقدي» يختفي كلّما لم يُقبض نقدًا في
- * الفترة، فيقرأ المستخدم غيابه كعطل لا كصفر. وإبقاء `BANK` و`TRANSFER` منفصلتين
- * هنا يحفظ المعلومة الأصلية المخزَّنة رغم جمعهما في بطاقة الملخّص.
- */
-export function buildMethodSection(summary: ReceiptsSummary): ReportSection {
-  const rows = RECEIPT_METHODS.map((method) => {
-    const row = summary.byMethod.find((r) => r.method === method);
-    return {
-      method: methodAr(method),
-      count: row?.count ?? 0,
-      total: row?.total ?? 0,
-      percent: row?.percent == null ? '—' : formatPercent(row.percent),
-    };
-  });
-
-  return {
-    title: 'التوزيع حسب وسيلة القبض',
-    note: 'الوسائل الأربع كما هي مخزَّنة — «تحويل بنكي» و«حوالة بنكية» مجموعتان في بطاقة التحويلات البنكية أعلاه ومنفصلتان هنا.',
-    sheetName: 'التوزيع حسب الوسيلة',
-    columns: [
-      { header: 'وسيلة القبض', key: 'method', width: 20 },
-      { header: 'عدد العمليات', key: 'count', width: 14, type: 'number', align: 'center' },
-      { header: 'الإجمالي', key: 'total', width: 18, format: 'currency', type: 'currency' },
-      { header: 'النسبة', key: 'percent', width: 12, align: 'center' },
-    ],
-    rows,
-    totalsRow: {
-      method: 'الإجمالي',
-      count: summary.totals.count,
-      total: summary.totals.total,
-      percent: summary.totals.total > 0 ? formatPercent(100) : '—',
-    },
-  };
 }
 
 /* ── التقرير ─────────────────────────────────────────────────────────────── */
@@ -214,17 +194,34 @@ export function toReceiptQuery(q: ReceiptsReportQuery) {
   });
 }
 
-/** صفوف الجدول المطبوع/المصدَّر — تسميات عربية، لا رموز داخلية. */
-export function toReportRows(rows: ReceiptRow[]): Record<string, unknown>[] {
+/**
+ * «شهر الحساب» — شهر **تاريخ إصدار الفاتورة** (`Invoice.issueDate`) لا تاريخ القبض،
+ * بصيغة `M-YYYY` بلا صفر بادئ للشهر: 2026-07-15 ⇒ «7-2026». اليوم المحلي نفسه الذي
+ * يطبعه عمود التاريخ.
+ */
+export function accountingMonthOf(issueDate: Date | null | undefined): string {
+  if (!issueDate || isNaN(issueDate.getTime())) return '—';
+  return `${issueDate.getMonth() + 1}-${issueDate.getFullYear()}`;
+}
+
+/**
+ * صفوف الجدول المطبوع/المصدَّر — تسميات عربية، لا رموز داخلية.
+ *
+ * «قيمة الشيك الأصلية»: «—» لغير الشيك. `chequeGroup` حقل مجموعة غير معروض
+ * (`rowGroupKey`): به يُدمج عمود القيمة الأصلية ويُلوَّن الشيك الموزَّع على عدّة أسطر.
+ */
+export function toReportRows(rows: ReceiptRow[], chequeTotals: ChequeTotals = new Map()): Record<string, unknown>[] {
   return rows.map((r, i) => ({
     seq: i + 1,
     date: formatDisplayDate(r.date),
     customer: r.customerName ?? '—',
     invoiceNumber: r.invoiceNumber ?? '—',
+    accountingMonth: accountingMonthOf(r.invoiceIssueDate),
     method: methodAr(r.method),
     reference: referenceOf(r),
-    invoiceStatus: invoiceStatusAr(r.invoiceStatus),
     amount: r.amount,
+    originalChequeAmount: originalChequeAmountOf(r, chequeTotals) ?? '—',
+    chequeGroup: chequeGroupKey(r),
   }));
 }
 
@@ -249,31 +246,43 @@ export async function buildReceiptsReport(
    */
   const displayedTotal = sumMoney(rows.map((r) => r.amount));
 
+  // قيمة الشيك الأصلية من كامل تحصيلاته في قاعدة البيانات — لا من الصفوف المفلترة.
+  const chequeTotals = await loadChequeTotals(rows);
+
+  // عمليات القبض الفعلية (الشيك الموزَّع = عملية واحدة) — العدّادات وحدها، لا المبالغ.
+  const operations = {
+    total: countReceiptOperations(rows),
+    cheque: countReceiptOperations(rows.filter((r) => r.method === 'CHEQUE')),
+  };
+
   return {
     title: 'تقرير المقبوضات',
     subtitle: buildSubtitle(
       { from: query.from, to: query.to, customerName, method: query.method, invoiceStatus: query.status },
       summary,
+      operations.total,
     ),
     sheetName: 'المقبوضات',
-    kpis: buildKpis(summary),
+    kpis: buildKpis(summary, operations),
     columns: [
       { header: 'م', key: 'seq', width: 6, type: 'number', align: 'center' },
       { header: 'تاريخ القبض', key: 'date', width: 14, align: 'center' },
       { header: 'العميل', key: 'customer', width: 34 },
       { header: 'رقم الفاتورة', key: 'invoiceNumber', width: 20 },
+      { header: 'شهر الحساب', key: 'accountingMonth', width: 12, align: 'center' },
       { header: 'وسيلة القبض', key: 'method', width: 16, align: 'center' },
       { header: 'المرجع', key: 'reference', width: 24 },
-      { header: 'حالة سداد الفاتورة', key: 'invoiceStatus', width: 18, align: 'center' },
       { header: 'المبلغ', key: 'amount', width: 18, format: 'currency', type: 'currency' },
+      { header: 'قيمة الشيك الأصلية', key: 'originalChequeAmount', width: 18, format: 'currency', type: 'currency', mergeRowGroup: true },
     ],
-    rows: toReportRows(rows),
+    rows: toReportRows(rows, chequeTotals),
+    rowGroupKey: 'chequeGroup',
+    // لا مجموع لـ«قيمة الشيك الأصلية»: قيمة الشيك الواحد تغطّي عدّة أسطر، فجمعها احتساب مزدوج.
     totalsRow: { date: 'الإجمالي', amount: roundMoney(displayedTotal) },
-    sections: [buildMethodSection(summary)],
     metaFooter: [
       'يُحتسب المبلغ مقبوضًا بتاريخ القبض المسجَّل على الدفعة (Payment.date).',
       'لا يتتبّع النظام دورة حياة الشيك الوارد (مستلم / مودع / محصَّل / مرتجع)، فكل قبض مسجَّل هو قبض مؤكَّد بتاريخه.',
-      '«حالة سداد الفاتورة» هي حالة الفاتورة المقبوض ضدّها، لا حالة الشيك.',
+      ...(query.status ? ['«حالة سداد الفاتورة» هي حالة الفاتورة المقبوض ضدّها، لا حالة الشيك.'] : []),
     ],
   };
 }

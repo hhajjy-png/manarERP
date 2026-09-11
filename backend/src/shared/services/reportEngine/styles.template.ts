@@ -277,6 +277,16 @@ export function buildStyles(
       background: #f4f6f9;
     }
 
+    /* Row group (e.g. one cheque split across several invoices) — one very light
+       uniform tint instead of zebra, and the merged (rowspan) cell centred vertically. */
+    tbody tr.row-group {
+      background: #e8f1fa;
+    }
+
+    td.merged-cell {
+      vertical-align: middle;
+    }
+
     tbody tr {
       page-break-inside: avoid;
     }

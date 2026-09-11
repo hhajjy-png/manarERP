@@ -9,8 +9,9 @@ import { composeFromNode, getPageSpec } from '../printing';
 import { fcMoneyHeader } from '../components/financial/financialLabels';
 import { currentCurrencyLanguage } from '../stores/settingsStore';
 import { DOC_FONT_STACK } from '../styles/fontRegistry';
+import { rowGroupLayout } from '../lib/reportRowGroups';
 
-type ReportColumnDef = { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right' };
+type ReportColumnDef = { header: string; key: string; format?: 'currency'; align?: 'left' | 'center' | 'right'; mergeRowGroup?: boolean };
 type ReportKpi = {
   label: string;
   value: string | number;
@@ -22,7 +23,17 @@ type ReportKpi = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ReportSection = { title: string; note?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[] };
+type ReportData = { title: string; subtitle?: string; columns: ReportColumnDef[]; rows: any[]; totalsRow?: any; kpis?: ReportKpi[]; sections?: ReportSection[]; rowGroupKey?: string };
+
+/** لون مجموعة الصفوف — نفس لون مستند HTML/PDF (`tr.row-group`) وExcel (`ROW_GROUP_FILL`). */
+const ROW_GROUP_BG = '#e8f1fa';
+
+/**
+ * تقارير تُطبع A4 **أفقيًا** رغم خلوّها من الأقسام التحليلية، لأن جدولها الرئيسي
+ * نفسه عريض. «المقبوضات» (تسعة أعمدة) كانت أفقية بحكم قسم التوزيع؛ بعد إزالته
+ * يُثبَّت اتجاهها هنا صراحةً بدل أن ينقلب عموديًا.
+ */
+const WIDE_TABLE_REPORTS: ReadonlySet<string> = new Set(['receipts']);
 
 const th: CSSProperties = { border: '1px solid #cbd5e1', padding: '4px 8px', background: '#1d4e6f', color: '#fff', textAlign: 'right', fontSize: 10.5, fontWeight: 700, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' };
 const td: CSSProperties = { border: '1px solid #e2e8f0', padding: '4px 8px', textAlign: 'right', fontSize: 9.5, fontWeight: 400 };
@@ -81,15 +92,18 @@ function KpiCards({ kpis }: { kpis: ReportKpi[] }) {
  * تستعمله الأقسام التحليلية بلا لغة بصرية ثانية. `compact` يصغّر الخط للأقسام
  * العريضة (مصفوفة الأشهر) فتسع عرض الورقة.
  */
-function PrintTable({ columns, rows, totalsRow, compact }: {
+function PrintTable({ columns, rows, totalsRow, compact, rowGroupKey }: {
   columns: ReportColumnDef[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rows: any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   totalsRow?: any;
   compact?: boolean;
+  /** كتل متجاورة بنفس المعرّف: لون موحّد + خليّة rowspan في أعمدة `mergeRowGroup`. */
+  rowGroupKey?: string;
 }) {
   const shrink: CSSProperties = compact ? { fontSize: 8.5, padding: '3px 5px' } : {};
+  const groups = rowGroupKey ? rowGroupLayout(rows, rowGroupKey) : undefined;
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: compact ? 8.5 : 9.5 }}>
       <thead>
@@ -101,15 +115,30 @@ function PrintTable({ columns, rows, totalsRow, compact }: {
         ))}</tr>
       </thead>
       <tbody>
-        {rows.map((row, i) => (
-          <tr key={i} style={{ background: i % 2 ? '#f8fafc' : '#fff' }}>
-            {columns.map((c) => (
-              <td key={c.key} style={{ ...(c.format === 'currency' ? { ...td, ...tdNum } : td), ...shrink, ...alignStyle(c.align) }}>
-                {formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
-              </td>
-            ))}
-          </tr>
-        ))}
+        {rows.map((row, i) => {
+          const group = groups?.[i];
+          // لون المجموعة يُفرض في الطباعة؛ بقيّة الصفوف بتظليلها المعتاد كما كانت حرفيًا.
+          const rowStyle: CSSProperties = group?.grouped
+            ? { background: ROW_GROUP_BG, WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }
+            : { background: i % 2 ? '#f8fafc' : '#fff' };
+          return (
+            <tr key={i} className={group?.grouped ? 'row-group' : undefined} style={rowStyle}>
+              {columns.map((c) => {
+                const merged = c.mergeRowGroup && group && group.span !== 1;
+                if (merged && group.span === 0) return null; // مغطّاة بخليّة أول صفّ في الكتلة
+                return (
+                  <td
+                    key={c.key}
+                    rowSpan={merged ? group.span : undefined}
+                    style={{ ...(c.format === 'currency' ? { ...td, ...tdNum } : td), ...shrink, ...alignStyle(c.align), ...(merged ? { verticalAlign: 'middle' as const } : {}) }}
+                  >
+                    {formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
+                  </td>
+                );
+              })}
+            </tr>
+          );
+        })}
         {totalsRow && (
           <tr style={{ breakInside: 'avoid' }}>
             {columns.map((c) => (
@@ -174,13 +203,16 @@ export default function ReportPrint() {
    * التقارير التحليلية تُطبع **أفقيًا**: مصفوفة «التصنيفات × الأشهر» تصل إلى أربعة
    * عشر عمودًا، ولا تُقرأ على A4 عمودي. الشرط معلّق على وجود أقسام تحليلية، فأي
    * تقرير لا يرسلها يبقى عموديًا كما كان بالضبط (وهو ما تفعله كل التقارير الأخرى).
+   *
+   * واستثناءً، تقارير جدولها وحده عريض فتُطبع أفقيًا بلا أقسام — `WIDE_TABLE_REPORTS`.
    */
   const hasSections = !!rep.sections?.length;
-  const pageSpecId = hasSections ? 'a4-landscape' : 'a4-portrait';
-  const pageCss = hasSections ? '@page { size: A4 landscape; margin: 10mm;' : '@page { margin: 12mm;';
+  const isLandscape = hasSections || WIDE_TABLE_REPORTS.has(type ?? '');
+  const pageSpecId = isLandscape ? 'a4-landscape' : 'a4-portrait';
+  const pageCss = isLandscape ? '@page { size: A4 landscape; margin: 10mm;' : '@page { margin: 12mm;';
 
   return (
-    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: DOC_FONT_STACK, maxWidth: hasSections ? 1400 : 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
+    <div ref={printRootRef} style={{ padding: '18px 24px', fontFamily: DOC_FONT_STACK, maxWidth: isLandscape ? 1400 : 1100, margin: '0 auto', color: '#0f172a', background: '#fff', minHeight: '100vh' }}>
       {/* Print footer: only "صفحة X من Y" (page X of Y) */}
       <style>{`@media print { ${pageCss} @bottom-center { content: "صفحة " counter(page) " من " counter(pages); font-family: ${DOC_FONT_STACK}; font-size: 7px; color: #94a3b8; } } }`}</style>
 
@@ -243,7 +275,7 @@ export default function ReportPrint() {
       {/* Executive KPI cards — للتقارير التي ترسلها فقط */}
       {rep.kpis && rep.kpis.length > 0 && <KpiCards kpis={rep.kpis} />}
 
-      <PrintTable columns={rep.columns} rows={rep.rows} totalsRow={rep.totalsRow} />
+      <PrintTable columns={rep.columns} rows={rep.rows} totalsRow={rep.totalsRow} rowGroupKey={rep.rowGroupKey} />
 
       {/* Analytical sections — العنوان لا ينفصل عن جدوله عند انقسام الصفحة */}
       {rep.sections?.map((section, i) => (

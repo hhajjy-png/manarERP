@@ -27,7 +27,7 @@ vi.mock('../../../config/database', () => ({
 }));
 
 import { prisma } from '../../../config/database';
-import { buildReceiptsReport, buildSubtitle, buildMethodSection, buildKpis, referenceOf, toReportRows } from '../receiptsReport';
+import { accountingMonthOf, buildReceiptsReport, buildSubtitle, buildKpis, referenceOf, toReportRows } from '../receiptsReport';
 import { ReceiptsQueryService } from '../../receipts/receipts.service';
 import { reportsService } from '../reports.service';
 import { receiptListSchema, receiptFiltersSchema } from '../../receipts/receipts.schema';
@@ -216,12 +216,9 @@ describe('لا احتساب مزدوج', () => {
     expect(new Set(seqs).size).toBe(report.rows.length);
   });
 
-  it('مجموع التوزيع حسب الوسيلة = الإجمالي، ولا يُضاف إليه', async () => {
+  it('«قيمة الشيك الأصلية» لا تدخل صفّ المجاميع — تكرارها على أسطر الشيك يجعل جمعها احتسابًا مزدوجًا', async () => {
     const report = await buildReceiptsReport({});
-    const section = report.sections![0];
-    const sum = section.rows.reduce((s, r) => s + Number(r.total ?? 0), 0);
-    expect(sum).toBe(TOTAL);
-    expect(section.totalsRow!.total).toBe(TOTAL);
+    expect(report.totalsRow).toEqual({ date: 'الإجمالي', amount: TOTAL });
   });
 });
 
@@ -256,7 +253,7 @@ describe('المصدر والاستبعادات', () => {
 /* ── ٤) العرض ───────────────────────────────────────────────────────────── */
 
 describe('العرض — تسميات لا رموز', () => {
-  it('يُصدِّر التسمية العربية للوسيلة ولحالة السداد', async () => {
+  it('يُصدِّر التسمية العربية للوسيلة', async () => {
     const report = await buildReceiptsReport({});
     const methods = report.rows.map((r) => r.method);
     expect(methods).toContain('شيك');
@@ -264,18 +261,37 @@ describe('العرض — تسميات لا رموز', () => {
     expect(methods).toContain('تحويل بنكي');
     expect(methods).toContain('حوالة بنكية');
     expect(methods).not.toContain('CHEQUE');
-    expect(report.rows[0].invoiceStatus).toBe('مسددة بالكامل');
   });
 
   it('أعمدة الجدول بالترتيب المطلوب، وبلا بنك ولا تاريخ شيك', async () => {
     const report = await buildReceiptsReport({});
+    expect(report.columns.map((c) => c.header)).toEqual([
+      'م', 'تاريخ القبض', 'العميل', 'رقم الفاتورة', 'شهر الحساب', 'وسيلة القبض', 'المرجع', 'المبلغ', 'قيمة الشيك الأصلية',
+    ]);
     expect(report.columns.map((c) => c.key)).toEqual([
-      'seq', 'date', 'customer', 'invoiceNumber', 'method', 'reference', 'invoiceStatus', 'amount',
+      'seq', 'date', 'customer', 'invoiceNumber', 'accountingMonth', 'method', 'reference', 'amount', 'originalChequeAmount',
     ]);
     const headers = report.columns.map((c) => c.header);
     expect(headers.some((h) => h.includes('البنك'))).toBe(false);
     expect(headers.some((h) => h.includes('تاريخ الشيك'))).toBe(false);
     expect(headers.some((h) => h.includes('حالة الشيك'))).toBe(false);
+  });
+
+  it('L) لا عمود «حالة سداد الفاتورة» — لا في الأعمدة ولا في بيانات الصفوف', async () => {
+    const report = await buildReceiptsReport({});
+    expect(report.columns.some((c) => c.header === 'حالة سداد الفاتورة' || c.key === 'invoiceStatus')).toBe(false);
+    expect(report.rows.every((r) => !('invoiceStatus' in r))).toBe(true);
+  });
+
+  it('M) «شهر الحساب» مباشرة بعد «رقم الفاتورة»', async () => {
+    const report = await buildReceiptsReport({});
+    const keys = report.columns.map((c) => c.key);
+    expect(keys.indexOf('accountingMonth')).toBe(keys.indexOf('invoiceNumber') + 1);
+  });
+
+  it('فلتر حالة السداد ما زال يصل الاستعلام كما كان', async () => {
+    await buildReceiptsReport({ status: 'PARTIAL' });
+    expect(mp.payment.findMany.mock.calls[0][0].where.invoice.status).toBe('PARTIAL');
   });
 
   it('المرجع يتبع الوسيلة: رقم الشيك · رقم العملية · اسم المستلم نقدًا', () => {
@@ -294,30 +310,38 @@ describe('العرض — تسميات لا رموز', () => {
   });
 });
 
-describe('التوزيع حسب وسيلة القبض', () => {
-  it('الوسائل الأربع منفصلة دائمًا — بما فيها ذات الصفر', () => {
-    const section = buildMethodSection({
-      totals: { total: 1000, count: 1, average: 1000 },
-      largest: null,
-      byMethod: [
-        { method: 'CASH' as const, total: 0, count: 0, percent: 0 },
-        { method: 'BANK' as const, total: 0, count: 0, percent: 0 },
-        { method: 'CHEQUE' as const, total: 1000, count: 1, percent: 100 },
-        { method: 'TRANSFER' as const, total: 0, count: 0, percent: 0 },
-      ],
-      months: { current: { total: 0, count: 0, from: '', to: '' }, previous: { total: 0, count: 0, from: '', to: '' }, delta: 0, percent: null },
-    });
-    expect(section.rows).toHaveLength(4);
-    expect(section.rows.map((r) => r.method)).toEqual(['نقدي', 'تحويل بنكي', 'شيك', 'حوالة بنكية']);
+describe('«شهر الحساب» — من تاريخ إصدار الفاتورة', () => {
+  it('A) 2026-07-15 ⇒ «7-2026» بلا صفر بادئ', () => {
+    expect(accountingMonthOf(new Date(2026, 6, 15))).toBe('7-2026');
   });
 
-  it('BANK و TRANSFER تبقيان صفّين متمايزين في التفصيل', async () => {
+  it('B) 2026-12-01 ⇒ «12-2026»', () => {
+    expect(accountingMonthOf(new Date(2026, 11, 1))).toBe('12-2026');
+  });
+
+  it('2026-08-01 ⇒ «8-2026»، وغياب التاريخ ⇒ «—»', () => {
+    expect(accountingMonthOf(new Date(2026, 7, 1))).toBe('8-2026');
+    expect(accountingMonthOf(null)).toBe('—');
+  });
+
+  it('المصدر `Invoice.issueDate` لا `Payment.date`', async () => {
+    // الدفعة في سبتمبر (ROWS)، والفاتورة صادرة في يوليو.
     const report = await buildReceiptsReport({});
-    const section = report.sections![0];
-    const bank = section.rows.find((r) => r.method === 'تحويل بنكي')!;
-    const transfer = section.rows.find((r) => r.method === 'حوالة بنكية')!;
-    expect(bank.total).toBe(5000);
-    expect(transfer.total).toBe(9500);
+    expect(report.rows[0].date).toBe('07/09/2026');
+    expect(report.rows[0].accountingMonth).toBe('7-2026');
+  });
+});
+
+describe('إزالة «التوزيع حسب وسيلة القبض» من التقرير الشامل', () => {
+  it('لا أقسام تحليلية بعد الجدول — لا في العرض ولا الطباعة ولا Excel', async () => {
+    const report = await buildReceiptsReport({});
+    expect(report.sections ?? []).toHaveLength(0);
+  });
+
+  it('عمود «وسيلة القبض» ما زال يحمل الوسائل الأربع منفصلة صفًّا بصفّ', async () => {
+    const report = await buildReceiptsReport({});
+    const methods = new Set(report.rows.map((r) => r.method));
+    expect([...methods].sort()).toEqual(['تحويل بنكي', 'حوالة بنكية', 'شيك', 'نقدي'].sort());
   });
 });
 
@@ -341,11 +365,22 @@ describe('بطاقات المؤشرات', () => {
     expect(bankish.hint).toBe('3 عملية');
   });
 
-  it('تعرض الإجمالي والعدد والنقدي والشيكات', () => {
+  it('تعرض الإجمالي والعدد والنقدي والشيكات والتحويلات — بلا «متوسط قيمة العملية»', () => {
     const labels = buildKpis(summary).map((k) => k.label);
     expect(labels).toEqual([
-      'إجمالي المقبوضات', 'عدد عمليات القبض', 'النقدي', 'الشيكات', 'التحويلات البنكية', 'متوسط قيمة العملية',
+      'إجمالي المقبوضات', 'عدد عمليات القبض', 'النقدي', 'الشيكات', 'التحويلات البنكية',
     ]);
+  });
+
+  it('قيم البطاقات الباقية لم تتغيّر', () => {
+    const byLabel = Object.fromEntries(buildKpis(summary).map((k) => [k.label, k]));
+    expect(byLabel['إجمالي المقبوضات'].value).toBe(45000);
+    expect(byLabel['عدد عمليات القبض'].value).toBe(8);
+    expect(byLabel['النقدي'].value).toBe(4000);
+    expect(byLabel['النقدي'].hint).toBe('2 عملية');
+    expect(byLabel['الشيكات'].value).toBe(26500);
+    expect(byLabel['الشيكات'].hint).toBe('3 عملية');
+    expect(byLabel['التحويلات البنكية'].value).toBe(14500);
   });
 });
 
@@ -390,6 +425,12 @@ describe('ترويسة التقرير', () => {
     const report = await buildReceiptsReport({});
     const footer = (report.metaFooter ?? []).join(' ');
     expect(footer).toContain('دورة حياة الشيك الوارد');
-    expect(footer).toContain('حالة سداد الفاتورة');
+  });
+
+  it('إفصاح «حالة سداد الفاتورة» يظهر حين يكون فلترها نشطًا وحده — العمود أُزيل', async () => {
+    const without = (await buildReceiptsReport({})).metaFooter!.join(' ');
+    const withStatus = (await buildReceiptsReport({ status: 'PAID' })).metaFooter!.join(' ');
+    expect(without).not.toContain('حالة سداد الفاتورة');
+    expect(withStatus).toContain('حالة سداد الفاتورة');
   });
 });

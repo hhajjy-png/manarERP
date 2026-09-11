@@ -191,4 +191,18 @@ describe('انحدار: التقارير القائمة لا تتغيّر', () =
     expect(document.querySelector('.rcx-sort-btn')).toBeNull();
     expect(document.querySelector('.rcx-table--tools')).toBeNull();
   });
+
+  it.each([
+    ['تقرير مستحقات الموظفين الشهرية', /عدد الكشوف: 3/],
+    ['تقرير العملاء', /إجمالي العملاء: 1/],
+  ])('العرض الكثيف خاص بالمقبوضات — «%s» بلا أي صنف كثيف', async (title, ready) => {
+    mount();
+    await runReportCard(title);
+    await waitFor(() => expect(screen.getByText(ready)).toBeTruthy());
+
+    expect(document.querySelector('.rcx-page--dense')).toBeNull();
+    expect(document.querySelector('.rcx-preview--dense')).toBeNull();
+    expect(document.querySelector('.rcx-table--dense')).toBeNull();
+    expect(document.querySelector('.rcx-col-fit')).toBeNull();
+  });
 });
