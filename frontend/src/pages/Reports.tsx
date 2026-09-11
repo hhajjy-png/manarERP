@@ -98,6 +98,13 @@ interface ReportType {
    * التقارير التي لا تُعلنها تبقى بحقلَي تاريخ عاريين كما كانت حرفيًا.
    */
   datePresets?: boolean;
+  /**
+   * عرض كثيف لنتيجة التقرير على الشاشة — **اشتراك صريح**: بطاقات مؤشرات مضغوطة،
+   * وصفحة بلا سقف عرض، وجدول أطول بصفوف أكثف. الطباعة و PDF و Excel لا تتأثر.
+   */
+  densePreview?: boolean;
+  /** أعمدة تأخذ عرض محتواها وحده في العرض الكثيف — الفائض يذهب إلى البقيّة (كالعميل). */
+  fitColumnKeys?: string[];
 }
 
 // عربي «العمليات» هنا مختلف حرفيًا عن نص المفتاح report.group.operations («التشغيل») —
@@ -284,6 +291,8 @@ export const REPORT_TYPES: ReportType[] = [
     datePresets: true,
     tableTools: true,
     totalsLabelKey: 'date',
+    densePreview: true,
+    fitColumnKeys: ['seq', 'date', 'invoiceNumber', 'accountingMonth', 'method', 'amount', 'originalChequeAmount'],
   },
 ];
 
@@ -401,7 +410,7 @@ const round3 = roundMoney;
  */
 function PreviewTable({
   columns, rows, totalsRow, applyAlign, emptyText,
-  tools, statusColumnKey, totalsLabelKey, rowGroupKey,
+  tools, statusColumnKey, totalsLabelKey, rowGroupKey, dense, fitColumnKeys,
 }: {
   columns: ReportColumnDef[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -415,6 +424,10 @@ function PreviewTable({
   totalsLabelKey?: string;
   /** حقل مجموعة الصفوف الذي يُعلنه التقرير — كتل متجاورة تُلوَّن وتُدمج أعمدتها `mergeRowGroup`. */
   rowGroupKey?: string;
+  /** صفوف أكثف وجدول أطول (`densePreview`). */
+  dense?: boolean;
+  /** أعمدة بعرض محتواها وحده (`rcx-col-fit`). */
+  fitColumnKeys?: string[];
 }) {
   const { t } = useT();
   const [query, setQuery] = useState('');
@@ -472,6 +485,10 @@ function PreviewTable({
   const cellStyle = (c: ReportColumnDef) =>
     applyAlign && c.align ? { textAlign: c.align, verticalAlign: 'middle' as const } : undefined;
 
+  /** أصناف الخليّة: `fitColumnKeys` تُضيف `rcx-col-fit` — بلا أي صنف جديد لتقرير لا يُعلنها. */
+  const classOf = (c: ReportColumnDef, ...extra: (string | false | undefined)[]) =>
+    [...extra, fitColumnKeys?.includes(c.key) && 'rcx-col-fit'].filter(Boolean).join(' ') || undefined;
+
   const sortIcon = (key: string) =>
     sort?.key !== key ? 'unfold_more' : sort.dir === 'asc' ? 'arrow_upward' : 'arrow_downward';
 
@@ -495,7 +512,7 @@ function PreviewTable({
           )}
         </div>
       )}
-      <div className={`xpl-table-wrap rcx-table-scroll${tools ? ' rcx-table--tools' : ''}`}>
+      <div className={`xpl-table-wrap rcx-table-scroll${tools ? ' rcx-table--tools' : ''}${dense ? ' rcx-table--dense' : ''}`}>
         <table className="xpl-table">
           <thead>
             {/* الرمز مرّة واحدة في العنوان («المبلغ (KWD)») بدل تكراره في كل صفّ.
@@ -503,7 +520,7 @@ function PreviewTable({
             <tr>{columns.map((c) => (
               <th
                 key={c.key}
-                className={c.format === 'currency' ? 'num' : undefined}
+                className={classOf(c, c.format === 'currency' && 'num')}
                 style={cellStyle(c)}
                 aria-sort={sort?.key === c.key ? (sort.dir === 'asc' ? 'ascending' : 'descending') : undefined}
               >
@@ -528,9 +545,13 @@ function PreviewTable({
                   <tr key={i} className={group?.grouped ? 'rcx-row-group' : undefined}>{columns.map((c) => {
                     const merged = c.mergeRowGroup && group && group.span !== 1;
                     if (merged && group.span === 0) return null; // مغطّاة بخليّة أول صفّ في الكتلة
-                    const classes = [c.format === 'currency' ? 'money-cell' : '', merged ? 'rcx-merged-cell' : ''].filter(Boolean).join(' ');
                     return (
-                      <td key={c.key} className={classes || undefined} style={cellStyle(c)} rowSpan={merged ? group.span : undefined}>
+                      <td
+                        key={c.key}
+                        className={classOf(c, c.format === 'currency' && 'money-cell', merged && 'rcx-merged-cell')}
+                        style={cellStyle(c)}
+                        rowSpan={merged ? group.span : undefined}
+                      >
                         {c.key === statusColumnKey && row[c.key]
                           ? <StatusChip tone={STATEMENT_STATUS_TONES[String(row[c.key])] ?? 'neutral'}>{String(row[c.key])}</StatusChip>
                           : formatReportCell(row[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
@@ -543,7 +564,7 @@ function PreviewTable({
             {effectiveTotals && (
               <tr className="rcx-totals-row">
                 {columns.map((c) => (
-                  <td key={c.key} className={c.format === 'currency' ? 'money-cell' : undefined} style={cellStyle(c)}>
+                  <td key={c.key} className={classOf(c, c.format === 'currency' && 'money-cell')} style={cellStyle(c)}>
                     {formatReportCell(effectiveTotals[c.key], c, { language: currentCurrencyLanguage(), symbol: 'header' })}
                   </td>
                 ))}
@@ -1015,7 +1036,7 @@ export default function Reports() {
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="xpl-scope xpl-page">
+    <div className={`xpl-scope xpl-page${currentType.densePreview ? ' rcx-page--dense' : ''}`}>
 
       {/* ── Report Preview / Config Drawer ── */}
       {panelOpen && (
@@ -1318,8 +1339,11 @@ export default function Reports() {
           </>
         }
       >
-        <div className="xpl-card--pad" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {currentType.descKey && <p style={{ margin: 0, fontSize: 13, color: 'var(--xpl-muted)', lineHeight: 1.6 }}>{t(currentType.descKey)}</p>}
+        <div
+          className={`xpl-card--pad${currentType.densePreview ? ' rcx-preview--dense' : ''}`}
+          style={{ display: 'flex', flexDirection: 'column', gap: currentType.densePreview ? 6 : 14 }}
+        >
+          {currentType.descKey &&<p style={{ margin: 0, fontSize: 13, color: 'var(--xpl-muted)', lineHeight: 1.6 }}>{t(currentType.descKey)}</p>}
 
           {/* Hints */}
           {['invoices', 'expenses', 'payroll'].includes(selected) && !from && !to && (
@@ -1393,6 +1417,8 @@ export default function Reports() {
                 statusColumnKey={currentType.statusColumnKey}
                 totalsLabelKey={currentType.totalsLabelKey}
                 rowGroupKey={preview.rowGroupKey}
+                dense={currentType.densePreview}
+                fitColumnKeys={currentType.densePreview ? currentType.fitColumnKeys : undefined}
               />
             </div>
           )}

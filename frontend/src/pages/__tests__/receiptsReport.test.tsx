@@ -371,6 +371,38 @@ describe('عرض النتائج', () => {
     expect(rows[0].last.getAttribute('rowspan')).toBe('2');
   });
 
+  it('Revision 3: عرض كثيف — صفحة بلا سقف عرض، بطاقات مضغوطة، جدول أكثف', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    await screen.findByText('التحويلات البنكية');
+
+    expect(document.querySelector('.xpl-page.rcx-page--dense')).toBeTruthy();
+    const preview = document.querySelector('.rcx-preview--dense') as HTMLElement;
+    expect(preview).toBeTruthy();
+    expect(preview.style.gap).toBe('6px');
+    // البطاقات الخمس داخل النتيجة الكثيفة، بلا حذف ولا تغيير قيمة.
+    expect(preview.querySelectorAll('.rcx-kpi-grid .xpl-metric')).toHaveLength(5);
+    expect(table.closest('.xpl-table-wrap')!.className).toContain('rcx-table--dense');
+  });
+
+  it('Revision 3: الأعمدة القصيرة والمالية بعرض محتواها، والعميل والمرجع يأخذان الفائض', async () => {
+    renderPage();
+    await openReceiptsReport();
+    const table = (await screen.findAllByRole('table'))[0];
+    const fitHeaders = Array.from(table.querySelectorAll('thead th'))
+      .map((th, i) => (th.classList.contains('rcx-col-fit') ? i : -1))
+      .filter((i) => i >= 0);
+    // م · تاريخ القبض · رقم الفاتورة · شهر الحساب · وسيلة القبض · المبلغ · قيمة الشيك الأصلية
+    expect(fitHeaders).toEqual([0, 1, 3, 4, 5, 7, 8]);
+    const firstRow = table.querySelector('tbody tr')!.querySelectorAll('td');
+    expect(firstRow[2].classList.contains('rcx-col-fit')).toBe(false); // العميل
+    expect(firstRow[6].classList.contains('rcx-col-fit')).toBe(false); // المرجع
+    // الخليّة المدمجة تحتفظ بأصنافها كلها.
+    expect(firstRow[8].className).toBe('money-cell rcx-merged-cell rcx-col-fit');
+    expect(firstRow[8].getAttribute('rowspan')).toBe('2');
+  });
+
   it('N) صفّ المجاميع لا يجمع «قيمة الشيك الأصلية» — ولا أثناء البحث السريع', async () => {
     renderPage();
     await openReceiptsReport();
