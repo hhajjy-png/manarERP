@@ -33,12 +33,12 @@
 | Field | Value |
 |-------|-------|
 | **Current Branch** | `production` |
-| **Current Merge Commit** | `5608cf60` — **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** (feature release). A true `--no-ff` merge of `feat/receipts-report-original-cheque-amount-v1` with two parents: `89644c4d` (base production) and `1ec69812` (feature HEAD; three commits — `9e9f2742` Revision 1, `74874cbe` Revision 2, `1ec69812` Revision 3). A **read-only report/presentation change** to the «المقبوضات» report inside the Comprehensive Reports centre: removed the average-value KPI, the «التوزيع حسب وسيلة القبض» section and the «حالة سداد الفاتورة» column (the status filter stays); added «شهر الحساب» (`Invoice.issueDate`, `M-YYYY`) and «قيمة الشيك الأصلية» — the sum of every `Payment` of the same cheque in the whole DB (key `CHEQUE + reference + customerId + day of Payment.date`, report filters ignored, one batched query per 500 references), shown once per **contiguous** cheque block via a real `rowspan` with a uniform group tint, never part of any total; the «عدد عمليات القبض» KPI counts actual receipt operations (a split cheque is one; non-cheque payments stay one each). New generic opt-in report-engine contract `ReportInput.rowGroupKey` + `ReportColumn.mergeRowGroup` (`rowGroups.ts`, mirrored in `frontend/src/lib/reportRowGroups.ts`); Excel keeps the value on the block's first row with blanks below (merged cells of unequal size break the autofilter sort). A receipts-only dense on-screen preview (`densePreview`/`fitColumnKeys`, `.rcx-*--dense`). The main Receipts page, schema, migrations (71), Prisma and data are untouched. Real-data examples: cheque `001474` ⇒ 5,050.000 over 4 invoices; `001527` ⇒ 2,405.000 over 2. Previous: `561fbb3d` (**Reports Center Run Button Stale Selection Fix v1**). |
-| **Current Documentation Commit** | the release-record `docs:` commit on top of the merge `5608cf60` (**Receipts Comprehensive Report Cleanup & Original Cheque Amount v1**), updating `PROJECT_STATE.md`, this file, and the package doc `docs/RECEIPTS_COMPREHENSIVE_REPORT_V1.md`. Previous: the release-record `docs:` commit `89644c4d` on top of `561fbb3d`. |
-| **Current Stable Tag** | `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` → `5608cf60` — annotated, placed on the **merge commit itself**, the same semantics used for feature releases such as `stable-reports-run-button-stale-selection-fix-v1`. The desktop-installer tag `stable-production-release-2026.5.10` → `d52d53dc` remains the current **desktop** release tag. |
-| **Current Release Date** | 2026-09-11 (Receipts Comprehensive Report Cleanup & Original Cheque Amount v1 — **feature release, no installer**) |
-| **Application Version** | **`2026.5.10` — unchanged.** This release is a report/presentation change merged onto `production` with **no version bump, no installer and no electron-builder run**. The current desktop build remains **Production Release 2026.5.10** (`d52d53dc`, installer `release/AlManarERP-Setup-2026.5.10.exe`). |
-| **Total Stable Releases** | 469 (window 2026-06-07 → 2026-09-11) — `git tag -l "stable-*"` count |
+| **Current Merge Commit** | `f9d756e0` — **Production Release 2026.5.11** (Desktop Installer). Not a merge: a packaging release whose only changed file is `package.json` (`2026.5.10` → `2026.5.11`), exactly as 2026.5.10 and 2026.5.9 were done. It ships every package merged onto `production` since the 2026.5.10 installer (`d52d53dc..f9d756e0`, 10 commits): two code-bearing — **Reports Center Run Button Stale Selection Fix v1** (merge `561fbb3d`) and **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1**, Revisions 1–3 (merge `5608cf60`) — plus three documentation commits. Migrations stay at **71** and Prisma models at **87** with nothing under `backend/prisma` changed across the delta. Installer `release/AlManarERP-Setup-2026.5.11.exe`, 138,588,866 bytes, SHA-256 `f1c2f181c3c94731777b7649592e1ca6dcae2c8dd94ca68af96e3fd547a93297`, self-contained (no runtime prerequisites). Previous: `5608cf60` (merge — Receipts Comprehensive Report Cleanup & Original Cheque Amount v1). |
+| **Current Documentation Commit** | the release-record `docs:` commit on top of `f9d756e0` (the release/version commit for **Production Release 2026.5.11**), updating `PROJECT_STATE.md`, this file, and the stale status header of `docs/EMPLOYEE_DEBT_ACKNOWLEDGMENT_V1.md`. Previous: `064eca8f` (release record of Receipts Comprehensive Report Cleanup & Original Cheque Amount v1). |
+| **Current Stable Tag** | `stable-production-release-2026.5.11` → `f9d756e0` — annotated, placed on the release/version commit, the same semantics as `stable-production-release-2026.5.10` → `d52d53dc`. The two feature releases it ships keep their own tags: `stable-reports-run-button-stale-selection-fix-v1` → `561fbb3d` and `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` → `5608cf60`. |
+| **Current Release Date** | 2026-09-11 (Production Release 2026.5.11 — **Desktop Installer Release**) |
+| **Application Version** | **`2026.5.11`** — **Production Release 2026.5.11**, a new self-contained Windows installer built from `f9d756e0`. Previous: **`2026.5.10`** (`d52d53dc`, 2026-09-10). Version agrees at every layer: root `package.json`, the asar's `package.json`, the packaged exe FileVersion `2026.5.11` / ProductVersion `2026.5.11.0`, and the installer's own version resource. |
+| **Total Stable Releases** | 470 (window 2026-06-07 → 2026-09-11) — `git tag -l "stable-*"` count |
 | **Live detail reference** | `PROJECT_STATE.md` (repo root) — the **live** state document: current production baseline, architecture and reference sections, plus the current release and the 15 most recent `## Previous Release` entries. This file is the distilled AI-readable summary. **Older release entries are archived, not deleted:** as of the 2026-09-08 rotation (*PROJECT_STATE Documentation Rotation & Maintenance v1*) the 172 oldest entries live verbatim in `docs/history/PROJECT_STATE_ARCHIVE_*.md`, indexed by `docs/history/README.md`, with the full accounting in `docs/history/ROTATION_MANIFEST_V1.md`. Rotation rules are in `PROJECT_STATE.md`'s own "Rotation & Archive Policy" section | **Feature documentation is split the same way:** `PROJECT_STATE.md` → `## Completed Features — Active Reference` states what the system does **today** (grouped by domain, ~16 KB), while the 126 detailed historical feature entries live verbatim in `docs/history/completed-features/` (4 domain files, indexed by its own `README.md`, accounting in `COMPACTION_MANIFEST_V1.md`) after the 2026-09-08 *Completed Features Documentation Compaction & Archive v1*. **If the active reference and an archived entry disagree, the active reference wins** — the archive deliberately preserves superseded designs (31 entries are marked as such), so never implement against an archived entry without checking the active reference and the code first |
 
 ---
@@ -415,6 +415,31 @@ Chromium PDF, and backend HTML reports.
 ---
 
 ## Latest Completed Releases
+
+- **Production Release 2026.5.11** (Desktop Installer)
+  (2026-09-11, `stable-production-release-2026.5.11` → `f9d756e0`) —
+  a new self-contained Windows installer carrying everything merged onto `production`
+  since the 2026.5.10 installer. The delta was read from git rather than assumed:
+  `d52d53dc..f9d756e0` is 10 commits with two code-bearing merges — **Reports Center Run
+  Button Stale Selection Fix v1** (`561fbb3d`: the per-card «تشغيل» button now runs the
+  clicked report, not the previously selected one) and **Receipts Comprehensive Report Cleanup
+  & Original Cheque Amount v1**, Revisions 1–3 (`5608cf60`: average KPI, method-breakdown
+  section and payment-status column removed; «شهر الحساب» and «قيمة الشيك الأصلية» added —
+  the latter from the whole DB, shown once per contiguous cheque block via rowspan with a group
+  tint; receipt-count KPI counts real operations; dense on-screen preview) — both RELEASED with
+  Product Owner approval, plus three documentation commits. Packaging only — the sole changed
+  file in the release commit is `package.json`. Migrations 71, Prisma models 87, no schema
+  change. Installer `release/AlManarERP-Setup-2026.5.11.exe` (138,588,866 bytes, SHA-256
+  `f1c2f181c3c94731777b7649592e1ca6dcae2c8dd94ca68af96e3fd547a93297`), no runtime prerequisites.
+  Packaged verification: asar and exe versions `2026.5.11`; all 262 frontend files and 418
+  backend files byte-identical to the build; zero probe/livetest entries. The packaged backend,
+  run with the packaged exe on throwaway data (never the real `userData` or `backend/data`),
+  served the receipts report with its nine columns, no sections, 95 receipt operations,
+  cheque `001474` ⇒ 5,050.000 over four invoices and `001527` ⇒ 2,405.000 over two, an HTML
+  export with seven rowspan blocks on A4 landscape, and Excel 200. The shipped first-run template
+  (`891798a4…`, integrity ok, 0 FK violations, 71/71 migrations) kept an identical hash through
+  every gate; the running dev app was stopped before packaging, with the owner's consent.
+  Product Owner Visual/Functional Review — APPROVED.
 
 - **Production Release 2026.5.10** (Desktop Installer)
   (2026-09-10, `stable-production-release-2026.5.10`) —

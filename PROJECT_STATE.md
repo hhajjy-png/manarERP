@@ -59,7 +59,8 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 | Field | Value |
 |-------|-------|
 | **Branch** | `production` |
-| **Production HEAD** | **`5608cf60`** (merge) + توثيق الإصدار فوقه — **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** (feature release), merge `5608cf60` (أبواه `89644c4d` و`1ec69812`), tag `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` → **commit الدمج نفسه**. تعديل قراءة/عرض لتقرير «المقبوضات» في التقارير الشاملة عبر ثلاث مراجعات: إزالة «متوسط قيمة العملية» وقسم «التوزيع حسب وسيلة القبض» وعمود «حالة سداد الفاتورة»، وإضافة «شهر الحساب» و«قيمة الشيك الأصلية» (من كامل قاعدة البيانات، مرّة واحدة لكل كتلة شيك بـrowspan ولون مجموعة)، و«عدد عمليات القبض» بالعمليات الفعلية، وعرض شاشة كثيف للمعاينة. الترحيلات **71 بلا تغيير** · صفر تغييرات مخطّط · صفر تغييرات بيانات. نسخة سطح المكتب تبقى **`2026.5.10`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual/Functional Review: **APPROVED** |
+| **Production HEAD** | **`f9d756e0`** (release/version) + توثيق الإصدار فوقه — **Production Release 2026.5.11** (Desktop Installer), tag `stable-production-release-2026.5.11` → **commit رفع النسخة نفسه** (نفس دلالة وسم 2026.5.10 الذي أشار إلى `d52d53dc`). مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج منذ مثبِّت 2026.5.10 (`d52d53dc..f9d756e0` = 10 commits): حزمتان تحملان كودًا (**Reports Center Run Button Stale Selection Fix v1** و**Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** بمراجعاتها الثلاث) وثلاث commits توثيقية. الترحيلات **71 بلا تغيير** · 87 نموذج Prisma · صفر ملف تحت `backend/prisma`. Product Owner Visual/Functional Review: **APPROVED** |
+| **Production HEAD before that** | **`5608cf60`** (merge) + توثيق الإصدار فوقه — **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** (feature release), merge `5608cf60` (أبواه `89644c4d` و`1ec69812`), tag `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` → **commit الدمج نفسه**. تعديل قراءة/عرض لتقرير «المقبوضات» في التقارير الشاملة عبر ثلاث مراجعات: إزالة «متوسط قيمة العملية» وقسم «التوزيع حسب وسيلة القبض» وعمود «حالة سداد الفاتورة»، وإضافة «شهر الحساب» و«قيمة الشيك الأصلية» (من كامل قاعدة البيانات، مرّة واحدة لكل كتلة شيك بـrowspan ولون مجموعة)، و«عدد عمليات القبض» بالعمليات الفعلية، وعرض شاشة كثيف للمعاينة. الترحيلات **71 بلا تغيير** · صفر تغييرات مخطّط · صفر تغييرات بيانات. نسخة سطح المكتب تبقى **`2026.5.10`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual/Functional Review: **APPROVED** |
 | **Production HEAD before that** | **`561fbb3d`** (merge) + توثيق الإصدار فوقه — **Reports Center Run Button Stale Selection Fix v1** (feature fix release), merge `561fbb3d` (أبواه `45f085d2` و`b51e1838`), tag `stable-reports-run-button-stale-selection-fix-v1` → **commit الدمج نفسه**. إصلاح إغلاق (stale closure) في زرّ «تشغيل» داخل بطاقة التقرير: كان قد يفتح التقرير المحدَّد سابقًا بدل تقرير البطاقة المضغوطة. التنفيذ صار يمرّر مفتاح البطاقة صراحةً بلا اعتماد على انتشار `setState`. تغطية انحدار مسوقة بسجلّ `REPORT_TYPES` (19 تقريرًا). العيب **قائم مسبقًا منذ Desktop Production 2026.5.9**، اكتُشف أثناء التحقّق من 2026.5.10 — ليس انحدارًا من حزم المقبوضات. الترحيلات **71 بلا تغيير** · صفر تغييرات مخطّط · صفر تغييرات خلفية · صفر تغييرات بصرية. نسخة سطح المكتب تبقى **`2026.5.10`** — إصدار إصلاح بلا مثبِّت ولا رفع نسخة. Product Owner Functional Review: **APPROVED** |
 | **Production HEAD before that** | **`d52d53dc`** (release/version) + توثيق الإصدار فوقه — **Production Release 2026.5.10** (Desktop Installer), tag `stable-production-release-2026.5.10` → **commit رفع النسخة نفسه** (نفس دلالة وسم 2026.5.9 الذي أشار إلى `ab9480d9`). مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج منذ مثبِّت 2026.5.9: حزمتان تحملان كودًا (**Employee Debt Acknowledgment Form v1** و**Receipts Page & Comprehensive Report v1**) وثلاث حزم توثيقية. الترحيلات **71 بلا تغيير** · 87 نموذج Prisma · قاعدة الإنتاج لم تُمَسّ. |
 | **Production HEAD before that** | **`bcd67793`** (merge) + توثيق الإصدار `1326b444` وcommit إغلاق الهاش فوقه — **Receipts Page & Comprehensive Report v1** (feature release يضمّ حزمتين: صفحة «المقبوضات» وتقرير «المقبوضات» في التقارير الشاملة), merge `bcd67793` (أبواه `968c18cf` و`313c77c0`), tag `stable-receipts-page-and-report-v1` → **commit الدمج نفسه**. الحزمتان تتشاركان مصدر الحقيقة نفسه (`Payment` لفواتير مبيعات فعّالة عبر `SALES_INVOICE_ACTIVE`) — تكافؤ الإجمالي والعدد **مُثبَت حيًّا على 10 حالات فلترة**. نسخة سطح المكتب تبقى **`2026.5.9`** — إصدار ميزة بلا مثبِّت ولا رفع نسخة. Product Owner Visual Review: **APPROVED** |
@@ -78,12 +79,12 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 | **Previous production HEAD** | `d94dfe26` — release `stable-production-resource-integrity-audit-fix-pack-v1` (**Production Resource Integrity Audit & Fix Pack v1** — merge of `feature/production-resource-integrity-audit-fix-pack-v1`. Fixes the Employment Contract's Public Authority for Manpower emblem not rendering in the packaged production build: `EmploymentContractTemplate.tsx` loaded it via a hardcoded root-absolute `public/` path instead of a bundled ES module import, which resolves fine under Vite's dev server but breaks under `file://` packaging (`base: './'`) since a root-absolute path resolves against the filesystem root, not `frontend/dist/`. Fixed by moving the asset into `frontend/src/assets/` and importing it as an ES module, matching every other bundled image in the project. Audited every other resource-loading path (backend font/DB/attachments/backup resolution, print/PDF `<base href>` composition, branding/signature/stamp data-URL assets, QR/barcode generation, `electron-builder.yml` packaging config) — no other instance of this bug class found. 2 files (1 modified, 1 new); frontend-only. No schema/permission/route change. TypeScript zero errors on backend/frontend/electron; frontend build verified (asset emitted as a correctly hashed, relative path); 105 targeted frontend tests + full backend suite (186 files/2874 tests) green. Product Owner manual visual review: **completed** prior to release authorization) |
 | **Production HEAD before that** | `0712c905` — release `stable-production-release-2026.3.1` (**View Zoom Manual Save Pack v1** — merge of `feature/view-zoom-manual-save-pack-v1`. Replaces View Zoom Persistence Pack v1's auto-save design (`zoom-changed` listener + 400ms debounce) with an explicit manual save. Root cause, found via a live runtime investigation (temporary file-based logging instrumentation on `did-finish-load`/`zoom-changed`/navigation/focus/blur events built into a real production installer, run by the Product Owner, then fully reverted — zero trace confirmed via `git diff`): `zoom-changed` fires ONLY for mouse-wheel zoom, per Electron's own docs and confirmed live down to sub-second timestamps — never for the `role: 'zoomIn'`/`'zoomOut'` items the View menu actually uses. The auto-save path had never captured a single menu-driven zoom change; Chromium's own per-origin zoom resync on the next same-page navigation (`did-navigate-in-page`) then reapplied the stale disk value to the live window — captured in the log as a revert exactly once, within 249ms of the first navigation after a menu zoom change, never again for the rest of the session. `viewZoomPreference.pure.ts` lost `createZoomPersistenceController`/`ZoomPersistenceController`/`DEFAULT_SAVE_DEBOUNCE_MS`; `readSavedZoomLevel`/`saveZoomLevel`/`clampZoomLevel` and the on-disk format are unchanged. `main.ts` keeps the same one-time `.once('did-finish-load', …)` restore (never reapplied mid-session) and adds one View-menu item, "💾 حفظ مستوى التكبير الحالي كافتراضي", reading the live zoom via `getZoomLevel()` and writing it synchronously via `saveZoomLevel` — no debounce, no listener — then showing a native `Notification`. 3 files (2 modified, 1 test file rewritten: 13 obsolete tests removed, 10 new); electron only. TypeScript zero errors; `electron:build` passes pre- and post-merge; Electron+scripts 463/464 (one pre-existing unrelated failure, confirmed via `git stash` to already fail on unmodified `production`). No schema/permission/route change. Product Owner manual visual review: **completed** prior to release authorization)
 | **Official reference** | **`PROJECT_MASTER_STATUS.md`** — single source of truth reconstructed from Git; this file (PROJECT_STATE.md) is the working summary · **Release history:** the current release plus the 15 most recent are in the release log below; everything older is archived verbatim in [`docs/history/`](docs/history/README.md) |
-| **Latest stable tag** | `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` (2026-09-11, annotated) → merge `5608cf60` · checkpoint `checkpoint/pre-receipts-report-cheque-amount-v1` → `89644c4d`. Feature release — no installer, no version bump |
-| **Previous stable tag** | `stable-reports-run-button-stale-selection-fix-v1` → merge `561fbb3d`. **Current Desktop installer release:** `stable-production-release-2026.5.10` → release commit `d52d53dc`. Earlier tags are listed in the release log below and, for older ones, in `docs/history/` |
-| **Application version** | **`2026.5.10`** — read from `package.json`. Set by **Production Release 2026.5.10** (installer `AlManarERP-Setup-2026.5.10.exe`). **Unchanged by the two feature releases that followed it** (Run Button Stale Selection Fix v1, Receipts Comprehensive Report Cleanup & Original Cheque Amount v1), neither of which touched `package.json` |
-| **Total stable releases** | 469 (all merged onto `production`; window 2026-06-07 → 2026-09-11) — `git tag -l "stable-*"` count |
-| **Latest validation** | **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** (2026-09-11), on the feature HEAD `1ec69812` before merge and re-run on `production` after it: `tsc --noEmit` clean for backend, frontend and electron · `build:back` and `build:front` green · backend 3,811/3,816 · frontend 4,657/4,660 · electron 502/502 · **zero new failures** (the pre-existing ones: `chequeDesignerTemplates.integration.contract` ×5, `entitlementsBankExport` ×2, `employeeCompensationBatchPrint` ×1). Migrations 71/71 unchanged, `schema.prisma` untouched. The last installer-level validation (packaging audit, packaged smoke) is the one recorded for **Production Release 2026.5.10** |
-| **Remote sync** | `production` == `origin/production` (verified with `git rev-parse`; 0 ahead / 0 behind) — رأسه commit توثيق الإصدار فوق merge `5608cf60`، وهو المرساة المعتمدة للإصدار. Tag `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` (→ merge `5608cf60`, annotated) مرفوع، و`feat/receipts-report-original-cheque-amount-v1` مرفوع إلى `1ec69812` ومضمَّن في `production` |
+| **Latest stable tag** | `stable-production-release-2026.5.11` (2026-09-11, annotated) → release commit `f9d756e0` — **the current Desktop installer release** |
+| **Previous stable tag** | `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` → merge `5608cf60` (feature release shipped inside 2026.5.11). **Previous Desktop installer release:** `stable-production-release-2026.5.10` → `d52d53dc`. Earlier tags are listed in the release log below and, for older ones, in `docs/history/` |
+| **Application version** | **`2026.5.11`** — read from `package.json`. Set by **Production Release 2026.5.11** (installer `AlManarERP-Setup-2026.5.11.exe`, SHA-256 `f1c2f181…3297`). Previous: `2026.5.10` (`d52d53dc`) |
+| **Total stable releases** | 470 (all merged onto `production`; window 2026-06-07 → 2026-09-11) — `git tag -l "stable-*"` count |
+| **Latest validation** | **Production Release 2026.5.11** (2026-09-11), on `production` before the version bump: `tsc --noEmit` clean for backend, frontend and electron · backend 3,811/3,816 · frontend 4,657/4,660 · electron 502/502 · **zero new failures** (pre-existing: `chequeDesignerTemplates.integration.contract` ×5, `entitlementsBankExport` ×2, `employeeCompensationBatchPrint` ×1) · `prisma validate` · `migrate status` 71/71 (on a copy of the template DB) · `npm run dist` green (Prisma model-set guard 87 ✓, runtime-deps: none) · packaged-backend smoke on throwaway data |
+| **Remote sync** | `production` == `origin/production` (verified with `git rev-parse`; 0 ahead / 0 behind) — رأسه commit توثيق الإصدار فوق commit الإصدار `f9d756e0`. Tag `stable-production-release-2026.5.11` (→ `f9d756e0`, annotated) مرفوع إلى origin |
 | **Currency display** | Company setting `finance.currencyDisplayLanguage` (english default / arabic) — **selects the symbol only, never the digits**: English `1,250.000 KWD`, Arabic `1,250.000 د.ك`. **Digits are always Western** and money always carries **3 fixed decimals** (`0` → `0.000`; not-applicable → `—`). Standalone values (cards, drawers) put the **number before the symbol**; table and report cells carry the **bare number**, with the symbol appearing **once in the column header** (`المبلغ (KWD)`). Standardized on screen, in print, in the Chromium PDF and in the backend HTML reports by `stable-financial-number-date-presentation-standardization-v1`. Excel stays numeric (`#,##0.000`); CSV and the NBK salary file are unchanged. |
 | **DB path (dev)** | `backend/data/manar.db` |
 | **DB path (prod)** | `userData/data/manar.db` |
@@ -95,7 +96,87 @@ outside its declared scope and is recorded as an open finding in the rotation ma
 
 ---
 
-## Latest Release — Receipts Comprehensive Report Cleanup & Original Cheque Amount v1
+## Latest Release — Production Release 2026.5.11 (Desktop Installer)
+
+> **الحالة:** RELEASED / COMPLETED — Desktop Production Release · **Product Owner Visual/Functional Review — APPROVED**
+
+| Field | Value |
+|-------|-------|
+| **Package** | مثبِّت Windows جديد مكتفٍ ذاتيًا يجمع كل ما دُمج على `production` منذ مثبِّت **2026.5.10** — إصدار تغليف، بلا أي عمل ميزات جديد |
+| **Release date** | 2026-09-11 |
+| **Desktop version** | **`2026.5.10` → `2026.5.11`** — `package.json` هو الملف الوحيد المتغيّر في commit الإصدار (نفس عُرف 2026.5.10) |
+| **Starting production HEAD** | `064eca8f` |
+| **Release/version commit** | **`f9d756e0`** — `chore(release): Production Release 2026.5.11` |
+| **Stable tag** | `stable-production-release-2026.5.11` → **`f9d756e0`** (commit رفع النسخة، لا commit التوثيق — نفس دلالة 2026.5.10 → `d52d53dc`) |
+| **Previous desktop release** | `stable-production-release-2026.5.10` → `d52d53dc` |
+
+### الدلتا — مستخرجة من Git لا من الذاكرة
+
+`d52d53dc..f9d756e0` = **10 commits**، منها **عمليتا دمج** حاملتان للكود؛ 21 ملف كود + `package.json` و4 ملفات توثيق.
+
+| # | الحزمة | الدمج | النوع |
+|---|---|---|---|
+| 1 | **Reports Center Run Button Stale Selection Fix v1** | `561fbb3d` | **كود** · PO APPROVED |
+| 2 | **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** — Revisions 1–3 (`9e9f2742` · `74874cbe` · `1ec69812`) | `5608cf60` | **كود** · PO APPROVED |
+| — | سجلّات الإصدار: `45f085d2` (2026.5.10) · `89644c4d` · `064eca8f` | — | توثيق |
+
+لا حزمة IMPLEMENTED خارج `production` مطلوبة لهذا الإصدار: الفروع البعيدة غير المدموجة الثلاثة
+(`feature/bank-statement-order-preservation-current-balance-fix-v1`، `feature/google-drive-backup-phase1`،
+`feature/invoice-prefix-selector`) أقدم من إصدارات عديدة لاحقة ولم تُطلب.
+
+### QA
+
+| الفحص | النتيجة |
+|---|---|
+| backend | **3,811/3,816** · 5 إخفاقات **قائمة قبل الإصدار** (`chequeDesignerTemplates.integration.contract` ×5) |
+| frontend | **4,657/4,660** · 3 إخفاقات **قائمة قبل الإصدار** (`employeeCompensationBatchPrint` ×1، `entitlementsBankExport` ×2) |
+| electron | **502/502** ✅ |
+| **انحدارات جديدة** | **صفر** |
+| TypeScript | `tsc --noEmit` نظيف: backend · frontend · electron |
+| Prisma | `prisma validate` ✅ · `migrate status` على نسخة القالب: 71/71 «Database schema is up to date» |
+| Builds | `build:back` · `build:front` · `electron:build` ضمن `npm run dist` · حارس مجموعة نماذج Prisma: **87 مطابقًا** ✓ |
+
+### قاعدة البيانات
+
+| البند | القيمة |
+|---|---|
+| الترحيلات | **71** — بلا تغيير منذ 2026.5.9 (`20260907120000_add_leave_request_date` آخرها) |
+| نماذج Prisma | **87** — بلا تغيير · صفر ملف تحت `backend/prisma` عبر الدلتا |
+| **قالب القاعدة المشحون** | `backend/data/manar.db` · SHA-256 `891798a4b6ac099f8a1f3a2944235ef070b6669e05952cbedccf1504aeda0f03` · 4,194,304 بايت · `integrity_check = ok` · 0 مخالفة FK · 88 جدولًا · 71 ترحيلًا مطبَّقًا (صفّ تاريخي مُتراجَع عنه لـ`add-project-prices` منذ يونيو، مطبَّق لاحقًا) · بلا ملفات journal · بصمة ثابتة عبر كل بوابات الإصدار، ومطابقة لـ`build/seed-data/golden-manifest.json` |
+| ملاحظة | البصمة تختلف عن قالب 2026.5.10 (`417272f8…`) بفعل عمل تشغيلي في تطبيق التطوير بين الإصدارين (منه تصحيح طريقة سداد INV-0140 بنسخة احتياطية `pre-inv0140-payment-method-20260911-011839.bak`) — لا بفعل هذا الإصدار. نسخة التطوير الحيّة أُوقفت قبل التغليف بموافقة المالك (قاعدة «أغلق التطبيق قبل الإصدار») |
+
+### المثبِّت
+
+| البند | القيمة |
+|---|---|
+| المسار | `release/AlManarERP-Setup-2026.5.11.exe` |
+| الحجم | **138,588,866 بايت** (~132.2 ميجابايت) |
+| SHA-256 | `f1c2f181c3c94731777b7649592e1ca6dcae2c8dd94ca68af96e3fd547a93297` |
+| الهدف | NSIS · `perMachine: false` · electron-builder 24.13.3 · Electron 31.0.0 |
+| متطلبات وقت التشغيل | **لا شيء** — `analyze-runtime-deps` فحص 10 ملفات PE |
+| مصدر البناء | شجرة عمل نظيفة عند `f9d756e0` (HEAD = الوسم) |
+
+### التطبيق المعبأ — تحقّق النسخة والمحتوى
+
+| البند | القيمة |
+|---|---|
+| `package.json` الجذر / `app.asar/package.json` | `2026.5.11` / `2026.5.11` |
+| exe المعبأ — FileVersion / ProductVersion | `2026.5.11` / `2026.5.11.0` |
+| المثبِّت — FileVersion / ProductVersion | `2026.5.11` / `2026.5.11` |
+| أصول الواجهة داخل `app.asar` | **262/262** مطابقة بايتًا لـ`frontend/dist` · تحمل صنوف Revisions 1–3 |
+| الخلفية المعبأة | **418/418** ملفًا مطابقة لـ`backend/dist` (بما فيها `receiptsChequeAmounts.js` و`rowGroups.js`) |
+| `__probe__` / `__livetest__` | **0** مدخل |
+| الخلفية المعبأة على بيانات معزولة | exe المعبأ نفسه كـNode (`ELECTRON_RUN_AS_NODE=1`) على `dist/server.js` بمحرّك Prisma المشحون وقاعدة **نسخة مؤقتة** — لم يُفتح `userData` الحقيقي ولا `backend/data`: `/health` OK · تقرير المقبوضات 104 صفًّا بتسعة أعمدة (بلا «حالة سداد الفاتورة»، مع «شهر الحساب») · 0 أقسام · بلا متوسط · «عدد عمليات القبض» 95 · الإجمالي 946,548.600 · **`001474` ⇒ 5,050.000 على 4 فواتير · `001527` ⇒ 2,405.000 على فاتورتين** · HTML: 7 كتل rowspan و16 صفّ مجموعة و A4 أفقي · Excel HTTP 200 · تقرير آخر بلا تجميع |
+
+> لم يُشغَّل التطبيق المعبأ كاملًا بواجهته: مساره يحلّ القاعدة داخل `userData` الحقيقي، فاختير فحص الخلفية
+> المعبأة على بيانات مؤقتة بدل مخاطرة لمس بيانات التطبيق المثبَّت. التحقّق البصري من الواجهة المعبأة بعهدة المالك.
+
+**عدد مدخلات سجلّ الإصدار:** 16 — تجاوز عتبة التدوير (~15) بمدخل واحد. **لم يُدوَّر هنا** (لا حزمة توثيق
+مستقلة داخل إصدار) — يُوصى بحزمة تدوير لاحقة.
+
+---
+
+## Previous Release — Receipts Comprehensive Report Cleanup & Original Cheque Amount v1
 
 > **الحالة:** RELEASED / COMPLETED · **Product Owner Visual/Functional Review — APPROVED**
 

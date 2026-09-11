@@ -1,7 +1,9 @@
 # Employee Debt Acknowledgment Administrative Form v1 — إقرار دين موظف
 
-> **الحالة: `IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW`**
-> غير مُصدَر. لا دمج، لا وسم إصدار، لا رفع نسخة سطح المكتب، لا مثبِّت.
+> **الحالة: `RELEASED / COMPLETED`** — Product Owner Visual Review: **APPROVED** (2026-09-10).
+> الدمج `814116b4` (`--no-ff`، أبواه `a3c5b18e` و`618f00b0`) · الوسم `stable-employee-debt-acknowledgment-form-v1` → commit الدمج نفسه.
+> شُحن لأول مرة في مثبِّت **Desktop Production 2026.5.10** (`stable-production-release-2026.5.10` → `d52d53dc`)، ويبقى داخل **2026.5.11**.
+> *(تصحيح حالة فقط أثناء إصدار 2026.5.11 — كانت الترويسة ما زالت تقول «IMPLEMENTED — AWAITING PRODUCT OWNER VISUAL REVIEW». الجدول أدناه يصف حالة التنفيذ قبل الدمج كما سُجّلت آنذاك.)*
 
 | الحقل | القيمة |
 |---|---|
