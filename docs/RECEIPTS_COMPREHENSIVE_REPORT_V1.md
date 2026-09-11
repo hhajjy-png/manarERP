@@ -6,6 +6,12 @@
 > **الدمج:** `bcd67793` (merge `--no-ff`، أبواه `968c18cf` و`313c77c0`) · **الوسم:** `stable-receipts-page-and-report-v1` → commit الدمج نفسه
 > **الفرع:** `feature/receipts-page-v1` · **الأساس:** `968c18cf` · **commits:** `a82796a8` (الصفحة) · `313c77c0` (التقرير)
 > نسخة سطح المكتب **`2026.5.9` لم تتغيّر** — إصدار ميزة بلا رفع نسخة ولا مثبِّت.
+>
+> **Receipts Comprehensive Report Cleanup & Original Cheque Amount v1** — `RELEASED / COMPLETED`، 2026-09-11
+> **Product Owner Visual/Functional Review — APPROVED**
+> **الدمج:** `5608cf60` (merge `--no-ff`، أبواه `89644c4d` و`1ec69812`) · **الوسم:** `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` → commit الدمج نفسه
+> **الفرع:** `feat/receipts-report-original-cheque-amount-v1` · **الأساس:** `89644c4d` · **commits:** `9e9f2742` (Revision 1) · `74874cbe` (Revision 2) · `1ec69812` (Revision 3)
+> نسخة سطح المكتب **`2026.5.10` لم تتغيّر** — إصدار ميزة بلا رفع نسخة ولا مثبِّت. سجلّ الإصدار في §18.
 
 ---
 
@@ -365,8 +371,8 @@ buildReceiptsReport()
 1. **لا دورة حياة للشيك الوارد** — كل قبض مؤكَّد بتاريخه المسجَّل (§11).
 2. **لا فلتر مدى مبلغ في الواجهة** — مدعوم في الـAPI، وغير معروض اتّباعًا لاتفاقية
    المركز (§5).
-3. **الطباعة أفقية** لأن التقرير يرسل قسم التوزيع — قاعدة `ReportPrint` القائمة،
-   ومطابقة لسلوك `collections-summary`.
+3. **الطباعة أفقية** — كانت بحكم قسم التوزيع؛ بعد إزالته (Cleanup v1) تُثبَّت عبر
+   `WIDE_TABLE_REPORTS` في `ReportPrint.tsx`.
 4. **لا ترقيم** — بحكم بنية مركز التقارير، وهو ما يجعل التصدير شاملًا بالضرورة.
 5. **ESLint غير متاح** في المستودع (`eslint` غير مثبَّت في `frontend`) — قائم قبل
    هذه الحزمة ولم يُلمس.
@@ -379,3 +385,27 @@ buildReceiptsReport()
 - لا مسّ لصفحة `#/receipts` ولا لسلوكها (بما فيه قاعدة الشهر الحالي/السابق).
 - لا مسّ لصفحة «تحليل التحصيلات» ولا لأي تقرير قائم.
 - لا release · لا version bump · لا installer · لا stable tag · لا دمج في `production`.
+
+---
+
+## 18. سجلّ إصدار Cleanup & Original Cheque Amount v1
+
+| الحقل | القيمة |
+|---|---|
+| الحالة | **RELEASED / COMPLETED** — 2026-09-11 |
+| المراجعة | **Product Owner Visual/Functional Review — APPROVED** |
+| الفرع | `feat/receipts-report-original-cheque-amount-v1` @ `1ec69812` |
+| الأساس / وسم التحقّق | `production` @ `89644c4d` · `checkpoint/pre-receipts-report-cheque-amount-v1` |
+| الدمج | `5608cf60` — `--no-ff`، أبواه `89644c4d` و`1ec69812`؛ الشجرة المدموجة مطابقة لشجرة الفرع |
+| الوسم المستقرّ | `stable-receipts-comprehensive-report-cleanup-original-cheque-amount-v1` (annotated) → `5608cf60` |
+| نسخة سطح المكتب | `2026.5.10` بلا تغيير — لا مثبِّت ولا electron-builder ولا رفع نسخة |
+
+**QA قبل الدمج (رأس الفرع):** `tsc --noEmit` نظيف للخلفية والواجهة وإلكترون · `build:back` و
+`build:front` ناجحان · الخلفية 3,811/3,816 · الواجهة 4,657/4,660 · إلكترون 502/502 · **صفر إخفاق
+جديد** (القائمة مسبقًا على `production`: `chequeDesignerTemplates.integration.contract` ×5،
+`entitlementsBankExport` ×2، `employeeCompensationBatchPrint` ×1). **بعد الدمج:** اختبارات التقارير
+والمحرّك (394) وواجهة المقبوضات/الطباعة/المستحقات (43) ناجحة على `production`.
+
+**قاعدة البيانات:** صفر تغييرات في `schema.prisma` والترحيلات (71) و Prisma والبيانات؛ الحزمة لا
+تكتب شيئًا. نسخة تطوير حيّة من التطبيق كانت تكتب في `backend/data/manar.db` أثناء الجلسة، فبصمته
+تتغيّر بفعلها؛ البصمة عند نافذة الإصدار `ec62a495…`. كل تحقّق حيّ في هذه الحزمة جرى على نسخ مؤقتة.
